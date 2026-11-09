@@ -1,0 +1,18 @@
+# sha256 van testdata met een beperkende licentie (BG-37): Pioneer One (CC BY-NC-SA) en de fanondertitels.
+# Alleen controlesommen, geen inhoud. Bron: media-corpus/SHA256SUMS.bron.txt en SHA256SUMS.ondertitels.txt (2026-11-09).
+b6858e9b1721e87bf6145dd25cb667c53887fdf990f4a81f486eccf408492fae  CC BY-NC-SA / fanondertitel (BG-37): S01E01.en.Pioneer_One_-_01x01_-_Episode_1.REDUX.English.updated.Addic7ed.com.srt
+fe6ce51ce147d86ed9fd1abf9d2cac313d30d881e0bb4143f09235cbe6477b25  CC BY-NC-SA / fanondertitel (BG-37): S01E01.en.REFIX-VODO.English.updated.Addic7ed.com.srt
+0eee033c24aefd546510f4206663ff2075eb0a33b4fde448a9ab0d6a495d48ab  CC BY-NC-SA / fanondertitel (BG-37): S01E01.en.VODO.English.C.updated.Addic7ed.com.srt
+92bdbacb3f501c0201737b90991b94b70ca3d3c50cc0c46e1ca2187139d40382  CC BY-NC-SA / fanondertitel (BG-37): S01E01.nl.Dutch.C.updated.Addic7ed.com.srt
+dcd01a95145486ef1807bc1f028893c61798fa5e1eb21803afeedc1531897919  CC BY-NC-SA / fanondertitel (BG-37): S01E01.nl.Dutch.updated.Addic7ed.com.srt
+b4f3357283b6229072d223a7164c93d27f4b6cfccbe037b1bf42f0e2cd85e2c3  CC BY-NC-SA / fanondertitel (BG-37): S01E02.en.English.updated.Addic7ed.com.srt
+601d63b0aee15edc22a8ce1ff802322589b997c88bee4f47254389cfc7ea53aa  CC BY-NC-SA / fanondertitel (BG-37): S01E03.en.English.updated.Addic7ed.com.srt
+a6e04514898b47858226d7feee7a9321102292375131bb8c9b6dff587ad282fd  CC BY-NC-SA / fanondertitel (BG-37): S01E04.en.English.updated.Addic7ed.com.srt
+0dff28430b893f00ceaef01d931849531fa5d586ab02efb6b4815fc37fbb87fa  CC BY-NC-SA / fanondertitel (BG-37): S01E05.en.English.updated.Addic7ed.com.srt
+26e7a3793e9aa0de4153fb0ba9b533c40434e331375620638ad54620e5454a7c  CC BY-NC-SA / fanondertitel (BG-37): S01E06.en.English.updated.Addic7ed.com.srt
+94a00a806f0830f0dca8d1b9e4727940fa9892e347916c3189bab2e39c3106f9  CC BY-NC-SA / fanondertitel (BG-37): Pioneer.One.S01E01.720p.x264-VODO.mp4
+45ef3c38b2d15f2631d1014c2f5d38cef905efbba8bea85ce8b97de7bf0c431f  CC BY-NC-SA / fanondertitel (BG-37): Pioneer.One.S01E02.720p.x264-VODO.mp4
+414423fc83fc10810fd483f514af0481c759f9ab2310411970527e82e0aacc01  CC BY-NC-SA / fanondertitel (BG-37): Pioneer.One.S01E03.720p.x264-VODO.mp4
+3e0357b27926d9b31deaf1f27bfd3deaf5d47f35424edd3a2f231a2b7b335fe0  CC BY-NC-SA / fanondertitel (BG-37): Pioneer.One.S01E04.720p.x264-VODO.mp4
+1930d3ad95102c81101ca6a01c38619d4cfcd2e17afbc2997d72dbd426218f56  CC BY-NC-SA / fanondertitel (BG-37): Pioneer.One.S01E05.720p.x264-VODO.mp4
+e3f6a3176c1fe09427467cb9e9197f165d515a6a8b4b20fb923a0409ca37aaa7  CC BY-NC-SA / fanondertitel (BG-37): Pioneer.One.S01E06.720p.x264-VODO.mp4
