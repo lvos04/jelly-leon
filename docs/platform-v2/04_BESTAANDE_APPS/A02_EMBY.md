@@ -24,3 +24,12 @@ MediaGuard stond eerder gekoppeld met Emby; controleer of die hook nog actief is
 **Acceptatie:** Onderzoek refresh/playback/bibliotheek; switch alleen na zelfde resultaat in Jellyfin.
 
 **Gereed wanneer:** installatiestatus en functionele proef op echte TrueNAS gelogd zijn; bij stoppen kunnen gebruikers in één handeling naar de oude app terug.
+
+## Aanvulling 2026-11-09 — kijkgeschiedenis en Emby verwijderen (ADR-0020)
+De gebruiker gebruikt nu Emby; de kijkgeschiedenis staat daar. "Het belangrijkste is mijn kijkgeschiedenis; als alles werkt
+verwijder ik Emby." De overname naar Jelly Leon is B03-015 deel A (prioriteit P0, al in golf 0; testen JLT-70…74): alleen
+lezen uit Emby, vóór/na-rapport per gebruiker met akkoord, laatste delta bij de overstap. MediaGuard volgt tot dan Emby én
+Jelly Leon (Δ-MG-DUAL); de Emby-koppeling onderbreekt nooit. Deze rij (APP-02) en I26-26-02 blijven gelden: Emby gaat pas
+uit na aantoonbaar gelijk resultaat, een besluit van de gebruiker en de controlelijst "Emby verwijderen" (bouwplan B03
+§10.9.2: laatste delta, eindrapport + akkoord, ZFS-snapshot, blijvend JSON-exportarchief met sha256 in de back-updekking,
+MediaGuard laat Emby los). De gebruiker verwijdert Emby zelf; app stoppen en data verwijderen blijven aparte stappen (A4).

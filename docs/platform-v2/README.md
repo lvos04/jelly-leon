@@ -12,6 +12,28 @@ kopieën uit `lvos04/ai-server-manager` (bron van waarheid, bron-commit `8b54f39
 
 Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; ze worden via de onboarding-wizard in de web-UI vastgelegd.
 
+## B03 2.0 — universele mediaserver (goedgekeurd door de gebruiker op 2026-11-09)
+
+- `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md` (versie 2.0), `02_BOUWPLANNEN/B03_FASERING.md` en
+  `02_BOUWPLANNEN/B03_BESLUITEN.md` zijn byte-gelijke kopieën uit `lvos04/ai-server-manager` (bron-commit `0f390bf`),
+  net als `00_START/INHOUDSOPGAVE.md`, `04_BESTAANDE_APPS/A02_EMBY.md` en `04_BESTAANDE_APPS/A03_JELLYPLEX_WATCHED.md`.
+  Nooit hier bewerken: een nieuwe stand overnemen = opnieuw byte-gelijk kopiëren uit de bron.
+- **HARDE EIS van de gebruiker:** alle kijkgeschiedenis (gezien-status, hervatpunten, favorieten, beoordelingen, onthouden
+  spoorkeuzes, gebruikers, rechten) en de MediaGuard-voortgang blijven altijd beschikbaar (bouwplan §10.9 en B03-015). Geen
+  cutover zonder vóór/na-rapport per gebruiker en uitdrukkelijk akkoord van de gebruiker op elk verschil (ook door
+  upstream-migraties); de bestaande installatie blijft ongewijzigd als terugval.
+- **Huidige mediaserver: Emby.** De gebruiker: "Het belangrijkste is mijn kijkgeschiedenis; als alles werkt verwijder ik
+  Emby." De overname vanuit Emby (B03-015, testen JLT-70…74) heeft prioriteit P0 en begint al in golf 0, tegen stock 12.4
+  met een echte Emby-container. Emby wordt alleen gelezen (API-sleutel, alleen GET) en blijft ongewijzigd draaien tot de
+  gebruiker na de controlelijst "Emby verwijderen" (bouwplan §10.9.2) zelf besluit; de gebruiker verwijdert Emby zelf.
+  Deze repo levert de overnametool en het vóór/na-rapport (eerst JellyPlex-Watched beoordelen op licentie en hergebruik).
+- ADR-nummers in die kopieën: ADR-0001…0011 zijn de ADR's van deze repo; "ADR-0016…0020 in `docs/adr/`" (bouwplan) en
+  "ADR-0020" (`A02_EMBY.md`) zijn ADR's van ai-server-manager. De ADR-voorstellen ADR-B03-01…13 uit het bouwplan staan,
+  voor zover ze deze fork raken, hier als ADR-0015…0024 (overzicht en herkomst in [`../adr/README.md`](../adr/README.md)).
+- `EXCEL_TAKEN.json` bevat de volledige B03-set: B03-001…079 (de uitgebreide rijen B03-004/005/007/009/010/013 vervangen
+  de oude rijen; de oude tekst staat er letterlijk vooraan in) en de testrijen JLT-01…74 (conventie van ai-server-manager:
+  Fase `P6 - E2E`, Soort `Testen`, startstatus en bewijsrijen in `Afhankelijkheid`). Nooit `Gereed` of `Geslaagd`.
+
 ## Bestanden
 
 - `PLATFORM_CONTRACTEN.md` (kopie, contract 1.2)
@@ -29,7 +51,9 @@ Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; z
 - `01_ARCHITECTUUR/06_FASERING_EN_GATES.md`
 - `01_ARCHITECTUUR/07_API_EN_EVENTSCHEMA.md`
 - `01_ARCHITECTUUR/08_UI_EN_INTERACTIES.md`
-- `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md`
+- `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md` (versie 2.0, kopie)
+- `02_BOUWPLANNEN/B03_FASERING.md` (kopie)
+- `02_BOUWPLANNEN/B03_BESLUITEN.md` (kopie)
 - `03_INSTALLATIE/I06_JELLYFIN.md`
 - `03_INSTALLATIE/I22_NAVIDROME_OPT.md`
 - `03_INSTALLATIE/I24_UNIVERSELE_MEDIASERVER.md`

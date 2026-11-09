@@ -24,3 +24,9 @@ Onderzoek of cross-server seen status nog nodig is.
 **Acceptatie:** Test watch/resume state van minstens 3 gebruikers voor/na stop.
 
 **Gereed wanneer:** installatiestatus en functionele proef op echte TrueNAS gelogd zijn; bij stoppen kunnen gebruikers in één handeling naar de oude app terug.
+
+## Aanvulling 2026-11-09 — hergebruik bij de Emby-overname
+Vóór er een eigen overnametool komt, beoordeelt B03-015 (stap A2) JellyPlex-Watched op licentie (GPL-3.0 volgens GitHub op
+2026-11-09, release v9.0.0; als los proces naast de GPL-2.0-only fork) en hergebruik (alleen-lezen tegen Emby, per gebruiker,
+hervatpunten, droog rapport). Het besluit komt in een ADR in jelly-leon. De beslissing over de app zelf (APP-03) blijft los
+daarvan staan.

@@ -21,7 +21,9 @@ Peildatum: 9 november 2026. Alle applicaties draaien op TrueNAS; geen deployment
 ### 02_BOUWPLANNEN (15 documentatiebestanden)
 - `02_BOUWPLANNEN/B01_HOME_CONTROL_HUB.md`
 - `02_BOUWPLANNEN/B02_AI_SERVER_MANAGER.md`
-- `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md`
+- `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md` (versie 2.0, goedgekeurd 2026-11-09)
+- `02_BOUWPLANNEN/B03_FASERING.md` (P4-0, golven 0–4, gates; toegevoegd 2026-11-09)
+- `02_BOUWPLANNEN/B03_BESLUITEN.md` (genomen en open besluiten BG-01…38; toegevoegd 2026-11-09)
 - `02_BOUWPLANNEN/B04_MEDIAGUARD_DELTA.md`
 - `02_BOUWPLANNEN/B05_MSO_DELTA.md`
 - `02_BOUWPLANNEN/B06_MY_HOUSE_DELTA.md`
@@ -118,6 +120,7 @@ Peildatum: 9 november 2026. Alle applicaties draaien op TrueNAS; geen deployment
 ## Excel
 - `08_EXCEL/TrueNAS_V2_Uitvoering_en_Afvinken.xlsx`: Dashboard, Werkpakketten, Testmatrix, Besluiten, Fasen, Appoverzicht, Releases, Instructies.
 - `08_EXCEL/tasks.json`: machineleesbare taak/exportbron voor automation indien gewenst.
+- `08_EXCEL/b03/`: invoer van B03 2.0 voor `tools/excel/update_excel.py` (werkpakketten, testrijen JLT-01…74, `EXCEL_TAKEN_PER_REPO.json`, faserij P4-0; toegevoegd 2026-11-09).
 
 ## Hoe de bouwer dit moet uitvoeren
 1. Begin met een preflight in Excel en hersteltest van OneDrive/DB.
