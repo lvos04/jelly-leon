@@ -58,12 +58,15 @@ ARG WEB_REF=unknown
 LABEL org.opencontainers.image.title="Jelly Leon" \
       org.opencontainers.image.description="Jelly Leon — mediaserver gebaseerd op Jellyfin (technische identiteit: Jellyfin)" \
       org.opencontainers.image.source="https://github.com/lvos04/jelly-leon" \
+      org.opencontainers.image.url="https://github.com/lvos04/jelly-leon" \
+      org.opencontainers.image.documentation="https://github.com/lvos04/jelly-leon/blob/main/deploy/truenas/CUSTOM_APP.md" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.version="${FORK_VERSION}" \
       org.opencontainers.image.licenses="GPL-2.0-only AND GPL-2.0-or-later" \
       org.opencontainers.image.base.name="docker.io/jellyfin/jellyfin:10.11.11" \
       io.github.lvos04.jelly-leon.web.source="https://github.com/lvos04/jelly-leon-web" \
       io.github.lvos04.jelly-leon.web.revision="${WEB_REF}"
+# url/documentation overschrijven die van de basisimage (jellyfin.org): geen schijn van een officiële release (ADR-0004).
 # Upstream-server en -web uit de basisimage vervangen door de fork-build (ffmpeg en drivers blijven).
 RUN rm -rf /jellyfin
 COPY --from=server /out/server /jellyfin
