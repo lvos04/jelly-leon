@@ -302,13 +302,39 @@ def heeft(k: dict[str, Any], container: bool) -> bool:
     return eigen if container else (eigen or k["gezien"] or k["aantal"] > 0 or k["positie"] > 0 or k["laatst"] is not None)
 
 
-def emby_paden(emby: Emby) -> dict[str, dict[str, Any]]:
-    """Elk mediabestand (ook de versies die Emby in één item bundelt) → het Emby-item (met RunTimeTicks)."""
+def emby_paden(emby: Emby, detail: bool = False) -> dict[str, dict[str, Any]]:
+    """Elk mediabestand (ook de versies die Emby in één item bundelt) → het Emby-item (met RunTimeTicks).
+
+    Met `detail` worden ook de mediabronnen uit de itemdetails van elke film gelezen (Emby toont gebundelde versies
+    mogelijk alleen daar)."""
+    assert emby.admin
     uit: dict[str, dict[str, Any]] = {}
     for i in emby.items(emby.admin_id, ",RunTimeTicks,MediaSources"):
-        for pad in {i.get("Path") or "", *(b.get("Path") or "" for b in i.get("MediaSources") or [])}:
+        bronnen = list(i.get("MediaSources") or [])
+        if detail and i.get("Type") == "Movie":
+            bronnen += emby.admin.doe("GET", f"/Users/{emby.admin_id}/Items/{i['Id']}").get("MediaSources") or []
+        for pad in {i.get("Path") or "", *(b.get("Path") or "" for b in bronnen)}:
             if pad.startswith(EMBY_ROOT):
                 uit.setdefault(pad[len(EMBY_ROOT) + 1:], i)
+    return uit
+
+
+def emby_diagnose(emby: Emby, ontbrekend: list[str]) -> dict[str, Any]:
+    """Wat Emby weet over ontbrekende testbestanden (zoeken op titel; lijst- én detailweergave)."""
+    assert emby.admin
+    uit: dict[str, Any] = {}
+    for pad in ontbrekend:
+        titel = pad.rsplit("/", 1)[-1].split(" (")[0]
+        data = emby.admin.doe("GET", f"/Users/{emby.admin_id}/Items", {
+            "Recursive": "true", "SearchTerm": titel, "Fields": "Path,ProviderIds,MediaSources,PartCount", "IncludeItemTypes": "Movie"})
+        treffers = []
+        for i in data.get("Items", []):
+            detail = emby.admin.doe("GET", f"/Users/{emby.admin_id}/Items/{i['Id']}")
+            treffers.append({"id": i["Id"], "naam": i.get("Name"), "pad": i.get("Path"), "provider": i.get("ProviderIds"),
+                             "lijst_bronnen": [b.get("Path") for b in i.get("MediaSources") or []],
+                             "detail_bronnen": [b.get("Path") for b in detail.get("MediaSources") or []],
+                             "PartCount": detail.get("PartCount"), "MediaSourceCount": detail.get("MediaSourceCount")})
+        uit[pad] = treffers
     return uit
 
 
@@ -573,7 +599,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                 break
             time.sleep(5)
         time.sleep(10)  # serie-/seizoensitems en NFO's laten afronden
-        paden_emby = emby_paden(emby)
+        paden_emby = emby_paden(emby, detail=True)
+        if not verwacht_emby <= set(paden_emby):
+            bewijs.data["diagnose_emby"] = emby_diagnose(emby, sorted(verwacht_emby - set(paden_emby)))
         paden_jl = {i["Path"][len(JL_ROOT) + 1:]: i for i in jl.items() if i.get("Path", "").startswith(JL_ROOT)}
         bewijs.check("JLT-70", "bibliotheken gescand (alle testbestanden aanwezig)",
                      verwacht_emby <= set(paden_emby) and verwacht_jl <= set(paden_jl),
@@ -602,7 +630,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                     item = series_emby[sleutel.split(":", 1)[1]]
                 else:
                     plek = per_sleutel[sleutel].emby
-                    item = paden_emby[plek.pad]  # type: ignore[union-attr]
+                    item = paden_emby.get(plek.pad)  # type: ignore[union-attr]
+                    if item is None:
+                        spoor_log.append(f"overgeslagen: {plek.pad} staat niet als item in Emby")  # type: ignore[union-attr]
+                        continue
                 zet_kijk(emby, uids[gebruiker], item, soort, waarde, spoor_log)
         bewijs.data["spoorkeuzes_gezet"] = spoor_log
         gebruikers_emby = {n: uids[n] for n in uids}
