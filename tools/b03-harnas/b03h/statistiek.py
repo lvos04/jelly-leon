@@ -99,6 +99,16 @@ def t_interval(waarden: Sequence[float]) -> Interval:
     return Interval(m, m - halve, m + halve, f"t-95 (n = {len(waarden)} runs)")
 
 
+def voorspellingsinterval(waarden: Sequence[float]) -> Interval:
+    """95 %-voorspellingsinterval voor één nieuwe run: gemiddelde ± t·s·√(1 + 1/n). Hiermee wordt getoetst of een
+    herhaalde run (een nieuwe meetsessie) 'binnen het interval valt' (acceptatie B03-016)."""
+    m = gemiddelde(waarden)
+    if len(waarden) < 2:
+        return Interval(m, m, m, "voorspelling-95 (1 run: geen spreiding)")
+    halve = t95(len(waarden) - 1) * standaardafwijking(waarden) * math.sqrt(1 + 1 / len(waarden))
+    return Interval(m, m - halve, m + halve, f"voorspelling-95 (n = {len(waarden)} runs)")
+
+
 def bootstrap(waarden: Sequence[float], statistiek: Callable[[Sequence[float]], float] = gemiddelde,
               trekkingen: int = 10_000, seed: int = 20261109) -> Interval:
     """Percentiel-bootstrap met vaste seed (herhaalbaar)."""

@@ -306,7 +306,6 @@ def meet_transcode(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, An
             if not waarden:
                 continue
             iv = statistiek.t_interval(waarden)
-            herhaling = waarden[-1]
             metingen.append(bewijs.metriek(
                 id=f"F5-K6-transcode-{sleutel}-{label}", functie="F5", systeem=systeem, soort="continu", image=STOCK_IMAGE,
                 seed=None, eenheid=eenheid,
@@ -316,8 +315,7 @@ def meet_transcode(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, An
                 runs=rs, n=len(waarden), interval=iv, gate=statistiek.gate_label(len(waarden), 3),
                 waarde={"gemiddelde": round(statistiek.gemiddelde(waarden), 3), "waarden": waarden,
                         "encoder": sorted({x.get("video_encoder") for x in geldig}), "tonemap": sorted({str(x.get("tonemap")) for x in geldig}),
-                        "herhaling_binnen_interval_eerste_runs":
-                            statistiek.t_interval(waarden[:-1]).bevat(herhaling) if len(waarden) >= 3 else None},
+                        "voorspellingsinterval": statistiek.voorspellingsinterval(waarden).als_dict()},
                 opmerking=("Intel-iGPU-getest (ontwikkelmachine): Meteor Lake-iGPU via /dev/dri/renderD128; geen capaciteit van A310/UHD 770 "
                            "(NIET GEVALIDEERD (hardware))") if systeem == "stock-best" else "software (stock zet HW-versnelling niet zelf aan)",
                 validatie="Sim-getest; NIET GEVALIDEERD (hardware)"))
@@ -420,6 +418,49 @@ def meet_functies(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any
     return metingen
 
 
+# --- herhaling ----------------------------------------------------------------------------------------------------
+
+def herbereken(document: dict[str, Any]) -> dict[str, Any]:
+    """Afgeleide velden opnieuw uit de runs: herhalingen binnen het Wilson-interval (proporties) en het
+    voorspellingsinterval (continu)."""
+    for m in document.get("metingen", []):
+        w = m.get("waarde") or {}
+        iv = m.get("interval")
+        if m["soort"] == "proportie" and iv and "herhalingen_k" in w and w["herhalingen_k"]:
+            w["herhaling_binnen_interval"] = all(iv["onder"] <= k / m["n"] <= iv["boven"] for k in w["herhalingen_k"])
+        if m["soort"] == "continu" and w.get("waarden"):
+            w.pop("herhaling_binnen_interval_eerste_runs", None)
+            w["voorspellingsinterval"] = statistiek.voorspellingsinterval([float(x) for x in w["waarden"]]).als_dict()
+    return document
+
+
+def voeg_herhaalsessie_toe(document: dict[str, Any], nieuw: list[dict[str, Any]], sessie: dict[str, Any]) -> list[str]:
+    """Koppelt een volledig nieuwe meetsessie (nieuwe server) aan de bestaande metrieken: valt de herhaling binnen het
+    interval van de eerste meting? Geeft de afwijkingen terug."""
+    afwijkend = []
+    index = {(m["id"], m["systeem"]): m for m in document.get("metingen", [])}
+    for n in nieuw:
+        oud = index.get((n["id"], n["systeem"]))
+        if not oud:
+            continue
+        w, nw = oud["waarde"], n["waarde"]
+        if oud["soort"] == "continu" and nw.get("waarden"):
+            vi = w.get("voorspellingsinterval") or statistiek.voorspellingsinterval([float(x) for x in w["waarden"]]).als_dict()
+            binnen = all(vi["onder"] <= float(x) <= vi["boven"] for x in nw["waarden"])
+            w["herhaalsessie"] = {"waarden": nw["waarden"], "gemiddelde": nw.get("gemiddelde"), "runs": n["runs"],
+                                  "binnen_voorspellingsinterval": binnen, **sessie}
+        elif oud["soort"] == "proportie" and oud.get("interval"):
+            k = nw.get("k", nw.get("k_dp_effectief"))
+            binnen = oud["interval"]["onder"] <= k / n["n"] <= oud["interval"]["boven"]
+            w["herhaalsessie"] = {"k": k, "n": n["n"], "binnen_wilson_interval": binnen, "runs": n["runs"], **sessie}
+        else:
+            w["herhaalsessie"] = {"waarde": nw, "runs": n["runs"], **sessie}
+            binnen = True
+        if not binnen:
+            afwijkend.append(f"{n['id']} ({n['systeem']})")
+    return afwijkend
+
+
 # --- hoofdprogramma -----------------------------------------------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
@@ -430,6 +471,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--uit", type=Path, default=EVIDENCE_MAP / "b03-016-baseline-voormeting-12.4.json")
     p.add_argument("--image", default=STOCK_IMAGE)
     p.add_argument("--browsers", default=",".join(BROWSERS), help="beperk dp/orakel tot deze browsers (komma-gescheiden)")
+    p.add_argument("--herhaalsessie", action="store_true",
+                   help="nieuwe meetsessie als herhaling van een bestaand bewijs: valt hij binnen het interval van de eerste meting?")
     p.add_argument("--aanvullen", action="store_true",
                    help="metingen toevoegen aan een bestaand bewijs (zelfde id + systeem wordt vervangen)")
     a = p.parse_args(argv)
@@ -477,7 +520,14 @@ def main(argv: list[str] | None = None) -> int:
                 "validatie_toelichting": "Sim-getest op de ontwikkelmachine; stock-best-transcodes zijn Intel-iGPU-getest (ontwikkelmachine). "
                                          "A310/UHD 770, NAS en echte apparaten: NIET GEVALIDEERD.",
             }
-            if a.aanvullen and a.uit.exists():
+            if a.herhaalsessie and a.uit.exists():
+                oud = json.loads(a.uit.read_text(encoding="utf-8"))
+                afwijkend = voeg_herhaalsessie_toe(oud, metingen, {"begin": begin, "server_scan_s": round(scan_s, 1),
+                                                                   "config_sha256": sessie.config_hash})
+                oud.setdefault("herhaalsessies", []).append({"begin": begin, "metingen": metingen_gevraagd,
+                                                             "buiten_interval": afwijkend, "fasefouten": fasefouten})
+                document = herbereken(oud)
+            elif a.aanvullen and a.uit.exists():
                 oud = json.loads(a.uit.read_text(encoding="utf-8"))
                 nieuw = {(m["id"], m["systeem"]) for m in metingen}
                 document["metingen"] = [m for m in oud.get("metingen", []) if (m["id"], m["systeem"]) not in nieuw] + metingen
@@ -485,7 +535,7 @@ def main(argv: list[str] | None = None) -> int:
                                           **fasefouten}
                 document["eerdere_sessies"] = oud.get("eerdere_sessies", []) + [{k: oud.get(k) for k in ("begin", "eind", "server")}]
                 document["protocol"]["config_sha256"] = {**oud.get("protocol", {}).get("config_sha256", {}), **sessie.config_hash}
-            bewijs.schrijf(a.uit, document)
+            bewijs.schrijf(a.uit, herbereken(document))
             log(f"bewijs geschreven: {a.uit}")
         finally:
             server.verwijder()
