@@ -1,5 +1,7 @@
 # Jelly Leon CI — bouwt en test de upstream-solution én de fork-eigen plugins, bewaakt de forkregels
-# (patchregister, versieconsistentie, OpenAPI-drift) en draait de stock-client-smoketest (simulator).
+# (patchregister, versieconsistentie, OpenAPI-drift, lint), bouwt de alles-in-één image en test de levenscyclus
+# (lege opslag → healthy → herstart zonder dataverlies) en draait de stock-client-smoketest (simulator).
+# Deze workflow publiceert niets: geen image-push, geen release, geen deploy.
 # Upstream-workflows (ci-tests.yml e.a.) blijven bestaan; zie docs/adr/ADR-0007 voor wat er in de fork draait.
 name: Jelly Leon CI
 
@@ -56,8 +58,14 @@ jobs:
       - name: Tests van de forktools (incl. EX48-simulatie)
         run: python -m pytest -q tools/jelly-leon/tests
 
-      - name: Workflows controleren (actionlint)
-        run: actionlint -shellcheck= .github/workflows/jelly-leon-ci.yml .github/workflows/upstream-sync.yml
+      - name: Lint forktools (ruff)
+        run: ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon
+
+      - name: Entrypoint controleren (shellcheck)
+        run: shellcheck -s sh deploy/allinone/entrypoint.sh
+
+      - name: Workflows controleren (actionlint met shellcheck)
+        run: actionlint .github/workflows/jelly-leon-ci.yml .github/workflows/upstream-sync.yml
 
   server:
     name: Upstream-solution bouwen en testen
@@ -127,6 +135,51 @@ jobs:
           retention-days: 14
           if-no-files-found: error
           path: plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net9.0/Jellyfin.Plugin.JellyLeon.dll
+
+  image:
+    name: Alles-in-één image bouwen en levenscyclus testen (web-stage = upstream-web-dist)
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      # De echte web-build (lvos04/jelly-leon-web via npm) hoort bij de release-workflow (P4). In P0 is de broncode
+      # van jelly-leon-web gelijk aan upstream 10.11.11; daarom vervangt deze job alleen de stage `web` door de
+      # web-dist uit de vastgezette upstream-runtime. Dockerfile, server, plugin, entrypoint en healthcheck zijn echt.
+      - name: Upstream-web-dist als vervanging van de web-stage
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/webctx/web" "$RUNNER_TEMP/leeg"
+          cid=$(docker create "$JL_RUNTIME_IMAGE")
+          docker cp "$cid:/jellyfin/jellyfin-web" "$RUNNER_TEMP/webctx/web/dist"
+          docker rm -v "$cid" >/dev/null
+          test -f "$RUNNER_TEMP/webctx/web/dist/index.html"
+
+      - name: Image bouwen met de productie-Dockerfile (geen push)
+        run: |
+          set -eu
+          fork_version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['fork_version'])")
+          docker buildx build -f deploy/allinone/Dockerfile \
+            --build-context web="$RUNNER_TEMP/webctx" --build-context jelly-leon-web="$RUNNER_TEMP/leeg" \
+            --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" \
+            --load -t jelly-leon:ci .
+
+      - name: Levenscyclustest (lege opslag, healthy, smoketest, herstart en nieuwe container zonder dataverlies)
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          python3 tools/jelly-leon/e2e/image_lifecycle.py --image jelly-leon:ci --expected-version "$version" \
+            --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/image-lifecycle.json" \
+            --opmerking "CI; web-stage vervangen door upstream-web-dist uit de runtime-image"
+
+      - name: Rapport bewaren
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: image-lifecycle
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/image-lifecycle.json
 
   stock-client-e2e:
     name: Stock-client-smoketest (simulator, geen echte apparaten)

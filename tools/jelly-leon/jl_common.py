@@ -46,7 +46,7 @@ class Version:
     patch: int
 
     @classmethod
-    def parse(cls, text: str) -> "Version":
+    def parse(cls, text: str) -> Version:
         cleaned = text.strip()
         if cleaned.startswith("v"):
             cleaned = cleaned[1:]

@@ -1,0 +1,19 @@
+# Lint voor de Jelly Leon-forktools (alleen tools/jelly-leon; de upstream-code is C#).
+line-length = 145
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "N"]
+# S101: assert in pytest is gewenst; S603/S607: git/docker worden bewust zonder shell met argumentlijst aangeroepen.
+ignore = ["S101", "S603", "S607"]
+
+[lint.per-file-ignores]
+# Testdata (nep-wachtwoorden/-tokens) en lokale HTTP-testservers.
+"**/tests/*.py" = ["S105", "S106", "S108", "S310"]
+"**/e2e/*.py" = ["S310"]
+
+[lint.isort]
+known-first-party = [
+  "check_fork_consistency", "conftest", "image_lifecycle", "jl_common", "patch_register_check", "stock_client_smoke",
+  "upstream_sync",
+]
