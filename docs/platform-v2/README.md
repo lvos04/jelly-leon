@@ -35,6 +35,11 @@ Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; z
   de oude rijen; de oude tekst staat er letterlijk vooraan in) en de testrijen JLT-01…74 (conventie van ai-server-manager:
   Fase `P6 - E2E`, Soort `Testen`, startstatus en bewijsrijen in `Afhankelijkheid`). Nooit `Gereed` of `Geslaagd`.
 
+- **B03-016 (golf 0):** corpusgenerator met grondwaarheid en bevroren sha256-manifesten, CI-guard testdatalicenties,
+  clientmatrix-rooktest en baselinemetingen van stock 12.4 (stock-standaard en stock-best) in één harnasraamwerk:
+  `B03-016_HARNAS.md` (procedure), `BOUWVERIFICATIE_B03-016.md` (gemeten uitkomsten), `test-evidence/b03-016-*`,
+  code in `tools/b03-harnas/`, besluit ADR-0026.
+
 ## Bestanden
 
 - `PLATFORM_CONTRACTEN.md` (kopie, contract 1.2)
