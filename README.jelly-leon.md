@@ -17,9 +17,10 @@ De upstream-README staat ongewijzigd in `README.md`.
 | `docs/platform-v2/CLIENT_COMPAT_MATRIX.md` | compatibiliteit server ↔ clients |
 | `docs/platform-v2/BOUWVERIFICATIE_P0.md`, `test-evidence/` | gemeten bouw- en testresultaten |
 | `docs/platform-v2/EVIDENCE.json` | status per Excel-taak (nooit "Gereed" zonder echte acceptatie) |
-| `docs/adr/` | architectuurbesluiten ADR-0001…0011 (ADR-0011: vóór P4 naar Jellyfin 12.x, besluit gebruiker) |
+| `docs/adr/` | architectuurbesluiten ADR-0001…0025 (ADR-0011: vóór P4 naar Jellyfin 12.x, besluit gebruiker; ADR-0025: eigen overnametool uit Emby) |
 | `docs/openapi/` | upstream-API (gegenereerd) en de fork-eigen pluginroutes |
 | `plugins/` | eigen Jellyfin-plugins (eigen solution, tegen dezelfde Jellyfin-versie) |
+| `tools/emby-overname/` | overname van de kijkgeschiedenis uit Emby (B03-015 deel A): alleen-lezen-tool, tests en E2E-proefrun met een echte Emby-container (ADR-0025; procedure in `docs/platform-v2/OVERNAME_EMBY.md`) |
 | `tools/jelly-leon/` | `baseline.json` (bron van waarheid), patchregister-/consistentiecontrole, upstream-sync, smoketest, levenscyclus- en terugzetproef van de image (`e2e/`) |
 | `deploy/` | alles-in-één image (lokaal volledig gebouwd en getest; publicatie in P4), TrueNAS Custom App-formulier, manifest |
 | `.github/workflows/jelly-leon-ci.yml`, `upstream-sync.yml` | eigen CI en upstream-sync (nooit automatisch naar productie) |
