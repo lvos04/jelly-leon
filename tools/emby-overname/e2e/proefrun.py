@@ -467,7 +467,9 @@ KIJK: list[tuple[str, str, str, Any]] = [
     ("Anna", "sintel", "favoriet", True),
     ("Anna", "sintel", "spoor", ("ondertitel", ("dut", "nld"))),
     ("Anna", "tos_multi", "spoor", ("audio", 2)),
-    ("Anna", "kort", "spoor", ("ondertitel", ("nld", "dut"))),
+    # Bewust NIET de voorkeurstaal van Anna (dut): Emby onthoudt Engels; Jelly Leon zou zelf Nederlands kiezen. Omdat het
+    # bestand in Jelly Leon anders is (zelfde pad, andere grootte) moet dit als `ander_bestand` gemeld worden (JLT-72).
+    ("Anna", "kort", "spoor", ("ondertitel", ("eng",))),
     ("Anna", "kort", "gezien", ("2026-10-08T20:00:00Z", 3)),
     ("Anna", "pioneer_e1", "gezien", ("2026-10-09T20:00:00Z", 1)),
     ("Anna", "pioneer_e2", "gezien", ("2026-10-10T20:00:00Z", 2)),
@@ -1070,7 +1072,10 @@ def controleer_rapport(bewijs: Bewijs, rapport: dict[str, Any], samenvatting: di
     sporen = [p for g in rapport["toestand"]["gebruikers"] for p in g["afhandellijst"] if p["soort"] == "spoorkeuze"]
     kort = [p for p in sporen if "Sintel Kort" in ((p.get("item") or {}).get("titel") or "")]
     bewijs.check("JLT-72", "spoorkeuze bij een gewijzigd bestand (zelfde pad, andere grootte) niet overgezet en wel gemeld",
-                 all(p["reden"] == "ander_bestand" for p in kort), [(p["reden"], (p.get("item") or {}).get("titel")) for p in sporen])
+                 bool(kort) and all(p["reden"] == "ander_bestand" for p in kort),
+                 [(p["reden"], (p.get("item") or {}).get("titel")) for p in sporen])
+    bewijs.data["spoorkeuzes_rapport"] = [{"reden": p["reden"], "titel": (p.get("item") or {}).get("titel"), "uitleg": p["uitleg"]}
+                                          for p in sporen]
     beoordelingen = rapport["toestand"]["totaal"]["beoordelingen"]
     bewijs.data["beoordelingen"] = beoordelingen
     redenen = Counter(p["reden"] for g in rapport["toestand"]["gebruikers"] for p in g["afhandellijst"])
