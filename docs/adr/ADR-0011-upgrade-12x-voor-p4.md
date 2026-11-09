@@ -36,6 +36,9 @@
    **kopie** van een 10.11.11-`/config` (Sim: levenscyclustest met een vooraf gevulde 10.11.11-datamap; echt: kopie
    van de NAS-dataset), vóór de echte update een back-up via de upstream-Backup-API + ZFS-snapshot. Terugzetten =
    vorige image-tag **én** de database-back-up/snapshot samen; nooit alleen de image terugzetten.
+   De terugzetproef `tools/jelly-leon/e2e/rollback_sim.py` (CI-job *image*) doorloopt dit pad al met de huidige
+   versie; bij de upgrade krijgt hij `--upstream-image` = de oude 10.11-runtime en `--image` = de 12.x-build, en
+   hoort een extra negatieve stap (alleen de oude binary zonder back-up op de gemigreerde database) te falen.
 5. **Acceptatie van de fase (gate vóór P4):** build 0 fouten; volledige upstream-testsuite; plugins tegen de 12.x-ABI;
    OpenAPI-wijzigingen beoordeeld; stock-client-smoketest; image-levenscyclus inclusief migratie van een
    10.11.11-datamap; web-smoketest met Chromium; clientmatrix opnieuw: Jellyfin Android en Android TV (12.x-

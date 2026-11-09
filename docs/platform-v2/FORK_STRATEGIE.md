@@ -107,7 +107,8 @@ tot hij op een echt apparaat is getest (D15).
 | Plugins | job *plugins* | 16/16 tests |
 | Forkregels | job *forkregels* | patchregister, consistentie (incl. SDK-reeks), tool-tests (incl. EX48-simulatie), ruff, shellcheck, actionlint |
 | Stock-client-E2E | job *stock-client-e2e* | lokaal 17/17 (Sim-getest) |
-| Image | `deploy/allinone/Dockerfile` | volledige image mét echte web-build van `jelly-leon-web` lokaal gebouwd en levenscyclus getest (Sim-getest); CI bouwt hem met de upstream-web-dist (jelly-leon-web is privé); publicatie in P4 |
+| Image | `deploy/allinone/Dockerfile`, job *image* | volledige image mét echte web-build van `jelly-leon-web` lokaal gebouwd en levenscyclus getest (Sim-getest; na de QA-review 21/21 incl. weigering van `/config` op tmpfs); CI bouwt hem met de upstream-web-dist (jelly-leon-web is privé); publicatie in P4 |
+| Terugzetproef (B03-013) | `tools/jelly-leon/e2e/rollback_sim.py`, job *image* | upstream-Jellyfin → Jelly Leon → terug met DB-back-up (koude kopie als model voor de ZFS-snapshot) + oude binary: lokaal 10/10 (Sim-getest). In P0 zonder databasemigratie (zelfde versie); onderscheidend pas bij 12.x (ADR-0011). Echte NAS: NIET GEVALIDEERD |
 
 Upstream-workflows blijven bestaan; wat in de fork draait staat in ADR-0007.
 

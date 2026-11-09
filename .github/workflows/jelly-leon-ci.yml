@@ -1,6 +1,7 @@
 # Jelly Leon CI — bouwt en test de upstream-solution én de fork-eigen plugins, bewaakt de forkregels
 # (patchregister, versieconsistentie, OpenAPI-drift, lint), bouwt de alles-in-één image en test de levenscyclus
-# (lege opslag → healthy → herstart zonder dataverlies) en draait de stock-client-smoketest (simulator).
+# (lege opslag → healthy → herstart zonder dataverlies), de terugzetproef (upstream → Jelly Leon → terug met
+# DB-back-up + oude binary, B03-013) en draait de stock-client-smoketest (simulator).
 # Deze workflow publiceert niets: geen image-push, geen release, geen deploy.
 # Upstream-workflows (ci-tests.yml e.a.) blijven bestaan; zie docs/adr/ADR-0007 voor wat er in de fork draait.
 name: Jelly Leon CI
@@ -192,14 +193,25 @@ jobs:
             --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/image-lifecycle.json" \
             --opmerking "CI; web-stage vervangen door upstream-web-dist uit de runtime-image"
 
-      - name: Rapport bewaren
+      # B03-013: migratie vanaf de bestaande upstream-Jellyfin en terug met DB-back-up (koude kopie als model voor de
+      # ZFS-snapshot) + oude binary; streamen moet blijven werken. Upstream-image = de vastgezette runtime (digest).
+      - name: Terugzetproef (upstream → Jelly Leon → terug met DB-back-up en oude binary)
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          python3 tools/jelly-leon/e2e/rollback_sim.py --image jelly-leon:ci --upstream-image "$JL_RUNTIME_IMAGE" \
+            --expected-version "$version" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/rollback-sim.json" \
+            --opmerking "CI; web-stage vervangen door upstream-web-dist uit de runtime-image"
+
+      - name: Rapporten bewaren
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: image-lifecycle
           retention-days: 14
           if-no-files-found: ignore
-          path: ${{ runner.temp }}/image-lifecycle.json
+          path: |
+            ${{ runner.temp }}/image-lifecycle.json
+            ${{ runner.temp }}/rollback-sim.json
 
   stock-client-e2e:
     name: Stock-client-smoketest (simulator, geen echte apparaten)
