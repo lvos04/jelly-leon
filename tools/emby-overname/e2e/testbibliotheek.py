@@ -65,7 +65,8 @@ COSMOS = Media("bron/blender/cosmos/Cosmos_Laundromat_First_Cycle_2k.mp4", 80, (
 LLAMA = Media("bron/blender/caminandes/01_llama_drama_1080p.mp4", 45, ("eng",), (), 620)
 HERO = Media("bron/blender/hero/hero.mp4", 50, ("eng",), (), 650)
 SPRING = Media("bron/blender/spring/Spring-Blender-Open-Movie.mkv", 55, ("eng",), (), 680)
-KORT_EMBY = Media("afgeleid/kwaliteit/sintel-60s-referentie.mkv", 60, ("eng",), ("nld", "eng"), 710)
+# "Sintel Kort": in Emby de volledige Sintel (10 ondertitelsporen), in Jelly Leon een ander bestand op hetzelfde pad.
+KORT_EMBY = Media("bron/blender/sintel/Sintel.2010.1080p.mkv", 60, ("eng",), ("nld", "eng"), 710)
 KORT_JL = Media("afgeleid/kwaliteit/sintel-60s-afgekapt-70pct.mkv", 42, ("eng",), ("nld", "eng"), 710)
 
 

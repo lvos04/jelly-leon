@@ -467,8 +467,9 @@ KIJK: list[tuple[str, str, str, Any]] = [
     ("Anna", "sintel", "favoriet", True),
     ("Anna", "sintel", "spoor", ("ondertitel", ("dut", "nld"))),
     ("Anna", "tos_multi", "spoor", ("audio", 2)),
-    # Bewust NIET de voorkeurstaal van Anna (dut): Emby onthoudt Engels; Jelly Leon zou zelf Nederlands kiezen. Omdat het
-    # bestand in Jelly Leon anders is (zelfde pad, andere grootte) moet dit als `ander_bestand` gemeld worden (JLT-72).
+    # Bewust NIET de voorkeur van Anna (altijd Nederlandse ondertitels): Emby onthoudt Engels; Jelly Leon kiest zelf
+    # Nederlands. Omdat het bestand in Jelly Leon anders is (zelfde pad, andere grootte) moet dit als `ander_bestand`
+    # gemeld worden (JLT-72).
     ("Anna", "kort", "spoor", ("ondertitel", ("eng",))),
     ("Anna", "kort", "gezien", ("2026-10-08T20:00:00Z", 3)),
     ("Anna", "pioneer_e1", "gezien", ("2026-10-09T20:00:00Z", 1)),
@@ -524,6 +525,8 @@ def zet_kijk(emby: Emby, uid: str, item: dict[str, Any], soort: str, waarde: Any
                                    "PositionTicks": 50_000_000, "PlayMethod": "DirectPlay", "CanSeek": True}
         if welk == "audio" and len(audio) >= keuze:
             verzoek["AudioStreamIndex"] = audio[keuze - 1]["Index"]
+        elif welk == "ondertitel" and not keuze:
+            verzoek["SubtitleStreamIndex"] = -1  # ondertitels uit
         elif welk == "ondertitel":
             gekozen = [s for s in subs if (s.get("Language") or "").casefold() in keuze]
             if not gekozen:
@@ -681,6 +684,13 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                 soorten["favoriet"] += e["favoriet"]
                 soorten["beoordeling"] += e["beoordeling"] is not None or e["vind_ik_leuk"] is not None
         bewijs.data["emby_kijkgegevens_soorten"] = dict(soorten)
+        ed = paden_emby.get(per_sleutel["ed"].emby.pad)  # type: ignore[union-attr]
+        if ed is not None:  # Waar laat Emby een "vind ik leuk" zien? (lijst met de velden van de tool én itemdetail)
+            detail = emby.admin.doe("GET", f"/Users/{uids['Bram']}/Items/{ed['Id']}")  # type: ignore[union-attr]
+            lijst = emby.admin.doe("GET", f"/Users/{uids['Bram']}/Items", {  # type: ignore[union-attr]
+                "Ids": ed["Id"], "Fields": "UserDataPlayCount,UserDataLastPlayedDate", "EnableUserData": "true"})["Items"]
+            bewijs.data["beoordeling_diagnose"] = {"detail_userdata": detail.get("UserData"),
+                                                   "lijst_userdata": lijst[0].get("UserData") if lijst else None}
         bewijs.check("JLT-70", "Emby bevat echt gezien-status (met datum en aantal), hervatpunten en favorieten",
                      soorten["gezien"] > 0 and soorten["hervatpunt"] > 0 and soorten["favoriet"] > 0, dict(soorten))
 
