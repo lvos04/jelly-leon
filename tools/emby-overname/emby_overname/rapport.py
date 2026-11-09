@@ -72,7 +72,8 @@ def _telling_rijen(telling: dict[str, Any]) -> list[list[str]]:
     return rijen
 
 
-TELLING_KOP = ["Soort", "In Emby", "Gekoppeld", "Gelijk in Jelly Leon", "Jelly Leon nieuwer", "Afhandellijst", "Gelijk of verklaard (van gekoppeld)"]
+TELLING_KOP = ["Soort", "In Emby", "Gekoppeld", "Gelijk in Jelly Leon", "Jelly Leon nieuwer", "Afhandellijst",
+               "Gelijk of verklaard (van gekoppeld)"]
 
 
 def _md_tabel(kop: list[str], rijen: list[list[str]]) -> str:
