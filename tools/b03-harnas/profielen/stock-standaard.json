@@ -1,0 +1,9 @@
+{
+  "naam": "stock-standaard",
+  "omschrijving": "Officiële image op vaste digest met de standaardinstellingen na de startwizard (B03 2.0 §10.15 baseline a).",
+  "encoding": {},
+  "client": {},
+  "afwijkingen_van_puur_standaard": [
+    "bibliotheekopties: geen online metadata/afbeeldingen (geen internetverkeer vanuit de meetserver; gelijke metadata voor alle systemen), geen trickplay-/hoofdstukbeelden, geen savers en geen realtime-monitor (media zijn alleen-lezen gekoppeld). Dezelfde opties gelden voor stock-best en Jelly Leon (ADR-0026)."
+  ]
+}

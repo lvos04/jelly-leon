@@ -1,0 +1,14 @@
+{
+  "name": "jelly-leon-b03-016-web-harnas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "B03-016 clientmatrix: jellyfin-web in Chromium, Firefox en WebKit via Playwright (alleen ontwikkeling/CI).",
+  "type": "module",
+  "license": "GPL-2.0-only",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}

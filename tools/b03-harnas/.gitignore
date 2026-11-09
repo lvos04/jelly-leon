@@ -1,5 +1,5 @@
 # Lokale artefacten van het B03-016-harnas (nooit committen)
-web/node_modules/
+playwright/node_modules/
 __pycache__/
 *.pyc
 .pytest_cache/

@@ -1,0 +1,30 @@
+{
+  "naam": "stock-best",
+  "omschrijving": "Stock Jellyfin zoals een beheerder het zonder code het best kan instellen (B03 2.0 §10.15 baseline b; F5.1.2). Alleen instellingen uit de stock-UI; geen plugin, geen patch.",
+  "encoding": {
+    "HardwareAccelerationType": "qsv",
+    "VaapiDevice": "/dev/dri/renderD128",
+    "HardwareDecodingCodecs": ["h264", "hevc", "mpeg2video", "vc1", "vp8", "vp9", "av1"],
+    "EnableDecodingColorDepth10Hevc": true,
+    "EnableDecodingColorDepth10Vp9": true,
+    "EnableDecodingColorDepth10HevcRext": true,
+    "EnableDecodingColorDepth12HevcRext": true,
+    "EnableHardwareEncoding": true,
+    "EnableIntelLowPowerH264HwEncoder": true,
+    "EnableIntelLowPowerHevcHwEncoder": true,
+    "EnableTonemapping": true,
+    "EnableVppTonemapping": true,
+    "TonemappingAlgorithm": "bt2390",
+    "PreferSystemNativeHwDecoder": true
+  },
+  "client": {
+    "syncplay_correctie": {"waarde": true, "waar": "jellyfin-web: SyncPlay-instellingen 'Synchronisatiecorrectie' (localStorage); F1 meet dit in B03-020"},
+    "startscherm": {"waarde": "Recent toegevoegd + Doorgaan met kijken + Volgende", "waar": "weergave-instellingen per gebruiker; F2 meet dit in B03-030"},
+    "dts_truehd": {"waarde": "alleen waar het apparaat het kan", "waar": "web-afspeelinstellingen; headless browsers kunnen geen passthrough, dus hier niet van toepassing"}
+  },
+  "gpu": "Meteor Lake-iGPU van de ontwikkelmachine (/dev/dri/renderD128): Intel-iGPU-getest (ontwikkelmachine). A310/UHD 770: NIET GEVALIDEERD (hardware); render-node en render-gid op de NAS komen uit D08.",
+  "niet_instelbaar_in_stock": [
+    "SyncPlay-groepswacht-time-out (30 s, internal const; F1 B4)",
+    "automatische HW-detectie (stock zet HW-versnelling nooit zelf aan; F5 B4)"
+  ]
+}
