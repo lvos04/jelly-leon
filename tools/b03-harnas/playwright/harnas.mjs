@@ -36,9 +36,11 @@ async function login(page) {
     return zichtbaar(document.querySelector('#txtManualName')) || [...document.querySelectorAll('.btnManual')].some(zichtbaar);
   }, null, { timeout: 60000 });
   if (!(await page.locator('#txtManualName').isVisible().catch(() => false))) {
-    await page.locator('.btnManual').filter({ visible: true }).first().click({ timeout: 15000 });
+    // Gebruikerstegels zichtbaar: 'handmatig aanmelden'. Valt de Playwright-klik (animatie/stabiliteit) uit, dan een DOM-klik.
+    await page.locator('.btnManual').filter({ visible: true }).first().click({ timeout: 8000 }).catch(() =>
+      page.evaluate(() => [...document.querySelectorAll('.btnManual')].find((e) => e.offsetParent !== null)?.click()));
   }
-  await page.locator('#txtManualName').waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator('#txtManualName').waitFor({ state: 'visible', timeout: 20000 });
   await page.locator('#txtManualName').fill(cfg.gebruiker);
   await page.locator('#txtManualPassword').fill(cfg.wachtwoord);
   const verstuur = page.locator('.manualLoginForm button[type=submit]').filter({ visible: true }).first();
@@ -91,8 +93,14 @@ async function speelItem(page, item, opts) {
       else await page.evaluate((id) => { location.hash = `#/details?id=${id}`; }, item.id);
       try { await knop.waitFor({ state: 'visible', timeout: poging < 2 ? 10000 : 30000 }); break; } catch (e) { if (poging >= 2) throw e; }
     }
-    await page.evaluate(() => { window.__b03.events = []; window.__b03.klik = performance.now(); });
-    await knop.click({ timeout: 15000 });
+    // Klikken met herhaling: vlak na een scan kan de detailpagina nog opnieuw renderen (knop niet 'stabiel').
+    for (let poging = 0; ; poging++) {
+      await page.evaluate(() => { window.__b03.events = []; window.__b03.klik = performance.now(); });
+      try { await knop.click({ timeout: 10000, force: poging >= 2 }); break; } catch (e) {
+        if (poging >= 2) throw e;
+        await page.waitForTimeout(1500);
+      }
+    }
     const spoor = [];
     const t0 = Date.now();
     let ok = false;

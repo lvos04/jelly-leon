@@ -130,12 +130,17 @@ class Jellyfin:
                    body={"LibraryOptions": opties})
 
     def scan(self, timeout: float = 900.0) -> float:
+        """Start de scan en wacht tot geen taak meer loopt én het aantal items 3 peilingen lang gelijk blijft."""
         begin = time.time()
         self.a.doe("POST", "/Library/Refresh")
         time.sleep(3)
+        vorige, gelijk = -1, 0
         while time.time() - begin < timeout:
             taken = self.a.doe("GET", "/ScheduledTasks", {"isHidden": "false"})
-            if not any(t.get("State") == "Running" for t in taken):
+            aantal = self.a.doe("GET", "/Items", {"recursive": "true", "limit": "0"}).get("TotalRecordCount", 0)
+            gelijk = gelijk + 1 if aantal == vorige else 0
+            vorige = aantal
+            if not any(t.get("State") == "Running" for t in taken) and gelijk >= 2:
                 return time.time() - begin
             time.sleep(2)
         raise RuntimeError("bibliotheekscan duurt te lang")

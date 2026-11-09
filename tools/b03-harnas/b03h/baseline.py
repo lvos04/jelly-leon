@@ -223,7 +223,9 @@ def meet_orakel(sessie: Sessie, uitmap: Path) -> list[dict[str, Any]]:
             log(f"orakel {systeem} {b} run {r}: DP {len(dp)}, DP speelt {len(dp_ok)}, speelt {len(alle_ok)}/{len(a5)}")
     metingen = []
     for (systeem, b), rs in sorted(resultaten.items()):
-        eerste = rs[0]
+        geldig = [x for x in rs if x["last"]["geldig"]]
+        eerste = (geldig or rs)[0]
+        rs = [eerste] + [x for x in rs if x is not eerste]
         iv = statistiek.wilson(eerste["dp_ok"], eerste["n"])
         iv_alle = statistiek.wilson(eerste["speelt"], eerste["n"])
         herhaling = [x["dp_ok"] / x["n"] for x in rs[1:]]
@@ -427,9 +429,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--label", default="voormeting-12.4", choices=sorted(bewijs.LABELS))
     p.add_argument("--uit", type=Path, default=EVIDENCE_MAP / "b03-016-baseline-voormeting-12.4.json")
     p.add_argument("--image", default=STOCK_IMAGE)
+    p.add_argument("--browsers", default=",".join(BROWSERS), help="beperk dp/orakel tot deze browsers (komma-gescheiden)")
     p.add_argument("--aanvullen", action="store_true",
                    help="metingen toevoegen aan een bestaand bewijs (zelfde id + systeem wordt vervangen)")
     a = p.parse_args(argv)
+    BROWSERS[:] = [b for b in a.browsers.split(",") if b]
     if a.runs < 3:
         print("meetprotocol: ≥ 3 runs (B03 2.0 §10.15)", file=sys.stderr)
         return 2

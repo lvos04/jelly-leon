@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import fcntl
 import os
+import threading
 import time
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -106,8 +107,22 @@ def _proc_stat(pid: int) -> tuple[int, float] | None:
     return ppid, (utime + stime + cutime + cstime) / _TICK
 
 
-def eigen_cpu_seconden(wortel: int | None = None) -> float:
-    """CPU-seconden van dit proces en al zijn levende nakomelingen (incl. hun opgeruimde kinderen)."""
+# Elk proces dat het harnas start (node, browsers, hun hulpprocessen) erft deze markering. Zo tellen ook processen die
+# zich van de boom losmaken (WebKit start hulpprocessen die naar init verhuizen) als "eigen".
+MERK_SLEUTEL = "B03_HARNAS_MERK"
+MERK = os.environ.setdefault(MERK_SLEUTEL, f"{os.getpid()}-{time.time_ns()}")
+
+
+def _gemerkt(pid: int) -> bool:
+    try:
+        with open(f"/proc/{pid}/environ", "rb") as f:
+            return f"{MERK_SLEUTEL}={MERK}".encode() in f.read()
+    except OSError:
+        return False
+
+
+def eigen_processen(wortel: int | None = None) -> dict[int, float]:
+    """CPU-seconden per eigen proces: dit proces, zijn nakomelingen en elk proces met de harnasmarkering."""
     wortel = wortel or os.getpid()
     ouders: dict[int, int] = {}
     cpu: dict[int, float] = {}
@@ -119,12 +134,20 @@ def eigen_cpu_seconden(wortel: int | None = None) -> float:
     kinderen: dict[int, list[int]] = {}
     for pid, ppid in ouders.items():
         kinderen.setdefault(ppid, []).append(pid)
-    totaal, stapel = 0.0, [wortel]
+    eigen: set[int] = set()
+    stapel = [wortel] + [pid for pid in cpu if pid != wortel and _gemerkt(pid)]
     while stapel:
         pid = stapel.pop()
-        totaal += cpu.get(pid, 0.0)
+        if pid in eigen:
+            continue
+        eigen.add(pid)
         stapel.extend(kinderen.get(pid, []))
-    return totaal
+    return {pid: cpu.get(pid, 0.0) for pid in eigen}
+
+
+def eigen_cpu_seconden(wortel: int | None = None) -> float:
+    """CPU-seconden van dit proces en al zijn levende nakomelingen (incl. hun opgeruimde kinderen) en gemerkte processen."""
+    return sum(eigen_processen(wortel).values())
 
 
 def container_cpu_seconden(container_id: str) -> float | None:
@@ -142,25 +165,48 @@ def container_cpu_seconden(container_id: str) -> float | None:
 
 @dataclass
 class CpuMeting:
-    """Meet tijdens een run: eigen CPU, CPU van de eigen containers en de rest van de machine."""
+    """Meet tijdens een run: eigen CPU, CPU van de eigen containers en de rest van de machine.
+
+    De eigen processen worden elke halve seconde bemonsterd (per pid de laatst geziene CPU-tijd), zodat ook kortlevende
+    hulpprocessen die naar init verhuizen en dus nooit bij ons 'opgeruimd' worden, meetellen."""
 
     containers: Sequence[str] = ()
+    interval: float = 0.5
     _t0: float = 0.0
     _host0: float = 0.0
-    _eigen0: float = 0.0
     _cont0: dict[str, float] = field(default_factory=dict)
+    _begin: dict[int, float] = field(default_factory=dict)
+    _laatst: dict[int, float] = field(default_factory=dict)
+    _stop: threading.Event = field(default_factory=threading.Event)
+    _draad: threading.Thread | None = None
+
+    def _bemonster(self) -> None:
+        for pid, sec in eigen_processen().items():
+            self._laatst[pid] = max(sec, self._laatst.get(pid, 0.0))
+
+    def _lus(self) -> None:
+        while not self._stop.wait(self.interval):
+            self._bemonster()
 
     def start(self) -> CpuMeting:
         self._t0 = time.monotonic()
         self._host0 = _host_busy_seconden()
-        self._eigen0 = eigen_cpu_seconden()
+        self._begin = eigen_processen()
+        self._laatst = dict(self._begin)
         self._cont0 = {c: container_cpu_seconden(c) or 0.0 for c in self.containers}
+        self._stop.clear()
+        self._draad = threading.Thread(target=self._lus, daemon=True)
+        self._draad.start()
         return self
 
     def stop(self) -> dict[str, float]:
+        self._stop.set()
+        if self._draad:
+            self._draad.join()
+        self._bemonster()
         duur = max(time.monotonic() - self._t0, 1e-6)
         host = _host_busy_seconden() - self._host0
-        eigen = eigen_cpu_seconden() - self._eigen0
+        eigen = sum(sec - self._begin.get(pid, 0.0) for pid, sec in self._laatst.items())
         cont = sum((container_cpu_seconden(c) or 0.0) - self._cont0.get(c, 0.0) for c in self.containers)
         anders = max(0.0, host - eigen - cont)
         return {"duur_s": round(duur, 3), "machine_kernen": round(host / duur, 3), "eigen_kernen": round(eigen / duur, 3),

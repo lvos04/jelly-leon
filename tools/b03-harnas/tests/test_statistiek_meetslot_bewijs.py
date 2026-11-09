@@ -155,3 +155,14 @@ def test_bewijs_schrijf_weigert_onvolledig(tmp_path: Path):
         bewijs.schrijf(tmp_path / "x.json", d)
     bewijs.schrijf(tmp_path / "y.json", _document())
     assert (tmp_path / "y.json").exists()
+
+
+def test_cpu_meting_telt_losgemaakte_hulpprocessen_als_eigen():
+    """WebKit-achtig: een hulpproces dat zich van de boom losmaakt (ouder sterft) telt via de markering toch als eigen."""
+    m = meetslot.CpuMeting().start()
+    subprocess.run(["sh", "-c", "(timeout 1.5 sh -c 'while :; do :; done' &) ; exit 0"], check=True)
+    import time
+
+    time.sleep(2.5)
+    uit = m.stop()
+    assert uit["eigen_kernen"] * uit["duur_s"] > 0.3, uit
