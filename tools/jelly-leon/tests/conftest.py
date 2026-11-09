@@ -64,6 +64,19 @@ image:
   repository: ghcr.io/lvos04/jelly-leon
   tag: "{fork}"
   digest: null
+custom_app:
+  storage: []
+  gpu: none
+network:
+  ports:
+    - name: web
+      container_port: 8096
+      host_port: 30460
+      protocol: tcp
+privileges:
+  privileged: false
+  gpu: none
+decisions_required: [D02]
 """
 
 DOCKERFILE = """# syntax=docker/dockerfile:1.7

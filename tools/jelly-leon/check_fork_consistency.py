@@ -8,7 +8,9 @@ Controles:
      MediaBrowser.Controller (plugins bouwen tegen dezelfde ABI).
   4. upstream_commit zit in de historie van HEAD (de basis is echt samengevoegd); lokale tag wijst naar dezelfde commit.
   5. LICENSE is nog de GPL-2.0-tekst.
-  6. Manifest: versie/tag == fork_version, geen `latest`, geen compose, install.method custom_app.
+  6. Manifest: versie/tag == fork_version, geen `latest`, geen compose, install.method custom_app; contract 1.2 §9:
+     geen joins_platform_network en geen custom_app.ports, network.ports aanwezig, GPU als {param} van type gpu
+     (wizard, D08, niet verplicht) binnen privileges.gpu (intel_render vereist D08 en privilege_reason).
   7. Dockerfiles onder deploy/: elke base-image op @sha256-digest, nergens `latest`.
   8. .NET-SDK: baseline.dotnet_sdk_major == major.minor uit de upstream-global.json; de SDK-image in de deploy-
      Dockerfiles hoort bij dezelfde major.minor (deploy-deel overgeslagen met --zonder-manifest, zoals het manifest).
@@ -125,6 +127,80 @@ def check_manifest(repo: Path, baseline: dict) -> list[str]:
         errors.append("manifest bevat een compose-veld (verboden, contract §9)")
     if not re.search(r"^\s+method:\s*custom_app\s*$", text, re.MULTILINE):
         errors.append("manifest install.method moet custom_app zijn")
+    return errors + check_manifest_1_2(text)
+
+
+def top_level_block(text: str, key: str) -> str | None:
+    """Tekst van een blok op het hoogste niveau (`key:` tot de volgende sleutel zonder inspringing)."""
+    match = re.search(rf"^{re.escape(key)}:(.*)$", text, re.MULTILINE)
+    if not match:
+        return None
+    rest = text[match.end() :]
+    end = re.search(r"^\S", rest, re.MULTILINE)
+    return match.group(1) + rest[: end.start() if end else len(rest)]
+
+
+def parameter_block(text: str, name: str) -> str | None:
+    """Tekst van één parameter (`- name: <naam>` tot de volgende parameter) binnen `parameters:`."""
+    block = top_level_block(text, "parameters")
+    if block is None:
+        return None
+    for item in re.split(r"^\s*-\s+(?=name:)", block, flags=re.MULTILINE)[1:]:
+        if re.match(rf"name:\s*\"?{re.escape(name)}\"?\s*$", item.splitlines()[0]):
+            return item
+    return None
+
+
+def _scalar(block: str | None, key: str, indent: int = 2) -> str | None:
+    if block is None:
+        return None
+    match = re.search(rf"^ {{{indent}}}{re.escape(key)}:\s*(.*?)\s*(?:#.*)?$", block, re.MULTILINE)
+    return match.group(1).strip("\"'") if match else None
+
+
+def check_manifest_1_2(text: str) -> list[str]:
+    """Wijzigingen van contract 1.2 §9 (poorten alleen in network.ports, GPU als optionele parameter met D08).
+
+    Bewust eenvoudig (standaardbibliotheek, vaste opmaak van ons eigen manifest); de volledige validatie doet de
+    validator van de manifesteigenaar (appstore-en-fork) in de CI-job `manifest`.
+    """
+    errors: list[str] = []
+    if re.search(r"^\s*joins_platform_network\s*:", text, re.MULTILINE):
+        errors.append("manifest: network.joins_platform_network is vervallen (contract 1.2 §9) — verwijderen")
+    custom_app = top_level_block(text, "custom_app")
+    if custom_app is not None and re.search(r"^  ports\s*:", custom_app, re.MULTILINE):
+        errors.append("manifest: custom_app.ports is vervallen (contract 1.2 §9) — poorten alleen in network.ports")
+    network = top_level_block(text, "network")
+    if network is None or not re.search(r"^  ports\s*:", network, re.MULTILINE):
+        errors.append("manifest: network.ports ontbreekt (enige bron voor de formulierpoorten, contract 1.2 §9)")
+
+    max_gpu = _scalar(top_level_block(text, "privileges"), "gpu")
+    if max_gpu not in ("none", "intel_render"):
+        errors.append(f"manifest: privileges.gpu moet none of intel_render zijn, niet {max_gpu!r}")
+    app_gpu = _scalar(custom_app, "gpu")
+    param = re.fullmatch(r"\{\s*param:\s*([a-z][a-z0-9_]*)\s*\}", app_gpu or "")
+    if app_gpu is None:
+        errors.append("manifest: custom_app.gpu ontbreekt")
+    elif param:
+        block = parameter_block(text, param.group(1))
+        wanted = {"type": "gpu", "source": "wizard", "decision": "D08", "required": "false"}
+        found = {key: _scalar(block, key, indent=4) for key in wanted}
+        if block is None or found != wanted:
+            errors.append(
+                f"manifest: GPU-parameter {param.group(1)!r} moet type gpu, source wizard, decision D08 en required "
+                f"false hebben (contract 1.2 §9), gevonden {found if block is not None else 'geen parameter'}"
+            )
+    elif app_gpu not in ("none", "intel_render"):
+        errors.append(f"manifest: custom_app.gpu {app_gpu!r} moet none, intel_render of {{param: <naam>}} zijn")
+    if app_gpu not in (None, "none") and max_gpu != "intel_render":
+        errors.append("manifest: custom_app.gpu vraagt (mogelijk) een GPU maar privileges.gpu (het maximum) is niet intel_render")
+    if max_gpu == "intel_render":
+        decisions = re.search(r"^decisions_required:\s*\[([^\]]*)\]", text, re.MULTILINE)
+        if not decisions or "D08" not in [d.strip() for d in decisions.group(1).split(",")]:
+            errors.append("manifest: privileges.gpu intel_render vereist D08 in decisions_required")
+        reason = top_level_block(text, "privilege_reason")
+        if not reason or reason.strip() in ("", "null", ">-", "|"):
+            errors.append("manifest: privileges.gpu intel_render vereist een privilege_reason")
     return errors
 
 

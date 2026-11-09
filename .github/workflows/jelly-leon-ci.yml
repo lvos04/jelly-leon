@@ -73,6 +73,57 @@ jobs:
       - name: Workflows controleren (actionlint met shellcheck)
         run: actionlint .github/workflows/jelly-leon-ci.yml .github/workflows/upstream-sync.yml
 
+  # Contract 1.2 §9 (JL2): het manifest wordt gevalideerd door de validator van de manifesteigenaar (appstore-en-fork,
+  # B08-001) — niet gekopieerd, maar uit de publieke repo op een vastgezette commit (alleen lezen, geen token nodig).
+  # Alleen de waarschuwing digest_pending_release mag (nog geen release); vervallen velden tellen als fout.
+  manifest:
+    name: Manifest §9 (validator van appstore-en-fork, vastgezette commit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      APPSTORE_REPO: lvos04/appstore-en-fork
+      APPSTORE_COMMIT: bd33052cd0174be08fbf6324f1caf296257182d3
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Validator ophalen (publieke repo, vastgezette commit)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: ${{ env.APPSTORE_REPO }}
+          ref: ${{ env.APPSTORE_COMMIT }}
+          path: _extern/appstore-en-fork
+          persist-credentials: false
+
+      - name: Python 3.12
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Afhankelijkheden van de validator (hash-gepinde lockfile van de eigenaar)
+        run: >
+          python -m pip install --disable-pip-version-check --require-hashes --no-deps
+          -r _extern/appstore-en-fork/apps/api/requirements.lock
+
+      - name: Manifest valideren en beoordelen
+        env:
+          PYTHONPATH: _extern/appstore-en-fork/apps/api/src
+        run: |
+          set +e
+          python -m appstore.manifest.cli validate deploy/manifest/jelly-leon.manifest.yaml --format json \
+            > "$RUNNER_TEMP/manifest-rapport.json"
+          echo "exitcode validator (zonder --strict): $?"
+          set -e
+          python tools/jelly-leon/manifest_rapport.py --rapport "$RUNNER_TEMP/manifest-rapport.json" --github
+
+      - name: Rapport bewaren
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: manifest-rapport
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/manifest-rapport.json
+
   server:
     name: Upstream-solution bouwen en testen
     needs: forkregels

@@ -1,8 +1,11 @@
-# Manifest (manifeststandaard v1, platformcontract 1.1 §9) van de Jelly Leon-mediaserver — SCHETS P0.
+# Manifest (manifeststandaard v1, platformcontract 1.2 §9) van de Jelly Leon-mediaserver.
 # Installatie uitsluitend als standaard TrueNAS Custom App (één image + formulierwaarden); nooit compose/YAML.
 # Er bestaat nog GEEN gepubliceerde image: fork_version -jl.0 wordt nooit uitgebracht (ADR-0005). De release-CI
-# vult tag + digest bij de eerste release (-jl.1). Tot dan is installeren niet gereed (validation_status unvalidated).
+# vult tag + digest bij de eerste release (na de upgrade naar 12.x, ADR-0011). Tot dan is installeren niet mogelijk
+# (validator: digest_pending_release; validation_status unvalidated).
 # Alle paden, poorten en apparaten komen uit de wizard/datasetkiezer of gemeten TrueNAS-readback — nooit voorbeeldwaarden.
+# Contract 1.2: poorten staan alleen in network.ports (custom_app.ports en network.joins_platform_network vervallen);
+# GPU is een optionele wizardparameter (D08), privileges.gpu is het maximum (ADR-0012).
 manifest_version: "1"
 app_id: jelly-leon
 name: Jelly Leon
@@ -20,12 +23,7 @@ image:
   tag: "10.11.11-jl.0"
   digest: null
 custom_app:
-  ports:
-    - name: web
-      container_port: 8096
-      host_port: {param: host_port}
-      protocol: tcp
-      purpose_nl: Jellyfin-API, web-client en streaming (clients verbinden hierop)
+  # Geen ports hier (vervallen in contract 1.2 §9): de formulierpoorten komen uit network.ports.
   storage:
     - name: config
       type: host_path
@@ -41,9 +39,9 @@ custom_app:
   resources:
     cpus: 4
     memory_mib: 4096
-  # GPU staat standaard UIT (least privilege): de rendernodes (D08) zijn onbekend tot de wizard ze via TrueNAS meet.
-  # De manifeststandaard kent nog geen optionele GPU-parameter; zie ADR-0008 en de followup voor appstore-en-fork.
-  gpu: none
+  # GPU is optioneel en standaard UIT (least privilege): de wizard biedt intel_render alleen aan als D08 via de
+  # TrueNAS-API een render-node heeft gemeten; zonder waarde → none. Begrensd door privileges.gpu (ADR-0012).
+  gpu: {param: gpu}
   run_as:
     mode: image_default
   timezone: {param: timezone}
@@ -60,8 +58,18 @@ parameters:
     default: 30460
     required: true
     description_nl: >-
-      Hostpoort; voorstel uit het platformcontract. Draait de bestaande Jellyfin al (vaak op 8096), dan blijft die
-      ongemoeid (I24 stap 4: aparte poort, geen vervanging). De Hub controleert vóór installatie op conflicten.
+      Hostpoort; voorstel uit het platformcontract (§2). Staat er al een stock-Jellyfin (D07 meet dat via de
+      TrueNAS-API), dan blijft die ongemoeid op zijn eigen poort (I24 stap 4: aparte poort, geen vervanging). De Hub
+      controleert vóór installatie op conflicten.
+  - name: gpu
+    type: gpu
+    source: wizard
+    decision: D08
+    required: false
+    description_nl: >-
+      Intel-GPU voor hardware-transcodering (QSV/VAAPI). Alleen kiesbaar als de wizard via de TrueNAS-API een
+      render-node heeft gemeten (D08); anders en zonder keuze: none (transcoderen via de CPU). Het formulier geeft dan
+      elke niet-NVIDIA-render-GPU door (use_all_gpus); één specifieke render-node kiezen kan het formulier niet.
   - name: config_path
     type: path
     source: dataset_picker
@@ -125,16 +133,18 @@ network:
       purpose_nl: Jellyfin-API, web-client en streaming
   host_network: false
   host_network_reason: null
-  joins_platform_network: false
 privileges:
   privileged: false
   cap_add: []
   devices: []
-  gpu: none
+  # Maximum: de app mag hooguit een Intel-render-GPU krijgen; of hij die krijgt, bepaalt de gpu-parameter (D08).
+  gpu: intel_render
 privilege_reason: >-
-  Geen extra privileges. De container start als root uitsluitend om /config en /cache aan 568:568 te geven en draait
-  daarna als 568 zonder capabilities. Intel-GPU (QSV/VAAPI) pas na gemeten rendernodes (D08) als aparte, goed te
-  keuren wijziging (gpu: intel_render).
+  Optioneel een Intel-render-GPU (/dev/dri) voor hardware-transcodering (QSV/VAAPI) via jellyfin-ffmpeg, alleen als
+  de wizard een render-node heeft gemeten (D08) en de gebruiker hem kiest; standaard none. Nooit privileged, geen
+  extra capabilities, geen losse apparaten: de entrypoint voegt alleen de groep van de doorgegeven
+  /dev/dri/renderD*-node toe (nooit groep 0). De container start als root uitsluitend om /config en /cache aan
+  568:568 te geven en draait daarna als 568 zonder capabilities, met no_new_privs.
 healthcheck:
   type: http
   path: /health
