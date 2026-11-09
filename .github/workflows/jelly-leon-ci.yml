@@ -160,9 +160,12 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      # De echte web-build (lvos04/jelly-leon-web via npm) hoort bij de release-workflow (P4). In P0 is de broncode
-      # van jelly-leon-web gelijk aan upstream 10.11.11; daarom vervangt deze job alleen de stage `web` door de
-      # web-dist uit de vastgezette upstream-runtime. Dockerfile, server, plugin, entrypoint en healthcheck zijn echt.
+      # De echte web-build (lvos04/jelly-leon-web via npm) kan hier niet: jelly-leon-web is (nog) een privé-repo en
+      # GITHUB_TOKEN mag alleen deze repo lezen; een extra leestoken is een gebruikersbesluit (zichtbaarheid wordt
+      # publiek na de geheimenscan). De volledige image mét echte web-build is lokaal gebouwd en getest
+      # (docs/platform-v2/BOUWVERIFICATIE_P0.md §11). In P0 is de broncode van jelly-leon-web gelijk aan upstream
+      # 10.11.11; daarom vervangt deze job alleen de stage `web` door de web-dist uit de vastgezette upstream-runtime.
+      # Dockerfile, server, plugin, entrypoint en healthcheck zijn echt.
       - name: Upstream-web-dist als vervanging van de web-stage
         run: |
           set -eu
@@ -179,6 +182,7 @@ jobs:
           docker buildx build -f deploy/allinone/Dockerfile \
             --build-context web="$RUNNER_TEMP/webctx" --build-context jelly-leon-web="$RUNNER_TEMP/leeg" \
             --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" \
+            --build-arg WEB_REF="vervangen-door-upstream-web-dist-10.11.11" \
             --load -t jelly-leon:ci .
 
       - name: Levenscyclustest (lege opslag, healthy, smoketest, herstart en nieuwe container zonder dataverlies)

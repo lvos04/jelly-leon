@@ -6,7 +6,9 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
   2. container starten zoals het formulier: als root (geen Custom User), niet privileged, geen extra capabilities,
      geen host-netwerk, alleen poort 8096 gepubliceerd;
   3. wachten tot de Docker-healthcheck van de image `healthy` meldt;
-  4. stock-client-smoketest modus `nieuw` (wizard, inloggen, bibliotheek, streamen, plugin) en web-client op /web/;
+  4. stock-client-smoketest modus `nieuw` (wizard, inloggen, bibliotheek, streamen, plugin) en web-client op /web/:
+     index.html én elk daarin genoemd script/stylesheet laadt (HTTP 200, niet leeg) — een half gelukte web-build valt
+     zo op; optioneel (--verwacht-web-ref) de herkomst van de web-client (label + SOURCE_REVISIONS in de image);
   5. proces 1 draait als 568:568, zonder capabilities, met NoNewPrivs; alles in /config en /cache is van 568;
      de mediamap is niet gewijzigd;
   6. `docker restart` → healthy → smoketest modus `herstart` (zelfde gebruiker en item-ID, wizard blijft dicht);
@@ -21,6 +23,7 @@ Alleen standaardbibliotheek; Docker via subprocess zonder shell. Schrijft een JS
 from __future__ import annotations
 
 import argparse
+import html.parser
 import json
 import os
 import socket
@@ -28,6 +31,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
@@ -37,6 +41,21 @@ SMOKE = E2E_DIR / "stock_client_smoke.py"
 MAKE_MEDIA = E2E_DIR / "make_test_media.py"
 MEDIA_REL = Path("Jelly Leon Test") / "Smoketest" / "01 - Sinus 440 Hz.wav"
 APP_UID = "568"
+
+
+class AssetParser(html.parser.HTMLParser):
+    """Verzamelt de scripts en stylesheets die index.html van de web-client laadt."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.assets: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "script" and values.get("src"):
+            self.assets.append(str(values["src"]))
+        elif tag == "link" and (values.get("rel") or "").lower() == "stylesheet" and values.get("href"):
+            self.assets.append(str(values["href"]))
 
 
 def utc_now() -> str:
@@ -157,15 +176,53 @@ class Lifecycle:
         self.add("Jelly Leon-plugin in de datamap", bool(plugin.strip()), plugin.strip() or "niet gevonden")
         return ok and not foreign
 
+    def fetch(self, path: str, limit: int = 20_000_000) -> tuple[int, bytes]:
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=15) as resp:  # noqa: S310
+            return resp.status, resp.read(limit)
+
     def check_web_client(self) -> bool:
         """De meegeleverde web-client wordt door de server zelf geserveerd (één poort, geen aparte web-app)."""
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/web/index.html", timeout=15) as resp:  # noqa: S310
-                status, body = resp.status, resp.read(200_000)
+            status, body = self.fetch("/web/index.html", 200_000)
         except OSError as exc:
             return self.add("web-client bereikbaar", False, str(exc)[:200])
         ok = status == 200 and b"<title>" in body
-        return self.add("web-client bereikbaar", ok, f"HTTP {status}; {len(body)} bytes; <title> aanwezig={b'<title>' in body}")
+        self.add("web-client bereikbaar", ok, f"HTTP {status}; {len(body)} bytes; <title> aanwezig={b'<title>' in body}")
+        parser = AssetParser()
+        parser.feed(body.decode("utf-8", errors="replace"))
+        assets = [a for a in parser.assets if not urllib.parse.urlsplit(a).netloc]  # alleen eigen bestanden
+        failed: list[str] = []
+        total_bytes = 0
+        for asset in assets:
+            path = "/web/" + urllib.parse.urlsplit(asset).path.lstrip("/")
+            try:
+                asset_status, asset_body = self.fetch(path)
+            except OSError as exc:
+                failed.append(f"{asset}: {str(exc)[:80]}")
+                continue
+            total_bytes += len(asset_body)
+            if asset_status != 200 or not asset_body:
+                failed.append(f"{asset}: HTTP {asset_status}, {len(asset_body)} bytes")
+        assets_ok = bool(assets) and not failed
+        detail = f"{len(assets) - len(failed)}/{len(assets)} scripts/stylesheets uit index.html geladen ({total_bytes} bytes)"
+        if failed:
+            detail += "; mislukt: " + "; ".join(failed[:3])
+        self.add("web-client: alle bundels uit index.html laden", assets_ok, detail)
+        return ok and assets_ok
+
+    def check_source_revisions(self) -> bool:
+        """Herkomst (GPL 'bron beschikbaar'): label én bestand in de image noemen de verwachte web-commit."""
+        expected = self.args.verwacht_web_ref
+        label = docker(
+            "image", "inspect", "-f", '{{index .Config.Labels "io.github.lvos04.jelly-leon.web.revision"}}', self.args.image
+        ).stdout.strip()
+        revisions = docker("exec", self.name, "cat", "/usr/share/doc/jelly-leon/SOURCE_REVISIONS", check=False).stdout
+        ok = label == expected and f"web {expected}" in revisions.splitlines()
+        return self.add(
+            "herkomst web-client (label + SOURCE_REVISIONS)",
+            ok,
+            f"verwacht {expected}; label {label or '-'}; bestand: {' | '.join(revisions.split(chr(10))[:2]) or '-'}",
+        )
 
     def media_fingerprint(self) -> list[tuple[str, int, int, int]]:
         result = []
@@ -208,6 +265,8 @@ class Lifecycle:
                 return False
             self.check_process_and_ownership()
             self.check_web_client()
+            if self.args.verwacht_web_ref:
+                self.check_source_revisions()
 
             docker("restart", self.name, timeout=180)
             if not self.wait_healthy("na docker restart") or not self.smoke("na herstart", "herstart", first):
@@ -247,6 +306,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--health-timeout", type=float, default=240)
     parser.add_argument("--report", help="pad voor het JSON-rapport")
     parser.add_argument("--opmerking", default="", help="vrije toelichting in het rapport (bv. herkomst web-client)")
+    parser.add_argument(
+        "--verwacht-web-ref", dest="verwacht_web_ref", default="",
+        help="commit van jelly-leon-web die in label en /usr/share/doc/jelly-leon/SOURCE_REVISIONS moet staan",
+    )
     args = parser.parse_args(argv)
     lifecycle = Lifecycle(args)
     started = utc_now()

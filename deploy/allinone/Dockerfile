@@ -1,15 +1,17 @@
 # syntax=docker/dockerfile:1.7
-# Jelly Leon — alles-in-één image ghcr.io/lvos04/jelly-leon (SCHETS P0; de volledige image volgt in P4, ADR-0008).
+# Jelly Leon — alles-in-één image ghcr.io/lvos04/jelly-leon (ADR-0008). Lokaal volledig gebouwd en getest (incl. de
+# echte web-build van jelly-leon-web); publicatie naar GHCR en de release-workflow volgen in P4.
 #
 # Inhoud: Jellyfin-server uit deze fork (self-contained) + web-client uit lvos04/jelly-leon-web + de Jelly Leon-plugin,
 # op de officiële upstream-runtime (jellyfin/jellyfin, met jellyfin-ffmpeg en de Intel QSV/VAAPI-stack) — die runtime
 # bouwen we bewust niet zelf na (geen dubbel werk, INVENTARIS.md §6). Database: de ingebouwde SQLite van Jellyfin
 # (geen PostgreSQL; ADR-0008). Installatie uitsluitend als standaard TrueNAS Custom App (deploy/truenas/CUSTOM_APP.md).
 #
-# Bouwen (vanaf de repo-root; de web-client komt als aparte build-context):
+# Bouwen (vanaf de repo-root; de web-client komt als aparte build-context, bij voorkeur een schone export via
+# `git archive` van lvos04/jelly-leon-web zodat er geen lokale node_modules of bouwresten meegaan):
 #   docker buildx build -f deploy/allinone/Dockerfile \
-#     --build-context jelly-leon-web=<pad-naar-jelly-leon-web-checkout> \
-#     --build-arg FORK_VERSION=<forkversie> --build-arg VCS_REF=<commit> \
+#     --build-context jelly-leon-web=<map-met-export-van-jelly-leon-web> \
+#     --build-arg FORK_VERSION=<forkversie> --build-arg VCS_REF=<commit> --build-arg WEB_REF=<commit-jelly-leon-web> \
 #     [--secret id=ca_bundle,src=<ca-bestand>] -t ghcr.io/lvos04/jelly-leon:<forkversie> .
 # Het optionele geheim ca_bundle is alleen voor bouwomgevingen achter een TLS-proxy; het komt niet in de image.
 
@@ -51,13 +53,17 @@ RUN npm run build:production && test -f dist/index.html
 FROM ${RUNTIME_IMAGE}
 ARG FORK_VERSION=0.0.0-jl.0
 ARG VCS_REF=unknown
+# Commit van lvos04/jelly-leon-web waaruit de web-client is gebouwd (GPL "bron beschikbaar", ADR-0004).
+ARG WEB_REF=unknown
 LABEL org.opencontainers.image.title="Jelly Leon" \
       org.opencontainers.image.description="Jelly Leon — mediaserver gebaseerd op Jellyfin (technische identiteit: Jellyfin)" \
       org.opencontainers.image.source="https://github.com/lvos04/jelly-leon" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.version="${FORK_VERSION}" \
       org.opencontainers.image.licenses="GPL-2.0-only AND GPL-2.0-or-later" \
-      org.opencontainers.image.base.name="docker.io/jellyfin/jellyfin:10.11.11"
+      org.opencontainers.image.base.name="docker.io/jellyfin/jellyfin:10.11.11" \
+      io.github.lvos04.jelly-leon.web.source="https://github.com/lvos04/jelly-leon-web" \
+      io.github.lvos04.jelly-leon.web.revision="${WEB_REF}"
 # Upstream-server en -web uit de basisimage vervangen door de fork-build (ffmpeg en drivers blijven).
 RUN rm -rf /jellyfin
 COPY --from=server /out/server /jellyfin
@@ -69,6 +75,7 @@ COPY deploy/allinone/entrypoint.sh /usr/local/bin/jelly-leon-entrypoint
 RUN set -eu; \
     chmod 0755 /usr/local/bin/jelly-leon-entrypoint; \
     printf '%s\n' "${FORK_VERSION}" > /usr/share/doc/jelly-leon/VERSION; \
+    printf 'server %s\nweb %s\n' "${VCS_REF}" "${WEB_REF}" > /usr/share/doc/jelly-leon/SOURCE_REVISIONS; \
     mkdir -p /config /cache; chown 568:568 /config /cache; \
     test -x /jellyfin/jellyfin; test -f /jellyfin/jellyfin-web/index.html; test -x /usr/lib/jellyfin-ffmpeg/ffmpeg
 EXPOSE 8096
