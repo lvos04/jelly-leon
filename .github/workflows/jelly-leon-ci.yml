@@ -1,7 +1,8 @@
 # Jelly Leon CI — bouwt en test de upstream-solution én de fork-eigen plugins, bewaakt de forkregels
 # (patchregister, versieconsistentie, OpenAPI-drift, lint), bouwt de alles-in-één image en test de levenscyclus
 # (lege opslag → healthy → herstart zonder dataverlies), de terugzetproef (upstream → Jelly Leon → terug met
-# DB-back-up + oude binary, B03-013) en draait de stock-client-smoketest (simulator).
+# DB-back-up + oude binary, B03-013), draait de stock-client-smoketest (simulator) en de proefrun van de overname van de
+# kijkgeschiedenis uit Emby (B03-015, JLT-70…73) met een echte Emby-container en stock Jellyfin 12.4.
 # Deze workflow publiceert niets: geen image-push, geen release, geen deploy.
 # Upstream-workflows (ci-tests.yml e.a.) blijven bestaan; zie docs/adr/ADR-0007 voor wat er in de fork draait.
 name: Jelly Leon CI
@@ -352,3 +353,47 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
           path: ${{ runner.temp }}/stock-client-smoke.json
+
+  # B03-015 deel A (golf 0, P0 van de gebruiker): overname van de kijkgeschiedenis uit Emby. Unit- en simulatortests, daarna
+  # de proefrun met een echte Emby-container (4.10.2.0) en stock Jellyfin 12.4, beide op vaste digest (in de harnas), met
+  # zelfgemaakte synthetische media (het mediacorpus blijft lokaal, BG-37). Alles is Sim; de echte NAS is JLT-74.
+  emby-overname:
+    name: Overname uit Emby (B03-015; echte Emby + stock Jellyfin 12.4, JLT-70…73)
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Python 3.12
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Testafhankelijkheden
+        run: python -m pip install --disable-pip-version-check -r tools/jelly-leon/requirements-dev.txt
+
+      - name: Lint overnametool (ruff)
+        run: ruff check --config tools/emby-overname/ruff.toml tools/emby-overname
+
+      - name: Unit- en simulatortests (geen netwerk, geen Docker)
+        run: python -m pytest -q tools/emby-overname/tests
+
+      - name: Proefrun met echte Emby-container en stock Jellyfin 12.4 (synthetische media)
+        run: >
+          python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker
+          --uitvoer "$RUNNER_TEMP/emby-overname"
+
+      - name: Bewijs en rapporten bewaren
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: emby-overname-proefrun
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/emby-overname/bewijs.json
+            ${{ runner.temp }}/emby-overname/toolrun.log
+            ${{ runner.temp }}/emby-overname/proxy-*.jsonl
+            ${{ runner.temp }}/emby-overname/werkmap/runs/
+            ${{ runner.temp }}/emby-overname/werkmap-herimport/runs/

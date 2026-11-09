@@ -27,11 +27,12 @@ VALIDATION = {
 }
 VALIDATION_TEST = {"Sim-geslaagd", "Sim-mislukt"}
 FIELDS = {"id", "status", "validatie", "bewijs", "blokkade", "opmerking", "repo", "bijgewerkt"}
-ID_RE = re.compile(r"B\d{2}-\d{3}|I\d{2}-\d{2}-\d{2}|A\d{2}-\d{2}-\d{2}|APP-\d{2}|EX\d{2}|D\d{2}")
+# JLT-NN = testrijen van de B03-testmatrix (B03 2.0 §10.17: bewijs voor een JLT-rij mag met het eigen ID).
+ID_RE = re.compile(r"B\d{2}-\d{3}|I\d{2}-\d{2}-\d{2}|A\d{2}-\d{2}-\d{2}|APP-\d{2}|EX\d{2}|JLT-\d{2}|D\d{2}")
 
 
 def classify(ident: str) -> tuple[set[str], set[str]]:
-    if re.fullmatch(r"EX\d{2}", ident):
+    if re.fullmatch(r"EX\d{2}|JLT-\d{2}", ident):
         return STATUS_TEST, VALIDATION | VALIDATION_TEST
     if re.fullmatch(r"D\d{2}", ident):
         return STATUS_DECISION, VALIDATION
@@ -70,10 +71,10 @@ def test_evidence_follows_section_11():
     assert len(ids) == len(set(ids)), "elke ID hoort één keer in EVIDENCE.json"
 
 
-def test_b_ids_in_evidence_are_excel_tasks_of_this_repo():
+def test_b_and_jlt_ids_in_evidence_are_excel_rows_of_this_repo():
     tasks = {task["ID"] for task in json.loads(EXCEL_TAKEN.read_text(encoding="utf-8"))}
     items = json.loads(EVIDENCE.read_text(encoding="utf-8"))
-    unknown = [item["id"] for item in items if item["id"].startswith("B") and item["id"] not in tasks]
+    unknown = [item["id"] for item in items if item["id"].startswith(("B", "JLT-")) and item["id"] not in tasks]
     assert unknown == []
 
 
@@ -88,6 +89,8 @@ def test_niet_gevalideerd_entries_explain_the_blockade():
     [
         ({"status": "Gereed"}, "status 'Gereed'"),
         ({"id": "EX48", "status": "Geslaagd"}, "status 'Geslaagd'"),
+        ({"id": "JLT-70", "status": "Geslaagd", "validatie": "Sim-geslaagd"}, "status 'Geslaagd'"),
+        ({"id": "JLT-7", "validatie": "Sim-geslaagd"}, "geen Excel-ID"),
         ({"validatie": "Sim-getest (lokaal 18/18)"}, "validatie bevat"),
         ({"validatie": "Sim-getest;NIET GEVALIDEERD (echte NAS)"}, "validatie bevat"),
         ({"repo": "jelly-leon-web"}, "repo"),
