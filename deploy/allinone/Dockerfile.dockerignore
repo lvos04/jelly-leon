@@ -10,3 +10,5 @@
 testresults
 tools/jelly-leon/.venv
 docs/openapi
+# Bronnen van andere repos die CI-jobs naast de checkout ophalen (validator, web-fork) horen niet in de server-stage.
+_extern

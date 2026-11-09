@@ -210,44 +210,60 @@ jobs:
           path: plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net9.0/Jellyfin.Plugin.JellyLeon.dll
 
   image:
-    name: Alles-in-één image bouwen en levenscyclus testen (web-stage = upstream-web-dist)
+    name: Alles-in-één image bouwen (echte jelly-leon-web-build) en levenscyclus testen
     needs: forkregels
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      # De echte web-build (lvos04/jelly-leon-web via npm) kan hier niet: jelly-leon-web is (nog) een privé-repo en
-      # GITHUB_TOKEN mag alleen deze repo lezen; een extra leestoken is een gebruikersbesluit (zichtbaarheid wordt
-      # publiek na de geheimenscan). De volledige image mét echte web-build is lokaal gebouwd en getest
-      # (docs/platform-v2/BOUWVERIFICATIE_P0.md §11). In P0 is de broncode van jelly-leon-web gelijk aan upstream
-      # 10.11.11; daarom vervangt deze job alleen de stage `web` door de web-dist uit de vastgezette upstream-runtime.
-      # Dockerfile, server, plugin, entrypoint en healthcheck zijn echt.
-      - name: Upstream-web-dist als vervanging van de web-stage
+      # lvos04/jelly-leon-web is sinds 2026-11-09 publiek: de job bouwt de web-client echt uit de fork (stage `web` van
+      # de productie-Dockerfile: npm ci + webpack-productiebuild), op de vaste commit baseline.json web_fork_commit —
+      # geen zwevende branch, geen token. Server, plugin, entrypoint en healthcheck komen uit deze checkout.
+      - name: Web-bron uit baseline.json
+        id: web
+        run: python3 tools/jelly-leon/web_bron.py --commit --github-output
+
+      - name: jelly-leon-web ophalen (publiek, vaste commit, historie zonder blobs)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: ${{ steps.web.outputs.repo }}
+          ref: ${{ steps.web.outputs.commit }}
+          path: _extern/jelly-leon-web
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Web-bron controleren (commit, jellyfin-web-versie = server-basis, upstream-basis is voorouder)
+        run: python3 tools/jelly-leon/web_bron.py --controleer _extern/jelly-leon-web
+
+      - name: Schone export van jelly-leon-web (git archive; geen .git of bouwresten in de build-context)
         run: |
           set -eu
-          mkdir -p "$RUNNER_TEMP/webctx/web" "$RUNNER_TEMP/leeg"
-          cid=$(docker create "$JL_RUNTIME_IMAGE")
-          docker cp "$cid:/jellyfin/jellyfin-web" "$RUNNER_TEMP/webctx/web/dist"
-          docker rm -v "$cid" >/dev/null
-          test -f "$RUNNER_TEMP/webctx/web/dist/index.html"
+          mkdir -p "$RUNNER_TEMP/jelly-leon-web"
+          git -C _extern/jelly-leon-web archive --format=tar HEAD | tar -x -C "$RUNNER_TEMP/jelly-leon-web"
+          test -f "$RUNNER_TEMP/jelly-leon-web/package-lock.json"
+          rm -rf _extern
 
       - name: Image bouwen met de productie-Dockerfile (geen push)
+        env:
+          WEB_REF: ${{ steps.web.outputs.commit }}
         run: |
           set -eu
           fork_version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['fork_version'])")
           docker buildx build -f deploy/allinone/Dockerfile \
-            --build-context web="$RUNNER_TEMP/webctx" --build-context jelly-leon-web="$RUNNER_TEMP/leeg" \
-            --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" \
-            --build-arg WEB_REF="vervangen-door-upstream-web-dist-10.11.11" \
-            --load -t jelly-leon:ci .
+            --build-context jelly-leon-web="$RUNNER_TEMP/jelly-leon-web" \
+            --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" --build-arg WEB_REF="$WEB_REF" \
+            --build-arg BUILD_JOBS=4 --load -t jelly-leon:ci .
 
-      - name: Levenscyclustest (lege opslag, healthy, smoketest, herstart en nieuwe container zonder dataverlies)
+      - name: Levenscyclustest (lege opslag, healthy, elk proces 568, herkomst web, herstart, Custom User, weigeringen)
+        env:
+          WEB_REF: ${{ steps.web.outputs.commit }}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/image_lifecycle.py --image jelly-leon:ci --expected-version "$version" \
-            --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/image-lifecycle.json" \
-            --opmerking "CI; web-stage vervangen door upstream-web-dist uit de runtime-image"
+            --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/image-lifecycle.json" --verwacht-web-ref "$WEB_REF" \
+            --opmerking "CI; web-client gebouwd uit lvos04/jelly-leon-web@$WEB_REF"
 
       # B03-013: migratie vanaf de bestaande upstream-Jellyfin en terug met DB-back-up (koude kopie als model voor de
       # ZFS-snapshot) + oude binary; streamen moet blijven werken. Upstream-image = de vastgezette runtime (digest).
@@ -256,7 +272,7 @@ jobs:
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/rollback_sim.py --image jelly-leon:ci --upstream-image "$JL_RUNTIME_IMAGE" \
             --expected-version "$version" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/rollback-sim.json" \
-            --opmerking "CI; web-stage vervangen door upstream-web-dist uit de runtime-image"
+            --opmerking "CI; Jelly Leon-image met de echte web-build van jelly-leon-web"
 
       - name: Rapporten bewaren
         if: always()

@@ -1,14 +1,16 @@
 # syntax=docker/dockerfile:1.7
-# Jelly Leon — alles-in-één image ghcr.io/lvos04/jelly-leon (ADR-0008). Lokaal volledig gebouwd en getest (incl. de
-# echte web-build van jelly-leon-web); publicatie naar GHCR en de release-workflow volgen in P4.
+# Jelly Leon — alles-in-één image ghcr.io/lvos04/jelly-leon (ADR-0008). Lokaal en in GitHub-CI (job `image`) volledig
+# gebouwd en getest, incl. de echte web-build van jelly-leon-web op baseline.json `web_fork_commit` (ADR-0013);
+# publicatie naar GHCR en de release-workflow volgen in P4.
 #
 # Inhoud: Jellyfin-server uit deze fork (self-contained) + web-client uit lvos04/jelly-leon-web + de Jelly Leon-plugin,
 # op de officiële upstream-runtime (jellyfin/jellyfin, met jellyfin-ffmpeg en de Intel QSV/VAAPI-stack) — die runtime
 # bouwen we bewust niet zelf na (geen dubbel werk, INVENTARIS.md §6). Database: de ingebouwde SQLite van Jellyfin
 # (geen PostgreSQL; ADR-0008). Installatie uitsluitend als standaard TrueNAS Custom App (deploy/truenas/CUSTOM_APP.md).
 #
-# Bouwen (vanaf de repo-root; de web-client komt als aparte build-context, bij voorkeur een schone export via
-# `git archive` van lvos04/jelly-leon-web zodat er geen lokale node_modules of bouwresten meegaan):
+# Bouwen (vanaf de repo-root; de web-client komt als aparte build-context: een schone export via `git archive` van
+# lvos04/jelly-leon-web op `web_fork_commit` uit tools/jelly-leon/baseline.json, zodat er geen lokale node_modules of
+# bouwresten meegaan; tools/jelly-leon/web_bron.py --controleer controleert die checkout):
 #   docker buildx build -f deploy/allinone/Dockerfile \
 #     --build-context jelly-leon-web=<map-met-export-van-jelly-leon-web> \
 #     --build-arg FORK_VERSION=<forkversie> --build-arg VCS_REF=<commit> --build-arg WEB_REF=<commit-jelly-leon-web> \

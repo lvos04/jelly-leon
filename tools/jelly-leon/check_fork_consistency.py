@@ -14,6 +14,8 @@ Controles:
   7. Dockerfiles onder deploy/: elke base-image op @sha256-digest, nergens `latest`.
   8. .NET-SDK: baseline.dotnet_sdk_major == major.minor uit de upstream-global.json; de SDK-image in de deploy-
      Dockerfiles hoort bij dezelfde major.minor (deploy-deel overgeslagen met --zonder-manifest, zoals het manifest).
+  9. Web-client van de image (baseline.web_*): volledige SHA's, web_upstream_tag hoort bij dezelfde release als de
+     server (overgeslagen met --zonder-manifest; de checkout zelf controleert web_bron.py in de CI-job image).
 
 Exitcodes: 0 = in orde, 1 = inconsistent, 3 = gebruiks-/omgevingsfout.
 """
@@ -43,6 +45,7 @@ from jl_common import (  # noqa: E402
     run_git,
     sdk_major_minor,
 )
+from web_bron import web_fields  # noqa: E402
 
 FROM_RE = re.compile(r"^\s*FROM\s+(?:--platform=\S+\s+)?(\S+)", re.IGNORECASE)
 ARG_IMAGE_RE = re.compile(r"^\s*ARG\s+([A-Z0-9_]*IMAGE[A-Z0-9_]*)=(\S+)", re.IGNORECASE)
@@ -288,6 +291,8 @@ def main(argv: list[str] | None = None) -> int:
         errors += check_sdk(repo, baseline, include_deploy=not args.skip_manifest)
         if not args.skip_manifest:
             errors += check_manifest(repo, baseline)
+            if "web_repo" in baseline:
+                errors += web_fields(baseline)[0]
     except ToolError as exc:
         print(f"FOUT: {exc}", file=sys.stderr)
         return exc.exit_code if exc.exit_code != 1 else 3

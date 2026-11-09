@@ -10,5 +10,6 @@
   "web_repo": "https://github.com/lvos04/jelly-leon-web",
   "web_upstream_tag": "v10.11.11",
   "web_upstream_commit": "35c0793ece3adbd247eab290ae1effab851f3d37",
+  "web_fork_commit": "2795f3365ffe21d16bf5b76a0da8d556f29ad38d",
   "notes_nl": "Bron van waarheid voor de forkbasis (ADR-0005). Alleen wijzigen via tools/jelly-leon/upstream_sync.py of een bewuste release-commit."
 }
