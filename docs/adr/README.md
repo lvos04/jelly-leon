@@ -31,6 +31,7 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0023](ADR-0023-b03-licenties.md) | B03: licentiebeleid voor code, modellen en testdata | Aanvaard (plan goedgekeurd 2026-11-09; uitvoering later) |
 | [ADR-0024](ADR-0024-b03-clientrollen.md) | B03: clientrollen; stock-clients nooit geweigerd of aangepast zonder opt-in | Aanvaard (plan goedgekeurd 2026-11-09; uitvoering later) |
 | [ADR-0025](ADR-0025-b03-015-eigen-overnametool-niet-jellyplex-watched.md) | B03-015: eigen overnametool (alleen-lezen uit Emby) in plaats van JellyPlex-Watched | Aanvaard (bouwerbesluit B03-015 A2) |
+| [ADR-0026](ADR-0026-b03-016-harnas-corpus-clientmatrix-baseline.md) | B03-016: één harnasraamwerk voor corpusgenerator, clientmatrix en baselines van stock Jellyfin | Aanvaard (bouwerbesluit B03-016) |
 
 ## B03 2.0 — herkomst van de ADR's
 
