@@ -1,0 +1,13 @@
+# Lint voor het B03-016-harnas (tools/b03-harnas); zelfde regels als de forktools.
+extend = "../jelly-leon/ruff.toml"
+
+[lint]
+# N818: fouttypen heten Nederlands (…Fout), zoals in de andere forktools.
+# S311: random.Random met vaste seed is hier bewust (reproduceerbare recepten en bootstrap), nooit voor geheimen.
+extend-ignore = ["N818", "S311"]
+
+[lint.per-file-ignores]
+"**/tests/*.py" = ["S105", "S106", "S107", "S108", "S310"]
+
+[lint.isort]
+known-first-party = ["b03h", "conftest"]
