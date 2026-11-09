@@ -234,3 +234,45 @@ registries. **De upgrade zelf is in deze ronde niet uitgevoerd** (basis blijft v
 
 Echte NAS en het echte TrueNAS-formulier, A310/UHD 770, echte clients/tv's, Swiftfin (Mac/Xcode), upstream-sync.yml op
 GitHub (scheduled alleen op de standaardbranch; push vraagt `JL_SYNC_PUSH_TOKEN`), publicatie naar GHCR (P4).
+
+## 12. QA-review van de P0-afronding (2026-11-09)
+
+Onafhankelijke controle op de Ubuntu-machine (zelfde omgeving als §11), op HEAD `d4bc20d6a`. Ruwe uitvoer:
+`test-evidence/p0-qa-*.{txt,json}`.
+
+### 12.1 Opnieuw gedraaid zoals de CI
+
+| Commando | Resultaat |
+|---|---|
+| `check_fork_consistency.py`, `patch_register_check.py`, `pytest tools/jelly-leon/tests`, `ruff check`, `shellcheck -s sh entrypoint.sh`, `actionlint jelly-leon-ci.yml upstream-sync.yml` | in orde; vóór de reparaties 84 tool-tests geslaagd, erna **89** (5 nieuwe voor de terugzetproef) |
+| `dotnet restore/build/test Jellyfin.sln -c Release -m:4` in `dotnet/sdk:9.0.320@sha256:07ed28d9…` (`git archive d4bc20d6a`, lege NuGet-cache) | build **0 waarschuwingen, 0 fouten**; **2 555 tests: 2 548 geslaagd, 7 overgeslagen (upstream), 0 mislukt** (`test-evidence/p0-qa-dotnet-build-test.txt`) |
+| `dotnet build/test plugins/JellyLeon.Plugins.sln` | 0/0, **16/16** |
+| `openapi_drift.py` op de gegenereerde `openapi.json` | exit 0: structureel gelijk, 22 `description`-teksten anders (sha256 `4bd2d710549c…`, zelfde als §11.3) |
+| Digests `dotnet/sdk:9.0.320`, `node:22.23.4-bookworm-slim`, `jellyfin/jellyfin:10.11.11` (`docker buildx imagetools inspect`) | gelijk aan de gepinde waarden |
+| GitHub Actions: laatste runs 42619401596, 42620955712, 42622088484 | elk 5/5 jobs groen; de genoemde aantallen (79/84 tool-tests, 2 548/7/0, 16/16, levenscyclus 16/16 resp. 17/17, stock-client 18/18) kloppen met de logs |
+
+### 12.2 Gevonden en gerepareerd
+
+| Bevinding | Gemeten | Reparatie |
+|---|---|---|
+| **`/config` op tmpfs werd geaccepteerd.** Het Custom App-formulier biedt opslagtype *tmpfs*. De container werd *healthy* met een lege database; na elke herstart stond de startwizard weer **anoniem open** (HTTP 200 op `/Startup/Configuration`, `StartupWizardCompleted=false`) — de eerste bezoeker op het netwerk wordt dan beheerder, en alle gegevens zijn weg. | `docker run --tmpfs /config …` met de image van HEAD | `entrypoint.sh` zoekt de mount waarop datamap en instellingenmap liggen en weigert (ook als niet-root): anoniem volume, tmpfs/ramfs, de container zelf en NFS/SMB (SQLite). `/cache` mag tmpfs blijven. ADR-0008 §4, CUSTOM_APP.md |
+| `JELLYFIN_CONFIG_DIR` of een padoptie in het veld *Command* (`--datadir`, `--configdir`, …) kon de datamapcontrole omzeilen | code-review | instellingenmap valt onder dezelfde controle; padopties in *Command* worden geweigerd |
+| B03-013 ("terug te zetten met DB-back-up + binary, streaming blijft werken") had geen enkele simulatortest | — | nieuwe terugzetproef `tools/jelly-leon/e2e/rollback_sim.py` (+ 5 unit-tests met nep-Docker, ook voor een stille terugzetfout) en een stap in de CI-job *image* |
+| De levenscyclustest liet een werkmap met bestanden van 568 achter (zonder sudo niet op te ruimen) | lokaal | werkmap wordt na succes via een wegwerpcontainer opgeruimd (`--behoud-werkmap` om hem te houden) |
+| `README.jelly-leon.md` noemde `10.11.11-jl.1` als eerste release, strijdig met besluit 2 (eerst naar 12.x) | — | tekst rechtgezet |
+
+### 12.3 Na de reparaties gemeten (Sim-getest, geen echte NAS)
+
+Image opnieuw gebouwd met de productie-Dockerfile uit de werkboom (server en plugin opnieuw; de web-stage van
+`jelly-leon-web` `2795f3365` kwam uit de BuildKit-cache, identieke invoer).
+
+| Proef | Resultaat |
+|---|---|
+| `image_lifecycle.py --verwacht-web-ref 2795f3365…` | **21/21** (`test-evidence/p0-qa-image-lifecycle.json`): de 18 stappen uit §11.4 plus geweigerd: `/config` als tmpfs, `JELLYFIN_CONFIG_DIR` in de container, `--datadir` in *Command* |
+| `rollback_sim.py --upstream-image jellyfin/jellyfin:10.11.11@sha256:aefb67e6…` | **10/10** (`test-evidence/p0-qa-rollback-sim.json`): upstream op lege opslag (smoketest 16/16) → koude back-up van `/config` → Jelly Leon op dezelfde opslag (20/20, zelfde gebruiker/item, plugin `compatibel`) → back-up + oude binary terug (merkteken: pluginmap van de fork weer weg; smoketest 18/18, streamen byte-gelijk) → media onaangeroerd |
+| Los: start als `--user 568:568`; `/cache` als tmpfs; `/config` als tmpfs als niet-root | *healthy*; *healthy*; geweigerd |
+| Web-smoketest van `jelly-leon-web` (`web_smoke.py --modus fork --url … --zonder-herstart`, headless Chromium 153) tegen de nieuwe image, gestart zoals het formulier | **21/21** (`test-evidence/p0-qa-web-smoke-volledige-image.json`; `--dist` is de web-client uit dezelfde image, de vergelijking van `index.html` is dus een zelfvergelijking) |
+
+**Niet getest:** de weigering van NFS/SMB (geen NFS/SMB-server in de testomgeving); in P0 zijn fork en upstream dezelfde
+versie, dus de terugzetproef bevat nog geen databasemigratie (onderscheidend pas bij 12.x, ADR-0011). Echte NAS,
+TrueNAS-formulier, ZFS-snapshot, echte clients en hardware: NIET GEVALIDEERD.

@@ -1,0 +1,72 @@
+{
+  "soort": "Sim-getest (Docker op de bouwmachine; geen echte NAS, koude kopie i.p.v. ZFS-snapshot)",
+  "image": "jelly-leon:qa-p0-fix",
+  "upstream_image": "docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db",
+  "opmerking": "QA-review P0-afronding (2026-11-09): volledige image (echte web-build 2795f3365, aangescherpte entrypoint) en de vastgezette upstream-runtime 10.11.11",
+  "gestart": "2026-11-09T13:32:27Z",
+  "klaar": "2026-11-09T13:32:52Z",
+  "geslaagd": true,
+  "stappen": [
+    {
+      "stap": "healthy (upstream, lege opslag)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T13:32:33Z"
+    },
+    {
+      "stap": "stock-client-smoketest (upstream-eerste-start, modus nieuw)",
+      "geslaagd": true,
+      "detail": "16/16 stappen",
+      "tijd": "2026-11-09T13:32:35Z"
+    },
+    {
+      "stap": "koude back-up van /config (model voor de ZFS-snapshot)",
+      "geslaagd": true,
+      "detail": "backup-config/data/jellyfin.db aanwezig=True",
+      "tijd": "2026-11-09T13:32:35Z"
+    },
+    {
+      "stap": "healthy (Jelly Leon na migratie)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T13:32:42Z"
+    },
+    {
+      "stap": "stock-client-smoketest (jelly-leon-na-migratie, modus herstart)",
+      "geslaagd": true,
+      "detail": "20/20 stappen",
+      "tijd": "2026-11-09T13:32:43Z"
+    },
+    {
+      "stap": "migratie zichtbaar in /config",
+      "geslaagd": true,
+      "detail": "Jelly Leon-plugin door de entrypoint geïnstalleerd=True",
+      "tijd": "2026-11-09T13:32:43Z"
+    },
+    {
+      "stap": "back-up teruggezet in /config",
+      "geslaagd": true,
+      "detail": "toestand van vóór de migratie (geen Jelly Leon-plugin meer)=True",
+      "tijd": "2026-11-09T13:32:44Z"
+    },
+    {
+      "stap": "healthy (upstream na terugzetten)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T13:32:50Z"
+    },
+    {
+      "stap": "stock-client-smoketest (upstream-na-terugzetten, modus herstart)",
+      "geslaagd": true,
+      "detail": "18/18 stappen",
+      "tijd": "2026-11-09T13:32:51Z"
+    },
+    {
+      "stap": "mediamap onaangeroerd",
+      "geslaagd": true,
+      "detail": "eigenaar/rechten ongewijzigd",
+      "tijd": "2026-11-09T13:32:51Z"
+    }
+  ],
+  "werkmap": "<lokale werkmap buiten de repo> (opgeruimd)"
+}

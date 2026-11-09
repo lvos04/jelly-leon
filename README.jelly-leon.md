@@ -20,7 +20,7 @@ De upstream-README staat ongewijzigd in `README.md`.
 | `docs/adr/` | architectuurbesluiten ADR-0001…0011 (ADR-0011: vóór P4 naar Jellyfin 12.x, besluit gebruiker) |
 | `docs/openapi/` | upstream-API (gegenereerd) en de fork-eigen pluginroutes |
 | `plugins/` | eigen Jellyfin-plugins (eigen solution, tegen dezelfde Jellyfin-versie) |
-| `tools/jelly-leon/` | `baseline.json` (bron van waarheid), patchregister-/consistentiecontrole, upstream-sync, smoketest |
+| `tools/jelly-leon/` | `baseline.json` (bron van waarheid), patchregister-/consistentiecontrole, upstream-sync, smoketest, levenscyclus- en terugzetproef van de image (`e2e/`) |
 | `deploy/` | alles-in-één image (lokaal volledig gebouwd en getest; publicatie in P4), TrueNAS Custom App-formulier, manifest |
 | `.github/workflows/jelly-leon-ci.yml`, `upstream-sync.yml` | eigen CI en upstream-sync (nooit automatisch naar productie) |
 
@@ -34,4 +34,5 @@ De upstream-README staat ongewijzigd in `README.md`.
 ## Installeren
 
 Alleen als **standaard TrueNAS Custom App** (geen YAML, geen compose, geen terminal): zie
-`deploy/truenas/CUSTOM_APP.md`. Er is nog geen gepubliceerde image (eerste release `10.11.11-jl.1` volgt).
+`deploy/truenas/CUSTOM_APP.md`. Er is nog geen gepubliceerde image: de eerste release (`<upstream>-jl.1`) volgt
+pas na de upgrade naar de nieuwste stabiele Jellyfin 12.x (ADR-0011, besluit van de gebruiker).

@@ -1,0 +1,46 @@
+# QA-review P0-afronding — lokale bouw en tests op de Ubuntu-machine (2026-11-09), ingekorte ruwe uitvoer
+# Bron: git archive van commit d4bc20d6a (HEAD bij aanvang van de review; servercode identiek aan upstream v10.11.11)
+# Container: mcr.microsoft.com/dotnet/sdk:9.0.320@sha256:07ed28d9e7279248fcea27334880f6c415b42c631c39b8bc5b3caf13ec6fdaa2
+# docker run --cpus 4 --memory 8g --user <uid> (standaard bridge-netwerk, geen proxy, geen CA); dotnet -m:4; nice -n 10; onder flock .lokaal/docker-build.lock
+# NuGet-pakketcache leeg bij de start (eigen map): restore haalde alle pakketten opnieuw op
+# Duur (wandklok, `time`): restore 17,6 s; build 37,4 s; test 1 min 40 s; plugins build 2,4 s
+
+9.0.320
+=== restore
+=== build
+real	0m17.632s
+    0 Warning(s)
+    0 Error(s)
+real	0m37.381s
+=== test
+Passed!  - Failed:     0, Passed:    30, Skipped:     0, Total:    30, Duration: 23 ms - Jellyfin.Common.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    47, Skipped:     0, Total:    47, Duration: 418 ms - Jellyfin.MediaEncoding.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    79, Skipped:     0, Total:    79, Duration: 429 ms - Jellyfin.Api.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    28, Skipped:     0, Total:    28, Duration: 380 ms - Jellyfin.Controller.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    34, Skipped:     0, Total:    34, Duration: 481 ms - Jellyfin.XbmcMetadata.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   119, Skipped:     0, Total:   119, Duration: 589 ms - Jellyfin.Networking.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7, Duration: 308 ms - Jellyfin.Server.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   420, Skipped:     4, Total:   424, Duration: 11 s - Jellyfin.Server.Implementations.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   627, Skipped:     0, Total:   627, Duration: 6 s - Jellyfin.Model.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   141, Skipped:     0, Total:   141, Duration: 407 ms - Jellyfin.Extensions.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   235, Skipped:     0, Total:   235, Duration: 1 s - Jellyfin.Providers.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 67 ms - Jellyfin.MediaEncoding.Hls.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 90 ms - Jellyfin.MediaEncoding.Keyframes.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    48, Skipped:     0, Total:    48, Duration: 236 ms - Jellyfin.LiveTv.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   614, Skipped:     0, Total:   614, Duration: 23 s - Jellyfin.Naming.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   100, Skipped:     3, Total:   103, Duration: 1 m 28 s - Jellyfin.Server.Integration.Tests.dll (net9.0)
+real	1m39.903s
+TEST_EXIT=0
+=== openapi
+4bd2d710549c950c57fb2732596fb4b67588e3420e5030709496a7c416bd5bd6  <gegenereerde openapi.json>
+=== plugins
+    0 Warning(s)
+    0 Error(s)
+real	0m2.361s
+Passed!  - Failed:     0, Passed:    16, Skipped:     0, Total:    16, Duration: 50 ms - Jellyfin.Plugin.JellyLeon.Tests.dll (net9.0)
+PLUGIN_TEST_EXIT=0
+RUN_EXIT=0
+
+# Opgeteld: 2555 tests, 2548 geslaagd, 7 overgeslagen (upstream Skip), 0 mislukt; plugins 16/16.
+# OpenAPI-drift (tools/jelly-leon/openapi_drift.py tegen docs/openapi/jelly-leon.openapi.json): exit 0,
+# structureel gelijk, alleen 22 description-teksten anders (zelfde sha256 4bd2d710549c… als in de P0-afronding; ADR-0010).
