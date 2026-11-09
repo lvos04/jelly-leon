@@ -5,6 +5,8 @@ on:
       - opened
 jobs:
   check_issue:
+    # Jelly Leon JL-0001: alleen in upstream (vereist secrets.JF_BOT_TOKEN).
+    if: ${{ github.repository == 'jellyfin/jellyfin' }}
     runs-on: ubuntu-latest
     permissions:
       issues: write

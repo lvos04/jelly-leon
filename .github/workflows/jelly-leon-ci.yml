@@ -1,0 +1,185 @@
+# Jelly Leon CI — bouwt en test de upstream-solution én de fork-eigen plugins, bewaakt de forkregels
+# (patchregister, versieconsistentie, OpenAPI-drift) en draait de stock-client-smoketest (simulator).
+# Upstream-workflows (ci-tests.yml e.a.) blijven bestaan; zie docs/adr/ADR-0007 voor wat er in de fork draait.
+name: Jelly Leon CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'ccr-**'
+      - 'sync/**'
+      - 'release/**'
+    tags:
+      - 'v*-jl.*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jelly-leon-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  # Officiële upstream-runtime (jellyfin-ffmpeg + Intel-stack), op digest vastgezet; zelfde als deploy/allinone.
+  JL_RUNTIME_IMAGE: docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
+
+jobs:
+  forkregels:
+    name: Forkregels (patchregister, versies, tool-tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (volledige historie voor de upstream-basis)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Python 3.12
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Testafhankelijkheden
+        run: python -m pip install --disable-pip-version-check -r tools/jelly-leon/requirements-dev.txt
+
+      - name: Versie- en forkconsistentie
+        run: python tools/jelly-leon/check_fork_consistency.py
+
+      - name: Patchregister (elke core-patch geregistreerd)
+        run: python tools/jelly-leon/patch_register_check.py
+
+      - name: Tests van de forktools (incl. EX48-simulatie)
+        run: python -m pytest -q tools/jelly-leon/tests
+
+      - name: Workflows controleren (actionlint)
+        run: actionlint -shellcheck= .github/workflows/jelly-leon-ci.yml .github/workflows/upstream-sync.yml
+
+  server:
+    name: Upstream-solution bouwen en testen
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: .NET SDK volgens global.json
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Jellyfin.sln
+
+      - name: Build (Release)
+        run: dotnet build Jellyfin.sln -c Release --no-restore
+
+      - name: Test (volledige upstream-testsuite)
+        run: >
+          dotnet test Jellyfin.sln -c Release --no-build --verbosity minimal
+          --logger "trx;LogFilePrefix=jelly-leon" --results-directory testresults
+
+      - name: OpenAPI-drift (upstream-API moet gelijk blijven aan docs/openapi)
+        run: |
+          generated=tests/Jellyfin.Server.Integration.Tests/bin/Release/net9.0/openapi.json
+          test -s "$generated" || { echo "openapi.json is niet gegenereerd"; exit 1; }
+          if ! cmp -s "$generated" docs/openapi/jelly-leon.openapi.json; then
+            echo "::error::OpenAPI wijkt af van docs/openapi/jelly-leon.openapi.json. Een API-wijziging is een core-patch:"
+            echo "registreer hem in docs/platform-v2/PATCHES.md en werk het OpenAPI-bestand bewust bij."
+            exit 1
+          fi
+
+      - name: Testresultaten bewaren
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: testresultaten-server
+          retention-days: 14
+          path: testresults/
+
+  plugins:
+    name: Plugins bouwen en testen
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: .NET SDK volgens global.json
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          global-json-file: global.json
+
+      - name: Build plugins (tegen Jellyfin.Controller van de basisversie)
+        run: dotnet build plugins/JellyLeon.Plugins.sln -c Release
+
+      - name: Test plugins
+        run: dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+
+      - name: Plugin-DLL bewaren
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: plugin-jellyleon
+          retention-days: 14
+          if-no-files-found: error
+          path: plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net9.0/Jellyfin.Plugin.JellyLeon.dll
+
+  stock-client-e2e:
+    name: Stock-client-smoketest (simulator, geen echte apparaten)
+    needs: [server, plugins]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: .NET SDK volgens global.json
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          global-json-file: global.json
+
+      - name: Server publiceren (self-contained, linux-x64)
+        run: >
+          dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release --runtime linux-x64 --self-contained
+          -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/server"
+
+      - name: Plugin bouwen
+        run: dotnet build plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj -c Release
+
+      - name: Server starten op de upstream-runtime (als 568, zonder capabilities)
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0" "$RUNNER_TEMP/cache" "$RUNNER_TEMP/media"
+          cp plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net9.0/Jellyfin.Plugin.JellyLeon.dll \
+             "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
+          python3 tools/jelly-leon/e2e/make_test_media.py "$RUNNER_TEMP/media"
+          sudo chown -R 568:568 "$RUNNER_TEMP/config" "$RUNNER_TEMP/cache"
+          docker run -d --name jl-e2e --user 568:568 --cap-drop ALL --security-opt no-new-privileges \
+            -p 127.0.0.1:38096:8096 \
+            -v "$RUNNER_TEMP/server:/jellyfin:ro" -v "$RUNNER_TEMP/config:/config" -v "$RUNNER_TEMP/cache:/cache" \
+            -v "$RUNNER_TEMP/media:/media/muziek:ro" \
+            "$JL_RUNTIME_IMAGE" --nowebclient
+
+      - name: Stock-client-smoketest
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          python3 tools/jelly-leon/e2e/stock_client_smoke.py --url http://127.0.0.1:38096 \
+            --expected-version "$version" --library-path /media/muziek --expect-plugin \
+            --media-file "$RUNNER_TEMP/media/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav" \
+            --report "$RUNNER_TEMP/stock-client-smoke.json"
+
+      - name: Serverlog bij falen
+        if: failure()
+        run: docker logs jl-e2e 2>&1 | tail -200
+
+      - name: Rapport bewaren
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: stock-client-smoke
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/stock-client-smoke.json

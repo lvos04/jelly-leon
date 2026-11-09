@@ -122,9 +122,20 @@ jobs:
           direction: last
           body-includes: abi-diff-workflow-comment
 
+      # Jelly Leon JL-0001: in de fork geen bot-commentaar (secrets.JF_BOT_TOKEN ontbreekt), wel een samenvatting.
+      - name: ABI-verschil in samenvatting (Jelly Leon)
+        if: ${{ github.repository != 'jellyfin/jellyfin' }}
+        env:
+          ABI_DIFF: ${{ steps.diff.outputs.body }}
+        run: |
+          {
+            echo '## ABI-verschil (ApiCompat)'
+            if [ -n "$ABI_DIFF" ]; then printf '```\n%s\n```\n' "$ABI_DIFF"; else echo 'Geen ABI-wijzigingen gevonden.'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Reply or edit difference comment (changed)
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
-        if: ${{ steps.diff.outputs.body != '' }}
+        if: ${{ github.repository == 'jellyfin/jellyfin' && steps.diff.outputs.body != '' }}
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
@@ -143,7 +154,7 @@ jobs:
 
       - name: Reply or edit difference comment (unchanged)
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
-        if: ${{ steps.diff.outputs.body == '' && steps.find-comment.outputs.comment-id != '' }}
+        if: ${{ github.repository == 'jellyfin/jellyfin' && steps.diff.outputs.body == '' && steps.find-comment.outputs.comment-id != '' }}
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-id: ${{ steps.find-comment.outputs.comment-id }}

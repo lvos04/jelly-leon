@@ -1,0 +1,215 @@
+# Upstream-sync (ADR-0006, B03-013, EX48).
+#
+# Haalt de nieuwste stabiele upstream-tag van jellyfin/jellyfin op, merget hem in een aparte branch sync/<tag>
+# (vanaf de standaardbranch), werkt baseline.json bij en bouwt/test alles: upstream-solution, plugins tegen de nieuwe
+# Jellyfin.Controller-versie, forkregels en de stock-client-smoketest.
+#
+#   * Een mergeconflict, build- of testfout = incompatibel → de workflow FAALT (EX48). Er wordt niets gedeployd.
+#   * Deze workflow publiceert nooit een image, maakt nooit een release-tag en raakt de productiebranch niet.
+#   * Pushen van sync/<tag> gebeurt alleen als het geheim JL_SYNC_PUSH_TOKEN bestaat (een token met
+#     contents:write én workflows-recht: upstream-merges wijzigen vrijwel altijd .github/workflows, wat
+#     GITHUB_TOKEN niet mag pushen). Zonder dat geheim komt het resultaat als git-bundle in de artefacten.
+#   * Scheduled workflows draaien alleen vanaf de standaardbranch van de repository.
+name: Upstream-sync
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Expliciete stabiele upstream-tag (bv. v10.11.12 of v12.4); leeg = automatisch kiezen'
+        required: false
+        default: ''
+      spoor:
+        description: 'Spoor bij automatisch kiezen'
+        type: choice
+        options:
+          - beide
+          - patch
+          - nieuwste
+        default: beide
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  UPSTREAM_URL: https://github.com/jellyfin/jellyfin.git
+  JL_RUNTIME_IMAGE: docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
+
+jobs:
+  detecteer:
+    name: Nieuwe stabiele upstream-tags bepalen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      kandidaten: ${{ steps.kies.outputs.kandidaten }}
+      heeft_kandidaat: ${{ steps.kies.outputs.heeft_kandidaat }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Kandidaten kiezen
+        id: kies
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_SPOOR: ${{ inputs.spoor }}
+        run: |
+          set -eu
+          if [ -n "${INPUT_TAG:-}" ]; then
+            python3 - "$INPUT_TAG" <<'PY'
+          import json, os, sys
+          sys.path.insert(0, "tools/jelly-leon")
+          from jl_common import parse_stable_tag
+          tag = sys.argv[1].strip()
+          if parse_stable_tag(tag) is None:
+              print(f"FOUT: '{tag}' is geen stabiele upstream-tag (vX.Y of vX.Y.Z)", file=sys.stderr)
+              sys.exit(1)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"kandidaten={json.dumps([tag])}\nheeft_kandidaat=true\n")
+          PY
+          else
+            case "${INPUT_SPOOR:-beide}" in
+              patch) args="--spoor patch" ;;
+              nieuwste) args="--spoor nieuwste" ;;
+              *) args="--spoor patch --spoor nieuwste" ;;
+            esac
+            # shellcheck disable=SC2086
+            python3 tools/jelly-leon/upstream_sync.py kies --bron "$UPSTREAM_URL" $args | tee "$RUNNER_TEMP/kies.json"
+            {
+              echo '## Upstream-sync: kandidaten'
+              echo '```json'
+              cat "$RUNNER_TEMP/kies.json"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  sync:
+    name: Sync ${{ matrix.tag }} (merge, bouwen, testen — nooit deployen)
+    needs: detecteer
+    if: needs.detecteer.outputs.heeft_kandidaat == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJSON(needs.detecteer.outputs.kandidaten) }}
+    steps:
+      - name: Checkout standaardbranch (volledige historie)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Upstream-tag mergen in sync/<tag> (conflict = incompatibel = falen)
+        env:
+          SYNC_TAG: ${{ matrix.tag }}
+        run: |
+          set -eu
+          git config user.name "jelly-leon-sync"
+          git config user.email "jelly-leon-sync@users.noreply.github.com"
+          python3 tools/jelly-leon/upstream_sync.py merge --tag "$SYNC_TAG" --bron "$UPSTREAM_URL" --maak-lokale-tag
+
+      - name: Forkregels na de sync
+        run: |
+          python3 -m pip install --disable-pip-version-check -r tools/jelly-leon/requirements-dev.txt
+          # Manifest volgt pas bij een release (forkversie -jl.N ≥ 1); de overige versiecontroles moeten slagen.
+          python3 tools/jelly-leon/check_fork_consistency.py --zonder-manifest
+          python3 tools/jelly-leon/patch_register_check.py
+          python3 -m pytest -q tools/jelly-leon/tests
+
+      - name: .NET SDK volgens global.json (van de nieuwe basis)
+        uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+        with:
+          global-json-file: global.json
+
+      - name: Upstream-solution bouwen en testen
+        run: |
+          set -eu
+          dotnet restore Jellyfin.sln
+          dotnet build Jellyfin.sln -c Release --no-restore
+          dotnet test Jellyfin.sln -c Release --no-build --verbosity minimal
+
+      - name: Plugins bouwen en testen tegen de nieuwe Jellyfin-versie (ABI-breuk = falen)
+        run: |
+          set -eu
+          dotnet build plugins/JellyLeon.Plugins.sln -c Release
+          dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+
+      - name: OpenAPI-wijzigingen van upstream tonen (ter beoordeling, geen automatische acceptatie)
+        run: |
+          generated=$(find tests/Jellyfin.Server.Integration.Tests/bin/Release -name openapi.json | head -1)
+          if [ -n "$generated" ] && ! cmp -s "$generated" docs/openapi/jelly-leon.openapi.json; then
+            echo "::warning::Upstream-API is gewijzigd; beoordeel de compatibiliteit met clients vóór acceptatie."
+            echo "- Upstream-API gewijzigd t.o.v. docs/openapi/jelly-leon.openapi.json (handmatig beoordelen)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Stock-client-smoketest (simulator)
+        run: |
+          set -eu
+          dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release --runtime linux-x64 --self-contained \
+            -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/server"
+          mkdir -p "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0" "$RUNNER_TEMP/cache" "$RUNNER_TEMP/media"
+          tfm=$(ls plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/)
+          cp "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/$tfm/Jellyfin.Plugin.JellyLeon.dll" \
+             "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
+          python3 tools/jelly-leon/e2e/make_test_media.py "$RUNNER_TEMP/media"
+          sudo chown -R 568:568 "$RUNNER_TEMP/config" "$RUNNER_TEMP/cache"
+          docker run -d --name jl-sync-e2e --user 568:568 --cap-drop ALL --security-opt no-new-privileges \
+            -p 127.0.0.1:38096:8096 \
+            -v "$RUNNER_TEMP/server:/jellyfin:ro" -v "$RUNNER_TEMP/config:/config" -v "$RUNNER_TEMP/cache:/cache" \
+            -v "$RUNNER_TEMP/media:/media/muziek:ro" "$JL_RUNTIME_IMAGE" --nowebclient
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          python3 tools/jelly-leon/e2e/stock_client_smoke.py --url http://127.0.0.1:38096 \
+            --expected-version "$version" --library-path /media/muziek --expect-plugin \
+            --media-file "$RUNNER_TEMP/media/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav" \
+            --report "$RUNNER_TEMP/stock-client-smoke.json"
+
+      - name: Resultaat als git-bundle bewaren
+        if: always()
+        env:
+          SYNC_TAG: ${{ matrix.tag }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if git rev-parse --verify --quiet "refs/heads/sync/$SYNC_TAG" >/dev/null; then
+            git bundle create "$RUNNER_TEMP/sync.bundle" "origin/$DEFAULT_BRANCH..sync/$SYNC_TAG"
+          fi
+
+      - name: Bundle en rapport uploaden
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: upstream-sync-${{ strategy.job-index }}
+          retention-days: 30
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/sync.bundle
+            ${{ runner.temp }}/stock-client-smoke.json
+
+      - name: sync/<tag> pushen ter beoordeling (alleen met JL_SYNC_PUSH_TOKEN; nooit naar productie)
+        env:
+          PUSH_TOKEN: ${{ secrets.JL_SYNC_PUSH_TOKEN }}
+          SYNC_TAG: ${{ matrix.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          if [ -z "${PUSH_TOKEN:-}" ]; then
+            echo "Geen JL_SYNC_PUSH_TOKEN: sync/$SYNC_TAG staat alleen als git-bundle in de artefacten." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${REPO}.git" \
+            "refs/heads/sync/$SYNC_TAG:refs/heads/sync/$SYNC_TAG" "refs/tags/upstream-$SYNC_TAG:refs/tags/upstream-$SYNC_TAG"
+          echo "sync/$SYNC_TAG gepusht ter beoordeling. Niet gedeployd; release blijft een handmatige stap." | tee -a "$GITHUB_STEP_SUMMARY"

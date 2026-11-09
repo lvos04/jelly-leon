@@ -16,7 +16,8 @@ on:
 jobs:
   auto_bump_version:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'release' && !contains(github.event.release.tag_name, 'rc') }}
+    # Jelly Leon JL-0001: alleen in upstream; in de fork blijft de serverversie de upstream-versie (ADR-0005).
+    if: ${{ github.repository == 'jellyfin/jellyfin' && github.event_name == 'release' && !contains(github.event.release.tag_name, 'rc') }}
     env:
       TAG_BRANCH: ${{ github.event.release.target_commitish }}
     steps:
@@ -60,7 +61,8 @@ jobs:
 
   manual_bump_version:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    # Jelly Leon JL-0001: alleen in upstream; in de fork blijft de serverversie de upstream-versie (ADR-0005).
+    if: ${{ github.repository == 'jellyfin/jellyfin' && github.event_name == 'workflow_dispatch' }}
     env:
       TAG_BRANCH: ${{ github.event.inputs.TAG_BRANCH }}
       NEXT_VERSION: ${{ github.event.inputs.NEXT_VERSION }}
