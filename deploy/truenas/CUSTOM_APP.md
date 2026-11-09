@@ -2,7 +2,7 @@
 
 > **Status: NIET GEVALIDEERD (echte NAS).** De volledige image (server + echte web-build + plugin) is lokaal gebouwd en
 > met dezelfde formulierwaarden in Docker getest (Sim-getest: levenscyclus 18/18 en web-smoketest in Chromium 21/21,
-> `docs/platform-v2/BOUWVERIFICATIE_P0.md` §11). Er is nog **geen** gepubliceerde image `ghcr.io/lvos04/jelly-leon`:
+> `docs/platform-v2/BOUWVERIFICATIE_P0.md` §11; na de QA-review met de aangescherpte opslagcontrole 21/21, §12). Er is nog **geen** gepubliceerde image `ghcr.io/lvos04/jelly-leon`:
 > forkversie `10.11.11-jl.0` wordt nooit uitgebracht (ADR-0005); vóór P4 gaat de basis eerst naar Jellyfin 12.x
 > (ADR-0011), de eerste release volgt daarna. Het formulier hieronder is niet op een echte TrueNAS doorlopen; veldnamen volgen TrueNAS SCALE 24.10/25.04 en kunnen per
 > versie iets afwijken. De installatie gebeurt normaal **door het platform** (Hub → executor → TrueNAS-API
@@ -34,6 +34,11 @@ Rechten hoef je niet aan te passen: bij de eerste start maakt de container gebru
 Ontbreekt de opslagregel voor `/config` of `/cache`, dan zou Docker stilletjes een anoniem volume aanmaken (de database
 staat dan niet op je dataset en verdwijnt bij verwijderen). De container **weigert dan te starten** en meldt welke
 opslagregel ontbreekt.
+
+Kies voor `/config` het opslagtype **Host Path** of **ixVolume**. De container weigert ook te starten als `/config`
+het opslagtype **tmpfs** heeft (database en instellingen zouden na elke herstart weg zijn en de startwizard zou weer
+voor iedereen openstaan) of een **NFS/SMB-share** is (de SQLite-database van Jellyfin is daar niet betrouwbaar). Voor
+`/cache` mag tmpfs wel (alles daarin is opnieuw op te bouwen; het kost werkgeheugen).
 
 ## Formulier: Apps → Discover Apps → Custom App
 
@@ -83,6 +88,10 @@ opslagregel ontbreekt.
 |---|---|
 | `FOUT: /config is een anoniem Docker-volume, geen gekozen dataset` (of `/cache`) | Storage-regel ontbreekt of Mount Path is niet exact `/config` / `/cache`. Voeg de opslagregel toe en start opnieuw. |
 | `FOUT: … ligt buiten /config of /cache` | Er staat een `JELLYFIN_DATA_DIR`/`JELLYFIN_CACHE_DIR` in Environment Variables: verwijderen. |
+| `FOUT: /config staat in het werkgeheugen (tmpfs)` | Opslagtype van `/config` is tmpfs: wijzig het in Host Path of ixVolume (jouw config-dataset). |
+| `FOUT: … staat op een netwerkshare (nfs/cifs)` | `/config` is een NFS/SMB-share: kies een Host Path of ixVolume op de NAS zelf. |
+| `FOUT: … staat niet op eigen opslag maar in de container zelf` | Er staat een `JELLYFIN_CONFIG_DIR` (of ander `JELLYFIN_*`-pad) in Environment Variables: verwijderen. |
+| `FOUT: opdrachtregeloptie '--datadir' …` (of `--configdir`, `--cachedir`, `--logdir`, `--webdir`) | Veld Entrypoint/Command leegmaken. |
 | `geen /dev/dri-apparaten: transcoderen alleen via CPU` | Geen fout. Zet GPU pas aan na meting (D08). |
 | Poort bezet bij opslaan | Andere Host Port kiezen; Container Port blijft `8096`. |
 | Image kan niet worden opgehaald | Er is nog geen release, of het GHCR-pakket is privé (gebruikersbesluit, ADR-0004). |

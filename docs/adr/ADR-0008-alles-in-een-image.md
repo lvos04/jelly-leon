@@ -31,6 +31,16 @@
      volumes;
    - `JELLYFIN_DATA_DIR`/`JELLYFIN_CACHE_DIR` (na het oplossen van symlinks) buiten `/config` of `/cache` → weigeren:
      als root nooit `chown -R` op systeem- of mediamappen.
+   - **(QA-review P0-afronding)** datamap én instellingenmap (`JELLYFIN_CONFIG_DIR`, standaard `<datamap>/config`)
+     moeten op blijvende, lokale opslag staan, ook als de container als niet-root start. De entrypoint zoekt de mount
+     waarop het pad ligt (langste mountpoint in `/proc/self/mountinfo`) en weigert: een anoniem Docker-volume, `tmpfs`/
+     `ramfs` (het formulier biedt opslagtype *tmpfs*), de container zelf (geen eigen mount) en NFS/SMB (`nfs`, `nfs4`,
+     `cifs`, `smb3`, `smbfs`: SQLite-vergrendeling niet betrouwbaar). Gemeten vóór de reparatie: met `/config` als
+     tmpfs werd de container *healthy* met een lege database en stond de startwizard anoniem open (HTTP 200 op
+     `/Startup/Configuration`, `StartupWizardCompleted=false`) — na elke herstart opnieuw, zodat de eerste bezoeker
+     beheerder wordt. `/cache` mag tmpfs zijn (opnieuw op te bouwen); daar geldt alleen de controle op een anoniem volume;
+   - padopties in het veld *Command* (`-d/--datadir`, `-c/--configdir`, `-C/--cachedir`, `-l/--logdir`, `-w/--webdir`)
+     omzeilen deze controles → weigeren.
 5. **Gezondheid:** upstream `/health` (HEALTHCHECK). Contract-`/healthz` en `/readyz` volgen in P1 via de plugin
    (anoniem, zonder geheimen) — geen core-patch.
 6. **GPU** standaard uit (`gpu: none` in het manifest) tot de wizard de rendernodes meet (D08); de manifeststandaard kent
@@ -71,6 +81,15 @@
   `jelly-leon-web` in headless Chromium **21/21** tegen dezelfde image (`docs/platform-v2/test-evidence/
   p0-afronding-*.json`). In GitHub-CI blijft de stage `web` vervangen door de upstream-web-dist zolang `jelly-leon-web`
   privé is (geen leestoken; gebruikersbesluit 3: repos worden publiek na een scan).
+
+## Gemeten in de QA-review van de P0-afronding (2026-11-09; Sim-getest, geen echte NAS)
+
+- Volledige image opnieuw gebouwd (server en plugin uit de werkboom op `d4bc20d6a`, echte web-build van
+  `jelly-leon-web` `2795f3365`; de web-stage kwam uit de BuildKit-cache met identieke invoer). Levenscyclus **21/21**
+  (`docs/platform-v2/test-evidence/p0-qa-image-lifecycle.json`): alle eerdere 18 stappen plus drie nieuwe weigeringen
+  (`/config` als tmpfs, `JELLYFIN_CONFIG_DIR` in de container, `--datadir` in *Command*). Los nagemeten: start als
+  niet-root (`--user 568:568`) blijft *healthy*; `/cache` als tmpfs blijft toegestaan; `/config` als tmpfs wordt ook
+  als niet-root geweigerd. De weigering van NFS/SMB is **niet** getest (geen NFS/SMB-server in de testomgeving).
 
 ## Gevolgen
 

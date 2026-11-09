@@ -14,8 +14,13 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
   6. `docker restart` → healthy → smoketest modus `herstart` (zelfde gebruiker en item-ID, wizard blijft dicht);
   7. container verwijderen en opnieuw aanmaken met dezelfde opslag (zoals een app-update/herinstallatie)
      → healthy → smoketest modus `herstart`;
-  8. negatieve tests (fail-closed): zonder opslagregel voor /cache (anoniem Docker-volume) en met
-     JELLYFIN_CACHE_DIR naar de mediamap weigert de container te starten en blijft de mediamap onaangeroerd.
+  8. negatieve tests (fail-closed): de container weigert te starten en de mediamap blijft onaangeroerd bij
+     - geen opslagregel voor /cache (anoniem Docker-volume);
+     - JELLYFIN_CACHE_DIR naar de mediamap (root zou anders `chown -R` op de media doen);
+     - /config als tmpfs (opslagtype tmpfs in het formulier: database weg na elke herstart, startwizard weer open);
+     - JELLYFIN_CONFIG_DIR in de container zelf (instellingen weg bij elke update);
+     - een padoptie (`--datadir`) in het veld Command.
+  9. bij succes wordt de werkmap opgeruimd (bestanden van 568 via een wegwerpcontainer; --behoud-werkmap houdt hem).
 
 Alleen standaardbibliotheek; Docker via subprocess zonder shell. Schrijft een JSON-rapport. Exitcode 0 = alles geslaagd.
 """
@@ -26,6 +31,7 @@ import argparse
 import html.parser
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -92,19 +98,28 @@ class Lifecycle:
         print(f"[{'OK  ' if ok else 'FOUT'}] {name}: {detail}", flush=True)
         return ok
 
-    def run_args(self, name: str, *, mounts: list[str], env: list[str] | None = None) -> list[str]:
+    def run_args(
+        self,
+        name: str,
+        *,
+        mounts: list[str],
+        env: list[str] | None = None,
+        extra: list[str] | None = None,
+        command: list[str] | None = None,
+        image: str | None = None,
+    ) -> list[str]:
         args = ["run", "-d", "--name", name, "-p", f"127.0.0.1:{self.port}:8096"]
         for item in env or []:
             args += ["-e", item]
         for mount in mounts:
             args += ["-v", mount]
-        return [*args, self.args.image]
+        return [*args, *(extra or []), image or self.args.image, *(command or [])]
 
     def standard_mounts(self) -> list[str]:
         return [f"{self.config}:/config", f"{self.cache}:/cache", f"{self.media}:/media/muziek:ro"]
 
-    def start(self) -> None:
-        docker(*self.run_args(self.name, mounts=self.standard_mounts()))
+    def start(self, image: str | None = None) -> None:
+        docker(*self.run_args(self.name, mounts=self.standard_mounts(), image=image))
 
     def remove(self, name: str) -> None:
         docker("rm", "-f", "-v", name, check=False)
@@ -130,14 +145,24 @@ class Lifecycle:
         print(self.logs(self.name), file=sys.stderr)
         return False
 
-    def smoke(self, label: str, mode: str, previous: dict | None = None) -> dict | None:
+    def smoke(
+        self,
+        label: str,
+        mode: str,
+        previous: dict | None = None,
+        *,
+        expect_plugin: bool = True,
+        version: str | None = None,
+    ) -> dict | None:
         report_path = self.work / f"smoke-{label}.json"
         cmd = [
             sys.executable, str(SMOKE), "--url", f"http://127.0.0.1:{self.port}",
-            "--expected-version", self.args.expected_version, "--library-path", "/media/muziek",
-            "--media-file", str(self.media / MEDIA_REL), "--expect-plugin", "--modus", mode,
+            "--expected-version", version or self.args.expected_version, "--library-path", "/media/muziek",
+            "--media-file", str(self.media / MEDIA_REL), "--modus", mode,
             "--report", str(report_path), "--start-timeout", "60",
         ]
+        if expect_plugin:
+            cmd.append("--expect-plugin")
         if previous:
             cmd += ["--verwacht-item", previous["item_id"], "--verwacht-gebruiker", previous["gebruiker_id"]]
         proc = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=600)
@@ -231,11 +256,20 @@ class Lifecycle:
             result.append((str(path.relative_to(self.media)), st.st_uid, st.st_gid, st.st_mode))
         return result
 
-    def expect_refusal(self, label: str, *, mounts: list[str], env: list[str], expected_text: str) -> None:
+    def expect_refusal(
+        self,
+        label: str,
+        *,
+        mounts: list[str],
+        env: list[str],
+        expected_text: str,
+        extra: list[str] | None = None,
+        command: list[str] | None = None,
+    ) -> None:
         name = f"{self.name}-neg"
         self.remove(name)
         before = self.media_fingerprint()
-        docker(*self.run_args(name, mounts=mounts, env=env))
+        docker(*self.run_args(name, mounts=mounts, env=env, extra=extra, command=command))
         deadline = time.monotonic() + 60
         state = ""
         while time.monotonic() < deadline:
@@ -295,7 +329,38 @@ class Lifecycle:
             env=["JELLYFIN_CACHE_DIR=/media/muziek"],
             expected_text="buiten /config of /cache",
         )
+        # Opslagtype tmpfs in het formulier: zonder weigering zou de server 'healthy' worden, na elke herstart een lege
+        # database hebben en de startwizard weer anoniem aanbieden (gemeten in de review P0-afronding).
+        self.expect_refusal(
+            "/config als tmpfs (werkgeheugen)",
+            mounts=[f"{self.cache}:/cache", f"{self.media}:/media/muziek:ro"],
+            env=[],
+            extra=["--tmpfs", "/config"],
+            expected_text="staat in het werkgeheugen (tmpfs)",
+        )
+        self.expect_refusal(
+            "JELLYFIN_CONFIG_DIR in de container zelf",
+            mounts=self.standard_mounts(),
+            env=["JELLYFIN_CONFIG_DIR=/jl-config"],
+            expected_text="in de container zelf",
+        )
+        self.expect_refusal(
+            "padoptie --datadir in het veld Command",
+            mounts=self.standard_mounts(),
+            env=[],
+            command=["--datadir", "/jl-data"],
+            expected_text="opdrachtregeloptie '--datadir'",
+        )
         return bool(self.steps) and all(step["geslaagd"] for step in self.steps)
+
+    def cleanup(self) -> bool:
+        """Werkmap opruimen; /config en /cache zijn van 568, dus via een wegwerpcontainer (geen sudo)."""
+        docker(
+            "run", "--rm", "--network", "none", "--entrypoint", "/bin/rm", "-v", f"{self.work}:/werk", self.args.image,
+            "-rf", "/werk/config", "/werk/cache", "/werk/media", check=False, timeout=120,
+        )
+        shutil.rmtree(self.work, ignore_errors=True)
+        return not self.work.exists()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -303,6 +368,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--image", required=True, help="te testen image (lokaal gebouwd, bv. jelly-leon:test)")
     parser.add_argument("--expected-version", required=True, help="upstream-versie die de server moet melden")
     parser.add_argument("--werkmap", default=None, help="map voor tijdelijke opslag (standaard: systeem-tmp)")
+    parser.add_argument(
+        "--behoud-werkmap", dest="keep_workdir", action="store_true",
+        help="werkmap ook bij succes laten staan (bij falen blijft hij altijd staan, ter diagnose)",
+    )
     parser.add_argument("--health-timeout", type=float, default=240)
     parser.add_argument("--report", help="pad voor het JSON-rapport")
     parser.add_argument("--opmerking", default="", help="vrije toelichting in het rapport (bv. herkomst web-client)")
@@ -328,6 +397,8 @@ def main(argv: list[str] | None = None) -> int:
         "stappen": lifecycle.steps,
         "werkmap": str(lifecycle.work),
     }
+    if passed and not args.keep_workdir:
+        result["werkmap"] += " (opgeruimd)" if lifecycle.cleanup() else " (opruimen mislukt)"
     if args.report:
         Path(args.report).write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     ok = sum(step["geslaagd"] for step in lifecycle.steps)

@@ -11,6 +11,10 @@
 #        meegegeven, zodat QSV/VAAPI als 568 werkt zonder privileged-modus;
 #      - daarna draait alles als 568:568 zonder capabilities (setpriv): dit script start zichzelf opnieuw als 568 en
 #        werkt pas dán de eigen pluginmap bij (geen schrijfacties als root in de datamap behalve chown).
+#  * Altijd (ook als niet-root): datamap en instellingenmap moeten op blijvende, lokale opslag uit het formulier
+#    staan — geen anoniem Docker-volume, geen tmpfs, niet in de container zelf, geen NFS/SMB-share — en padopties
+#    (--datadir, --configdir, …) in het veld Command worden geweigerd. Anders zou de database bij een herstart of
+#    update verdwijnen en de startwizard weer anoniem openstaan (fail-closed, review P0-afronding).
 #  * Start de container al als niet-root (Custom User), dan wordt niets gewijzigd behalve de eigen pluginmap.
 #  * De meegeleverde Jelly Leon-plugin wordt in <datamap>/plugins/JellyLeon_<versie> gezet; andere plugins blijven
 #    onaangeroerd. Geen geheimen, geen netwerkaanroepen, geen shell voor iets anders dan deze start.
@@ -26,22 +30,71 @@ SELF=$(readlink -f -- "$0")
 log() { printf '%s jelly-leon: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 fail() { log "FOUT: $*"; exit 1; }
 
+# Map met instellingen (o.a. system.xml: "startwizard afgerond") — zelfde standaard als upstream (StartupHelpers).
+CONFIG_DIR="${JELLYFIN_CONFIG_DIR:-$DATA_DIR/config}"
+
+# Padopties op de opdrachtregel (veld Entrypoint/Command in het formulier) zouden de controles hieronder omzeilen.
+for arg in "$@"; do
+  case "$arg" in
+    -d | -d* | --datadir | --datadir=* | -c | -c* | --configdir | --configdir=* | -C | -C* | --cachedir | --cachedir=* | \
+    -l | -l* | --logdir | --logdir=* | -w | -w* | --webdir | --webdir=*)
+      fail "opdrachtregeloptie '$arg' verplaatst een datamap of de web-client; laat Entrypoint/Command in het Custom App-formulier leeg" ;;
+  esac
+done
+
 for dir in "$DATA_DIR" "$CACHE_DIR"; do
   [ -d "$dir" ] || fail "$dir bestaat niet: voeg in het Custom App-formulier opslag toe met Mount Path $dir"
 done
 
-# De upstream-basisimage declareert VOLUME /config en /cache: zonder opslagregel in het formulier maakt Docker
-# stilletjes een anoniem volume (/…/volumes/<64 hex>/_data) en staat de database NIET op de gekozen dataset
-# (verdwijnt bij verwijderen/herinstalleren). Onduidelijke datamap = no-go (fasering P0) → weigeren.
-is_anonymous_volume() {
-  mp=$(readlink -f -- "$1") || return 1
-  awk -v mp="$mp" '$5 == mp { print $4 }' /proc/self/mountinfo | grep -Eq '/volumes/[0-9a-f]{64}/_data$'
+# Mount waarop een pad ligt (langste mountpoint-voorvoegsel in /proc/self/mountinfo; bij gestapelde mounts de
+# bovenste): "<bestandssysteemtype> <root binnen de bron> <mountpoint>".
+mount_of() {
+  target=$(readlink -f -- "$1") || return 1
+  awk -v p="$target" '
+    {
+      fs = ""
+      for (i = 7; i <= NF; i++) if ($i == "-") { fs = $(i + 1); break }
+      m = $5
+      if (m == p || m == "/" || index(p, m "/") == 1) {
+        if (length(m) >= best) { best = length(m); out = fs " " $4 " " m }
+      }
+    }
+    END { if (out != "") print out }' /proc/self/mountinfo
 }
-for dir in "$DATA_DIR" "$CACHE_DIR"; do
-  if is_anonymous_volume "$dir"; then
-    fail "$dir is een anoniem Docker-volume, geen gekozen dataset: voeg in het Custom App-formulier opslag (Host Path of ixVolume) toe met Mount Path $dir"
+
+# Datamap en instellingen moeten op blijvende, lokale opslag uit het formulier staan; anders verdwijnen database en
+# "startwizard afgerond" (bij herstart, update of herinstallatie) en staat de startwizard weer anoniem open
+# — de eerste bezoeker wordt dan beheerder. Onduidelijke datamap = no-go (fasering P0) → weigeren (fail-closed).
+#  * anoniem Docker-volume (/…/volumes/<64 hex>/_data): de upstream-basisimage declareert VOLUME /config en /cache,
+#    dus zonder opslagregel maakt Docker er stilletjes één (verdwijnt bij verwijderen/herinstalleren);
+#  * tmpfs/ramfs (opslagtype tmpfs in het formulier): leeg na elke herstart;
+#  * de container zelf (geen eigen mount): weg bij elke update of herinstallatie;
+#  * netwerkshare (opslagtype NFS/SMB): de SQLite-database van Jellyfin is daar niet betrouwbaar (vergrendeling).
+# Voor /cache (opnieuw op te bouwen) geldt alleen de controle op een anoniem volume.
+assert_persistent() {
+  info=$(mount_of "$1") || fail "$1 kan niet worden opgelost; laat JELLYFIN_*-variabelen leeg in het formulier"
+  [ -n "$info" ] || fail "$1: geen mount gevonden in /proc/self/mountinfo"
+  fstype=${info%% *}
+  rest=${info#* }
+  root=${rest%% *}
+  mnt=${rest#* }
+  if printf '%s\n' "$root" | grep -Eq '/volumes/[0-9a-f]{64}/_data$'; then
+    fail "$mnt is een anoniem Docker-volume, geen gekozen dataset: voeg in het Custom App-formulier opslag (Host Path of ixVolume) toe met Mount Path $mnt"
   fi
-done
+  [ "$2" = "cache" ] && return 0
+  if [ "$mnt" = "/" ]; then
+    fail "$1 staat niet op eigen opslag maar in de container zelf (weg bij elke update): laat JELLYFIN_*-variabelen leeg en gebruik de opslagregel met Mount Path /config"
+  fi
+  case "$fstype" in
+    tmpfs | ramfs)
+      fail "$1 staat in het werkgeheugen ($fstype): database en instellingen verdwijnen bij elke herstart en de startwizard staat dan weer open. Kies voor Mount Path $mnt het opslagtype Host Path of ixVolume" ;;
+    nfs | nfs4 | cifs | smb3 | smbfs)
+      fail "$1 staat op een netwerkshare ($fstype): de SQLite-database van Jellyfin is daar niet betrouwbaar. Kies voor Mount Path $mnt een Host Path of ixVolume op de NAS zelf" ;;
+  esac
+}
+assert_persistent "$DATA_DIR" data
+assert_persistent "$CONFIG_DIR" data
+assert_persistent "$CACHE_DIR" cache
 
 # Alleen /config, /cache en mappen daaronder mogen als root van eigenaar wisselen (na het oplossen van symlinks).
 assert_owned_mount() {
