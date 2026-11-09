@@ -27,8 +27,9 @@ Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; z
   met een echte Emby-container. Emby wordt alleen gelezen (API-sleutel, alleen GET) en blijft ongewijzigd draaien tot de
   gebruiker na de controlelijst "Emby verwijderen" (bouwplan §10.9.2) zelf besluit; de gebruiker verwijdert Emby zelf.
   Deze repo levert de overnametool en het vóór/na-rapport (eerst JellyPlex-Watched beoordelen op licentie en hergebruik).
-- ADR-nummers in die kopieën: ADR-0001…0011 zijn de ADR's van deze repo; "ADR-0016…0020 in `docs/adr/`" (bouwplan) en
-  "ADR-0020" (`A02_EMBY.md`) zijn ADR's van ai-server-manager. De ADR-voorstellen ADR-B03-01…13 uit het bouwplan staan,
+- ADR-nummers in die kopieën: een kaal ADR-0001…0011 is een ADR van deze repo, behalve waar "web" of "jelly-leon-web"
+  erbij staat (bv. "web ADR-0001"); "ADR-0016…0020 in `docs/adr/`" (bouwplan) en "ADR-0020" (`A02_EMBY.md`) zijn ADR's
+  van ai-server-manager. De ADR-voorstellen ADR-B03-01…13 uit het bouwplan staan,
   voor zover ze deze fork raken, hier als ADR-0015…0024 (overzicht en herkomst in [`../adr/README.md`](../adr/README.md)).
 - `EXCEL_TAKEN.json` bevat de volledige B03-set: B03-001…079 (de uitgebreide rijen B03-004/005/007/009/010/013 vervangen
   de oude rijen; de oude tekst staat er letterlijk vooraan in) en de testrijen JLT-01…74 (conventie van ai-server-manager:
