@@ -67,8 +67,8 @@ jobs:
       - name: Lint forktools (ruff)
         run: ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon
 
-      - name: Entrypoint controleren (shellcheck)
-        run: shellcheck -s sh deploy/allinone/entrypoint.sh
+      - name: Entrypoint en healthcheck controleren (shellcheck)
+        run: shellcheck -s sh deploy/allinone/entrypoint.sh deploy/allinone/healthcheck.sh
 
       - name: Workflows controleren (actionlint met shellcheck)
         run: actionlint .github/workflows/jelly-leon-ci.yml .github/workflows/upstream-sync.yml
@@ -117,7 +117,7 @@ jobs:
 
       - name: Rapport bewaren
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: manifest-rapport
           retention-days: 14
@@ -167,7 +167,7 @@ jobs:
 
       - name: Testresultaten bewaren
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: testresultaten-server
           retention-days: 14
@@ -202,7 +202,7 @@ jobs:
         run: dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
 
       - name: Plugin-DLL bewaren
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plugin-jellyleon
           retention-days: 14
@@ -256,7 +256,7 @@ jobs:
             --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" --build-arg WEB_REF="$WEB_REF" \
             --build-arg BUILD_JOBS=4 --load -t jelly-leon:ci .
 
-      - name: Levenscyclustest (lege opslag, healthy, elk proces 568, herkomst web, herstart, Custom User, weigeringen)
+      - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568, herkomst web, herstart, Custom User, weigeringen)
         env:
           WEB_REF: ${{ steps.web.outputs.commit }}
         run: |
@@ -276,7 +276,7 @@ jobs:
 
       - name: Rapporten bewaren
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: image-lifecycle
           retention-days: 14
@@ -322,7 +322,10 @@ jobs:
           cp plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net9.0/Jellyfin.Plugin.JellyLeon.dll \
              "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
           python3 tools/jelly-leon/e2e/make_test_media.py "$RUNNER_TEMP/media"
-          sudo chown -R 568:568 "$RUNNER_TEMP/config" "$RUNNER_TEMP/cache"
+          # Eigenaar 568 zonder sudo: chown in een wegwerpcontainer van dezelfde vastgezette runtime (geen netwerk).
+          docker run --rm --network none --user 0:0 --entrypoint /bin/chown \
+            -v "$RUNNER_TEMP/config:/w/config" -v "$RUNNER_TEMP/cache:/w/cache" \
+            "$JL_RUNTIME_IMAGE" -R 568:568 /w/config /w/cache
           docker run -d --name jl-e2e --user 568:568 --cap-drop ALL --security-opt no-new-privileges \
             -p 127.0.0.1:38096:8096 \
             -v "$RUNNER_TEMP/server:/jellyfin:ro" -v "$RUNNER_TEMP/config:/config" -v "$RUNNER_TEMP/cache:/cache" \
@@ -343,7 +346,7 @@ jobs:
 
       - name: Rapport bewaren
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: stock-client-smoke
           retention-days: 14
