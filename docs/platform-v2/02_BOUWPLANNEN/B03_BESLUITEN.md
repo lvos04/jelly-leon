@@ -141,7 +141,7 @@ Genomen: BG-01, BG-02, BG-32, BG-34, BG-37, BG-38. Open: 32 besluiten.
 | BG-35 | Hardware-decode voor de beeldanalyse | alleen de UHD 770, en pas na D08 | golf 2 | open |
 | BG-36 | Module uit: eigen segmenten wissen of verbergen | wissen (herstelbaar uit de eigen database) | golf 2 | open |
 | BG-37 | Testdata met een beperkende licentie | MovieLens en Pioneer One alleen lokaal; geen Netflix-masters; eenmalige evaluatie op echte historie | golf 0 | genomen |
-| BG-38 | Ontwikkelmachine: opruimen en rechten | tijdelijke meetdata weg; Android-images houden; geen groepsrechten | nu | genomen |
+| BG-38 | Ontwikkelmachine: opruimen en rechten | tijdelijke meetdata weg; Android-images houden; geen groepsrechten | nu | genomen, anders dan het advies: `transcode` wel in de groepen render en kvm (§1) |
 
 ---
 
