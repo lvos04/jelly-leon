@@ -10,6 +10,8 @@
 #   * Pushen van sync/<tag> gebeurt alleen als het geheim JL_SYNC_PUSH_TOKEN bestaat (een token met
 #     contents:write én workflows-recht: upstream-merges wijzigen vrijwel altijd .github/workflows, wat
 #     GITHUB_TOKEN niet mag pushen). Zonder dat geheim komt het resultaat als git-bundle in de artefacten.
+#     Het token staat alleen in de aparte job `push`, die zelf geen upstream-code bouwt of uitvoert, alleen
+#     volledig geslaagde syncs pusht, git-hooks uitschakelt en een bestaande sync/<tag> nooit overschrijft.
 #   * Scheduled workflows draaien alleen vanaf de standaardbranch van de repository.
 name: Upstream-sync
 
@@ -195,32 +197,94 @@ jobs:
           SYNC_TAG: ${{ matrix.tag }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          set -eu
           if git rev-parse --verify --quiet "refs/heads/sync/$SYNC_TAG" >/dev/null; then
-            git bundle create "$RUNNER_TEMP/sync.bundle" "origin/$DEFAULT_BRANCH..sync/$SYNC_TAG"
+            refs="sync/$SYNC_TAG"
+            if git rev-parse --verify --quiet "refs/tags/upstream-$SYNC_TAG" >/dev/null; then
+              refs="$refs refs/tags/upstream-$SYNC_TAG"
+            fi
+            # shellcheck disable=SC2086
+            git bundle create "$RUNNER_TEMP/sync.bundle" "^origin/$DEFAULT_BRANCH" $refs
           fi
 
-      - name: Bundle en rapport uploaden
+      - name: Bundle en rapport uploaden (ook bij falen, ter diagnose)
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: upstream-sync-${{ strategy.job-index }}
+          name: upstream-sync-${{ matrix.tag }}
           retention-days: 30
           if-no-files-found: ignore
           path: |
             ${{ runner.temp }}/sync.bundle
             ${{ runner.temp }}/stock-client-smoke.json
 
-      - name: sync/<tag> pushen ter beoordeling (alleen met JL_SYNC_PUSH_TOKEN; nooit naar productie)
+      # Alleen bereikt als ALLE stappen hierboven slaagden: dit artefact is het enige dat de push-job gebruikt.
+      - name: Geslaagde sync markeren voor de push-job
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: upstream-sync-geslaagd-${{ matrix.tag }}
+          retention-days: 7
+          if-no-files-found: error
+          path: ${{ runner.temp }}/sync.bundle
+
+  # Aparte job zonder upstream-code: het push-token komt nooit in een job waarin upstream-build-/testcode
+  # (MSBuild-targets, tests) heeft gedraaid; die code zou anders hooks, PATH of GITHUB_ENV kunnen manipuleren.
+  push:
+    name: Geslaagde sync-branches pushen ter beoordeling (alleen met JL_SYNC_PUSH_TOKEN; nooit naar productie)
+    needs: [detecteer, sync]
+    if: ${{ always() && needs.detecteer.outputs.heeft_kandidaat == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout standaardbranch (alleen als basis voor de bundle; er wordt niets uitgevoerd)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Geslaagde sync-bundles ophalen
+        id: ophalen
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          pattern: upstream-sync-geslaagd-*
+          path: ${{ runner.temp }}/geslaagd
+
+      - name: sync/<tag> pushen (nooit overschrijven, nooit naar de standaardbranch)
         env:
           PUSH_TOKEN: ${{ secrets.JL_SYNC_PUSH_TOKEN }}
-          SYNC_TAG: ${{ matrix.tag }}
           REPO: ${{ github.repository }}
+          OPHALEN: ${{ steps.ophalen.outcome }}
         run: |
           set -eu
-          if [ -z "${PUSH_TOKEN:-}" ]; then
-            echo "Geen JL_SYNC_PUSH_TOKEN: sync/$SYNC_TAG staat alleen als git-bundle in de artefacten." | tee -a "$GITHUB_STEP_SUMMARY"
+          shopt -s nullglob
+          [ "$OPHALEN" = "success" ] || echo "::warning::Ophalen van geslaagde sync-bundles mislukte of vond niets ($OPHALEN)."
+          bundles=("$RUNNER_TEMP"/geslaagd/*/sync.bundle)
+          if [ "${#bundles[@]}" -eq 0 ]; then
+            echo "Geen geslaagde sync: er wordt niets gepusht." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${REPO}.git" \
-            "refs/heads/sync/$SYNC_TAG:refs/heads/sync/$SYNC_TAG" "refs/tags/upstream-$SYNC_TAG:refs/tags/upstream-$SYNC_TAG"
-          echo "sync/$SYNC_TAG gepusht ter beoordeling. Niet gedeployd; release blijft een handmatige stap." | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -z "${PUSH_TOKEN:-}" ]; then
+            echo "Geen JL_SYNC_PUSH_TOKEN: geslaagde sync staat alleen als git-bundle in de artefacten." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for bundle in "${bundles[@]}"; do
+            name=$(basename "$(dirname "$bundle")")
+            tag=${name#upstream-sync-geslaagd-}
+            if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "::error::Ongeldige tagnaam '$tag' in artefact $name; niets gepusht."
+              exit 1
+            fi
+            if git rev-parse --verify --quiet "refs/remotes/origin/sync/$tag" >/dev/null; then
+              echo "sync/$tag bestaat al op GitHub; niet overschreven (eerst beoordelen of verwijderen)." | tee -a "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            git -c core.hooksPath=/dev/null bundle verify "$bundle" >/dev/null
+            refspecs=("refs/heads/sync/$tag:refs/heads/sync/$tag")
+            if git bundle list-heads "$bundle" | grep -q " refs/tags/upstream-$tag\$"; then
+              refspecs+=("refs/tags/upstream-$tag:refs/tags/upstream-$tag")
+            fi
+            git -c core.hooksPath=/dev/null fetch --no-tags "$bundle" "${refspecs[@]}"
+            git -c core.hooksPath=/dev/null push "https://x-access-token:${PUSH_TOKEN}@github.com/${REPO}.git" "${refspecs[@]}"
+            echo "sync/$tag gepusht ter beoordeling. Niet gedeployd; release blijft een handmatige stap." | tee -a "$GITHUB_STEP_SUMMARY"
+          done

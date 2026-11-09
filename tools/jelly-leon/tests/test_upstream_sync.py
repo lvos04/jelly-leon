@@ -115,3 +115,29 @@ def test_merge_refuses_dirty_tree_and_existing_branch(repos, capsys):
     git(fork, "checkout", "--", "src/Server.cs")
     git(fork, "branch", "sync/v1.0.1")
     assert upstream_sync.main(["--repo", str(fork), "merge", "--tag", "v1.0.1", "--bron", str(repos["upstream"])]) == 4
+
+
+def test_merge_accepts_existing_local_tag_on_same_commit(repos, capsys):
+    """Herhaalde sync (tag al eerder gepusht en opgehaald): zelfde commit is in orde."""
+    fork: Path = repos["fork"]
+    git(fork, "fetch", "-q", str(repos["upstream"]), "refs/tags/v1.0.1:refs/tags/upstream-v1.0.1")
+    rc = upstream_sync.main(
+        ["--repo", str(fork), "merge", "--tag", "v1.0.1", "--bron", str(repos["upstream"]), "--maak-lokale-tag"]
+    )
+    assert rc == 0, capsys.readouterr().err
+    assert git(fork, "rev-parse", "upstream-v1.0.1^{commit}") == repos["v101"]
+
+
+def test_merge_refuses_moved_upstream_tag_without_changes(repos, capsys):
+    """Lokale upstream-tag op een andere commit = verdacht (verplaatste tag): niets wijzigen, exit 1."""
+    fork: Path = repos["fork"]
+    head_before = git(fork, "rev-parse", "HEAD")
+    git(fork, "tag", "upstream-v1.0.1", head_before)
+    rc = upstream_sync.main(
+        ["--repo", str(fork), "merge", "--tag", "v1.0.1", "--bron", str(repos["upstream"]), "--maak-lokale-tag"]
+    )
+    assert rc == 1
+    assert "upstream-tag verplaatst" in capsys.readouterr().err
+    assert git(fork, "rev-parse", "--abbrev-ref", "HEAD") == "main"
+    assert git(fork, "rev-parse", "HEAD") == head_before
+    assert git(fork, "branch", "--list", "sync/v1.0.1") == ""

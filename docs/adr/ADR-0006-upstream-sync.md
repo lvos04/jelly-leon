@@ -31,6 +31,13 @@
    Resultaat: git-bundle als artefact; alleen met geheim `JL_SYNC_PUSH_TOKEN` (contents + workflows-recht, omdat
    upstream-merges `.github/workflows` raken en `GITHUB_TOKEN` dat niet mag pushen) wordt `sync/<tag>` gepusht ter
    beoordeling. Overnemen in de standaardbranch en een release (`-jl.1`) zijn handmatige, goed te keuren stappen (R2).
+   **Scheiding (review P0):** het push-token staat alleen in een aparte job `push` die zelf geen upstream-code bouwt,
+   test of uitvoert. De sync-job (waarin upstream-MSBuild-targets en -tests draaien) heeft geen toegang tot het token;
+   anders zou upstream-code via git-hooks, `PATH` of `GITHUB_ENV` het token kunnen onderscheppen. De push-job neemt
+   alleen bundles over van legs waarin **alle** stappen slaagden (artefact `upstream-sync-geslaagd-<tag>`), valideert
+   de tagnaam, schakelt git-hooks uit (`core.hooksPath=/dev/null`) en overschrijft een bestaande `sync/<tag>` nooit
+   (geen force-push; eerst beoordelen of verwijderen). Een al bestaande lokale `upstream-<tag>` wordt alleen
+   geaccepteerd als die naar dezelfde commit wijst; een verplaatste upstream-tag stopt de sync zonder wijzigingen.
 4. **Grote sprongen** (andere major, bv. 10.11 → 12.x) worden net zo behandeld, maar vragen bovendien: DB-migratie op een
    kopie (canary DB copy, B03-013), clientmatrix opnieuw, terugzetpad (database + binary samen).
 

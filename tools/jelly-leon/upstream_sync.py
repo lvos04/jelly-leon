@@ -233,6 +233,16 @@ def cmd_merge(args: argparse.Namespace) -> int:
         raise ToolError(f"tag {tag} niet gevonden (ref {sync_ref}); fetch mislukt of tag bestaat niet")
     upstream_commit = commit_proc.stdout.strip()
 
+    # Lokale upstream-tag mag al bestaan (bv. eerder gepusht door de sync-workflow), maar alleen op dezelfde commit.
+    local_tag = f"upstream-{tag}"
+    existing_tag = run_git(repo, "rev-parse", "--verify", "--quiet", f"refs/tags/{local_tag}^{{commit}}", check=False)
+    tag_exists = existing_tag.returncode == 0
+    if args.create_local_tag and tag_exists and existing_tag.stdout.strip() != upstream_commit:
+        raise ToolError(
+            f"lokale tag {local_tag} wijst naar {existing_tag.stdout.strip()[:12]}, maar upstream {tag} is "
+            f"{upstream_commit[:12]}; upstream-tag verplaatst? Eerst handmatig onderzoeken (niets gewijzigd)."
+        )
+
     method = args.method
     if method == "auto":
         same_line = (target_version.major, target_version.minor) == (current_version.major, current_version.minor)
@@ -251,7 +261,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
             "upstream_tag": tag,
             "upstream_version": version_text,
             "upstream_commit": upstream_commit,
-            "local_upstream_tag": f"upstream-{tag}",
+            "local_upstream_tag": local_tag,
             "fork_version": f"{version_text}-jl.0",
         }
     )
@@ -272,8 +282,8 @@ def cmd_merge(args: argparse.Namespace) -> int:
         "Automatisch door tools/jelly-leon/upstream_sync.py. Nooit automatisch naar productie;\n"
         "eerst bouwen, testen en handmatig beoordelen (ADR-0006).",
     )
-    if args.create_local_tag:
-        run_git(repo, "tag", f"upstream-{tag}", upstream_commit)
+    if args.create_local_tag and not tag_exists:
+        run_git(repo, "tag", local_tag, upstream_commit)
 
     result = {
         "branch": branch,
