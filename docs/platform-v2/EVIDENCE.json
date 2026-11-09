@@ -1,0 +1,52 @@
+[
+  {
+    "id": "B03-001",
+    "status": "Bezig",
+    "validatie": "Sim-getest",
+    "bewijs": "commits 66909584f (FORK_STRATEGIE, ADR-0001..0009, INVENTARIS, CLIENT_COMPAT_MATRIX), 492621fad + bfc39fd92 (patchregister-/consistentiecontrole), 82939052c (plugin /media/v1/version, 13/13 tests), 748aa8aec (jelly-leon-ci.yml, JL-0001), 84feb2ad5 (image-schets, Custom App, manifest, stock-client-smoketest); docs/platform-v2/BOUWVERIFICATIE_P0.md: build Jellyfin.sln Release 0 fouten/0 waarschuwingen, 2544/2555 tests geslaagd (4 mislukt door bouwomgeving zonder DNS/IPv6, 7 upstream-skip); test-evidence/p0-stock-client-smoke-{fork,stock,entrypoint}.json 17/17",
+    "blokkade": "Acceptatie (stock clients loggen in en streamen zonder regressie) vraagt echte clients op echte apparaten (D15) en een echte installatie: NIET GEVALIDEERD (hardware). Jelly Leon-CI nog niet op GitHub uitgevoerd. Gebruikersbesluit nodig over zichtbaarheid van repo's en GHCR-pakket (GPL: bron beschikbaar).",
+    "opmerking": "Protocol van stock clients (Jellyfin Web/Android-headers, oude X-Emby-headers, wizard, login, 401's, statisch streamen + Range) nagebootst tegen de fork-build en ter referentie tegen stock jellyfin/jellyfin:10.11.11: geen verschil. Servercode identiek aan upstream v10.11.11; enige core-patch JL-0001 (CI). Waarneming: upstream streamt zonder token (ADR-0009).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "B03-013",
+    "status": "Bezig",
+    "validatie": "Sim-getest",
+    "bewijs": "commits 492621fad + bfc39fd92 (tools/jelly-leon/upstream_sync.py, 28 pytest-tests incl. tests/test_upstream_sync.py::test_merge_incompatible_tag_fails_cleanly_ex48 en tests/test_upstream_sync_herbasis.py), 748aa8aec (.github/workflows/upstream-sync.yml); docs/adr/ADR-0006-upstream-sync.md; test-evidence/p0-upstream-syncproef-v12.4.json",
+    "blokkade": "Acceptatie (fork-migratie terug te zetten met DB-back-up + binary, streaming blijft werken) vraagt een echte NAS: NIET GEVALIDEERD (echte NAS). upstream-sync.yml nog niet op GitHub gedraaid (scheduled alleen vanaf de standaardbranch). Pushen van sync/<tag> vraagt geheim JL_SYNC_PUSH_TOKEN (gebruiker).",
+    "opmerking": "Echte syncproef naar upstream v12.4 (lokaal, niets gepusht): gewone merge 79 conflicten door upstream-backports, herbasis 1 conflict (commands.yml, JL-0001) → terecht falen. v12.4 vraagt .NET 10. Patch stack: 0 servercode-patches.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "EX48",
+    "status": "Bezig",
+    "validatie": "Sim-geslaagd",
+    "bewijs": "tools/jelly-leon/tests/test_upstream_sync.py::test_merge_incompatible_tag_fails_cleanly_ex48; tests/test_upstream_sync_herbasis.py::test_herbasis_fails_cleanly_when_patch_no_longer_applies; test-evidence/p0-upstream-syncproef-v12.4.json (echte upstream v12.4: exit 2, geen deploy); commit bfc39fd92",
+    "blokkade": "Echte run van upstream-sync.yml op GitHub nog niet uitgevoerd.",
+    "opmerking": "Incompatibele upstream-update laat sync falen (exit 2, branch opgeruimd, werkboom schoon); de workflow publiceert nooit een image of release.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "I24-24-01",
+    "status": "Bezig",
+    "validatie": "Sim-getest",
+    "bewijs": "baseline exact op upstream-tag v10.11.11 (tools/jelly-leon/baseline.json, check_fork_consistency.py); stock-client-smoketest 17/17 (test-evidence/p0-stock-client-smoke-*.json); commit 84feb2ad5",
+    "blokkade": "Testbibliotheek op de echte NAS en bestaande clients: NIET GEVALIDEERD (echte NAS).",
+    "opmerking": "Fork v0 = 10.11.11-jl.0 (wordt nooit gepubliceerd, ADR-0005).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "I06-06-07",
+    "status": "Bezig",
+    "validatie": "Sim-getest",
+    "bewijs": "upstream tracking via upstream-sync.yml + sync/<tag> (ADR-0006); CI-compat-smoke in jelly-leon-ci.yml job stock-client-e2e; lokaal 17/17; commits 748aa8aec, bfc39fd92",
+    "blokkade": "Jellyfin-clientmatrix op echte apparaten (D15): NIET GEVALIDEERD (hardware).",
+    "opmerking": "Geen servercode-patch nodig in P0; plugin-eerst (ADR-0001).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  }
+]

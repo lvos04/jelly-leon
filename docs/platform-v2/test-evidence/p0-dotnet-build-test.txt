@@ -1,0 +1,76 @@
+# Jelly Leon P0 — ruwe uitvoer (ingekort) van de bouwverificatie, 2026-11-09 (UTC)
+# Container: mcr.microsoft.com/dotnet/sdk:9.0.320@sha256:07ed28d9e7279248fcea27334880f6c415b42c631c39b8bc5b3caf13ec6fdaa2
+# --network host, HTTPS_PROXY + proxy-CA (alleen in de container, niet in de repo), --cpus 2 --memory 6g, NuGet-cache als docker-volume
+
+## 1. dotnet restore Jellyfin.sln && dotnet build Jellyfin.sln -c Release -m:2 --no-restore
+### dotnet --version
+9.0.320
+### restore 2026-11-09T09:03:54Z
+real	2m2.753s
+### build 2026-11-09T09:05:57Z
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+real	3m48.324s
+### klaar 2026-11-09T09:09:46Z
+exit=0
+
+## 2. dotnet test Jellyfin.sln -c Release --no-build -m:2
+### test 2026-11-09T09:10:23Z
+Passed!  - Failed:     0, Passed:    30, Skipped:     0, Total:    30, Duration: 123 ms - Jellyfin.Common.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    47, Skipped:     0, Total:    47, Duration: 880 ms - Jellyfin.MediaEncoding.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    79, Skipped:     0, Total:    79, Duration: 1 s - Jellyfin.Api.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   420, Skipped:     4, Total:   424, Duration: 11 s - Jellyfin.Server.Implementations.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    28, Skipped:     0, Total:    28, Duration: 390 ms - Jellyfin.Controller.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    34, Skipped:     0, Total:    34, Duration: 332 ms - Jellyfin.XbmcMetadata.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   627, Skipped:     0, Total:   627, Duration: 9 s - Jellyfin.Model.Tests.dll (net9.0)
+Failed!  - Failed:     2, Passed:   117, Skipped:     0, Total:   119, Duration: 606 ms - Jellyfin.Networking.Tests.dll (net9.0)
+Failed!  - Failed:     2, Passed:     5, Skipped:     0, Total:     7, Duration: 278 ms - Jellyfin.Server.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   614, Skipped:     0, Total:   614, Duration: 49 s - Jellyfin.Naming.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   235, Skipped:     0, Total:   235, Duration: 1 s - Jellyfin.Providers.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   141, Skipped:     0, Total:   141, Duration: 518 ms - Jellyfin.Extensions.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 53 ms - Jellyfin.MediaEncoding.Hls.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 158 ms - Jellyfin.MediaEncoding.Keyframes.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    48, Skipped:     0, Total:    48, Duration: 802 ms - Jellyfin.LiveTv.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   100, Skipped:     3, Total:   103, Duration: 56 s - Jellyfin.Server.Integration.Tests.dll (net9.0)
+real	1m41.639s
+### klaar 2026-11-09T09:12:04Z rc=1
+exit=1
+
+### mislukte tests (omgevingsafhankelijk, zie BOUWVERIFICATIE_P0.md §3)
+Jellyfin.Networking.Tests.NetworkParseTests.TestBindInterfaceOverrides(source: "jellyfin.org", lan: "192.168.1.0/24", bindAddresses: "", ipv6enabled: False, publishedServers: "external=http://helloworld.com", result: "http://helloworld.com") [FAIL]
+Jellyfin.Networking.Tests.NetworkParseTests.TestBindInterfaceOverrides(source: "jellyfin.org", lan: "192.168.1.0/24", bindAddresses: "eth16", ipv6enabled: False, publishedServers: "external=http://helloworld.com", result: "http://helloworld.com") [FAIL]
+Jellyfin.Server.Tests.ParseNetworkTests.TestNetworks(ip4: False, ip6: True, hostList: ["localhost"], knownProxies: [], knownNetworks: [IPNetwork { Prefix = ::1, PrefixLength = 128 }]) [FAIL]
+Jellyfin.Server.Tests.ParseNetworkTests.TestNetworks(ip4: True, ip6: True, hostList: ["localhost"], knownProxies: [127.0.0.1], knownNetworks: [IPNetwork { Prefix = ::1, PrefixLength = 128 }]) [FAIL]
+
+## 3. herhaling Networking.Tests + Server.Tests met --add-host jellyfin.org:203.0.113.10 (DNS-oorzaak aantonen)
+127.0.0.1       STREAM localhost
+203.0.113.10    jellyfin.org
+Passed!  - Failed:     0, Passed:   119, Skipped:     0, Total:   119, Duration: 301 ms - Jellyfin.Networking.Tests.dll (net9.0)
+Jellyfin.Server.Tests.ParseNetworkTests.TestNetworks(ip4: False, ip6: True, hostList: ["localhost"], knownProxies: [], knownNetworks: [IPNetwork { Prefix = ::1, PrefixLength = 128 }]) [FAIL]
+Jellyfin.Server.Tests.ParseNetworkTests.TestNetworks(ip4: True, ip6: True, hostList: ["localhost"], knownProxies: [127.0.0.1], knownNetworks: [IPNetwork { Prefix = ::1, PrefixLength = 128 }]) [FAIL]
+Failed!  - Failed:     2, Passed:     5, Skipped:     0, Total:     7, Duration: 134 ms - Jellyfin.Server.Tests.dll (net9.0)
+(kernel van de bouwomgeving heeft geen IPv6: /proc/sys/net/ipv6 ontbreekt; ::1 voor localhost niet te testen)
+
+## 4. plugins: dotnet restore/build/test plugins/JellyLeon.Plugins.sln -c Release -m:2
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+Passed!  - Failed:     0, Passed:    13, Skipped:     0, Total:    13, Duration: 103 ms - Jellyfin.Plugin.JellyLeon.Tests.dll (net9.0)
+exit=0
+
+## 5. dotnet publish Jellyfin.Server -c Release --runtime linux-x64 --self-contained
+  Jellyfin.Server -> /src/Jellyfin.Server/bin/Release/net9.0/linux-x64/jellyfin.dll
+  Jellyfin.Server -> /out/server/
+real	1m56.866s
+exit=0
+
+## 6. docker buildx build -f deploy/allinone/Dockerfile (volledige image)
+#16 42.53 npm error 403 403 Forbidden - GET https://github.com/eligrey/classList.js/archive/1.2.20180112.tar.gz
+#16 42.53 npm error 403 In most cases, you or one of your dependencies are requesting
+#16 42.53 npm error 403 a package version that is forbidden by your security policy, or
+
+## 7. docker buildx build -f deploy/allinone/Dockerfile --target server
+#10 102.6   Jellyfin.Server -> /out/server/
+#10 109.5   Jellyfin.Plugin.JellyLeon -> /out/plugin/Jellyfin.Plugin.JellyLeon.dll
+exit=0

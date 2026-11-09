@@ -1,0 +1,118 @@
+{
+  "soort": "Sim-getest (protocolsimulator, geen echte clients/apparaten)",
+  "base_url": "http://127.0.0.1:38097",
+  "gestart": "2026-11-09T09:22:06Z",
+  "klaar": "2026-11-09T09:22:23Z",
+  "geslaagd": true,
+  "stappen": [
+    {
+      "stap": "health",
+      "geslaagd": true,
+      "detail": "/health = Healthy",
+      "tijd": "2026-11-09T09:22:20Z"
+    },
+    {
+      "stap": "technische identiteit",
+      "geslaagd": true,
+      "detail": "HTTP 200; ProductName=Jellyfin Server; Version=10.11.11 (verwacht 10.11.11)",
+      "tijd": "2026-11-09T09:22:20Z"
+    },
+    {
+      "stap": "startwizard",
+      "geslaagd": true,
+      "detail": "configuratie, eerste gebruiker en afronden via upstream-API",
+      "tijd": "2026-11-09T09:22:21Z"
+    },
+    {
+      "stap": "fout wachtwoord geweigerd",
+      "geslaagd": true,
+      "detail": "HTTP 401 (verwacht 401)",
+      "tijd": "2026-11-09T09:22:21Z"
+    },
+    {
+      "stap": "inloggen Jellyfin Web (Authorization)",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd": "2026-11-09T09:22:22Z"
+    },
+    {
+      "stap": "inloggen Jellyfin Android (Authorization)",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd": "2026-11-09T09:22:22Z"
+    },
+    {
+      "stap": "inloggen Kodi (X-Emby-Authorization)",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd": "2026-11-09T09:22:22Z"
+    },
+    {
+      "stap": "gebruiker opvragen",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd": "2026-11-09T09:22:22Z"
+    },
+    {
+      "stap": "zonder token geweigerd",
+      "geslaagd": true,
+      "detail": "HTTP 401 (verwacht 401)",
+      "tijd": "2026-11-09T09:22:22Z"
+    },
+    {
+      "stap": "oude X-Emby-Token-header",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd": "2026-11-09T09:22:22Z"
+    },
+    {
+      "stap": "bibliotheek aanmaken",
+      "geslaagd": true,
+      "detail": "HTTP 204",
+      "tijd": "2026-11-09T09:22:23Z"
+    },
+    {
+      "stap": "bibliotheekscan vindt item",
+      "geslaagd": true,
+      "detail": "item dbd1b4c93b1c7df92633765df6054ff3",
+      "tijd": "2026-11-09T09:22:23Z"
+    },
+    {
+      "stap": "statisch streamen (Android)",
+      "geslaagd": true,
+      "detail": "HTTP 200; 88244 bytes; byte-gelijk=True",
+      "tijd": "2026-11-09T09:22:23Z"
+    },
+    {
+      "stap": "streamen met Range (seek)",
+      "geslaagd": true,
+      "detail": "HTTP 206; 100 bytes",
+      "tijd": "2026-11-09T09:22:23Z"
+    },
+    {
+      "stap": "sessies zichtbaar",
+      "geslaagd": true,
+      "detail": "HTTP 200; apparaten ['jl-smoke-android-0001', 'jl-smoke-kodi-0001', 'jl-smoke-web-0001']",
+      "tijd": "2026-11-09T09:22:23Z"
+    },
+    {
+      "stap": "Jelly Leon-plugin /media/v1/version",
+      "geslaagd": true,
+      "detail": "HTTP 200; status=compatibel; fork_version=10.11.11-jl.0; reason=ok",
+      "tijd": "2026-11-09T09:22:23Z"
+    },
+    {
+      "stap": "plugin-route zonder token geweigerd",
+      "geslaagd": true,
+      "detail": "HTTP 401 (verwacht 401)",
+      "tijd": "2026-11-09T09:22:23Z"
+    }
+  ],
+  "waarnemingen": [
+    {
+      "waarneming": "upstream-gedrag: streamen zonder token",
+      "detail": "HTTP 200; anoniem streamen mogelijk (upstream-risico, zie INVENTARIS.md §7)",
+      "tijd": "2026-11-09T09:22:23Z"
+    }
+  ]
+}
