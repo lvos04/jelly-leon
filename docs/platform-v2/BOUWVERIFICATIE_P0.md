@@ -175,7 +175,10 @@ Bron telkens een `git archive`-export (geen lokale bouwresten). Ruwe uitvoer: `t
 alle 5 jobs groen): forkregels 79 tool-tests + ruff/shellcheck/actionlint; server `dotnet --version` = 9.0.320, build,
 **2 555 tests: 2 548 geslaagd, 7 overgeslagen, 0 mislukt**, OpenAPI structureel gelijk (4 beschrijvingen anders →
 waarschuwing); plugins 16/16; image (web-stage = upstream-web-dist) levenscyclus 16/16; stock-client-smoketest 18/18.
-Latere runs: zie het eindrapport van deze ronde / `gh run list -R lvos04/jelly-leon -b ccr-c133d7a0-kuz1cv`.
+Run [42620955712](https://github.com/lvos04/jelly-leon/actions/runs/42620955712) (commit `3256a645a`, met de nieuwe
+bundelcontrole en herkomst-build-arg): opnieuw 5/5 jobs groen — forkregels 84 tool-tests, server 2 548 geslaagd /
+7 overgeslagen / 0 mislukt, plugins 16/16, image-levenscyclus 17/17 (incl. alle bundels uit index.html), stock-client-
+smoketest 18/18. Latere runs: `gh run list -R lvos04/jelly-leon -b ccr-c133d7a0-kuz1cv`.
 
 ### 11.2 Lokale build en tests (zelfde 4 tests als in §3 herhaald)
 
