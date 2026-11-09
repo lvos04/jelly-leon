@@ -86,15 +86,19 @@ def recept() -> list[Item]:
                                  "jaar": 2006}),
              [Plek(_film("Elephants Dream", 2006, "mov"), ED,
                    {"imdb": "tt0807840", "tmdb": "9761", "mpaa": "PG", "tag": "Horror", "titel": "Elephants Dream", "jaar": 2006})]),
-        # Twee items met dezelfde IMDb-ID (versies): het pad wijst er precies één aan.
+        # Twee films met dezelfde IMDb-ID in verschillende mappen (versies). Emby 4.10 voegt ze samen tot één item met twee
+        # versies; Jelly Leon houdt twee items. Verwacht: "dubbel" op de afhandellijst (of, als een server ze apart houdt,
+        # een exacte koppeling op het pad) — nooit een gok.
         Item("tos", "film", Plek(_film("Tears of Steel", 2012, "mov"), TOS,
                                  {"imdb": "tt2285752", "mpaa": "PG-13", "titel": "Tears of Steel", "jaar": 2012}),
              [Plek(_film("Tears of Steel", 2012, "mov"), TOS,
-                   {"imdb": "tt2285752", "mpaa": "PG-13", "titel": "Tears of Steel", "jaar": 2012})]),
+                   {"imdb": "tt2285752", "mpaa": "PG-13", "titel": "Tears of Steel", "jaar": 2012})],
+             verwacht="onzeker", redenen=("dubbel",), jl_doel=_film("Tears of Steel", 2012, "mov")),
         Item("tos_multi", "film", Plek(_film("Tears of Steel Multiaudio", 2012, "mkv"), TOS_MULTI,
                                        {"imdb": "tt2285752", "mpaa": "PG-13", "titel": "Tears of Steel Multiaudio", "jaar": 2012}),
              [Plek(_film("Tears of Steel Multiaudio", 2012, "mkv"), TOS_MULTI,
-                   {"imdb": "tt2285752", "mpaa": "PG-13", "titel": "Tears of Steel Multiaudio", "jaar": 2012})]),
+                   {"imdb": "tt2285752", "mpaa": "PG-13", "titel": "Tears of Steel Multiaudio", "jaar": 2012})],
+             verwacht="onzeker", redenen=("dubbel",), jl_doel=_film("Tears of Steel Multiaudio", 2012, "mkv")),
         # Ontbreekt in Jelly Leon.
         Item("cosmos", "film", Plek(_film("Cosmos Laundromat", 2015, "mp4"), COSMOS,
                                     {"imdb": "tt4957236", "tmdb": "358332", "mpaa": "PG-13", "titel": "Cosmos Laundromat", "jaar": 2015}),

@@ -302,6 +302,16 @@ def heeft(k: dict[str, Any], container: bool) -> bool:
     return eigen if container else (eigen or k["gezien"] or k["aantal"] > 0 or k["positie"] > 0 or k["laatst"] is not None)
 
 
+def emby_paden(emby: Emby) -> dict[str, dict[str, Any]]:
+    """Elk mediabestand (ook de versies die Emby in één item bundelt) → het Emby-item (met RunTimeTicks)."""
+    uit: dict[str, dict[str, Any]] = {}
+    for i in emby.items(emby.admin_id, ",RunTimeTicks,MediaSources"):
+        for pad in {i.get("Path") or "", *(b.get("Path") or "" for b in i.get("MediaSources") or [])}:
+            if pad.startswith(EMBY_ROOT):
+                uit.setdefault(pad[len(EMBY_ROOT) + 1:], i)
+    return uit
+
+
 def emby_toestand(emby: Emby, gebruikers: dict[str, str]) -> dict[str, dict[str, dict[str, Any]]]:
     """Per gebruiker per pad (relatief) alle kijkgegevens, direct uit Emby (niet via de tool of de proxy)."""
     uit: dict[str, dict[str, dict[str, Any]]] = {}
@@ -554,8 +564,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         paden_emby: dict[str, dict[str, Any]] = {}
         paden_jl: dict[str, dict[str, Any]] = {}
         while time.time() < einde:
-            paden_emby = {i["Path"][len(EMBY_ROOT) + 1:]: i for i in emby.items(emby.admin_id, ",RunTimeTicks")
-                          if i.get("Path", "").startswith(EMBY_ROOT)}
+            paden_emby = emby_paden(emby)
             paden_jl = {i["Path"][len(JL_ROOT) + 1:]: i for i in jl.items() if i.get("Path", "").startswith(JL_ROOT)}
             klaar_emby = verwacht_emby <= set(paden_emby) and all(paden_emby[pd].get("ProviderIds") for pd in verwacht_emby
                                                                   if any(i.emby and i.emby.pad == pd and i.emby.nfo for i in items_recept))
@@ -564,8 +573,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                 break
             time.sleep(5)
         time.sleep(10)  # serie-/seizoensitems en NFO's laten afronden
-        paden_emby = {i["Path"][len(EMBY_ROOT) + 1:]: i for i in emby.items(emby.admin_id, ",RunTimeTicks")
-                      if i.get("Path", "").startswith(EMBY_ROOT)}
+        paden_emby = emby_paden(emby)
         paden_jl = {i["Path"][len(JL_ROOT) + 1:]: i for i in jl.items() if i.get("Path", "").startswith(JL_ROOT)}
         bewijs.check("JLT-70", "bibliotheken gescand (alle testbestanden aanwezig)",
                      verwacht_emby <= set(paden_emby) and verwacht_jl <= set(paden_jl),

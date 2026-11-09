@@ -128,6 +128,17 @@ class Koppelaar:
             return Koppeling(item.id, None, reden="type_niet_ondersteund", uitleg=f"type {item.type}")
         jl_pad = vertaal_pad(item.pad, self.paden)
         kandidaten = self.index.op_provider(item) if item.provider_ids else set()
+        if len(item.bron_paden) > 1:
+            # Emby bundelt meerdere versies (bijv. dezelfde IMDb-ID in twee mappen) in één item. Wijzen die versies naar
+            # verschillende Jelly Leon-items, dan is de koppeling niet eenduidig: nooit één versie kiezen.
+            per_versie: set[str] = set()
+            for pad in item.bron_paden:
+                per_versie |= self.index.op_pad(vertaal_pad(pad, self.paden), item.type)
+            alle = per_versie | kandidaten
+            if len(alle) > 1:
+                return Koppeling(item.id, None, reden="dubbel", kandidaten=sorted(alle),
+                                 uitleg=f"Emby bundelt {len(item.bron_paden)} versies in één item; in Jelly Leon zijn dat "
+                                        f"{len(alle)} aparte items")
         if len(kandidaten) == 1:
             return Koppeling(item.id, next(iter(kandidaten)), methode="provider_id", kandidaten=sorted(kandidaten),
                              uitleg=_ids_tekst(item))

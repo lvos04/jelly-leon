@@ -334,3 +334,21 @@ def test_spoor_vergelijking_los_van_index():
     assert a.gelijk_aan(Spoor("Subtitle", "SUBRIP", "nld", "Nederlands"))
     assert not a.gelijk_aan(Spoor("Subtitle", "subrip", "eng", None))
     assert not a.gelijk_aan(None)
+
+
+def test_emby_versies_in_een_item_naar_aparte_items_is_dubbel():
+    jl = JellyLeonIndex([
+        _jl_item("t1", "Movie", "ToS", "/data/media/Films/ToS/ToS.mov", {"Imdb": "tt2285752"}),
+        _jl_item("t2", "Movie", "ToS multi", "/data/media/Films/ToS multi/ToS.mkv", {"Imdb": "tt2285752"}),
+        _jl_item("s1", "Movie", "Samen", "/data/media/Films/Samen/a.mkv", {"Imdb": "tt1"},
+                 MediaSources=[{"Path": "/data/media/Films/Samen/a.mkv"}, {"Path": "/data/media/Films/Samen/b.mkv"}]),
+    ])
+    emby = {e.id: e for e in [
+        _emby("e1", "Movie", "ToS", "/mnt/emby/media/Films/ToS multi/ToS.mkv", {"Imdb": "tt2285752"},
+              MediaSources=[{"Path": "/mnt/emby/media/Films/ToS/ToS.mov"}, {"Path": "/mnt/emby/media/Films/ToS multi/ToS.mkv"}]),
+        _emby("e2", "Movie", "Samen", "/mnt/emby/media/Films/Samen/a.mkv", {"Imdb": "tt1"},
+              MediaSources=[{"Path": "/mnt/emby/media/Films/Samen/a.mkv"}, {"Path": "/mnt/emby/media/Films/Samen/b.mkv"}]),
+    ]}
+    koppelaar = Koppelaar(emby, jl, PADEN)
+    assert (koppelaar.koppel("e1").reden, len(koppelaar.koppel("e1").kandidaten)) == ("dubbel", 2)
+    assert (koppelaar.koppel("e2").jl_id, koppelaar.koppel("e2").methode) == ("s1", "provider_id")  # ook in Jelly Leon één item

@@ -82,6 +82,7 @@ class ItemInfo:
     seizoen: int | None = None
     aflevering: int | None = None
     classificatie: str | None = None
+    bron_paden: list[str] = field(default_factory=list)  # alleen bij meerdere versies (mediabronnen) in één item
 
     @classmethod
     def uit_api(cls, item: dict[str, Any]) -> ItemInfo:
@@ -93,6 +94,7 @@ class ItemInfo:
             grootte=_grootte(item), serie_id=item.get("SeriesId"), serie_naam=item.get("SeriesName"),
             seizoen=item.get("ParentIndexNumber"), aflevering=item.get("IndexNumber"),
             classificatie=item.get("OfficialRating"),
+            bron_paden=_bron_paden(item),
         )
 
     def naar_json(self) -> dict[str, Any]:
@@ -109,6 +111,11 @@ class ItemInfo:
         if self.jaar:
             return f"{self.naam} ({self.jaar})"
         return self.naam
+
+
+def _bron_paden(item: dict[str, Any]) -> list[str]:
+    paden = sorted({p for p in (normaliseer_pad(b.get("Path")) for b in item.get("MediaSources") or []) if p})
+    return paden if len(paden) > 1 else []
 
 
 def _grootte(item: dict[str, Any]) -> int | None:

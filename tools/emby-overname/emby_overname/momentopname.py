@@ -62,6 +62,8 @@ def maak_momentopname(lezer: EmbyLezer, met_spoorkeuzes: bool = True,
                 bestaand["grootte"] = detail.grootte
             if detail.pad and not bestaand.get("pad"):
                 bestaand["pad"] = detail.pad
+            if detail.bron_paden:
+                bestaand["bron_paden"] = detail.bron_paden
         benoemd = []
         for ruw in lezer.benoemde_favorieten(uid):
             info_item = ItemInfo.uit_api(ruw)
