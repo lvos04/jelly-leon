@@ -10,6 +10,8 @@ Controles:
   5. LICENSE is nog de GPL-2.0-tekst.
   6. Manifest: versie/tag == fork_version, geen `latest`, geen compose, install.method custom_app.
   7. Dockerfiles onder deploy/: elke base-image op @sha256-digest, nergens `latest`.
+  8. .NET-SDK: baseline.dotnet_sdk_major == major.minor uit de upstream-global.json; de SDK-image in de deploy-
+     Dockerfiles hoort bij dezelfde major.minor (deploy-deel overgeslagen met --zonder-manifest, zoals het manifest).
 
 Exitcodes: 0 = in orde, 1 = inconsistent, 3 = gebruiks-/omgevingsfout.
 """
@@ -31,15 +33,18 @@ from jl_common import (  # noqa: E402
     Version,
     load_baseline,
     parse_stable_tag,
+    read_global_json_sdk,
     read_plugin_jellyfin_version,
     read_plugin_target_framework,
     read_shared_version,
     read_upstream_target_framework,
     run_git,
+    sdk_major_minor,
 )
 
 FROM_RE = re.compile(r"^\s*FROM\s+(?:--platform=\S+\s+)?(\S+)", re.IGNORECASE)
 ARG_IMAGE_RE = re.compile(r"^\s*ARG\s+([A-Z0-9_]*IMAGE[A-Z0-9_]*)=(\S+)", re.IGNORECASE)
+SDK_IMAGE_RE = re.compile(r"mcr\.microsoft\.com/dotnet/sdk:(\d+)\.(\d+)(?:\.\d+)?(?=[@\s]|$)")
 
 
 def check_baseline(repo: Path, baseline: dict) -> list[str]:
@@ -160,6 +165,36 @@ def check_dockerfiles(repo: Path) -> list[str]:
     return errors
 
 
+def check_sdk(repo: Path, baseline: dict, *, include_deploy: bool) -> list[str]:
+    """global.json is een upstream-bestand: baseline en deploy-Dockerfiles moeten dezelfde SDK-reeks volgen."""
+    version = read_global_json_sdk(repo)
+    if version is None:
+        return []
+    errors: list[str] = []
+    major_minor = sdk_major_minor(version)
+    recorded = baseline.get("dotnet_sdk_major")
+    if recorded is not None and str(recorded) != major_minor:
+        errors.append(
+            f"baseline.dotnet_sdk_major {recorded} ≠ SDK-reeks {major_minor} uit global.json ({version}); "
+            "werk baseline.json bij (upstream_sync.py doet dat bij een sync)"
+        )
+    deploy = repo / "deploy"
+    if include_deploy and deploy.is_dir():
+        for dockerfile in sorted(deploy.rglob("Dockerfile*")):
+            if dockerfile.suffix == ".dockerignore":
+                continue
+            rel = dockerfile.relative_to(repo)
+            for number, line in enumerate(dockerfile.read_text(encoding="utf-8").splitlines(), start=1):
+                for match in SDK_IMAGE_RE.finditer(line):
+                    found = f"{match.group(1)}.{match.group(2)}"
+                    if found != major_minor:
+                        errors.append(
+                            f"{rel}:{number}: .NET-SDK-image {found} past niet bij global.json ({version}, reeks "
+                            f"{major_minor}); de image moet met dezelfde SDK-reeks bouwen als CI"
+                        )
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Controleer versie- en forkconsistentie.")
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO_ROOT)
@@ -167,13 +202,14 @@ def main(argv: list[str] | None = None) -> int:
         "--zonder-manifest",
         dest="skip_manifest",
         action="store_true",
-        help="manifestcontrole overslaan (alleen in upstream-sync: het manifest volgt pas bij een release)",
+        help="manifest- en deploy-SDK-controle overslaan (alleen in upstream-sync: deploy volgt pas bij een release)",
     )
     args = parser.parse_args(argv)
     repo = args.repo.resolve()
     try:
         baseline = load_baseline(repo)
         errors = check_baseline(repo, baseline) + check_license(repo) + check_dockerfiles(repo)
+        errors += check_sdk(repo, baseline, include_deploy=not args.skip_manifest)
         if not args.skip_manifest:
             errors += check_manifest(repo, baseline)
     except ToolError as exc:

@@ -22,6 +22,7 @@ PLUGIN_PROPS_REL = "plugins/Directory.Build.props"
 SHARED_VERSION_REL = "SharedVersion.cs"
 MANIFEST_REL = "deploy/manifest/jelly-leon.manifest.yaml"
 UPSTREAM_ABI_PROJECT_REL = "MediaBrowser.Controller/MediaBrowser.Controller.csproj"
+GLOBAL_JSON_REL = "global.json"
 
 # Stabiele upstream-tags: v10.11.11 (oude reeks) én v12.4 (nieuwe reeks zonder patchnummer).
 # Alles met een achtervoegsel (-rc1, -beta, ...) is géén stabiele release.
@@ -200,3 +201,39 @@ def set_plugin_target_framework(repo: Path, target_framework: str) -> bool:
         path.write_text(new_text, encoding="utf-8")
         return True
     return False
+
+
+SDK_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+
+
+def read_global_json_sdk(repo: Path) -> str | None:
+    """SDK-versie uit de upstream-global.json (`sdk.version`), of None als er geen global.json is."""
+    path = repo / GLOBAL_JSON_REL
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError as exc:
+        raise ToolError(f"{GLOBAL_JSON_REL} is geen geldige JSON: {exc}") from exc
+    version = data.get("sdk", {}).get("version") if isinstance(data.get("sdk"), dict) else None
+    if not isinstance(version, str) or not SDK_VERSION_RE.match(version.strip()):
+        raise ToolError(f"{GLOBAL_JSON_REL}: sdk.version ontbreekt of is geen versie (x.y.z): {version!r}")
+    return version.strip()
+
+
+def sdk_major_minor(version: str) -> str:
+    """'9.0.0' → '9.0'; '9.0.320' → '9.0'."""
+    match = SDK_VERSION_RE.match(version.strip())
+    if not match:
+        raise ToolError(f"ongeldige SDK-versie: {version!r}")
+    return f"{match.group(1)}.{match.group(2)}"
+
+
+def sdk_channel(version: str) -> str:
+    """Installeerbaar SDK-kanaal voor actions/setup-dotnet: '9.0.0' → '9.0.x' (nieuwste patch van die reeks).
+
+    Upstream zet in global.json een niet-bestaande ondergrens (bv. 9.0.0 met rollForward latestMinor); die exacte
+    versie is niet te downloaden. Het kanaal levert de actuele SDK van dezelfde major.minor, en global.json kiest die
+    vervolgens zelf via rollForward.
+    """
+    return f"{sdk_major_minor(version)}.x"

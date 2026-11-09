@@ -75,10 +75,19 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: .NET SDK volgens global.json
+      # global.json (upstream) vraagt 9.0.0 + rollForward; die exacte versie is niet te downloaden. Daarom het kanaal
+      # x.y.x uit global.json afleiden (zoals upstream zelf 9.0.x installeert); global.json blijft ongewijzigd.
+      - name: .NET-SDK-kanaal uit global.json
+        id: sdk
+        run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
+
+      - name: .NET SDK (actuele patch van de reeks uit global.json)
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          global-json-file: global.json
+          dotnet-version: ${{ steps.sdk.outputs.kanaal }}
+
+      - name: Gekozen SDK (via global.json/rollForward)
+        run: dotnet --version
 
       - name: Restore
         run: dotnet restore Jellyfin.sln
@@ -117,10 +126,19 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: .NET SDK volgens global.json
+      # global.json (upstream) vraagt 9.0.0 + rollForward; die exacte versie is niet te downloaden. Daarom het kanaal
+      # x.y.x uit global.json afleiden (zoals upstream zelf 9.0.x installeert); global.json blijft ongewijzigd.
+      - name: .NET-SDK-kanaal uit global.json
+        id: sdk
+        run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
+
+      - name: .NET SDK (actuele patch van de reeks uit global.json)
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          global-json-file: global.json
+          dotnet-version: ${{ steps.sdk.outputs.kanaal }}
+
+      - name: Gekozen SDK (via global.json/rollForward)
+        run: dotnet --version
 
       - name: Build plugins (tegen Jellyfin.Controller van de basisversie)
         run: dotnet build plugins/JellyLeon.Plugins.sln -c Release
@@ -189,10 +207,19 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: .NET SDK volgens global.json
+      # global.json (upstream) vraagt 9.0.0 + rollForward; die exacte versie is niet te downloaden. Daarom het kanaal
+      # x.y.x uit global.json afleiden (zoals upstream zelf 9.0.x installeert); global.json blijft ongewijzigd.
+      - name: .NET-SDK-kanaal uit global.json
+        id: sdk
+        run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
+
+      - name: .NET SDK (actuele patch van de reeks uit global.json)
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          global-json-file: global.json
+          dotnet-version: ${{ steps.sdk.outputs.kanaal }}
+
+      - name: Gekozen SDK (via global.json/rollForward)
+        run: dotnet --version
 
       - name: Server publiceren (self-contained, linux-x64)
         run: >

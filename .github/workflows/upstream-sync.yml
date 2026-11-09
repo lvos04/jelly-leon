@@ -144,10 +144,19 @@ jobs:
           python3 tools/jelly-leon/patch_register_check.py
           python3 -m pytest -q tools/jelly-leon/tests
 
-      - name: .NET SDK volgens global.json (van de nieuwe basis)
+      # Kanaal x.y.x uit de global.json van de NIEUWE basis (bv. 12.x: 10.0.0 → 10.0.x); de exacte ondergrens uit
+      # global.json bestaat niet als download (zie tools/jelly-leon/dotnet_sdk_kanaal.py).
+      - name: .NET-SDK-kanaal uit global.json (van de nieuwe basis)
+        id: sdk
+        run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
+
+      - name: .NET SDK (actuele patch van de reeks uit global.json)
         uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
         with:
-          global-json-file: global.json
+          dotnet-version: ${{ steps.sdk.outputs.kanaal }}
+
+      - name: Gekozen SDK (via global.json/rollForward)
+        run: dotnet --version
 
       - name: Upstream-solution bouwen en testen
         run: |

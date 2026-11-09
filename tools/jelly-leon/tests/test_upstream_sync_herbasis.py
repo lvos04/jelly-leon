@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 import check_fork_consistency
+import dotnet_sdk_kanaal
 import patch_register_check
 import upstream_sync
 from conftest import (
@@ -35,6 +36,7 @@ PROPS_WITH_TF = (
     "    <TargetFramework>net9.0</TargetFramework>\n  </PropertyGroup>\n</Project>\n"
 )
 BOT_BASE = "name: bot\njobs:\n  a:\n    runs-on: ubuntu-latest\n"
+GLOBAL_JSON = '{{\n    "sdk": {{\n        "version": "{sdk}",\n        "rollForward": "latestMinor"\n    }}\n}}\n'
 BOT_GUARDED = "name: bot\njobs:\n  a:\n    if: github.repository == 'up/stream'\n    runs-on: ubuntu-latest\n"
 
 
@@ -47,6 +49,7 @@ def diverged(tmp_path: Path) -> dict:
     write(upstream, ".github/workflows/bot.yml", BOT_BASE)
     write(upstream, "src/Server.cs", "class Server {}\n")
     write(upstream, "MediaBrowser.Controller/MediaBrowser.Controller.csproj", CSPROJ.format(tf="net9.0"))
+    write(upstream, "global.json", GLOBAL_JSON.format(sdk="9.0.0"))
     base = commit_all(upstream, "upstream 1.0.0")
     git(upstream, "tag", "-a", "v1.0.0", "-m", "1.0.0")
 
@@ -63,6 +66,7 @@ def diverged(tmp_path: Path) -> dict:
     write(upstream, "src/Server.cs", "class Server { int Fix; int Feature; }\n")
     write(upstream, "src/New.cs", "class New {}\n")
     write(upstream, "MediaBrowser.Controller/MediaBrowser.Controller.csproj", CSPROJ.format(tf="net10.0"))
+    write(upstream, "global.json", GLOBAL_JSON.format(sdk="10.0.0"))
     write(upstream, ".github/workflows/bot.yml", BOT_BASE + "  b:\n    runs-on: ubuntu-latest\n")
     v20 = commit_all(upstream, "upstream 2.0")
     git(upstream, "tag", "-a", "v2.0", "-m", "2.0")
@@ -79,6 +83,7 @@ def diverged(tmp_path: Path) -> dict:
         "upstream_commit": base,
         "local_upstream_tag": "upstream-v1.0.0",
         "fork_version": "1.0.0-jl.0",
+        "dotnet_sdk_major": "9.0",
     }
     write(fork, "tools/jelly-leon/baseline.json", json.dumps(baseline, indent=2) + "\n")
     write(fork, "tools/jelly-leon/fork_paths.txt", FORK_PATHS)
@@ -149,6 +154,24 @@ def test_herbasis_across_lines_keeps_fork_and_patches_upstream_wins_elsewhere(di
     props = (fork / "plugins/Directory.Build.props").read_text()
     assert "<JellyfinVersion>2.0.0</JellyfinVersion>" in props and "<TargetFramework>net10.0</TargetFramework>" in props
     assert check_fork_consistency.main(["--repo", str(fork), "--zonder-manifest"]) == 0
+
+
+def test_herbasis_follows_sdk_line_of_new_base(diverged, capsys):
+    """Reekssprong met nieuwe SDK (zoals 10.11 → 12.x met .NET 10): baseline volgt global.json, deploy niet vanzelf."""
+    fork = _fork_on_release_line(diverged)
+    capsys.readouterr()
+    assert upstream_sync.main(["--repo", str(fork), "merge", "--tag", "v2.0", "--bron", str(diverged["upstream"])]) == 0
+    capsys.readouterr()
+    baseline = json.loads((fork / "tools/jelly-leon/baseline.json").read_text())
+    assert baseline["dotnet_sdk_major"] == "10.0"
+    assert '"version": "10.0.0"' in (fork / "global.json").read_text()  # upstream-bestand ongewijzigd overgenomen
+    assert dotnet_sdk_kanaal.main(["--repo", str(fork)]) == 0
+    assert capsys.readouterr().out.strip() == "10.0.x"
+    # Sync-modus (zonder deploy-controle) slaagt; de deploy-Dockerfile (SDK 9.0) moet bij de release handmatig mee.
+    assert check_fork_consistency.main(["--repo", str(fork), "--zonder-manifest"]) == 0
+    capsys.readouterr()
+    assert check_fork_consistency.main(["--repo", str(fork)]) == 1
+    assert ".NET-SDK-image 9.0 past niet bij global.json (10.0.0" in capsys.readouterr().err
 
 
 def test_consistency_detects_plugin_target_framework_drift(diverged, capsys):

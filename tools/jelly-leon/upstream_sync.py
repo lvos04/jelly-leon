@@ -12,9 +12,10 @@ Subcommando's:
                          (standaard bij een andere major.minor: upstream-releasereeksen lopen uiteen, zodat een
                          gewone merge conflicten geeft in bestanden die de fork nooit wijzigde);
              auto      = merge bij dezelfde major.minor, anders herbasis.
-           Daarna baseline.json + plugins/Directory.Build.props (JellyfinVersion en TargetFramework van de nieuwe
-           upstream-ABI) bijwerken. Een conflict = incompatibel: alles wordt
-           teruggedraaid, de branch verwijderd en de exitcode is 2 (de workflow faalt; EX48).
+           Daarna baseline.json (incl. dotnet_sdk_major uit de global.json van de nieuwe basis) +
+           plugins/Directory.Build.props (JellyfinVersion en TargetFramework van de nieuwe upstream-ABI) bijwerken.
+           Een conflict = incompatibel: alles wordt teruggedraaid, de branch verwijderd en de exitcode is 2
+           (de workflow faalt; EX48).
 
 Dit script deployt NOOIT iets en pusht niets; pushen/bouwen/testen doet de workflow upstream-sync.yml.
 Exitcodes: 0 = ok, 1 = algemene fout, 2 = incompatibel (mergeconflict), 4 = branch bestaat al.
@@ -40,8 +41,10 @@ from jl_common import (  # noqa: E402
     load_baseline,
     load_fork_paths,
     parse_stable_tag,
+    read_global_json_sdk,
     read_upstream_target_framework,
     run_git,
+    sdk_major_minor,
     set_plugin_jellyfin_version,
     set_plugin_target_framework,
     write_baseline,
@@ -265,6 +268,10 @@ def cmd_merge(args: argparse.Namespace) -> int:
             "fork_version": f"{version_text}-jl.0",
         }
     )
+    # SDK-reeks van de nieuwe basis (global.json is upstream-eigendom; CI leidt er het kanaal x.y.x uit af).
+    new_sdk = read_global_json_sdk(repo)
+    if new_sdk is not None:
+        baseline["dotnet_sdk_major"] = sdk_major_minor(new_sdk)
     write_baseline(repo, baseline)
     changed = [BASELINE_REL]
     plugin_changed = set_plugin_jellyfin_version(repo, version_text)
