@@ -1,10 +1,11 @@
 # Forkstrategie Jelly Leon (B03-001)
 
-Versie P0 · 2026-11-09 · repo `lvos04/jelly-leon` · basis `jellyfin/jellyfin` **v10.11.11** · licentie **GPL-2.0**.
+Versie P0 (afronding) · 2026-11-09 · repo `lvos04/jelly-leon` · basis `jellyfin/jellyfin` **v10.11.11** · licentie
+**GPL-2.0** · **besluit gebruiker: vóór P4 naar de nieuwste stabiele 12.x (.NET 10), zie §6a en ADR-0011.**
 
 Jelly Leon is een fork van Jellyfin met één doel: de universele mediaserver uit B03 bouwen **zonder Jellyfin 1:1 te
 herschrijven** en zonder stock Jellyfin-clients te breken. Dit document is de samenvatting; de besluiten staan in
-`docs/adr/` (ADR-0001…0009), de bewaking in `tools/jelly-leon/` en CI.
+`docs/adr/` (ADR-0001…0011), de bewaking in `tools/jelly-leon/` en CI.
 
 ## 1. Pakketregel: plugin/extensie vóór core-patch (ADR-0001)
 
@@ -75,6 +76,22 @@ Dit is de databron voor de Hub-pagina *Versie en clientcompatibiliteit* (B03-001
 - Overnemen + release zijn handmatige R2-stappen; terugzetten = oude image-tag **én** database-back-up/snapshot samen.
 - Upstream-security: nieuwe patchreleases verschijnen in de wekelijkse samenvatting; advisories volgen is een followup.
 
+## 6a. Besluit: naar Jellyfin 12.x vóór P4 (ADR-0011)
+
+**Besluit van de gebruiker (2026-11-09):** Swiftfin 1.6.1 blijft; de **server gaat vóór P4 naar de nieuwste stabiele
+Jellyfin 12.x (.NET 10)**, zodat B03 direct op 12.x gebouwd wordt (jelly-leon + jelly-leon-web; Android-clients op
+12.x-compatibiliteit controleren).
+
+- **Aparte fase, niet in de P0-afronding uitgevoerd.** Tot die fase blijft alles op `v10.11.11` / .NET 9.
+- Doel = nieuwste stabiele 12.x op het moment van uitvoeren (`upstream_sync.py kies --spoor nieuwste`; gemeten
+  2026-11-09: `v12.4`), via **herbasis** op `sync/<tag>` (ADR-0006); conflict in JL-0001 handmatig oplossen.
+- Automatisch mee: baseline (`dotnet_sdk_major` 10.0), plugin-`JellyfinVersion`/`TargetFramework` (`net10.0`), het
+  CI-SDK-kanaal (`10.0.x`, ADR-0010). Handwerk: Dockerfile (`dotnet/sdk:10.0.x`, `jellyfin/jellyfin:<12.x>`, Node 24
+  voor `jellyfin-web` 12.x), manifest, `CUSTOM_APP.md`, nieuwe `docs/openapi`-export — alles op gemeten digests.
+- DB-migratie 10.11 → 12.x eerst op een kopie; terugzetten = oude image-tag + database-back-up/snapshot samen.
+- Gate vóór P4: build/tests/plugins/OpenAPI-beoordeling/smoketest/levenscyclus met migratie, clientmatrix opnieuw
+  (Android/Android TV 12.x; Swiftfin 1.6.1 NIET GEVALIDEERD (Mac/Xcode)), CI groen.
+
 ## 7. Compatibiliteitsmatrix server ↔ clients
 
 Zie [`CLIENT_COMPAT_MATRIX.md`](CLIENT_COMPAT_MATRIX.md). In P0 is alleen het **protocol** in simulatie getest
@@ -85,12 +102,12 @@ tot hij op een echt apparaat is getest (D15).
 
 | Wat | Waar | Stand P0 |
 |---|---|---|
-| Upstream-solution bouwen + volledige tests | `jelly-leon-ci.yml` job *server* | lokaal gemeten: build 0 fouten/0 waarschuwingen; van 2 555 tests 2 544 geslaagd, 7 overgeslagen (upstream), 4 mislukt door de bouwomgeving (geen DNS/IPv6; zie `BOUWVERIFICATIE_P0.md`) |
-| OpenAPI-drift | idem | export byte-gelijk reproduceerbaar (`docs/openapi/jelly-leon.openapi.json`) |
-| Plugins | job *plugins* | 13/13 tests |
-| Forkregels | job *forkregels* | patchregister, consistentie, 28 tool-tests (incl. EX48-simulatie), actionlint |
+| Upstream-solution bouwen + volledige tests | `jelly-leon-ci.yml` job *server* | Ubuntu-machine (SDK 9.0.320): build 0 fouten/0 waarschuwingen; van 2 555 tests **2 548 geslaagd**, 7 overgeslagen (upstream), **0 mislukt** (de 4 omgevingsfouten uit de sandbox slagen hier; zie `BOUWVERIFICATIE_P0.md` §11). CI installeert het SDK-kanaal uit global.json (ADR-0010) |
+| OpenAPI-drift | idem | structureel gelijk; alleen `description`-teksten hangen af van de bestandssysteemvolgorde van upstream (ADR-0010) |
+| Plugins | job *plugins* | 16/16 tests |
+| Forkregels | job *forkregels* | patchregister, consistentie (incl. SDK-reeks), tool-tests (incl. EX48-simulatie), ruff, shellcheck, actionlint |
 | Stock-client-E2E | job *stock-client-e2e* | lokaal 17/17 (Sim-getest) |
-| Image | `deploy/allinone/Dockerfile` | schets; server-stage gebouwd, web-stage geblokkeerd in deze bouwomgeving (zie ADR-0008) |
+| Image | `deploy/allinone/Dockerfile` | volledige image mét echte web-build van `jelly-leon-web` lokaal gebouwd en levenscyclus getest (Sim-getest); CI bouwt hem met de upstream-web-dist (jelly-leon-web is privé); publicatie in P4 |
 
 Upstream-workflows blijven bestaan; wat in de fork draait staat in ADR-0007.
 

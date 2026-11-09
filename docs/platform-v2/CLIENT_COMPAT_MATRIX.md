@@ -41,5 +41,10 @@ downloads, DV/HDR. Die volgen in B03-003/004/005/011/012.
 | Smart-tv-app (Samsung/LG) / tv-browser | tv | afhankelijk van het model | unknown (D15) |
 | Chromecast / AirPlay | cast | afhankelijk van de client | unknown (D15) |
 
+**Upgrade 12.x (besluit gebruiker, ADR-0011):** vóór P4 gaat de server naar de nieuwste stabiele Jellyfin 12.x. Deze
+matrix wordt dan volledig opnieuw doorlopen. Swiftfin blijft op **1.6.1**; of 1.6.1, Jellyfin Android en Android TV
+met een 12.x-server werken is nog niet gemeten → **unknown** tot de upgradefase (Android/Android TV-controle in
+`jelly-leon-clients`; Swiftfin NIET GEVALIDEERD (Mac/Xcode)).
+
 **Regel:** een client gaat pas op "getest" na een echte sessie (inloggen, afspelen, ondertitel, hervatten) op het
 apparaat dat in huis gebruikt wordt, met app-versie, datum en bewijs. Geen aanname dat elk tv-platform werkt (B03 §5).
