@@ -4,16 +4,20 @@
 Dit is een SIMULATOR van het clientprotocol (HTTP-verzoeken zoals Jellyfin Web/Android/Kodi ze sturen), géén test op
 echte apparaten. Resultaat telt als "Sim-getest"; echte clients/tv's blijven NIET GEVALIDEERD.
 
-Controleert tegen een draaiende server (eigen build van deze fork, lege datamap):
+Controleert tegen een draaiende server (eigen build van deze fork):
   1. /health en /System/Info/Public: ProductName "Jellyfin Server" en Version == upstream-basis (technische identiteit);
-  2. eerste-startwizard via de upstream-API;
+  2. modus `nieuw` (lege datamap): eerste-startwizard via de upstream-API, daarna is de wizard niet meer anoniem
+     bereikbaar; modus `herstart` (na herstart/herinstallatie met dezelfde opslag): wizard staat op afgerond en blijft
+     dicht — gebruiker, bibliotheek en item-ID zijn behouden (geen dataverlies);
   3. inloggen met de moderne `Authorization: MediaBrowser …`-header én de oude `X-Emby-Authorization`-header;
   4. negatieve tests: fout wachtwoord → 401, geen token → 401, Jelly Leon-route zonder token → 401;
      (waarneming, geen slaagcriterium: upstream-streamroutes zijn anoniem bereikbaar — zie INVENTARIS.md §7);
-  5. bibliotheek aanmaken, scannen en een audio-item statisch streamen (volledig én met Range → 206), byte-gelijk;
+  5. bibliotheek (aanmaken in modus `nieuw`), scannen en een audio-item statisch streamen (volledig én met Range → 206),
+     byte-gelijk;
   6. sessies zichtbaar; Jelly Leon-plugin `GET /media/v1/version` geeft status `compatibel`.
 
-Alleen standaardbibliotheek. Schrijft een JSON-rapport (tokens geredigeerd). Exitcode 0 = alles geslaagd.
+Alleen standaardbibliotheek. Schrijft een JSON-rapport (tokens geredigeerd; met item- en gebruikers-ID voor een
+volgende `herstart`-run). Exitcode 0 = alles geslaagd.
 """
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 CLIENTS = {
@@ -39,7 +43,7 @@ CLIENTS = {
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def auth_value(client: dict[str, str], token: str | None = None) -> str:
@@ -56,6 +60,8 @@ class Report:
     steps: list[dict] = field(default_factory=list)
     secrets: list[str] = field(default_factory=list)
     observations: list[dict] = field(default_factory=list)
+    item_id: str = ""
+    user_id: str = ""
 
     def redact(self, text: str) -> str:
         for secret in self.secrets:
@@ -154,26 +160,42 @@ def run(args: argparse.Namespace) -> Report:
     if not ok:
         return report
 
-    # Eerste-startwizard (zoals Jellyfin Web dat doet).
-    steps = [
-        ("POST", "/Startup/Configuration", {"UICulture": "nl", "MetadataCountryCode": "NL", "PreferredMetadataLanguage": "nl"}),
-        ("GET", "/Startup/User", None),
-        ("POST", "/Startup/User", {"Name": args.username, "Password": args.password}),
-        ("POST", "/Startup/RemoteAccess", {"EnableRemoteAccess": False, "EnableAutomaticPortMapping": False}),
-        ("POST", "/Startup/Complete", None),
-    ]
     report.secrets.append(args.password)
-    wizard_ok = True
-    for method, path, body in steps:
-        status, _, _ = client.request(method, path, body=body)
-        if status not in (200, 204):
-            wizard_ok = False
-            report.add("startwizard", False, f"{method} {path} gaf HTTP {status}")
-            break
-    if wizard_ok:
-        report.add("startwizard", True, "configuratie, eerste gebruiker en afronden via upstream-API")
+    completed = info.get("StartupWizardCompleted")
+    if args.mode == "nieuw":
+        if completed is not False:
+            report.add("lege datamap", False, f"StartupWizardCompleted={completed} (verwacht False bij een lege datamap)")
+            return report
+        # Eerste-startwizard (zoals Jellyfin Web dat doet).
+        steps = [
+            ("POST", "/Startup/Configuration", {"UICulture": "nl", "MetadataCountryCode": "NL", "PreferredMetadataLanguage": "nl"}),
+            ("GET", "/Startup/User", None),
+            ("POST", "/Startup/User", {"Name": args.username, "Password": args.password}),
+            ("POST", "/Startup/RemoteAccess", {"EnableRemoteAccess": False, "EnableAutomaticPortMapping": False}),
+            ("POST", "/Startup/Complete", None),
+        ]
+        wizard_ok = True
+        for method, path, body in steps:
+            status, _, _ = client.request(method, path, body=body)
+            if status not in (200, 204):
+                wizard_ok = False
+                report.add("startwizard", False, f"{method} {path} gaf HTTP {status}")
+                break
+        if wizard_ok:
+            report.add("startwizard", True, "configuratie, eerste gebruiker en afronden via upstream-API")
+        else:
+            return report
     else:
-        return report
+        report.add(
+            "startwizard behouden na herstart",
+            completed is True,
+            f"StartupWizardCompleted={completed} (verwacht True: configuratie uit de bestaande datamap)",
+        )
+        if completed is not True:
+            return report
+    # Na afronding mag niemand anoniem een nieuwe beheerder aanmaken (overname na herstart/dataverlies).
+    status, _, _ = client.request("GET", "/Startup/User")
+    report.add("startwizard daarna niet anoniem", status in (401, 403), f"HTTP {status} (verwacht 401/403)")
 
     # Negatief: fout wachtwoord.
     status, _, _ = client.request(
@@ -215,12 +237,19 @@ def run(args: argparse.Namespace) -> Report:
     status, _ = client.json("GET", "/Users/Me", headers=legacy)
     report.add("oude X-Emby-Token-header", status == 200, f"HTTP {status}")
 
-    # Bibliotheek aanmaken en scannen.
-    query = urllib.parse.urlencode(
-        {"name": "Muziek", "collectionType": "music", "paths": args.library_path, "refreshLibrary": "true"}
-    )
-    status, _, _ = client.request("POST", f"/Library/VirtualFolders?{query}", headers=web_auth, body={"LibraryOptions": {}})
-    report.add("bibliotheek aanmaken", status in (200, 204), f"HTTP {status}")
+    if args.mode == "nieuw":
+        # Bibliotheek aanmaken en scannen.
+        query = urllib.parse.urlencode(
+            {"name": "Muziek", "collectionType": "music", "paths": args.library_path, "refreshLibrary": "true"}
+        )
+        status, _, _ = client.request(
+            "POST", f"/Library/VirtualFolders?{query}", headers=web_auth, body={"LibraryOptions": {}}
+        )
+        report.add("bibliotheek aanmaken", status in (200, 204), f"HTTP {status}")
+    else:
+        status, folders = client.json("GET", "/Library/VirtualFolders", headers=web_auth)
+        names = [f.get("Name") for f in folders] if isinstance(folders, list) else []
+        report.add("bibliotheek behouden na herstart", status == 200 and "Muziek" in names, f"HTTP {status}; {names}")
     item_id = ""
     deadline = time.monotonic() + args.scan_timeout
     while time.monotonic() < deadline and not item_id:
@@ -234,6 +263,15 @@ def run(args: argparse.Namespace) -> Report:
     report.add("bibliotheekscan vindt item", bool(item_id), f"item {item_id or 'niet gevonden'}")
     if not item_id:
         return report
+    report.item_id, report.user_id = item_id, user_id
+    if args.expect_item:
+        report.add(
+            "zelfde item-ID als vóór de herstart",
+            item_id == args.expect_item,
+            f"{item_id} (verwacht {args.expect_item})",
+        )
+    if args.expect_user:
+        report.add("zelfde gebruiker als vóór de herstart", user_id == args.expect_user, f"{user_id}")
 
     android_auth = {"Authorization": auth_value(CLIENTS["android"], tokens["android"])}
     status, headers, body = client.request("GET", f"/Audio/{item_id}/stream?static=true", headers=android_auth)
@@ -281,6 +319,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--username", default="jl-smoke-admin")
     parser.add_argument("--password", default="jl-smoke-wachtwoord-niet-geheim")
     parser.add_argument("--expect-plugin", action="store_true")
+    parser.add_argument(
+        "--modus",
+        dest="mode",
+        choices=("nieuw", "herstart"),
+        default="nieuw",
+        help="nieuw = lege datamap (wizard doorlopen); herstart = bestaande datamap (niets mag verloren zijn)",
+    )
+    parser.add_argument("--verwacht-item", dest="expect_item", help="item-ID uit het rapport van de vorige run")
+    parser.add_argument("--verwacht-gebruiker", dest="expect_user", help="gebruikers-ID uit de vorige run")
     parser.add_argument("--start-timeout", type=float, default=180)
     parser.add_argument("--scan-timeout", type=float, default=180)
     parser.add_argument("--report", help="pad voor het JSON-rapport")
@@ -291,7 +338,10 @@ def main(argv: list[str] | None = None) -> int:
         "base_url": report.base_url,
         "gestart": report.started_at,
         "klaar": utc_now(),
+        "modus": args.mode,
         "geslaagd": report.passed,
+        "item_id": report.item_id,
+        "gebruiker_id": report.user_id,
         "stappen": report.steps,
         "waarnemingen": report.observations,
     }
