@@ -10,5 +10,6 @@ docs/openapi/
 plugins/
 deploy/
 tools/jelly-leon/
+tools/emby-overname/
 .github/workflows/jelly-leon-ci.yml
 .github/workflows/upstream-sync.yml

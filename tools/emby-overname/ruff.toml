@@ -1,0 +1,9 @@
+# Lint voor de overnametool (tools/emby-overname); zelfde regels als de forktools.
+extend = "../jelly-leon/ruff.toml"
+
+[lint.isort]
+known-first-party = ["emby_overname", "conftest", "nep_servers", "proefrun", "loggende_proxy", "mediaguard_sim", "testbibliotheek"]
+
+[lint]
+# N818: de fouttypen heten Nederlands (…Fout), zoals de rest van de forktools.
+extend-ignore = ["N818"]

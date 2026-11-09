@@ -1,0 +1,7 @@
+# Lokale artefacten (nooit committen): venv, caches, proefrunuitvoer en testmedia
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+.ruff_cache/
+uitvoer/
