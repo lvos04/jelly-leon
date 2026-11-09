@@ -43,8 +43,8 @@
      omzeilen deze controles → weigeren.
 5. **Gezondheid:** upstream `/health` (HEALTHCHECK). Contract-`/healthz` en `/readyz` volgen in P1 via de plugin
    (anoniem, zonder geheimen) — geen core-patch.
-6. **GPU** standaard uit (`gpu: none` in het manifest) tot de wizard de rendernodes meet (D08); de manifeststandaard kent
-   nog geen optionele GPU-parameter (followup appstore-en-fork).
+6. **GPU** standaard uit tot de wizard de rendernodes meet (D08). Sinds contract 1.2 een optionele wizardparameter
+   `gpu` (`none|intel_render`, D08) met `privileges.gpu: intel_render` als maximum (ADR-0012).
 7. **Licentie/bron:** labels `org.opencontainers.image.{source,revision,version,licenses}`, `LICENSE`, `CONTRIBUTORS.md`,
    `NOTICE.jelly-leon` en `VERSION` in `/usr/share/doc/jelly-leon/` (ADR-0004).
 
@@ -79,8 +79,8 @@
   (server- en web-commit); `org.opencontainers.image.url`/`documentation` wijzen naar de fork, niet naar jellyfin.org.
 - `image_lifecycle.py` **18/18** (nu ook: elke bundel uit `index.html` laadt, herkomst klopt) en de web-smoketest van
   `jelly-leon-web` in headless Chromium **21/21** tegen dezelfde image (`docs/platform-v2/test-evidence/
-  p0-afronding-*.json`). In GitHub-CI blijft de stage `web` vervangen door de upstream-web-dist zolang `jelly-leon-web`
-  privé is (geen leestoken; gebruikersbesluit 3: repos worden publiek na een scan).
+  p0-afronding-*.json`). In GitHub-CI bleef de stage `web` toen vervangen door de upstream-web-dist zolang
+  `jelly-leon-web` privé was — **vervangen door ADR-0013** (CI bouwt sinds de contract 1.2-ronde de echte web-build).
 
 ## Gemeten in de QA-review van de P0-afronding (2026-11-09; Sim-getest, geen echte NAS)
 
@@ -90,6 +90,12 @@
   (`/config` als tmpfs, `JELLYFIN_CONFIG_DIR` in de container, `--datadir` in *Command*). Los nagemeten: start als
   niet-root (`--user 568:568`) blijft *healthy*; `/cache` als tmpfs blijft toegestaan; `/config` als tmpfs wordt ook
   als niet-root geweigerd. De weigering van NFS/SMB is **niet** getest (geen NFS/SMB-server in de testomgeving).
+
+## Contract 1.2-ronde (2026-11-09; Sim-getest, geen echte NAS)
+
+- Start met *Custom User* 568 zet nu ook `no_new_privs` en weigert een niet-schrijfbare `/config`/`/cache` met een
+  NL-melding; de rooktest controleert elk proces (A6) — ADR-0012 punt 3 en 4. CI bouwt de echte web-build (ADR-0013).
+  Meetresultaten: `docs/platform-v2/BOUWVERIFICATIE_P0.md` §13.
 
 ## Gevolgen
 

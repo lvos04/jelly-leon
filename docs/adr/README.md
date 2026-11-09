@@ -17,3 +17,5 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0009](ADR-0009-upstream-risicos-niet-patchen-in-p0.md) | Bekende upstream-risico's (anoniem streamen, één GPU) vastleggen, niet patchen in P0 | Aanvaard |
 | [ADR-0010](ADR-0010-ci-sdk-kanaal-en-openapi-drift.md) | CI: .NET-SDK-kanaal uit global.json en structurele OpenAPI-driftcontrole | Aanvaard |
 | [ADR-0011](ADR-0011-upgrade-12x-voor-p4.md) | Server naar de nieuwste stabiele Jellyfin 12.x (.NET 10) vóór P4, als aparte fase (besluit gebruiker) | Aanvaard (uitvoering later) |
+| [ADR-0012](ADR-0012-contract-1-2.md) | Contract 1.2: manifest §9 (GPU-parameter), Custom App-instructie, Custom User met no_new_privs, Hub-adapter v1 | Aanvaard (Sim-getest) |
+| [ADR-0013](ADR-0013-ci-echte-web-build.md) | CI bouwt de image met de echte jelly-leon-web-build op een vaste commit | Aanvaard |
