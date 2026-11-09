@@ -1,0 +1,21 @@
+Jelly Leon
+==========
+
+Jelly Leon is een afgeleid werk van Jellyfin (https://jellyfin.org) en wordt verspreid onder de
+GNU General Public License versie 2 (zie /usr/share/doc/jelly-leon/LICENSE). De technische identiteit
+(productnaam, API, versienummer) blijft "Jellyfin" voor compatibiliteit met bestaande clients.
+
+Broncode van precies deze image:
+  - server en plugins: https://github.com/lvos04/jelly-leon  (commit: zie label org.opencontainers.image.revision,
+    forkversie: /usr/share/doc/jelly-leon/VERSION, git-tag v<forkversie>)
+  - web-client:        https://github.com/lvos04/jelly-leon-web (ref: tools/jelly-leon/baseline.json in de serverrepo)
+  - wijzigingen t.o.v. upstream: docs/platform-v2/PATCHES.md in de serverrepo
+
+Upstream-projecten en credits (licenties van de respectieve projecten blijven van kracht):
+  - Jellyfin server:  https://github.com/jellyfin/jellyfin        (GPL-2.0)  — auteurs: CONTRIBUTORS.md
+  - Jellyfin web:     https://github.com/jellyfin/jellyfin-web    (GPL-2.0-or-later)
+  - Runtime-basis:    https://github.com/jellyfin/jellyfin-packaging (officiële image jellyfin/jellyfin)
+  - jellyfin-ffmpeg:  https://github.com/jellyfin/jellyfin-ffmpeg  (FFmpeg-licenties, zie dat project)
+  - Intel-mediastack (o.a. intel-media-driver, compute-runtime) zoals opgenomen in de officiële runtime-image.
+
+Jelly Leon is geen officiële Jellyfin-release en wordt niet door het Jellyfin-project ondersteund.

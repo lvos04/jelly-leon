@@ -1,0 +1,12 @@
+# Build-context voor deploy/allinone/Dockerfile (BuildKit gebruikt dit bestand i.p.v. de upstream-.dockerignore).
+.git
+**/bin
+**/obj
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/TestResults
+testresults
+tools/jelly-leon/.venv
+docs/openapi

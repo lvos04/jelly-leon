@@ -1,0 +1,185 @@
+# Manifest (manifeststandaard v1, platformcontract 1.1 §9) van de Jelly Leon-mediaserver — SCHETS P0.
+# Installatie uitsluitend als standaard TrueNAS Custom App (één image + formulierwaarden); nooit compose/YAML.
+# Er bestaat nog GEEN gepubliceerde image: fork_version -jl.0 wordt nooit uitgebracht (ADR-0005). De release-CI
+# vult tag + digest bij de eerste release (-jl.1). Tot dan is installeren niet gereed (validation_status unvalidated).
+# Alle paden, poorten en apparaten komen uit de wizard/datasetkiezer of gemeten TrueNAS-readback — nooit voorbeeldwaarden.
+manifest_version: "1"
+app_id: jelly-leon
+name: Jelly Leon
+owner_repo: lvos04/jelly-leon
+category: media
+description_nl: >-
+  Mediaserver voor film, series, anime, muziek en live-tv, gebaseerd op Jellyfin (GPL-2.0). De technische identiteit
+  blijft "Jellyfin", zodat bestaande Jellyfin-apps blijven werken; de zichtbare naam is Jelly Leon. Server, web-client
+  en de Jelly Leon-plugin zitten in één image.
+version: "10.11.11-jl.0"
+install:
+  method: custom_app
+image:
+  repository: ghcr.io/lvos04/jelly-leon
+  tag: "10.11.11-jl.0"
+  digest: null
+custom_app:
+  ports:
+    - name: web
+      container_port: 8096
+      host_port: {param: host_port}
+      protocol: tcp
+      purpose_nl: Jellyfin-API, web-client en streaming (clients verbinden hierop)
+  storage:
+    - name: config
+      type: host_path
+      host_path: {param: config_path}
+    - name: cache
+      type: host_path
+      host_path: {param: cache_path}
+    - name: media
+      type: host_path
+      host_path: {param: media_path}
+      read_only: true
+  env: []
+  resources:
+    cpus: 4
+    memory_mib: 4096
+  # GPU staat standaard UIT (least privilege): de rendernodes (D08) zijn onbekend tot de wizard ze via TrueNAS meet.
+  # De manifeststandaard kent nog geen optionele GPU-parameter; zie ADR-0008 en de followup voor appstore-en-fork.
+  gpu: none
+  run_as:
+    mode: image_default
+  timezone: {param: timezone}
+  restart_policy: unless-stopped
+  portal:
+    port: web
+    scheme: http
+    path: /
+    name: Jelly Leon
+parameters:
+  - name: host_port
+    type: port
+    source: default
+    default: 30460
+    required: true
+    description_nl: >-
+      Hostpoort; voorstel uit het platformcontract. Draait de bestaande Jellyfin al (vaak op 8096), dan blijft die
+      ongemoeid (I24 stap 4: aparte poort, geen vervanging). De Hub controleert vóór installatie op conflicten.
+  - name: config_path
+    type: path
+    source: dataset_picker
+    dataset_role: jelly_leon_config
+    decision: D02
+    required: true
+    description_nl: Eigen dataset voor /config (SQLite-database, metadata, plugins, gebruikers). Nooit de config van de bestaande Jellyfin.
+  - name: cache_path
+    type: path
+    source: dataset_picker
+    dataset_role: jelly_leon_cache
+    decision: D02
+    required: true
+    description_nl: Dataset voor /cache (transcodes, afbeeldingen); mag zonder back-up.
+  - name: media_path
+    type: path
+    source: dataset_picker
+    dataset_role: media_library
+    decision: D02
+    required: true
+    description_nl: Mediadataset, ALLEEN LEZEN gemount op /media. Bestandsbeheer blijft bij MediaGuard/MSO.
+  - name: timezone
+    type: timezone
+    source: wizard
+    required: true
+    description_nl: Tijdzone van de NAS, gemeten of bevestigd in de onboarding-wizard.
+  - name: rpo
+    type: duration
+    source: wizard
+    decision: D16
+    required: false
+    description_nl: Maximaal toegestaan dataverlies (RPO), vastgelegd in de wizard (D16).
+  - name: rto
+    type: duration
+    source: wizard
+    decision: D16
+    required: false
+    description_nl: Maximaal toegestane hersteltijd (RTO), vastgelegd in de wizard (D16).
+storage:
+  - name: config
+    mount: /config
+    kind: config
+    required_dataset_role: jelly_leon_config
+    description_nl: Jellyfin-datamap (SQLite jellyfin.db, metadata, plugins). Contractafwijking /appdata → /config, zie ADR-0008.
+  - name: cache
+    mount: /cache
+    kind: scratch
+    required_dataset_role: jelly_leon_cache
+    description_nl: Cache en transcodes; opnieuw op te bouwen.
+  - name: media
+    mount: /media
+    kind: media
+    required_dataset_role: media_library
+    description_nl: Mediabibliotheek, alleen lezen.
+network:
+  ports:
+    - name: web
+      container_port: 8096
+      host_port: {param: host_port}
+      protocol: tcp
+      purpose_nl: Jellyfin-API, web-client en streaming
+  host_network: false
+  host_network_reason: null
+  joins_platform_network: false
+privileges:
+  privileged: false
+  cap_add: []
+  devices: []
+  gpu: none
+privilege_reason: >-
+  Geen extra privileges. De container start als root uitsluitend om /config en /cache aan 568:568 te geven en draait
+  daarna als 568 zonder capabilities. Intel-GPU (QSV/VAAPI) pas na gemeten rendernodes (D08) als aparte, goed te
+  keuren wijziging (gpu: intel_render).
+healthcheck:
+  type: http
+  path: /health
+  port: web
+  interval_s: 30
+  timeout_s: 10
+  retries: 3
+backup:
+  db_export:
+    method: app_native
+    description_nl: >-
+      Jellyfin 10.11 heeft een eigen back-up-API (/Backup, alleen beheerder) die de database en metadata exporteert;
+      daarnaast ZFS-snapshot van de config-dataset. Herstel van database + binary samen (B03-013).
+  snapshot_datasets: [config]
+  rpo: {param: rpo}
+  rto: {param: rto}
+dependencies:
+  - app_id: ai-server-manager
+    kind: optional
+    reason_nl: Versie-/compatibiliteitspagina en lifecycle via de Hub; zonder Hub werkt de mediaserver zelfstandig.
+  - app_id: jelly-leon-platform
+    kind: optional
+    reason_nl: Lifecycle (staging, canary, terugzetten) van deze app.
+sso: native
+risk:
+  install: R2
+  update: R2
+  uninstall: R2
+upgrade:
+  migrations: true
+  tag_only_rollback_safe: false
+  notes_nl: >-
+    Jellyfin migreert de SQLite-database bij de start. Terug naar een oudere tag alleen samen met de database-back-up of
+    snapshot van vóór de update (database + binary samen, B03-013/I06 stap 8).
+decisions_required: [D01, D02, D03, D07, D08, D15, D16]
+docs: [B03_UNIVERSELE_MEDIASERVER, I06_JELLYFIN, I24_UNIVERSELE_MEDIASERVER, A17_JELLYFIN]
+validation_status: unvalidated
+compatibility:
+  # Platformminimum voor de standaard Custom App (ix-app met values), gelijk aan de andere platformapps;
+  # de echte NAS-versie (D01) meet de wizard.
+  truenas_min_version: "24.10.2.2"
+  truenas_max_version: null
+  ix_app_min_version: "1.2.0"
+provenance:
+  source_repo: https://github.com/lvos04/jelly-leon
+  source_commit: null
+  upstream_repo: https://github.com/jellyfin/jellyfin
+  license: GPL-2.0
