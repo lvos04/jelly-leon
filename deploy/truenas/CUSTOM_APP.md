@@ -94,7 +94,8 @@ is een geheim van jou in TrueNAS: nooit in dit formulier (Environment Variables)
 Het standaardformulier (ix-app-template, versie 1.4.8 in de gelezen catalogus) zet **geen** `no-new-privileges` en laat
 de standaard-capabilities van Docker staan (contract §2.2; gelezen in de bronnen, NIET GEVALIDEERD op een echte NAS).
 De image regelt dat zelf: na de eigenaarschapsstap draait de server als 568:568 zonder capabilities en met
-`no_new_privs` (`setpriv` in de entrypoint), ook als *Custom User* aan staat. Je hoeft hiervoor niets in te vullen.
+`no_new_privs` (`setpriv` in de entrypoint), ook als *Custom User* aan staat. Ook de healthcheck van de image wisselt
+vóór de controle van `/health` naar 568 zonder capabilities (ADR-0014). Je hoeft hiervoor niets in te vullen.
 
 ## Openen en koppelen
 
@@ -107,7 +108,8 @@ De image regelt dat zelf: na de eigenaarschapsstap draait de server als 568:568 
   een eigen **niet-admin** Jellyfin-gebruiker mag zien (die maak je zelf in het Jellyfin-dashboard en voer je in de
   Hub-UI in). Een admin-API-sleutel wordt niet gebruikt; Jelly Leon accepteert (nog) geen Hub-JWT's. De Hub-pagina
   *Versie en clientcompatibiliteit* leest `GET /media/v1/version` (Jelly Leon-plugin; vraagt een aangemelde
-  Jellyfin-gebruiker, geen beheerder).
+  Jellyfin-gebruiker, geen beheerder). Met een nagebootste Hub-adapter getest: zo'n niet-admin-gebruiker kan die route
+  lezen maar ziet geen API-sleutels, en een Hub-JWT wordt geweigerd (Sim-getest; met de echte Hub NIET GEVALIDEERD).
 
 ## Updaten en terugdraaien
 

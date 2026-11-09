@@ -43,7 +43,7 @@
    - de sessie van een **eigen niet-admin-Jellyfin-gebruiker** die de beheerder in het Jellyfin-dashboard maakt en in
      de Hub-UI invoert (vault, §3.10). Volgens de upstream-code (`DefaultAuthorizationHandler`) mag elke ingeschakelde
      gebruiker routes met `[Authorize]` zonder beleid aanroepen, dus ook `GET /media/v1/version` van de Jelly Leon-
-     plugin; dat is **niet** als niet-admin getest (followup: stap in de stock-client-smoketest).
+     plugin. Sinds de onafhankelijke review van deze ronde **getest** (Sim-getest, zie *Aanvulling* hieronder).
    - **Nooit** een Jellyfin-API-sleutel: upstream behandelt API-sleutels als onbeperkt ("Api keys are unrestricted"),
      dus elke sleutel is in feite beheerder. Pas als de B03-plugin (P4) scopes biedt.
    - **Geen Hub-JWT's accepteren** tot er een pinmechanisme is. Ontwerp voor P4 (nog niet gebouwd): de plugin krijgt in
@@ -68,3 +68,16 @@
   interpretatie hier: de rooktest sluit exec-/healthcheckprocessen (PPid 0) uit en dit wordt aan de contracteigenaar
   gemeld; een oplossing (healthcheck via `setpriv` naar 568) hoort platformbreed. (b) Contract §2/§10 noemen `/appdata`
   en `/healthz`; Jelly Leon houdt `/config` + `/cache` en `/health` (ADR-0008, ongewijzigd).
+
+## Aanvulling — onafhankelijke review van de contract 1.2-ronde (2026-11-09)
+
+- **JL4 getest (Sim-getest):** `tools/jelly-leon/e2e/stock_client_smoke.py` (met `--expect-plugin`; CI-jobs
+  *stock-client-e2e* en *image*, ook de terugzetproef) laat de beheerder een eigen **niet-admin**-gebruiker aanmaken
+  (`POST /Users/New`, `IsAdministrator: false`; na een herstart bestaat die nog) en controleert als die gebruiker:
+  inloggen lukt; `GET /media/v1/version` → 200 `compatibel`; `GET /Auth/Keys` → **403** (een niet-admin ziet geen
+  API-sleutels). Een Hub-JWT in de vorm van een dienst-JWT (§4.3, nep-handtekening) wordt **niet** geaccepteerd:
+  `Authorization: Bearer <jwt>` → 401 en als Jellyfin-token → 401. Gemeten tegen de echte server-build (geen echte
+  Hub, geen echte NAS).
+- **Gevolgen (a) opgelost in deze repo:** de Docker-healthcheck wisselt nu zelf naar 568 zonder capabilities vóór curl
+  (ADR-0014). Het restrisico (Docker start het healthcheckproces als root; heel kort vóór de `exec`) en het
+  platformbrede contract-issue blijven gemeld.

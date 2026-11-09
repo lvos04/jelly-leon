@@ -77,14 +77,17 @@ COPY --from=server /out/plugin/Jellyfin.Plugin.JellyLeon.dll /usr/share/jelly-le
 COPY LICENSE CONTRIBUTORS.md /usr/share/doc/jelly-leon/
 COPY deploy/allinone/NOTICE.jelly-leon /usr/share/doc/jelly-leon/NOTICE.jelly-leon
 COPY deploy/allinone/entrypoint.sh /usr/local/bin/jelly-leon-entrypoint
+COPY deploy/allinone/healthcheck.sh /usr/local/bin/jelly-leon-healthcheck
 RUN set -eu; \
-    chmod 0755 /usr/local/bin/jelly-leon-entrypoint; \
+    chmod 0755 /usr/local/bin/jelly-leon-entrypoint /usr/local/bin/jelly-leon-healthcheck; \
     printf '%s\n' "${FORK_VERSION}" > /usr/share/doc/jelly-leon/VERSION; \
     printf 'server %s\nweb %s\n' "${VCS_REF}" "${WEB_REF}" > /usr/share/doc/jelly-leon/SOURCE_REVISIONS; \
     mkdir -p /config /cache; chown 568:568 /config /cache; \
     test -x /jellyfin/jellyfin; test -f /jellyfin/jellyfin-web/index.html; test -x /usr/lib/jellyfin-ffmpeg/ffmpeg
 EXPOSE 8096
 VOLUME ["/config", "/cache"]
+# De healthcheck wisselt zelf naar 568 zonder capabilities vóór curl (Docker start hem als de containergebruiker, bij
+# een Custom App zonder Custom User dus als root; contract 1.2 §2.2, ADR-0012).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-  CMD ["curl", "--noproxy", "localhost", "-fsS", "-o", "/dev/null", "http://localhost:8096/health"]
+  CMD ["/usr/local/bin/jelly-leon-healthcheck"]
 ENTRYPOINT ["/usr/local/bin/jelly-leon-entrypoint"]

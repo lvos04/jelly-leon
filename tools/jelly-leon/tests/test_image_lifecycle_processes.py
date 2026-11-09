@@ -61,3 +61,30 @@ def test_custom_user_without_no_new_privs_is_reported():
     """Custom User 568 zonder eigen no_new_privs (het formulier zet het niet) → afwijkend."""
     text = status("jellyfin", 1, 0, nnp=0)
     assert image_lifecycle.process_problems(image_lifecycle.parse_proc_status(text)) == ["jellyfin(1) NoNewPrivs=0"]
+
+
+def test_healthcheck_rights_after_root_start_must_be_fully_dropped():
+    assert image_lifecycle.healthcheck_problems(status("curl", 90, 0), root_start=True) == []
+    as_root = status("curl", 90, 0, uid=0, capeff=ROOT_CAPS, nnp=0)
+    problems = image_lifecycle.healthcheck_problems(as_root, root_start=True)
+    assert "curl(90) Uid=0 0 0 0" in problems and "curl(90) NoNewPrivs=0" in problems
+    assert "healthcheck Gid=0 0 0 0" in problems
+
+
+def test_healthcheck_with_groups_or_bounding_set_after_root_start_is_reported():
+    with_groups = status("curl", 90, 0).replace("CapInh:", "Groups:\t0 44\nCapInh:")
+    assert image_lifecycle.healthcheck_problems(with_groups, root_start=True) == ["healthcheck Groups=0 44"]
+    full_bounding = status("curl", 90, 0).replace(f"CapBnd:\t{'0' * 16}", f"CapBnd:\t{ROOT_CAPS}")
+    assert image_lifecycle.healthcheck_problems(full_bounding, root_start=True) == [f"healthcheck CapBnd={ROOT_CAPS}"]
+    # Custom User: een niet-root-proces kan de bounding-set niet legen; CapEff 0 + NoNewPrivs 1 is de eis.
+    assert image_lifecycle.healthcheck_problems(full_bounding, root_start=False) == []
+
+
+def test_healthcheck_without_no_new_privs_under_custom_user_is_reported():
+    assert image_lifecycle.healthcheck_problems(status("curl", 90, 0, nnp=0), root_start=False) == [
+        "curl(90) NoNewPrivs=0"
+    ]
+
+
+def test_healthcheck_rights_need_exactly_one_status():
+    assert image_lifecycle.healthcheck_problems("", root_start=True) == ["verwacht precies één status, gevonden 0"]

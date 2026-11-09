@@ -12,10 +12,13 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
   5. proces 1 draait als 568:568, zonder capabilities, met NoNewPrivs; ELK proces in de container (contract 1.2
      §2.2/A6; behalve `docker exec`- en healthcheck-processen, die Docker zelf van buiten start) draait als 568 met
      CapEff 0 en NoNewPrivs 1; alles in /config en /cache is van 568; de mediamap is niet gewijzigd;
+     de Docker-healthcheck van de image is `jelly-leon-healthcheck` en wisselt vóór curl naar 568 zonder
+     capabilities met NoNewPrivs (ook als de container als root start; gemeten met `--toon-rechten`, dezelfde wissel);
   6. `docker restart` → healthy → smoketest modus `herstart` (zelfde gebruiker en item-ID, wizard blijft dicht);
   7. container verwijderen en opnieuw aanmaken met dezelfde opslag (zoals een app-update/herinstallatie)
      → healthy → smoketest modus `herstart`; daarna nog eens met "Custom User 568" (`--user 568:568`) → healthy →
-     smoketest `herstart` → elk proces 568, CapEff 0, NoNewPrivs 1 (de image zet no_new_privs zelf, §2.2);
+     smoketest `herstart` → elk proces 568, CapEff 0, NoNewPrivs 1 (de image zet no_new_privs zelf, §2.2), ook de
+     healthcheck;
   8. negatieve tests (fail-closed): de container weigert te starten en de mediamap blijft onaangeroerd bij
      - geen opslagregel voor /cache (anoniem Docker-volume);
      - JELLYFIN_CACHE_DIR naar de mediamap (root zou anders `chown -R` op de media doen);
@@ -50,6 +53,7 @@ SMOKE = E2E_DIR / "stock_client_smoke.py"
 MAKE_MEDIA = E2E_DIR / "make_test_media.py"
 MEDIA_REL = Path("Jelly Leon Test") / "Smoketest" / "01 - Sinus 440 Hz.wav"
 APP_UID = "568"
+HEALTHCHECK = "/usr/local/bin/jelly-leon-healthcheck"
 
 
 class AssetParser(html.parser.HTMLParser):
@@ -130,6 +134,26 @@ def process_problems(processes: list[dict[str, list[str]]], uid: str = APP_UID) 
             problems.append(f"{label} CapEff={''.join(proc.get('CapEff', []))}")
         if proc.get("NoNewPrivs") != ["1"]:
             problems.append(f"{label} NoNewPrivs={''.join(proc.get('NoNewPrivs', []))}")
+    return problems
+
+
+def healthcheck_problems(status_text: str, *, root_start: bool) -> list[str]:
+    """Rechten waarmee de healthcheck curl start (uitvoer van `jelly-leon-healthcheck --toon-rechten`).
+
+    Altijd: Uid 568 (alle vier), CapEff 0, NoNewPrivs 1. Bij een start als root bovendien Gid 568, geen aanvullende
+    groepen en een lege bounding-set (een niet-root-proces kan die zonder CAP_SETPCAP niet legen, ADR-0012)."""
+    procs = parse_proc_status(status_text)
+    if len(procs) != 1:
+        return [f"verwacht precies één status, gevonden {len(procs)}"]
+    proc = procs[0]
+    problems = process_problems(procs)
+    if root_start:
+        if proc.get("Gid", [])[:4] != [APP_UID] * 4:
+            problems.append(f"healthcheck Gid={' '.join(proc.get('Gid', []))}")
+        if proc.get("Groups", []):
+            problems.append(f"healthcheck Groups={' '.join(proc.get('Groups', []))}")
+        if proc.get("CapBnd") != ["0000000000000000"]:
+            problems.append(f"healthcheck CapBnd={''.join(proc.get('CapBnd', []))}")
     return problems
 
 
@@ -269,6 +293,29 @@ class Lifecycle:
             detail += "; AFWIJKEND: " + "; ".join(problems[:6])
         return self.add(f"elk proces 568, CapEff 0, NoNewPrivs 1 ({label})", ok, detail)
 
+    def check_healthcheck(self, label: str, *, root_start: bool) -> bool:
+        """§2.2: ook de door Docker gestarte healthcheck draait curl niet als root en zonder rechten."""
+        configured = docker("image", "inspect", "-f", "{{json .Config.Healthcheck.Test}}", self.args.image).stdout.strip()
+        try:
+            test = json.loads(configured)
+        except json.JSONDecodeError:
+            test = None
+        rights = docker("exec", self.name, HEALTHCHECK, "--toon-rechten", check=False)
+        problems = [] if test == ["CMD", HEALTHCHECK] else [f"HEALTHCHECK is {configured}"]
+        problems += healthcheck_problems(rights.stdout, root_start=root_start)
+        probe = docker("exec", self.name, HEALTHCHECK, check=False)
+        if probe.returncode != 0:
+            problems.append(f"healthcheck exitcode {probe.returncode}: {(probe.stdout + probe.stderr).strip()[:120]}")
+        fields = {line.partition(":")[0]: line.partition(":")[2].split() for line in rights.stdout.splitlines()}
+        detail = (
+            f"{' '.join(test) if isinstance(test, list) else configured}; curl als Uid={' '.join(fields.get('Uid', []))}, "
+            f"Groups={' '.join(fields.get('Groups', [])) or '-'}, CapEff={''.join(fields.get('CapEff', []))}, "
+            f"CapBnd={''.join(fields.get('CapBnd', []))}, NoNewPrivs={''.join(fields.get('NoNewPrivs', []))}"
+        )
+        if problems:
+            detail += "; AFWIJKEND: " + "; ".join(problems[:6])
+        return self.add(f"healthcheck zonder root-rechten ({label})", not problems, detail)
+
     def fetch(self, path: str, limit: int = 20_000_000) -> tuple[int, bytes]:
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=15) as resp:  # noqa: S310
             return resp.status, resp.read(limit)
@@ -367,6 +414,7 @@ class Lifecycle:
                 return False
             self.check_process_and_ownership()
             self.check_all_processes("eerste start")
+            self.check_healthcheck("start als root", root_start=True)
             self.check_web_client()
             if self.args.verwacht_web_ref:
                 self.check_source_revisions()
@@ -392,6 +440,7 @@ class Lifecycle:
             if not self.smoke("Custom User 568:568", "herstart", first):
                 return False
             self.check_all_processes("Custom User 568:568")
+            self.check_healthcheck("Custom User 568:568", root_start=False)
             self.add("mediamap onaangeroerd", self.media_fingerprint() == media_before, "eigenaar/rechten ongewijzigd")
         finally:
             self.remove(self.name)
