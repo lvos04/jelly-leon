@@ -14,7 +14,10 @@ Controleert tegen een draaiende server (eigen build van deze fork):
      (waarneming, geen slaagcriterium: upstream-streamroutes zijn anoniem bereikbaar — zie INVENTARIS.md §7);
   5. bibliotheek (aanmaken in modus `nieuw`), scannen en een audio-item statisch streamen (volledig én met Range → 206),
      byte-gelijk;
-  6. sessies zichtbaar; Jelly Leon-plugin `GET /media/v1/version` geeft status `compatibel`.
+  6. sessies zichtbaar; Jelly Leon-plugin `GET /media/v1/version` geeft status `compatibel`;
+  7. Hub-adapter v1 (contract 1.2 §2.3, JL4, ADR-0012; alleen met `--expect-plugin`): een eigen NIET-admin-gebruiker
+     (bestaat al of wordt door de beheerder aangemaakt) kan inloggen en `GET /media/v1/version` lezen, maar ziet geen
+     API-sleutels (`/Auth/Keys` → 403); een Hub-JWT wordt nergens geaccepteerd (`Bearer` en als Jellyfin-token → 401).
 
 Alleen standaardbibliotheek. Schrijft een JSON-rapport (tokens geredigeerd; met item- en gebruikers-ID voor een
 volgende `herstart`-run). Exitcode 0 = alles geslaagd.
@@ -23,6 +26,7 @@ volgende `herstart`-run). Exitcode 0 = alles geslaagd.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import http.client
 import json
@@ -40,6 +44,24 @@ CLIENTS = {
     "android": {"Client": "Jellyfin Android", "Device": "Pixel", "DeviceId": "jl-smoke-android-0001", "Version": "2.6.3"},
     "kodi": {"Client": "Kodi", "Device": "Woonkamer", "DeviceId": "jl-smoke-kodi-0001", "Version": "1.0.0"},
 }
+# Zoals de Hub-adapter (in ai-server-manager) zich bij Jellyfin aanmeldt: als gewone client met een eigen gebruiker.
+HUB_CLIENT = {"Client": "Hub-adapter (simulator)", "Device": "Hub", "DeviceId": "jl-smoke-hub-0001", "Version": "0.1.0"}
+
+
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def fake_hub_jwt() -> str:
+    """Een JWS in de vorm van een Hub-dienst-JWT (§4.3) met een nep-handtekening: Jelly Leon mag die nooit accepteren."""
+    now = int(time.time())
+    header = {"alg": "EdDSA", "typ": "JWT", "kid": "jl-smoke-niet-gepind"}
+    claims = {
+        "iss": "hub", "aud": "jelly-leon", "sub": "hub", "token_use": "hub_service", "roles": ["service"],
+        "iat": now, "nbf": now, "exp": now + 60, "jti": "00000000-0000-4000-8000-000000000000",
+    }
+    parts = [json.dumps(part, separators=(",", ":")).encode() for part in (header, claims)]
+    return ".".join([*(b64url(part) for part in parts), b64url(b"geen-echte-handtekening")])
 
 
 def utc_now() -> str:
@@ -307,7 +329,60 @@ def run(args: argparse.Namespace) -> Report:
         report.add("Jelly Leon-plugin /media/v1/version", ok, detail)
         status, _, _ = client.request("GET", "/media/v1/version")
         report.add("plugin-route zonder token geweigerd", status == 401, f"HTTP {status} (verwacht 401)")
+        hub_adapter_v1(client, report, web_auth, args)
     return report
+
+
+def hub_adapter_v1(client: Client, report: Report, admin_auth: dict[str, str], args: argparse.Namespace) -> None:
+    """Contract 1.2 §2.3 / JL4 (ADR-0012): de Hub-adapter v1 gebruikt alleen openbare routes en een eigen NIET-admin-
+    Jellyfin-gebruiker; nooit een API-sleutel (upstream: elke sleutel is beheerder) en (nog) geen Hub-JWT."""
+    report.secrets.append(args.hub_password)
+    status, users = client.json("GET", "/Users", headers=admin_auth)
+    user = None
+    if status == 200 and isinstance(users, list):
+        user = next((u for u in users if isinstance(u, dict) and u.get("Name") == args.hub_username), None)
+    if user is not None:
+        how = "bestond al (zelfde opslag)"
+    else:
+        status, created = client.json(
+            "POST", "/Users/New", headers=admin_auth, body={"Name": args.hub_username, "Password": args.hub_password}
+        )
+        user = created if status == 200 and isinstance(created, dict) else None
+        how = f"door de beheerder aangemaakt (HTTP {status})"
+    policy = user.get("Policy") if isinstance(user, dict) else None
+    is_admin = policy.get("IsAdministrator") if isinstance(policy, dict) else None
+    report.add("Hub-adapter v1: eigen niet-admin-gebruiker", is_admin is False, f"{how}; IsAdministrator={is_admin}")
+    if is_admin is not False:
+        return
+
+    status, body = client.json(
+        "POST",
+        "/Users/AuthenticateByName",
+        headers={"Authorization": auth_value(HUB_CLIENT)},
+        body={"Username": args.hub_username, "Pw": args.hub_password},
+    )
+    token = body.get("AccessToken") if isinstance(body, dict) else None
+    report.add("Hub-adapter v1: inloggen als niet-admin", status == 200 and bool(token), f"HTTP {status}")
+    if not token:
+        return
+    report.secrets.append(token)
+    hub_auth = {"Authorization": auth_value(HUB_CLIENT, token)}
+
+    status, body = client.json("GET", "/media/v1/version", headers=hub_auth)
+    ok = status == 200 and isinstance(body, dict) and body.get("status") == "compatibel"
+    detail = f"HTTP {status}" + (f"; status={body.get('status')}" if isinstance(body, dict) else "")
+    report.add("Hub-adapter v1: /media/v1/version als niet-admin", ok, detail)
+    status, _, _ = client.request("GET", "/Auth/Keys", headers=hub_auth)
+    report.add("Hub-adapter v1: niet-admin ziet geen API-sleutels", status == 403, f"HTTP {status} (verwacht 403)")
+
+    # Tot de B03-plugin een pinmechanisme heeft (P4), accepteert Jelly Leon geen Hub-JWT (CONTRACT_1.2 JL4).
+    jwt = fake_hub_jwt()
+    for label, headers in (
+        ("Authorization: Bearer", {"Authorization": f"Bearer {jwt}"}),
+        ("als Jellyfin-token", {"Authorization": auth_value(HUB_CLIENT, jwt)}),
+    ):
+        status, _, _ = client.request("GET", "/media/v1/version", headers=headers)
+        report.add(f"Hub-JWT niet geaccepteerd ({label})", status == 401, f"HTTP {status} (verwacht 401)")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -318,6 +393,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--library-path", required=True, help="pad van de muziekmap zoals de server hem ziet")
     parser.add_argument("--username", default="jl-smoke-admin")
     parser.add_argument("--password", default="jl-smoke-wachtwoord-niet-geheim")
+    parser.add_argument("--hub-username", default="jl-smoke-hub", help="niet-admin-gebruiker van de Hub-adapter v1")
+    parser.add_argument("--hub-password", default="jl-smoke-hub-wachtwoord-niet-geheim")
     parser.add_argument("--expect-plugin", action="store_true")
     parser.add_argument(
         "--modus",

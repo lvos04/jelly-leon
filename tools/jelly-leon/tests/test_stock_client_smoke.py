@@ -6,6 +6,7 @@ Doel: de smoketest mag nooit "geslaagd" melden als de server zich anders gedraag
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import sys
@@ -21,6 +22,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "e2e"))
 import stock_client_smoke  # noqa: E402
 
 PASSWORD = "wachtwoord-voor-de-test"
+HUB_USER = "jl-smoke-hub"
+HUB_PASSWORD = "jl-smoke-hub-wachtwoord-niet-geheim"
 MEDIA = bytes(range(256)) * 8
 TOKEN_RE = re.compile(r'Token="([^"]+)"')
 
@@ -28,13 +31,24 @@ TOKEN_RE = re.compile(r'Token="([^"]+)"')
 class FakeJellyfin:
     """Minimale nabootsing van de upstream-routes die de smoketest gebruikt. `defects` zet fouten aan."""
 
-    def __init__(self, defects: set[str] | None = None, *, completed: bool = False, item_id: str = "item-1") -> None:
+    def __init__(
+        self,
+        defects: set[str] | None = None,
+        *,
+        completed: bool = False,
+        item_id: str = "item-1",
+        hub_user: bool = False,
+    ) -> None:
         self.defects = defects or set()
         self.completed = completed
         self.user_id = "gebruiker-1"
         self.item_id = item_id
         self.library = completed
         self.tokens: dict[str, str] = {}
+        self.admin_tokens: set[str] = set()
+        self.hub_user = hub_user  # niet-admin-gebruiker van de Hub-adapter v1 bestaat al
+        self.hub_logins = 0
+        self.hub_password = HUB_PASSWORD
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
@@ -102,22 +116,52 @@ class FakeJellyfin:
                 if path == "/Users/AuthenticateByName":
                     body = self._body()
                     header = self.headers.get("Authorization") or self.headers.get("X-Emby-Authorization") or ""
-                    if body.get("Pw") != PASSWORD or not header.startswith("MediaBrowser"):
+                    hub = body.get("Username") == HUB_USER
+                    if hub:
+                        valid = fake.hub_user and body.get("Pw") == fake.hub_password
+                    else:
+                        valid = body.get("Pw") == PASSWORD
+                    if not valid or not header.startswith("MediaBrowser"):
                         return self._send(401)
                     device = re.search(r'DeviceId="([^"]+)"', header).group(1)
                     token = f"tok-{len(fake.tokens) + 1}"
                     fake.tokens[token] = device
-                    return self._send(200, {"AccessToken": token, "User": {"Id": fake.user_id}})
+                    if hub:
+                        fake.hub_logins += 1
+                    else:
+                        fake.admin_tokens.add(token)
+                    return self._send(200, {"AccessToken": token, "User": {"Id": "hub-1" if hub else fake.user_id}})
                 if path == "/Users/Me":
                     if authed or "open_users_me" in fake.defects:
                         return self._send(200, {"Id": fake.user_id})
                     return self._send(401)
                 if path == "/media/v1/version":
-                    if authed or "open_plugin" in fake.defects:
+                    bearer = (self.headers.get("Authorization") or "").startswith("Bearer ")
+                    if authed or "open_plugin" in fake.defects or (bearer and "accepts_jwt" in fake.defects):
                         return self._send(200, {"status": "compatibel", "fork_version": "10.11.11-jl.0", "reason_code": "ok"})
                     return self._send(401)
                 if not authed and not path.startswith("/Audio/"):
                     return self._send(401)
+                admin = self._token() in fake.admin_tokens
+                hub_policy = {"IsAdministrator": "hub_admin" in fake.defects}
+                if path == "/Users" and method == "GET":
+                    users = [{"Name": "jl-smoke-admin", "Id": fake.user_id, "Policy": {"IsAdministrator": True}}]
+                    if fake.hub_user:
+                        users.append({"Name": HUB_USER, "Id": "hub-1", "Policy": hub_policy})
+                    return self._send(200, users)
+                if path == "/Users/New":
+                    if not admin:
+                        return self._send(403)
+                    if "create_fails" in fake.defects:
+                        return self._send(400)
+                    body = self._body()
+                    fake.hub_user = body.get("Name") == HUB_USER
+                    fake.hub_password = body.get("Password")
+                    return self._send(200, {"Name": body.get("Name"), "Id": "hub-1", "Policy": hub_policy})
+                if path == "/Auth/Keys":
+                    if admin or "keys_open" in fake.defects:
+                        return self._send(200, {"Items": [], "TotalRecordCount": 0})
+                    return self._send(403)
                 if path == "/Library/VirtualFolders":
                     if method == "POST":
                         fake.library = True
@@ -165,6 +209,7 @@ def test_stock_behaviour_passes_and_reports_ids(tmp_path):
     assert result["geslaagd"] is True
     assert result["item_id"] == "item-1" and result["gebruiker_id"] == "gebruiker-1"
     assert PASSWORD not in json.dumps(result) and "tok-1" not in json.dumps(result)  # geredigeerd
+    assert HUB_PASSWORD not in json.dumps(result)
     assert any(o["waarneming"].startswith("upstream-gedrag") for o in result["waarnemingen"])
 
 
@@ -175,6 +220,9 @@ def test_stock_behaviour_passes_and_reports_ids(tmp_path):
         ("open_users_me", "zonder token geweigerd"),
         ("open_plugin", "plugin-route zonder token geweigerd"),
         ("wizard_open", "startwizard daarna niet anoniem"),
+        ("hub_admin", "Hub-adapter v1: eigen niet-admin-gebruiker"),
+        ("keys_open", "Hub-adapter v1: niet-admin ziet geen API-sleutels"),
+        ("accepts_jwt", "Hub-JWT niet geaccepteerd (Authorization: Bearer)"),
     ],
 )
 def test_deviation_from_stock_never_passes(tmp_path, defect, expected_failure):
@@ -213,3 +261,50 @@ def test_restart_mode_detects_new_item_id(tmp_path):
     with FakeJellyfin(completed=True, item_id="item-2") as fake:
         rc, result = run_smoke(tmp_path, fake, "--modus", "herstart", "--verwacht-item", "item-1")
     assert rc == 1 and "zelfde item-ID als vóór de herstart" in failed_steps(result)
+
+
+def test_hub_adapter_v1_uses_own_non_admin_user(tmp_path):
+    """JL4: de Hub-adapter v1 leest /media/v1/version met een eigen niet-admin-gebruiker (aangemaakt door de beheerder)."""
+    with FakeJellyfin() as fake:
+        rc, result = run_smoke(tmp_path, fake)
+        assert fake.hub_user and fake.hub_logins == 1
+    assert rc == 0, failed_steps(result)
+    steps = {step["stap"]: step for step in result["stappen"]}
+    assert "aangemaakt" in steps["Hub-adapter v1: eigen niet-admin-gebruiker"]["detail"]
+    assert steps["Hub-adapter v1: /media/v1/version als niet-admin"]["geslaagd"]
+    assert steps["Hub-JWT niet geaccepteerd (als Jellyfin-token)"]["geslaagd"]
+
+
+def test_hub_adapter_v1_reuses_existing_user_after_restart(tmp_path):
+    with FakeJellyfin(completed=True, hub_user=True) as fake:
+        rc, result = run_smoke(tmp_path, fake, "--modus", "herstart", "--verwacht-item", "item-1")
+    assert rc == 0, failed_steps(result)
+    step = next(s for s in result["stappen"] if s["stap"] == "Hub-adapter v1: eigen niet-admin-gebruiker")
+    assert "bestond al" in step["detail"]
+
+
+def test_hub_adapter_v1_stops_when_user_cannot_be_created(tmp_path):
+    """Kan de niet-admin-gebruiker niet worden aangemaakt, dan nooit 'geslaagd' (en geen verdere Hub-stappen)."""
+    with FakeJellyfin({"create_fails"}) as fake:
+        rc, result = run_smoke(tmp_path, fake)
+        assert fake.hub_logins == 0
+    assert rc == 1
+    assert "Hub-adapter v1: eigen niet-admin-gebruiker" in failed_steps(result)
+    assert not any(step["stap"].startswith("Hub-JWT") for step in result["stappen"])
+
+
+def test_hub_adapter_v1_login_failure_never_passes(tmp_path):
+    """Bestaande gebruiker met een ander wachtwoord: inloggen mislukt → mislukt, geen gesimuleerd succes."""
+    with FakeJellyfin(hub_user=True) as fake:
+        rc, result = run_smoke(tmp_path, fake, "--hub-password", "ander-wachtwoord-niet-geheim")
+    assert rc == 1
+    assert failed_steps(result) == ["Hub-adapter v1: inloggen als niet-admin"]
+
+
+def test_fake_hub_jwt_has_hub_service_shape():
+    header, claims, _ = stock_client_smoke.fake_hub_jwt().split(".")
+    decode = lambda part: json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))  # noqa: E731
+    assert decode(header)["alg"] == "EdDSA"
+    payload = decode(claims)
+    assert payload["token_use"] == "hub_service" and payload["aud"] == "jelly-leon" and payload["jti"]
+    assert payload["exp"] - payload["iat"] <= 120
