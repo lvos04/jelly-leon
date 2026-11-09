@@ -1,6 +1,7 @@
-# ADR-0008 — Alles-in-één image `ghcr.io/lvos04/jelly-leon` als standaard Custom App (schets P0)
+# ADR-0008 — Alles-in-één image `ghcr.io/lvos04/jelly-leon` als standaard Custom App
 
-- **Status:** Voorgesteld (schets P0; definitief in P4)
+- **Status:** Voorgesteld (P0: volledige image lokaal gebouwd en Sim-getest; definitief bij de eerste release in P4,
+  na de upgrade naar 12.x — ADR-0011)
 - **Context:** Contract 1.1 §1/§2/§10: één alles-in-één image per repo, standaard TrueNAS Custom App (geen YAML/compose),
   één datamap `/appdata` met ingebouwde PostgreSQL, start als root alleen voor eigenaarschap en daarna 568:568,
   `/healthz` + `/readyz`. Jellyfin is echter een bestaande server met eigen conventies: SQLite, `/config` + `/cache`,
@@ -56,6 +57,20 @@
   wizard blijft afgerond, zelfde gebruiker en item-ID, streamen byte-gelijk (geen dataverlies) → negatieve tests
   (anoniem volume, cachemap naar de media) weigeren te starten en laten de media ongemoeid: **16/16**
   (`docs/platform-v2/test-evidence/p0-image-lifecycle.json`). Echte NAS/TrueNAS-formulier: NIET GEVALIDEERD.
+
+## Gemeten in de P0-afronding (Ubuntu-machine, 2026-11-09; Sim-getest, geen echte NAS)
+
+- **Volledige image mét de echte web-build** gebouwd met de productie-Dockerfile: `npm ci` (ook het
+  `classList.js`-archief van GitHub, dat in de sandbox geblokkeerd was) en `npm run build:production` uit een
+  `git archive` van `lvos04/jelly-leon-web` (commit `2795f3365`), server en plugin uit een `git archive` van deze repo.
+  De web-client in de image verschilt in precies 4 bestanden van de upstream-web-dist (webpack-hash/commit-info): het
+  is de eigen build.
+- Herkomst in de image: label `io.github.lvos04.jelly-leon.web.revision` + `/usr/share/doc/jelly-leon/SOURCE_REVISIONS`
+  (server- en web-commit); `org.opencontainers.image.url`/`documentation` wijzen naar de fork, niet naar jellyfin.org.
+- `image_lifecycle.py` **18/18** (nu ook: elke bundel uit `index.html` laadt, herkomst klopt) en de web-smoketest van
+  `jelly-leon-web` in headless Chromium **21/21** tegen dezelfde image (`docs/platform-v2/test-evidence/
+  p0-afronding-*.json`). In GitHub-CI blijft de stage `web` vervangen door de upstream-web-dist zolang `jelly-leon-web`
+  privé is (geen leestoken; gebruikersbesluit 3: repos worden publiek na een scan).
 
 ## Gevolgen
 

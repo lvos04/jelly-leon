@@ -1,0 +1,126 @@
+{
+  "soort": "Sim-getest (Docker op de bouwmachine; geen echte NAS, geen TrueNAS-formulier)",
+  "image": "jelly-leon:p0-volledig (lokaal gebouwd, niet gepubliceerd; image-ID sha256:33350111786239c35ba215ad86f9ca4d878496c897e8bc3465f678a79f12bd2d; label org.opencontainers.image.revision=5a0eebcdfd4142d3cb49d0f54017d97a37b665ea, io.github.lvos04.jelly-leon.web.revision=2795f3365ffe21d16bf5b76a0da8d556f29ad38d)",
+  "opmerking": "P0-afronding (Ubuntu-machine), image gebouwd uit git archive van commit 5a0eebcdf met de productie-Dockerfile; web-client = echte npm-build (npm ci + build:production) uit git archive van lvos04/jelly-leon-web commit 2795f3365",
+  "gestart": "2026-11-09T12:49:02Z",
+  "klaar": "2026-11-09T12:49:39Z",
+  "geslaagd": true,
+  "stappen": [
+    {
+      "stap": "healthy (eerste start, lege opslag)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T12:49:09Z"
+    },
+    {
+      "stap": "stock-client-smoketest (eerste start, modus nieuw)",
+      "geslaagd": true,
+      "detail": "18/18 stappen",
+      "tijd": "2026-11-09T12:49:10Z"
+    },
+    {
+      "stap": "proces 1 als 568:568 zonder capabilities",
+      "geslaagd": true,
+      "detail": "Uid=568 568 568 568; Gid=568 568 568 568; Groups=568; CapEff=0000000000000000; CapBnd=0000000000000000; NoNewPrivs=1",
+      "tijd": "2026-11-09T12:49:10Z"
+    },
+    {
+      "stap": "/config en /cache volledig van 568",
+      "geslaagd": true,
+      "detail": "0 bestanden van een andere eigenaar",
+      "tijd": "2026-11-09T12:49:10Z"
+    },
+    {
+      "stap": "Jelly Leon-plugin in de datamap",
+      "geslaagd": true,
+      "detail": "/config/plugins/JellyLeon_0.1.0.0/Jellyfin.Plugin.JellyLeon.dll",
+      "tijd": "2026-11-09T12:49:10Z"
+    },
+    {
+      "stap": "web-client bereikbaar",
+      "geslaagd": true,
+      "detail": "HTTP 200; 5331 bytes; <title> aanwezig=True",
+      "tijd": "2026-11-09T12:49:11Z"
+    },
+    {
+      "stap": "web-client: alle bundels uit index.html laden",
+      "geslaagd": true,
+      "detail": "31/31 scripts/stylesheets uit index.html geladen (3305769 bytes)",
+      "tijd": "2026-11-09T12:49:11Z"
+    },
+    {
+      "stap": "herkomst web-client (label + SOURCE_REVISIONS)",
+      "geslaagd": true,
+      "detail": "verwacht 2795f3365ffe21d16bf5b76a0da8d556f29ad38d; label 2795f3365ffe21d16bf5b76a0da8d556f29ad38d; bestand: server 5a0eebcdfd4142d3cb49d0f54017d97a37b665ea | web 2795f3365ffe21d16bf5b76a0da8d556f29ad38d",
+      "tijd": "2026-11-09T12:49:11Z"
+    },
+    {
+      "stap": "healthy (na docker restart)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T12:49:27Z"
+    },
+    {
+      "stap": "stock-client-smoketest (na herstart, modus herstart)",
+      "geslaagd": true,
+      "detail": "20/20 stappen",
+      "tijd": "2026-11-09T12:49:29Z"
+    },
+    {
+      "stap": "healthy (nieuwe container, zelfde opslag)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T12:49:35Z"
+    },
+    {
+      "stap": "stock-client-smoketest (nieuwe container, modus herstart)",
+      "geslaagd": true,
+      "detail": "20/20 stappen",
+      "tijd": "2026-11-09T12:49:37Z"
+    },
+    {
+      "stap": "proces 1 als 568:568 zonder capabilities",
+      "geslaagd": true,
+      "detail": "Uid=568 568 568 568; Gid=568 568 568 568; Groups=568; CapEff=0000000000000000; CapBnd=0000000000000000; NoNewPrivs=1",
+      "tijd": "2026-11-09T12:49:37Z"
+    },
+    {
+      "stap": "/config en /cache volledig van 568",
+      "geslaagd": true,
+      "detail": "0 bestanden van een andere eigenaar",
+      "tijd": "2026-11-09T12:49:37Z"
+    },
+    {
+      "stap": "Jelly Leon-plugin in de datamap",
+      "geslaagd": true,
+      "detail": "/config/plugins/JellyLeon_0.1.0.0/Jellyfin.Plugin.JellyLeon.dll",
+      "tijd": "2026-11-09T12:49:37Z"
+    },
+    {
+      "stap": "mediamap onaangeroerd",
+      "geslaagd": true,
+      "detail": "eigenaar/rechten ongewijzigd",
+      "tijd": "2026-11-09T12:49:37Z"
+    },
+    {
+      "stap": "geweigerd: geen opslagregel voor /cache (anoniem Docker-volume)",
+      "geslaagd": true,
+      "detail": "exited 1; media ongewijzigd=True; 2026-11-09T12:49:38Z jelly-leon: FOUT: /cache is een anoniem Docker-volume, geen gekozen dataset: voeg in het Custom App-formulier opslag (Host Path of ixVolume) toe met Mount Path /cache",
+      "tijd": "2026-11-09T12:49:38Z"
+    },
+    {
+      "stap": "geweigerd: JELLYFIN_CACHE_DIR wijst naar de mediamap",
+      "geslaagd": true,
+      "detail": "exited 1; media ongewijzigd=True; 2026-11-09T12:49:38Z jelly-leon: FOUT: /media/muziek (werkelijk pad /media/muziek) ligt buiten /config of /cache; als root wordt hier niets aangepast. Laat JELLYFIN_DATA_DIR/JELLYFIN_CACHE_DIR leeg in",
+      "tijd": "2026-11-09T12:49:39Z"
+    }
+  ],
+  "werkmap": "<lokale werkmap buiten de repo>",
+  "bouw": {
+    "commando": "flock .lokaal/docker-build.lock nice -n 10 docker buildx build --builder default -f deploy/allinone/Dockerfile --build-context jelly-leon-web=<git archive van jelly-leon-web 2795f3365> --build-arg FORK_VERSION=10.11.11-jl.0 --build-arg VCS_REF=5a0eebcdf… --build-arg WEB_REF=2795f3365… --build-arg BUILD_JOBS=4 -t jelly-leon:p0-volledig <git archive van 5a0eebcdf>",
+    "web_stage": "npm ci (incl. classlist.js-archief van GitHub, nu bereikbaar) 24,1 s; npm run build:production (webpack 5.99.9, 2 waarschuwingen over bundelgrootte) 78,2 s",
+    "server_stage": "dotnet publish self-contained + plugin, 33,7 s (eerste bouw)",
+    "image_grootte_bytes": 801109027,
+    "web_client_vs_stock": "2317 bestanden in beide; 4 verschillen met de upstream-web-dist 10.11.11 (index.html, main.jellyfin.bundle.js, runtime.bundle.js, één index-chunk: webpack-hash/commit-info) — de image bevat dus de eigen build, niet de upstream-dist"
+  }
+}

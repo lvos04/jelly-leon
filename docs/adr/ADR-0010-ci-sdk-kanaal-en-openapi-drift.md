@@ -37,6 +37,7 @@ volgorde welke XML-tekst als `description` wint (bv. "Gets or sets the user." of
 | Ubuntu-machine, ext4, volledige testrun en 2× alleen `OpenApiSpecTests` | `4bd2d710549c…` | 22 `description`-teksten, verder identiek |
 | tmpfs, XML-bestanden in oplopende aanmaakvolgorde | `94be85990695…` | 9 `description`-teksten |
 | tmpfs, XML-bestanden in aflopende aanmaakvolgorde | `4bd2d710549c…` | 22 `description`-teksten |
+| GitHub-runner `ubuntu-24.04`, run 42619401596 (eerste groene run, met dit hulpmiddel) | — | 4 `description`-teksten, verder identiek → waarschuwing, job groen |
 
 Een byte-vergelijking is dus omgevingsafhankelijk en zou op GitHub-runners willekeurig rood of groen zijn.
 

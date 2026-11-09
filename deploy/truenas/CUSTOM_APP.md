@@ -1,8 +1,10 @@
-# Jelly Leon installeren als standaard TrueNAS Custom App (SCHETS P0)
+# Jelly Leon installeren als standaard TrueNAS Custom App (P0)
 
-> **Status: SCHETS — NIET GEVALIDEERD (echte NAS).** Er is nog **geen** gepubliceerde image `ghcr.io/lvos04/jelly-leon`:
-> forkversie `10.11.11-jl.0` wordt nooit uitgebracht (ADR-0005); de eerste release (`-jl.1`) volgt in P4. Het
-> formulier hieronder is niet op een echte TrueNAS doorlopen; veldnamen volgen TrueNAS SCALE 24.10/25.04 en kunnen per
+> **Status: NIET GEVALIDEERD (echte NAS).** De volledige image (server + echte web-build + plugin) is lokaal gebouwd en
+> met dezelfde formulierwaarden in Docker getest (Sim-getest: levenscyclus 18/18 en web-smoketest in Chromium 21/21,
+> `docs/platform-v2/BOUWVERIFICATIE_P0.md` §11). Er is nog **geen** gepubliceerde image `ghcr.io/lvos04/jelly-leon`:
+> forkversie `10.11.11-jl.0` wordt nooit uitgebracht (ADR-0005); vóór P4 gaat de basis eerst naar Jellyfin 12.x
+> (ADR-0011), de eerste release volgt daarna. Het formulier hieronder is niet op een echte TrueNAS doorlopen; veldnamen volgen TrueNAS SCALE 24.10/25.04 en kunnen per
 > versie iets afwijken. De installatie gebeurt normaal **door het platform** (Hub → executor → TrueNAS-API
 > `app.create` met precies deze formulierwaarden); dit document beschrijft dezelfde velden voor controle en noodgevallen.
 

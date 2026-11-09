@@ -7,6 +7,10 @@ met `--network host`, `HTTPS_PROXY` en de proxy-CA alleen als runtime-mount (noo
 
 **Niets hiervan is op de echte NAS, met echte GPU's of op echte clients uitgevoerd.**
 
+> **Bijgewerkt in de P0-afronding (§11, Ubuntu-machine):** de 4 omgevingsfouten uit §3 slagen daar en op GitHub; de
+> volledige image mét echte web-build (§8: hier geblokkeerd) is gebouwd en getest; GitHub-CI is groen (§9). De
+> §§1–10 hieronder zijn de oorspronkelijke sandboxmetingen en blijven ongewijzigd staan.
+
 ## 1. Restore en build
 
 | Commando | Resultaat | Duur |
@@ -152,3 +156,78 @@ Alles opnieuw gedraaid op een `git archive`-export (geen lokale bouwresten), .NE
 
 **Niet gerepareerd (buiten P0 of gebruikersbesluit):** anoniem streamen (ADR-0009), `/healthz`/`/readyz`, Hub-JWT en
 platformfoutformaat (P1), echte web-build en release-workflow (P4), echte NAS/clients/GPU (NIET GEVALIDEERD).
+
+## 11. P0-afronding op de Ubuntu-machine en GitHub Actions (2026-11-09)
+
+Omgeving: eigen Ubuntu 26.04-machine van de gebruiker (22 CPU, 14,5 GiB RAM, gedeeld), Docker 29, **geen proxy en geen
+eigen CA**. .NET-stappen in `mcr.microsoft.com/dotnet/sdk:9.0.320@sha256:07ed28d9…` (`--cpus 4 --memory 8g`, `-m:4`,
+`nice -n 10`, standaard bridge-netwerk zonder `--add-host`), zware stappen onder `flock .lokaal/docker-build.lock`.
+Bron telkens een `git archive`-export (geen lokale bouwresten). Ruwe uitvoer: `test-evidence/p0-afronding-*.{txt,json}`.
+
+### 11.1 GitHub-CI gerepareerd (ADR-0010)
+
+| Probleem | Oorzaak | Reparatie |
+|---|---|---|
+| Jobs *server*/*plugins* rood: "Could not find .NET Core SDK with version = 9.0.0" (runs 42595226924, 42595990869, 42605533435) | `setup-dotnet` met `global-json-file`; upstream-global.json noemt 9.0.0 als ondergrens (rollForward), die versie is niet te downloaden | `tools/jelly-leon/dotnet_sdk_kanaal.py` → kanaal `9.0.x` uit global.json; global.json blijft ongewijzigd (geen core-patch). Ook in `upstream-sync.yml` (12.x → `10.0.x`) |
+| OpenAPI-drift zou rood/groen afhangen van de machine | upstream laadt XML-docbestanden in bestandssysteemvolgorde → andere `description`-teksten (zie 11.3) | `tools/jelly-leon/openapi_drift.py`: structureel vergelijken, beschrijvingen alleen als waarschuwing |
+
+**Eerste groene run: [42619401596](https://github.com/lvos04/jelly-leon/actions/runs/42619401596)** (commit `5150dab15`,
+alle 5 jobs groen): forkregels 79 tool-tests + ruff/shellcheck/actionlint; server `dotnet --version` = 9.0.320, build,
+**2 555 tests: 2 548 geslaagd, 7 overgeslagen, 0 mislukt**, OpenAPI structureel gelijk (4 beschrijvingen anders →
+waarschuwing); plugins 16/16; image (web-stage = upstream-web-dist) levenscyclus 16/16; stock-client-smoketest 18/18.
+Latere runs: zie het eindrapport van deze ronde / `gh run list -R lvos04/jelly-leon -b ccr-c133d7a0-kuz1cv`.
+
+### 11.2 Lokale build en tests (zelfde 4 tests als in §3 herhaald)
+
+| Commando | Resultaat | Duur |
+|---|---|---|
+| `dotnet restore Jellyfin.sln` | geslaagd | 44 s |
+| `dotnet build Jellyfin.sln -c Release --no-restore -m:4` | **0 waarschuwingen, 0 fouten** | 59 s |
+| `dotnet test Jellyfin.sln -c Release --no-build -m:4` | **2 555 tests: 2 548 geslaagd, 7 overgeslagen (upstream `Skip`), 0 mislukt** | 1 min 48 s |
+| `dotnet build` + `dotnet test plugins/JellyLeon.Plugins.sln -c Release` | 0/0, **16/16** | 6 s |
+
+De 4 tests die in de sandbox faalden, slagen hier (uit de TRX-bestanden, `test-evidence/p0-afronding-dotnet-build-test.txt`):
+
+| Test | Sandbox | Ubuntu-machine | GitHub (42619401596) |
+|---|---|---|---|
+| `NetworkParseTests.TestBindInterfaceOverrides(source: "jellyfin.org", bindAddresses: "eth16", …)` | mislukt (geen DNS) | **geslaagd** | geslaagd (Networking 119/119) |
+| `NetworkParseTests.TestBindInterfaceOverrides(source: "jellyfin.org", bindAddresses: "", …)` | mislukt (geen DNS) | **geslaagd** | geslaagd |
+| `ParseNetworkTests.TestNetworks(ip4: False, ip6: True, hostList: ["localhost"], …)` | mislukt (geen IPv6) | **geslaagd** | geslaagd (Server.Tests 7/7) |
+| `ParseNetworkTests.TestNetworks(ip4: True, ip6: True, hostList: ["localhost"], …)` | mislukt (geen IPv6) | **geslaagd** | geslaagd |
+
+Conclusie: de 4 fouten waren omgevingsfouten van de sandbox (bevestigd), geen forkwijziging.
+
+### 11.3 OpenAPI: byte-gelijkheid is omgevingsafhankelijk (gemeten)
+
+`OpenApiSpecTests` gaf hier `openapi.json` sha256 `4bd2d710549c…` (volledige testrun én 2× alleen deze test), niet de
+vastgelegde `f0580e74a4e4…` uit de sandbox. Verschil: 22 `description`-teksten, verder identiek. Proef op tmpfs met
+dezelfde bin-map en de XML-docbestanden in oplopende resp. aflopende aanmaakvolgorde: `94be85990695…` (9 verschillen)
+resp. `4bd2d710549c…` (22) → de volgorde van `Directory.EnumerateFiles` in upstream-code bepaalt de beschrijvingen.
+Op GitHub: 4 verschillen. `openapi_drift.py` geeft in alle gevallen "structureel gelijk"; mutaties (pad, operationId,
+summary, enum, required, nullable, parameter, voorbeeldwaarde) laten hem falen (`tests/test_openapi_drift.py`).
+`docs/openapi/jelly-leon.openapi.json` blijft ongewijzigd. Upstream-PR-kans (sorteren): followup.
+
+### 11.4 Volledige alles-in-één image mét echte web-build (ADR-0008)
+
+| Stap | Resultaat |
+|---|---|
+| `docker buildx build -f deploy/allinone/Dockerfile --build-context jelly-leon-web=<git archive jelly-leon-web 2795f3365> --build-arg BUILD_JOBS=4 …` (commit `5a0eebcdf`) | geslaagd; `npm ci` 24 s (**`classList.js`-archief nu bereikbaar**), webpack-productiebuild 78 s (2 waarschuwingen over bundelgrootte), server-publish + plugin 34 s; image 801 MB, niet gepubliceerd |
+| Herkomst | labels `org.opencontainers.image.revision=5a0eebcdf…`, `io.github.lvos04.jelly-leon.web.revision=2795f3365…`; `/usr/share/doc/jelly-leon/SOURCE_REVISIONS`; url/documentation naar de fork |
+| Web-client in de image | 2 317 bestanden; 4 verschillen met de upstream-web-dist 10.11.11 (webpack-hash/commit-info) → de eigen build |
+| `tools/jelly-leon/e2e/image_lifecycle.py --verwacht-web-ref 2795f3365…` | **18/18** (`test-evidence/p0-afronding-image-lifecycle-volledig.json`): lege opslag → *healthy* → smoketest 18/18 → proces 1 568:568, `CapEff=0`, `CapBnd=0`, `NoNewPrivs=1` → web-client + **31/31 bundels uit index.html** → herkomst klopt → `docker restart` en nieuwe container met dezelfde opslag: smoketest-herstart 20/20 → mediamap onaangeroerd → anoniem volume en cachemap naar de media geweigerd |
+| Web-smoketest van `jelly-leon-web` (`web_smoke.py --modus fork --url … --zonder-herstart`, headless Chromium 153, alleen gelezen/uitgevoerd) tegen dezelfde image, gestart zoals het formulier | **21/21** (`test-evidence/p0-afronding-web-smoke-volledige-image.json`): NL-aanmeldpagina, fout wachtwoord geweigerd, inloggen, startscherm, zoeken, afspelen (stream 200), kinderprofiel ziet niets, 360/390/768/1440 px zonder horizontale overloop |
+
+In GitHub-CI bouwt de job *image* dezelfde Dockerfile, maar met de upstream-web-dist als stage `web`: `jelly-leon-web`
+is een privé-repo en `GITHUB_TOKEN` mag die niet lezen (een leestoken of publiek maken is een gebruikersbesluit).
+
+### 11.5 Besluit gebruiker 2 vastgelegd, niet uitgevoerd
+
+Server naar de nieuwste stabiele 12.x (.NET 10) vóór P4: `docs/adr/ADR-0011-upgrade-12x-voor-p4.md`, FORK_STRATEGIE §6a.
+Gemeten (alleen lezen): nieuwste stabiele tag `v12.4` (server en web), `global.json` van v12.4 vraagt SDK 10.0.0,
+`jellyfin-web` v12.4 vraagt Node ≥ 24 / npm ≥ 11; `jellyfin/jellyfin:12.4` en `dotnet/sdk:10.0` bestaan in de
+registries. **De upgrade zelf is in deze ronde niet uitgevoerd** (basis blijft v10.11.11).
+
+### 11.6 Nog steeds NIET GEVALIDEERD
+
+Echte NAS en het echte TrueNAS-formulier, A310/UHD 770, echte clients/tv's, Swiftfin (Mac/Xcode), upstream-sync.yml op
+GitHub (scheduled alleen op de standaardbranch; push vraagt `JL_SYNC_PUSH_TOKEN`), publicatie naar GHCR (P4).

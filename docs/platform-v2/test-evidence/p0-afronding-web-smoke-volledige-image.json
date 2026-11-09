@@ -1,0 +1,153 @@
+{
+  "soort": "Sim-getest (headless Chromium op de bouwmachine; geen echte apparaten, geen NAS)",
+  "opmerking": "Web-smoketest van lvos04/jelly-leon-web (tools/jelly-leon-web/e2e/web_smoke.py op commit 2795f3365, alleen gelezen en uitgevoerd) met --modus fork --url --zonder-herstart tegen de VOLLEDIGE Jelly Leon-image jelly-leon:p0-volledig, gestart zoals het Custom App-formulier (als root → entrypoint → 568:568, /config en /cache als hostmap, media alleen-lezen). --dist = /jellyfin/jellyfin-web uit die image; 'fork-build wordt geserveerd' bewijst dus alleen dat de server die map serveert. Dat het de eigen web-build is, staat in p0-afronding-image-lifecycle-volledig.json (bouw.web_client_vs_stock). Het veld rapport.validatie is de vaste tekst van het script (dat standaard de officiële image start); hier was de server de Jelly Leon-image. Herstart/terugzetten zijn in deze run uitgezet; die dekt de levenscyclustest.",
+  "rapport": {
+    "test": "web-client-smoketest",
+    "modus": "fork",
+    "server_image": "extern",
+    "basis_url": "http://127.0.0.1:38197",
+    "gestart_utc": "2026-11-09T12:50:40Z",
+    "beeindigd_utc": "2026-11-09T12:50:53Z",
+    "resultaat": "geslaagd",
+    "aantal_stappen": 21,
+    "geslaagd": 21,
+    "validatie": "Sim-getest (headless Chromium + officiële serverimage; geen echte apparaten, D15)",
+    "feiten": {
+      "dist_index_sha256": "d2f8bdc8977d864562086f2e483f8884e685d459445e930be9dce9b9d5be781a",
+      "dist_bestanden": 2317,
+      "server_productnaam": "Jellyfin Server",
+      "server_versie": "10.11.11",
+      "web_index_sha256": "d2f8bdc8977d864562086f2e483f8884e685d459445e930be9dce9b9d5be781a",
+      "testitem_naam": "01 - Sinus 440 Hz",
+      "browser": "Chromium 153.0.8010.12 (headless)"
+    },
+    "stappen": [
+      {
+        "stap": "server gezond",
+        "geslaagd": true,
+        "detail": "GET /health → Healthy",
+        "tijd_utc": "2026-11-09T12:50:41Z"
+      },
+      {
+        "stap": "technische identiteit ongewijzigd",
+        "geslaagd": true,
+        "detail": "ProductName='Jellyfin Server', Version='10.11.11' (verwacht 10.11.11)",
+        "tijd_utc": "2026-11-09T12:50:41Z"
+      },
+      {
+        "stap": "fork-build wordt geserveerd",
+        "geslaagd": true,
+        "detail": "HTTP 200; /web/index.html = dist/index.html",
+        "tijd_utc": "2026-11-09T12:50:41Z"
+      },
+      {
+        "stap": "zichtbare naam in P0 ongewijzigd ('Jellyfin', ADR-0003)",
+        "geslaagd": true,
+        "detail": "index.html <title>Jellyfin</title> aanwezig; manifest.json name='Jellyfin' (HTTP 200)",
+        "tijd_utc": "2026-11-09T12:50:41Z"
+      },
+      {
+        "stap": "eerste-startwizard (API)",
+        "geslaagd": true,
+        "detail": "HTTP [204, 200, 204, 204, 204]",
+        "tijd_utc": "2026-11-09T12:50:41Z"
+      },
+      {
+        "stap": "beheerder logt in via API",
+        "geslaagd": true,
+        "detail": "HTTP 200",
+        "tijd_utc": "2026-11-09T12:50:41Z"
+      },
+      {
+        "stap": "bibliotheek 'Muziek' aanmaken",
+        "geslaagd": true,
+        "detail": "HTTP 204",
+        "tijd_utc": "2026-11-09T12:50:41Z"
+      },
+      {
+        "stap": "bibliotheekscan vindt het testnummer",
+        "geslaagd": true,
+        "detail": "item dbd1b4c93b1c7df92633765df6054ff3",
+        "tijd_utc": "2026-11-09T12:50:42Z"
+      },
+      {
+        "stap": "kinderprofiel zonder bibliotheektoegang",
+        "geslaagd": true,
+        "detail": "aanmaken HTTP 200, beleid HTTP 204 (EnableAllFolders=false)",
+        "tijd_utc": "2026-11-09T12:50:42Z"
+      },
+      {
+        "stap": "zoeken respecteert server-ACL (API)",
+        "geslaagd": true,
+        "detail": "beheerder 1 resultaat, kinderprofiel 0 (verwacht 1 / 0)",
+        "tijd_utc": "2026-11-09T12:50:42Z"
+      },
+      {
+        "stap": "zonder token geweigerd",
+        "geslaagd": true,
+        "detail": "GET /Users/<id> zonder token → HTTP 401 (verwacht 401)",
+        "tijd_utc": "2026-11-09T12:50:42Z"
+      },
+      {
+        "stap": "aanmeldpagina in het Nederlands (browser nl-NL)",
+        "geslaagd": true,
+        "detail": "gevonden: Meld je aan, Aanmelden, Gebruiker, Wachtwoord",
+        "tijd_utc": "2026-11-09T12:50:44Z"
+      },
+      {
+        "stap": "fout wachtwoord geweigerd (negatieve test)",
+        "geslaagd": true,
+        "detail": "melding zichtbaar, url /login?serverid=750067b06d8246d0ac20f4e294e748d2&url=%2Fhome",
+        "tijd_utc": "2026-11-09T12:50:46Z"
+      },
+      {
+        "stap": "inloggen → startscherm met bibliotheek",
+        "geslaagd": true,
+        "detail": "url /home",
+        "tijd_utc": "2026-11-09T12:50:48Z"
+      },
+      {
+        "stap": "zoeken vindt het testnummer (UI)",
+        "geslaagd": true,
+        "detail": "zoekterm 'Sinus' → 'Sinus 440 Hz'",
+        "tijd_utc": "2026-11-09T12:50:48Z"
+      },
+      {
+        "stap": "afspelen start een stream",
+        "geslaagd": true,
+        "detail": "GET /Audio/<id>/… → HTTP 200 (verwacht 200/206)",
+        "tijd_utc": "2026-11-09T12:50:49Z"
+      },
+      {
+        "stap": "kinderprofiel ziet de titel niet in zoekresultaten (UI)",
+        "geslaagd": true,
+        "detail": "melding 'Geen resultaten gevonden', geen testnummer zichtbaar",
+        "tijd_utc": "2026-11-09T12:50:51Z"
+      },
+      {
+        "stap": "startscherm 360px zonder horizontale overloop",
+        "geslaagd": true,
+        "detail": "scrollWidth 360 px, venster 360 px; fork-360-startscherm.jpg",
+        "tijd_utc": "2026-11-09T12:50:52Z"
+      },
+      {
+        "stap": "startscherm 390px zonder horizontale overloop",
+        "geslaagd": true,
+        "detail": "scrollWidth 390 px, venster 390 px; fork-390-startscherm.jpg",
+        "tijd_utc": "2026-11-09T12:50:52Z"
+      },
+      {
+        "stap": "startscherm 768px zonder horizontale overloop",
+        "geslaagd": true,
+        "detail": "scrollWidth 768 px, venster 768 px; fork-768-startscherm.jpg",
+        "tijd_utc": "2026-11-09T12:50:53Z"
+      },
+      {
+        "stap": "startscherm 1440px zonder horizontale overloop",
+        "geslaagd": true,
+        "detail": "scrollWidth 1440 px, venster 1440 px; fork-1440-startscherm.jpg",
+        "tijd_utc": "2026-11-09T12:50:53Z"
+      }
+    ]
+  }
+}

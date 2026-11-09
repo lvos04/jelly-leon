@@ -1,0 +1,65 @@
+# P0-afronding — lokale bouw en tests op de Ubuntu-machine (2026-11-09), ingekorte ruwe uitvoer
+# Bron: git archive van commit 94abb09e3 (servercode identiek aan upstream v10.11.11)
+# Container: mcr.microsoft.com/dotnet/sdk:9.0.320@sha256:07ed28d9e7279248fcea27334880f6c415b42c631c39b8bc5b3caf13ec6fdaa2
+# docker run --cpus 4 --memory 8g --user <uid> (standaard bridge-netwerk, geen proxy, geen CA, geen --add-host); dotnet -m:4; nice -n 10; onder flock .lokaal/docker-build.lock
+# Host: Ubuntu 26.04, IPv6-loopback aanwezig (/proc/sys/net/ipv6/conf/lo/disable_ipv6 = 0), DNS jellyfin.org lost op
+
+.NET SDK:
+ Version:           9.0.320
+ Commit:            af2c1d1c15
+ Workload version:  9.0.300-manifests.8741866d
+...
+Duur (wandklok, `time`):
+  dotnet restore Jellyfin.sln                                        43,6 s
+  dotnet build Jellyfin.sln -c Release --no-restore -m:4             59,3 s
+  dotnet test Jellyfin.sln -c Release --no-build -m:4                1 min 48 s
+  dotnet build plugins/JellyLeon.Plugins.sln -c Release -m:4          4,1 s
+  dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build     1,9 s
+
+  Jellyfin.Server.Implementations.Tests -> /src/tests/Jellyfin.Server.Implementations.Tests/bin/Release/net9.0/Jellyfin.Server.Implementations.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:59.07
+
+Passed!  - Failed:     0, Passed:    30, Skipped:     0, Total:    30, Duration: 22 ms - Jellyfin.Common.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    47, Skipped:     0, Total:    47, Duration: 525 ms - Jellyfin.MediaEncoding.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    79, Skipped:     0, Total:    79, Duration: 514 ms - Jellyfin.Api.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    28, Skipped:     0, Total:    28, Duration: 314 ms - Jellyfin.Controller.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    34, Skipped:     0, Total:    34, Duration: 409 ms - Jellyfin.XbmcMetadata.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   119, Skipped:     0, Total:   119, Duration: 569 ms - Jellyfin.Networking.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7, Duration: 400 ms - Jellyfin.Server.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   627, Skipped:     0, Total:   627, Duration: 6 s - Jellyfin.Model.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   420, Skipped:     4, Total:   424, Duration: 14 s - Jellyfin.Server.Implementations.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   235, Skipped:     0, Total:   235, Duration: 1 s - Jellyfin.Providers.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   141, Skipped:     0, Total:   141, Duration: 777 ms - Jellyfin.Extensions.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 104 ms - Jellyfin.MediaEncoding.Hls.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 87 ms - Jellyfin.MediaEncoding.Keyframes.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    48, Skipped:     0, Total:    48, Duration: 417 ms - Jellyfin.LiveTv.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   614, Skipped:     0, Total:   614, Duration: 23 s - Jellyfin.Naming.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   100, Skipped:     3, Total:   103, Duration: 1 m 35 s - Jellyfin.Server.Integration.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    16, Skipped:     0, Total:    16, Duration: 122 ms - Jellyfin.Plugin.JellyLeon.Tests.dll (net9.0)
+TEST_EXIT=0
+PLUGIN_TEST_EXIT=0
+EXIT=0
+
+=== OpenAPI (volledige testrun)
+4bd2d710549c950c57fb2732596fb4b67588e3420e5030709496a7c416bd5bd6  tests/Jellyfin.Server.Integration.Tests/bin/Release/net9.0/openapi.json
+f0580e74a4e4d6a38a8e8bc817985ffed99b0c8377083f5a932087f103d00b2b  docs/openapi/jelly-leon.openapi.json
+tests/Jellyfin.Server.Integration.Tests/bin/Release/net9.0/openapi.json docs/openapi/jelly-leon.openapi.json differ: char 1615728, line 54191
+
+=== De 4 tests die in de oude sandbox faalden (geen DNS jellyfin.org / geen IPv6), uit de TRX-bestanden van deze run
+Passed: Jellyfin.Networking.Tests.NetworkParseTests.TestBindInterfaceOverrides(source: "jellyfin.org", lan: "192.168.1.0/24", bindAddresses: "eth16", ipv6enabled: False, publishedServers: "external=http://helloworld.com", result: "http://helloworld.com")
+Passed: Jellyfin.Networking.Tests.NetworkParseTests.TestBindInterfaceOverrides(source: "jellyfin.org", lan: "192.168.1.0/24", bindAddresses: "", ipv6enabled: False, publishedServers: "external=http://helloworld.com", result: "http://helloworld.com")
+Passed: Jellyfin.Server.Tests.ParseNetworkTests.TestNetworks(ip4: False, ip6: True, hostList: ["localhost"], knownProxies: [], knownNetworks: [IPNetwork { Prefix = ::1, PrefixLength = 128 }])
+Passed: Jellyfin.Server.Tests.ParseNetworkTests.TestNetworks(ip4: True, ip6: True, hostList: ["localhost"], knownProxies: [127.0.0.1], knownNetworks: [IPNetwork { Prefix = ::1, PrefixLength = 128 }])
+
+=== Alleen OpenApiSpecTests (2x, zelfde bin-map, ext4)
+4bd2d710549c950c57fb2732596fb4b67588e3420e5030709496a7c416bd5bd6 (run 1)
+4bd2d710549c950c57fb2732596fb4b67588e3420e5030709496a7c416bd5bd6 (run 2)
+=== Proef XML-docvolgorde (tmpfs, aanmaakvolgorde bepaalt readdir-volgorde)
+oplopend: 94be8599069536876a832cdcc867abf99ca2c665b7d058c7fea870a6ffcd98b5 (9 description-teksten anders dan docs/openapi)
+aflopend: 4bd2d710549c950c57fb2732596fb4b67588e3420e5030709496a7c416bd5bd6 (22 description-teksten anders)
+tools/jelly-leon/openapi_drift.py op alle drie: exit 0, 'structureel gelijk' (zie ADR-0010)
