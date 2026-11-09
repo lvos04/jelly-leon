@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Jelly Leon-basisplugin. Assemblynaam volgt de upstream-conventie Jellyfin.Plugin.<Naam> (ADR-0002/ADR-0003);
+    de zichtbare naam is "Jelly Leon". Bouwt alleen tegen de publieke plugin-ABI (ExcludeAssets=runtime).
+  -->
+  <PropertyGroup>
+    <RootNamespace>Jellyfin.Plugin.JellyLeon</RootNamespace>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Product>Jelly Leon</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Jellyfin.Controller" ExcludeAssets="runtime" />
+    <PackageReference Include="Jellyfin.Model" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jellyfin.Plugin.JellyLeon.Tests" />
+  </ItemGroup>
+
+</Project>

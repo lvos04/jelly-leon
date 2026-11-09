@@ -1,0 +1,6 @@
+<Project>
+  <!-- Stopt overerving van eventuele ../Directory.Build.targets (ADR-0002). -->
+  <Target Name="JellyLeonCheckBaseline" BeforeTargets="CoreCompile" Condition="'$(JellyLeonForkVersion)' == ''">
+    <Error Text="tools/jelly-leon/baseline.json niet gevonden of zonder fork_version; plugins moeten in de jelly-leon-repo gebouwd worden." />
+  </Target>
+</Project>

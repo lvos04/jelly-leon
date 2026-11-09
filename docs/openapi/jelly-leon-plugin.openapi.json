@@ -1,0 +1,55 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Jelly Leon-plugin (Jellyfin.Plugin.JellyLeon)",
+    "version": "0.1.0",
+    "description": "Fork-eigen routes van de Jelly Leon-basisplugin. Draait binnen de Jellyfin-server (zelfde poort, zelfde authenticatie). De upstream-API staat ongewijzigd in jelly-leon.openapi.json. Andere B03-routes (/media/v1/search, /media/v1/scenes, /media/v1/transcode/capabilities, connectorcontract) bestaan nog NIET en worden pas in latere fasen toegevoegd."
+  },
+  "paths": {
+    "/media/v1/version": {
+      "get": {
+        "operationId": "JellyLeonGetVersion",
+        "summary": "Forkversie, upstream-basis en compatibiliteit plugin ↔ server",
+        "security": [{ "CustomAuthentication": [] }],
+        "responses": {
+          "200": {
+            "description": "Versie-informatie; status is compatibel, afwijkend of unknown (nooit gesimuleerd groen).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ForkVersionInfo" } } }
+          },
+          "401": { "description": "Niet aangemeld (geen geldige Jellyfin-sessie of API-sleutel)." }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "CustomAuthentication": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Jellyfin-authenticatie: Authorization: MediaBrowser Token=\"<token>\" (sessie of API-sleutel)."
+      }
+    },
+    "schemas": {
+      "ForkVersionInfo": {
+        "type": "object",
+        "required": ["schema_version", "fork_version", "upstream_tag", "upstream_commit", "plugin_built_against", "plugin_version", "server_version", "server_product_name", "display_name", "status", "reason_code", "message", "observed_at"],
+        "properties": {
+          "schema_version": { "type": "string", "example": "1.0" },
+          "fork_version": { "type": "string", "description": "<upstream>-jl.<N> (ADR-0005)", "example": "10.11.11-jl.0" },
+          "upstream_tag": { "type": "string", "example": "v10.11.11" },
+          "upstream_commit": { "type": "string" },
+          "plugin_built_against": { "type": "string", "description": "Jellyfin-versie waartegen de plugin is gebouwd" },
+          "plugin_version": { "type": "string" },
+          "server_version": { "type": "string", "description": "Versie die de server aan clients meldt (technische identiteit)" },
+          "server_product_name": { "type": "string", "description": "Hoort 'Jellyfin Server' te zijn (ADR-0003)" },
+          "display_name": { "type": "string", "example": "Jelly Leon" },
+          "status": { "type": "string", "enum": ["compatibel", "afwijkend", "unknown"] },
+          "reason_code": { "type": "string", "enum": ["ok", "plugin_abi_mismatch", "technical_identity_changed", "version_unknown"] },
+          "message": { "type": "string", "description": "Nederlandse uitleg" },
+          "observed_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

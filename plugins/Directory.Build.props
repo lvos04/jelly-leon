@@ -1,0 +1,37 @@
+<Project>
+  <!--
+    Jelly Leon-plugins (ADR-0002). Bewust GEEN import van ../Directory.Build.props: plugins bouwen los van de
+    upstream-solution, uitsluitend tegen de publieke plugin-ABI (NuGet-pakketten Jellyfin.Controller/Jellyfin.Model)
+    van exact dezelfde Jellyfin-versie als de forkbasis. tools/jelly-leon/check_fork_consistency.py controleert dat
+    JellyfinVersion gelijk is aan upstream_version in tools/jelly-leon/baseline.json; upstream_sync.py werkt hem bij.
+  -->
+  <PropertyGroup>
+    <JellyfinVersion>10.11.11</JellyfinVersion>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CA1848</NoWarn>
+    <Deterministic>true</Deterministic>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Forkgegevens uit de bron van waarheid (baseline.json), als assembly-metadata in elke plugin. -->
+  <PropertyGroup>
+    <JellyLeonBaselineFile>$(MSBuildThisFileDirectory)../tools/jelly-leon/baseline.json</JellyLeonBaselineFile>
+    <JellyLeonBaselineJson Condition="Exists('$(JellyLeonBaselineFile)')">$([System.IO.File]::ReadAllText('$(JellyLeonBaselineFile)'))</JellyLeonBaselineJson>
+    <JellyLeonForkVersion>$([System.Text.RegularExpressions.Regex]::Match('$(JellyLeonBaselineJson)', '"fork_version":\s*"([^"]+)"').Groups[1].Value)</JellyLeonForkVersion>
+    <JellyLeonUpstreamTag>$([System.Text.RegularExpressions.Regex]::Match('$(JellyLeonBaselineJson)', '"upstream_tag":\s*"([^"]+)"').Groups[1].Value)</JellyLeonUpstreamTag>
+    <JellyLeonUpstreamCommit>$([System.Text.RegularExpressions.Regex]::Match('$(JellyLeonBaselineJson)', '"upstream_commit":\s*"([^"]+)"').Groups[1].Value)</JellyLeonUpstreamCommit>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="JellyLeon.JellyfinVersion" Value="$(JellyfinVersion)" />
+    <AssemblyMetadata Include="JellyLeon.ForkVersion" Value="$(JellyLeonForkVersion)" />
+    <AssemblyMetadata Include="JellyLeon.UpstreamTag" Value="$(JellyLeonUpstreamTag)" />
+    <AssemblyMetadata Include="JellyLeon.UpstreamCommit" Value="$(JellyLeonUpstreamCommit)" />
+  </ItemGroup>
+</Project>
