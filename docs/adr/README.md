@@ -30,6 +30,7 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0022](ADR-0022-b03-post-credit-bescherming.md) | B03: post-credit-scènes beschermen met segmentgrenzen, zonder nieuw segmenttype | Aanvaard (plan goedgekeurd 2026-11-09; uitvoering later) |
 | [ADR-0023](ADR-0023-b03-licenties.md) | B03: licentiebeleid voor code, modellen en testdata | Aanvaard (plan goedgekeurd 2026-11-09; uitvoering later) |
 | [ADR-0024](ADR-0024-b03-clientrollen.md) | B03: clientrollen; stock-clients nooit geweigerd of aangepast zonder opt-in | Aanvaard (plan goedgekeurd 2026-11-09; uitvoering later) |
+| [ADR-0025](ADR-0025-b03-015-eigen-overnametool-niet-jellyplex-watched.md) | B03-015: eigen overnametool (alleen-lezen uit Emby) in plaats van JellyPlex-Watched | Aanvaard (bouwerbesluit B03-015 A2) |
 
 ## B03 2.0 — herkomst van de ADR's
 
@@ -58,5 +59,5 @@ voorstellen zijn platformbesluiten van ai-server-manager.
 
 Let op: ADR-nummers in de byte-gelijke kopieën uit het pakket (`docs/platform-v2/`, o.a. "ADR-0016…0020 in `docs/adr/`" in
 het bouwplan en "ADR-0020" in `04_BESTAANDE_APPS/A02_EMBY.md`) verwijzen naar ai-server-manager; ADR-0001…0011 in het
-bouwplan zijn de ADR's van deze repo. Na de beoordeling van JellyPlex-Watched (B03-015 stap A2) volgt een eigen ADR over
-hergebruik of een eigen overnametool.
+bouwplan zijn de ADR's van deze repo. De beoordeling van JellyPlex-Watched (B03-015 stap A2) staat in ADR-0025: eigen overnametool
+(`tools/emby-overname`), geen hergebruik.
