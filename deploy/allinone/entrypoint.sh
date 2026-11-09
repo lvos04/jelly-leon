@@ -1,5 +1,5 @@
 #!/bin/sh
-# Jelly Leon — start van de alles-in-één container (SCHETS P0, ADR-0008).
+# Jelly Leon — start van de alles-in-één container (ADR-0008; contract 1.2 §2.2).
 #
 #  * Start de container als root (standaard bij een TrueNAS Custom App zonder "Custom User"), dan:
 #      - /config en /cache moeten bestaan (opslag uit het formulier); alleen DIE mappen krijgen eigenaar 568:568,
@@ -15,7 +15,8 @@
 #    staan — geen anoniem Docker-volume, geen tmpfs, niet in de container zelf, geen NFS/SMB-share — en padopties
 #    (--datadir, --configdir, …) in het veld Command worden geweigerd. Anders zou de database bij een herstart of
 #    update verdwijnen en de startwizard weer anoniem openstaan (fail-closed, review P0-afronding).
-#  * Start de container al als niet-root (Custom User), dan wordt niets gewijzigd behalve de eigen pluginmap.
+#  * Start de container al als niet-root (Custom User), dan wordt niets gewijzigd behalve de eigen pluginmap; zijn
+#    /config of /cache niet schrijfbaar, dan een NL-fout; daarna no_new_privs (setpriv) vóór de server start.
 #  * De meegeleverde Jelly Leon-plugin wordt in <datamap>/plugins/JellyLeon_<versie> gezet; andere plugins blijven
 #    onaangeroerd. Geen geheimen, geen netwerkaanroepen, geen shell voor iets anders dan deze start.
 set -eu
@@ -135,15 +136,28 @@ install_plugins() {
 }
 
 if [ "$(id -u)" != "0" ]; then
-  # JELLY_LEON_ENTRYPOINT_STAGE markeert de tweede fase na setpriv (geen geheim; alleen voor de logregel).
-  if [ "${JELLY_LEON_ENTRYPOINT_STAGE:-}" = "app" ]; then
-    log "draait als $(id -u):$(id -g) (groepen $(id -G | tr ' ' ',')), zonder capabilities"
-  else
-    log "start als gebruiker $(id -u):$(id -g) (geen eigenaarschap aangepast)"
+  # JELLY_LEON_ENTRYPOINT_STAGE markeert de tweede fase na setpriv (geen geheim). Alleen geloofwaardig als
+  # no_new_privs echt aan staat: een in het formulier gezette variabele kan de stap hieronder niet overslaan.
+  nnp=$(awk '/^NoNewPrivs:/ { print $2 }' /proc/self/status)
+  if [ "${JELLY_LEON_ENTRYPOINT_STAGE:-}" = "app" ] && [ "$nnp" = "1" ]; then
+    log "draait als $(id -u):$(id -g) (groepen $(id -G | tr ' ' ',')), zonder capabilities, no_new_privs"
+    unset JELLY_LEON_ENTRYPOINT_STAGE
+    install_plugins
+    exec /jellyfin/jellyfin "$@"
   fi
-  unset JELLY_LEON_ENTRYPOINT_STAGE
-  install_plugins
-  exec /jellyfin/jellyfin "$@"
+  # Custom User in het formulier: geen eigenaarschapsstap, dus de opslag moet al van deze gebruiker zijn. Niet
+  # schrijfbaar → NL-melding en stoppen (healthcheck rood), nooit stil doorstarten (contract 1.2 §2.2).
+  for dir in "$DATA_DIR" "$CACHE_DIR"; do
+    if [ ! -w "$dir" ] || [ ! -x "$dir" ]; then
+      fail "$dir is niet schrijfbaar voor gebruiker $(id -u):$(id -g) (Custom User in het formulier): zet Custom User uit (de container maakt dan zelf 568:568 eigenaar van /config en /cache) of maak de dataset eerst van deze gebruiker"
+    fi
+  done
+  log "start als gebruiker $(id -u):$(id -g) (Custom User; geen eigenaarschap aangepast)"
+  # Het formulier zet geen no-new-privileges (contract 1.2 §2.2): zelf zetten vóór de eerste execve van de server.
+  # (Zonder CAP_SETPCAP kan een niet-root-proces de bounding-set niet legen; met no_new_privs en CapEff 0 kan het
+  # ook via setuid-bestanden geen rechten meer krijgen.)
+  export JELLY_LEON_ENTRYPOINT_STAGE=app
+  exec setpriv --no-new-privs --inh-caps=-all -- "$SELF" "$@"
 fi
 
 for dir in "$DATA_DIR" "$CACHE_DIR"; do

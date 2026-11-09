@@ -9,17 +9,20 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
   4. stock-client-smoketest modus `nieuw` (wizard, inloggen, bibliotheek, streamen, plugin) en web-client op /web/:
      index.html én elk daarin genoemd script/stylesheet laadt (HTTP 200, niet leeg) — een half gelukte web-build valt
      zo op; optioneel (--verwacht-web-ref) de herkomst van de web-client (label + SOURCE_REVISIONS in de image);
-  5. proces 1 draait als 568:568, zonder capabilities, met NoNewPrivs; alles in /config en /cache is van 568;
-     de mediamap is niet gewijzigd;
+  5. proces 1 draait als 568:568, zonder capabilities, met NoNewPrivs; ELK proces in de container (contract 1.2
+     §2.2/A6; behalve `docker exec`- en healthcheck-processen, die Docker zelf van buiten start) draait als 568 met
+     CapEff 0 en NoNewPrivs 1; alles in /config en /cache is van 568; de mediamap is niet gewijzigd;
   6. `docker restart` → healthy → smoketest modus `herstart` (zelfde gebruiker en item-ID, wizard blijft dicht);
   7. container verwijderen en opnieuw aanmaken met dezelfde opslag (zoals een app-update/herinstallatie)
-     → healthy → smoketest modus `herstart`;
+     → healthy → smoketest modus `herstart`; daarna nog eens met "Custom User 568" (`--user 568:568`) → healthy →
+     smoketest `herstart` → elk proces 568, CapEff 0, NoNewPrivs 1 (de image zet no_new_privs zelf, §2.2);
   8. negatieve tests (fail-closed): de container weigert te starten en de mediamap blijft onaangeroerd bij
      - geen opslagregel voor /cache (anoniem Docker-volume);
      - JELLYFIN_CACHE_DIR naar de mediamap (root zou anders `chown -R` op de media doen);
      - /config als tmpfs (opslagtype tmpfs in het formulier: database weg na elke herstart, startwizard weer open);
      - JELLYFIN_CONFIG_DIR in de container zelf (instellingen weg bij elke update);
-     - een padoptie (`--datadir`) in het veld Command.
+     - een padoptie (`--datadir`) in het veld Command;
+     - Custom User 568 met een /config die niet van 568 is (NL-melding, nooit stil doorstarten).
   9. bij succes wordt de werkmap opgeruimd (bestanden van 568 via een wegwerpcontainer; --behoud-werkmap houdt hem).
 
 Alleen standaardbibliotheek; Docker via subprocess zonder shell. Schrijft een JSON-rapport. Exitcode 0 = alles geslaagd.
@@ -79,6 +82,55 @@ def free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
         return int(sock.getsockname()[1])
+
+
+def parse_proc_status(text: str) -> list[dict[str, list[str]]]:
+    """Splitst de aaneengeschakelde inhoud van /proc/<pid>/status-bestanden (elk begint met `Name:`)."""
+    processes: list[dict[str, list[str]]] = []
+    for line in text.splitlines():
+        key, sep, value = line.partition(":")
+        if not sep:
+            continue
+        if key == "Name":
+            processes.append({})
+        if processes:
+            processes[-1][key] = value.split()
+    return [proc for proc in processes if proc.get("Pid")]
+
+
+def service_processes(processes: list[dict[str, list[str]]]) -> list[dict[str, list[str]]]:
+    """Processen van de dienst zelf: zonder de bomen die Docker van buiten start (`docker exec`, healthcheck).
+
+    Zulke processen hebben in de PID-namespace van de container PPid 0 (hun ouder staat erbuiten); alleen PID 1 hoort
+    bij de dienst. Alles wat van een andere PPid-0-wortel afstamt, valt ook af.
+    """
+    parent = {proc["Pid"][0]: proc.get("PPid", ["0"])[0] for proc in processes}
+    external = {pid for pid, ppid in parent.items() if ppid == "0" and pid != "1"}
+
+    def from_outside(pid: str) -> bool:
+        seen: set[str] = set()
+        while pid in parent and pid not in seen:
+            if pid in external:
+                return True
+            seen.add(pid)
+            pid = parent[pid]
+        return False
+
+    return [proc for proc in processes if not from_outside(proc["Pid"][0])]
+
+
+def process_problems(processes: list[dict[str, list[str]]], uid: str = APP_UID) -> list[str]:
+    """Contract 1.2 §2.2: elk dienstproces Uid `uid` (alle vier), CapEff 0 en NoNewPrivs 1."""
+    problems: list[str] = []
+    for proc in processes:
+        label = f"{(proc.get('Name') or ['?'])[0]}({proc['Pid'][0]})"
+        if proc.get("Uid", [])[:4] != [uid] * 4:
+            problems.append(f"{label} Uid={' '.join(proc.get('Uid', []))}")
+        if proc.get("CapEff") != ["0000000000000000"]:
+            problems.append(f"{label} CapEff={''.join(proc.get('CapEff', []))}")
+        if proc.get("NoNewPrivs") != ["1"]:
+            problems.append(f"{label} NoNewPrivs={''.join(proc.get('NoNewPrivs', []))}")
+    return problems
 
 
 class Lifecycle:
@@ -201,6 +253,22 @@ class Lifecycle:
         self.add("Jelly Leon-plugin in de datamap", bool(plugin.strip()), plugin.strip() or "niet gevonden")
         return ok and not foreign
 
+    def check_all_processes(self, label: str) -> bool:
+        """A6: niet alleen PID 1 — elk proces in de container (zonder de eigen exec-boom) draait als 568 zonder rechten."""
+        proc = docker(
+            "exec", self.name, "find", "/proc", "-mindepth", "2", "-maxdepth", "2", "-path", "/proc/[0-9]*/status",
+            "-exec", "cat", "{}", "+", check=False,
+        )
+        everything = parse_proc_status(proc.stdout)
+        own = service_processes(everything)
+        problems = process_problems(own)
+        names = ", ".join(f"{(p.get('Name') or ['?'])[0]}({p['Pid'][0]})" for p in own)
+        ok = bool(own) and any(p["Pid"] == ["1"] for p in own) and not problems
+        detail = f"{len(own)} dienstprocessen ({names}); {len(everything) - len(own)} exec-processen buiten beschouwing"
+        if problems:
+            detail += "; AFWIJKEND: " + "; ".join(problems[:6])
+        return self.add(f"elk proces 568, CapEff 0, NoNewPrivs 1 ({label})", ok, detail)
+
     def fetch(self, path: str, limit: int = 20_000_000) -> tuple[int, bytes]:
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=15) as resp:  # noqa: S310
             return resp.status, resp.read(limit)
@@ -298,6 +366,7 @@ class Lifecycle:
             if not first:
                 return False
             self.check_process_and_ownership()
+            self.check_all_processes("eerste start")
             self.check_web_client()
             if self.args.verwacht_web_ref:
                 self.check_source_revisions()
@@ -313,6 +382,16 @@ class Lifecycle:
             if not self.smoke("nieuwe container", "herstart", first):
                 return False
             self.check_process_and_ownership()
+            self.check_all_processes("nieuwe container")
+
+            # "Custom User 568" aangevinkt in het formulier: geen eigenaarschapsstap; de image zet zelf no_new_privs.
+            self.remove(self.name)
+            docker(*self.run_args(self.name, mounts=self.standard_mounts(), extra=["--user", f"{APP_UID}:{APP_UID}"]))
+            if not self.wait_healthy("Custom User 568:568"):
+                return False
+            if not self.smoke("Custom User 568:568", "herstart", first):
+                return False
+            self.check_all_processes("Custom User 568:568")
             self.add("mediamap onaangeroerd", self.media_fingerprint() == media_before, "eigenaar/rechten ongewijzigd")
         finally:
             self.remove(self.name)
@@ -350,6 +429,16 @@ class Lifecycle:
             env=[],
             command=["--datadir", "/jl-data"],
             expected_text="opdrachtregeloptie '--datadir'",
+        )
+        # Custom User 568 met een dataset die (nog) niet van 568 is: melden en stoppen, nooit stil doorstarten (§2.2).
+        foreign_config = self.work / "config-niet-van-568"
+        foreign_config.mkdir(mode=0o755)
+        self.expect_refusal(
+            "Custom User 568 met een /config die niet van 568 is",
+            mounts=[f"{foreign_config}:/config", f"{self.cache}:/cache", f"{self.media}:/media/muziek:ro"],
+            env=[],
+            extra=["--user", f"{APP_UID}:{APP_UID}"],
+            expected_text=f"/config is niet schrijfbaar voor gebruiker {APP_UID}:{APP_UID}",
         )
         return bool(self.steps) and all(step["geslaagd"] for step in self.steps)
 
