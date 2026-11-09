@@ -100,15 +100,13 @@ jobs:
           dotnet test Jellyfin.sln -c Release --no-build --verbosity minimal
           --logger "trx;LogFilePrefix=jelly-leon" --results-directory testresults
 
+      # Structureel vergelijken: upstream laadt XML-docbestanden in bestandssysteemvolgorde, waardoor alleen
+      # description-teksten per omgeving kunnen verschillen (ADR-0010). Elke andere afwijking = API-wijziging = falen.
       - name: OpenAPI-drift (upstream-API moet gelijk blijven aan docs/openapi)
         run: |
-          generated=tests/Jellyfin.Server.Integration.Tests/bin/Release/net9.0/openapi.json
-          test -s "$generated" || { echo "openapi.json is niet gegenereerd"; exit 1; }
-          if ! cmp -s "$generated" docs/openapi/jelly-leon.openapi.json; then
-            echo "::error::OpenAPI wijkt af van docs/openapi/jelly-leon.openapi.json. Een API-wijziging is een core-patch:"
-            echo "registreer hem in docs/platform-v2/PATCHES.md en werk het OpenAPI-bestand bewust bij."
-            exit 1
-          fi
+          generated=$(find tests/Jellyfin.Server.Integration.Tests/bin/Release -name openapi.json | head -1)
+          python3 tools/jelly-leon/openapi_drift.py --github \
+            --verwacht docs/openapi/jelly-leon.openapi.json --gegenereerd "${generated:-ontbreekt/openapi.json}"
 
       - name: Testresultaten bewaren
         if: always()

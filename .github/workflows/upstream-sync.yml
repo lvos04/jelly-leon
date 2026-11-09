@@ -174,7 +174,9 @@ jobs:
       - name: OpenAPI-wijzigingen van upstream tonen (ter beoordeling, geen automatische acceptatie)
         run: |
           generated=$(find tests/Jellyfin.Server.Integration.Tests/bin/Release -name openapi.json | head -1)
-          if [ -n "$generated" ] && ! cmp -s "$generated" docs/openapi/jelly-leon.openapi.json; then
+          # Structureel vergelijken (ADR-0010); een gewijzigde upstream-API is hier verwacht en blokkeert de sync niet.
+          if ! python3 tools/jelly-leon/openapi_drift.py \
+              --verwacht docs/openapi/jelly-leon.openapi.json --gegenereerd "${generated:-ontbreekt/openapi.json}"; then
             echo "::warning::Upstream-API is gewijzigd; beoordeel de compatibiliteit met clients vóór acceptatie."
             echo "- Upstream-API gewijzigd t.o.v. docs/openapi/jelly-leon.openapi.json (handmatig beoordelen)." >> "$GITHUB_STEP_SUMMARY"
           fi
