@@ -123,12 +123,18 @@ def _gebruiker(eg: dict[str, Any], g: GebruikerPlan, emby_items: dict[str, ItemI
                 r.uitleg = ("in Jelly Leon handmatig gewijzigd; de tool past deze rechten niet meer aan" if g.handmatig_gewijzigd
                             else "gecontroleerd in Jelly Leon (readback): wijkt af van de vertaling")
             rechten.extend(controle)
+    zonder_tegenhanger = sorted(r.veld for r in rechten if r.status == "niet_van_toepassing" and r.jelly_leon is None)
     for r in rechten:
-        if r.status == "gelijk":
+        if r.status == "gelijk" or (r.status == "niet_van_toepassing" and r.jelly_leon is None):
             continue
         klasse = ACTIE if r.status in ("ruimer", "handmatig") else KENNISNAME
         punt("rechten", f"recht_{r.status}", klasse,
              f"{r.veld}: Emby {r.emby!r} → Jelly Leon {r.jelly_leon!r}. {r.uitleg}".strip(), r.veld)
+    if zonder_tegenhanger:
+        # Eén regel per gebruiker in plaats van één per veld: deze Emby-instellingen bestaan in Jelly Leon niet.
+        punt("rechten", "recht_zonder_tegenhanger", KENNISNAME,
+             f"Emby-instellingen zonder tegenhanger in Jelly Leon (raken geen toegang tot media): {', '.join(zonder_tegenhanger)}.",
+             "zonder_tegenhanger:" + ",".join(zonder_tegenhanger))
     # Kijkgegevens per item.
     telling = {s: {"emby": 0, "gekoppeld": 0, "gelijk": 0, "jelly_leon_nieuwer": 0, "afhandellijst": 0} for s in SOORTEN}
     verantwoord_items = 0
@@ -215,7 +221,7 @@ def _gebruiker(eg: dict[str, Any], g: GebruikerPlan, emby_items: dict[str, ItemI
                   and emby_bestand.get("grootte") == jl_bestand.get("grootte"))
         if zelfde:
             punt("spoorkeuze", "spoorkeuze_niet_overzetbaar", ACTIE,
-                 f"Onthouden spoorkeuze in Emby: {_spoor_tekst(keuze)}; Jelly Leon kiest nu {_spoor_tekst(jl_keuze)}. "
+                 f"Emby kiest voor deze gebruiker {_spoor_tekst(keuze)}; Jelly Leon kiest nu {_spoor_tekst(jl_keuze)}. "
                  "Jellyfin 12.4 heeft geen officiële route om een onthouden spoorkeuze te zetten (capability_unavailable): "
                  "kies het spoor één keer zelf in Jelly Leon, dan onthoudt Jelly Leon het.", emby_id, item, None)
         else:

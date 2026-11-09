@@ -102,6 +102,16 @@ class Http:
             return fout.code
 
 
+def ververs(*beheer: Http | None) -> None:
+    """Start de bibliotheekscan (nogmaals) als die na het aanmaken van de bibliotheken niet op gang kwam."""
+    for http in beheer:
+        if http is not None:
+            try:
+                http.doe("POST", "/Library/Refresh")
+            except RuntimeError:
+                pass
+
+
 def wacht(url: str, timeout: float = 300) -> None:
     """Wacht tot de server echt klaar is: geldige JSON met een versie (Jellyfin 12 toont tijdens het laden een HTML-pagina)."""
     einde = time.time() + timeout
@@ -316,6 +326,20 @@ def emby_paden(emby: Emby, detail: bool = False) -> dict[str, dict[str, Any]]:
         for pad in {i.get("Path") or "", *(b.get("Path") or "" for b in bronnen)}:
             if pad.startswith(EMBY_ROOT):
                 uit.setdefault(pad[len(EMBY_ROOT) + 1:], i)
+    return uit
+
+
+def emby_zichtbare_paden(emby: Emby, uid: str) -> set[str]:
+    """Alle mediabestanden die een gebruiker in Emby ziet, ook de versies die Emby in één item bundelt."""
+    assert emby.admin
+    uit: set[str] = set()
+    for i in emby.items(uid, ",MediaSources"):
+        bronnen = list(i.get("MediaSources") or [])
+        if i.get("Type") == "Movie":
+            bronnen += emby.admin.doe("GET", f"/Users/{uid}/Items/{i['Id']}").get("MediaSources") or []
+        for pad in {i.get("Path") or "", *(b.get("Path") or "" for b in bronnen)}:
+            if pad.startswith(EMBY_ROOT):
+                uit.add(pad[len(EMBY_ROOT) + 1:])
     return uit
 
 
@@ -589,7 +613,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         einde = time.time() + 900
         paden_emby: dict[str, dict[str, Any]] = {}
         paden_jl: dict[str, dict[str, Any]] = {}
+        volgende_scan = time.time() + 45
         while time.time() < einde:
+            if time.time() > volgende_scan:
+                ververs(emby.admin, jl.admin)
+                volgende_scan = time.time() + 90
             paden_emby = emby_paden(emby)
             paden_jl = {i["Path"][len(JL_ROOT) + 1:]: i for i in jl.items() if i.get("Path", "").startswith(JL_ROOT)}
             klaar_emby = verwacht_emby <= set(paden_emby) and all(paden_emby[pd].get("ProviderIds") for pd in verwacht_emby
@@ -853,9 +881,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         for naam, soort in ((FILMS, "movies"), (SERIES, "tvshows")):
             jl2.bibliotheek(naam, soort, f"{JL_ROOT}/{naam}")
         einde = time.time() + 600
+        volgende_scan = time.time() + 45
         while time.time() < einde and not verwacht_jl <= {i["Path"][len(JL_ROOT) + 1:] for i in jl2.items() if i.get("Path")}:
+            if time.time() > volgende_scan:
+                ververs(jl2.admin)
+                volgende_scan = time.time() + 90
             time.sleep(5)
         time.sleep(10)
+        gescand2 = {i["Path"][len(JL_ROOT) + 1:] for i in jl2.items() if i.get("Path")}
+        bewijs.check("JLT-70", "herimport: lege Jellyfin heeft de bibliotheek gescand", verwacht_jl <= gescand2,
+                     sorted(verwacht_jl - gescand2)[:10])
         tool2 = Tool(uitvoer, "", jl2_url, sleutels)
         werk2 = uitvoer / "werkmap-herimport"
         _, proef5 = tool2.draai("proefrun", *tool2.basis(archief=archief_na, werkmap=werk2))
@@ -911,6 +946,15 @@ def controleer_overname(bewijs: Bewijs, test: str, items: list[Item], waarheid: 
         jl_nu = jl_toestand(jl, jl_uid)
         afhandel_ids = {(pt.get("item") or {}).get("emby_id"): pt["reden"] for pt in afhandel.get(gebruiker, []) if pt["soort"] == "item"}
         verwachte_doelen: set[str] = set()
+        for pt in afhandel.get(gebruiker, []):
+            # Ter beslissing: in Emby verwijderd/teruggezet, Jelly Leon behoudt het (nooit stil gewist) — toegestaan.
+            if pt["reden"] in ("favoriet_verwijderd_in_emby", "gezien_teruggezet_in_emby"):
+                pad_emby = ((pt.get("item") or {}).get("pad_emby") or "")[len(EMBY_ROOT) + 1:]
+                bron = per_emby_pad.get(pad_emby)
+                if bron is not None:
+                    verwachte_doelen.add(bron.jl_doel or bron.jl[0].pad)
+                elif pad_emby in serie_naar_jl:
+                    verwachte_doelen.add(serie_naar_jl[pad_emby])
         for pad, e in per.items():
             item = per_emby_pad.get(pad)
             if item is None and pad in serie_naar_jl:
@@ -995,7 +1039,7 @@ def controleer_rechten(bewijs: Bewijs, emby: Emby, jl: Jellyfin, jl_gebruikers: 
                 emby_naar_jl_pad.setdefault(pl.pad, set()).add(i.emby.pad)
     ruimer: dict[str, list[str]] = {}
     for gebruiker, uid in uids.items():
-        e_vis = {i["Path"][len(EMBY_ROOT) + 1:] for i in emby.items(uid) if i.get("Path", "").startswith(EMBY_ROOT)}
+        e_vis = emby_zichtbare_paden(emby, uid)
         j_uid = jl_gebruikers[naar_jl[gebruiker]]["Id"]
         j_vis = {i["Path"][len(JL_ROOT) + 1:] for i in jl.items(j_uid) if i.get("Path", "").startswith(JL_ROOT)}
         te_veel = sorted(pd for pd in j_vis if pd in emby_naar_jl_pad and not (emby_naar_jl_pad[pd] & e_vis))
