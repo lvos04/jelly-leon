@@ -273,6 +273,11 @@ Image opnieuw gebouwd met de productie-Dockerfile uit de werkboom (server en plu
 | Los: start als `--user 568:568`; `/cache` als tmpfs; `/config` als tmpfs als niet-root | *healthy*; *healthy*; geweigerd |
 | Web-smoketest van `jelly-leon-web` (`web_smoke.py --modus fork --url … --zonder-herstart`, headless Chromium 153) tegen de nieuwe image, gestart zoals het formulier | **21/21** (`test-evidence/p0-qa-web-smoke-volledige-image.json`; `--dist` is de web-client uit dezelfde image, de vergelijking van `index.html` is dus een zelfvergelijking) |
 
+**GitHub Actions na de reparaties:** run [42626839277](https://github.com/lvos04/jelly-leon/actions/runs/42626839277)
+(commit `7b764194e`): 5/5 jobs groen — forkregels 89 tool-tests, server 2 548 geslaagd / 7 overgeslagen / 0 mislukt,
+plugins 16/16, image-levenscyclus 20/20 (zonder herkomststap: de CI-web-stage is de upstream-web-dist) inclusief de
+drie nieuwe weigeringen, terugzetproef 10/10, stock-client-smoketest 18/18.
+
 **Niet getest:** de weigering van NFS/SMB (geen NFS/SMB-server in de testomgeving); in P0 zijn fork en upstream dezelfde
 versie, dus de terugzetproef bevat nog geen databasemigratie (onderscheidend pas bij 12.x, ADR-0011). Echte NAS,
 TrueNAS-formulier, ZFS-snapshot, echte clients en hardware: NIET GEVALIDEERD.
