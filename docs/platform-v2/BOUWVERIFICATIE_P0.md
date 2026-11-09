@@ -106,8 +106,49 @@ NL-foutmelding en exitcode 1.
 |---|---|
 | `docker buildx build -f deploy/allinone/Dockerfile --target server` (BuildKit, optioneel CA-geheim) | geslaagd (publish + plugin in 110 s) |
 | Volledige image (`--build-context jelly-leon-web=…`) | **Geblokkeerd in deze bouwomgeving**: `npm ci` van de web-client haalt `classList.js` als GitHub-archief op → HTTP 403 van de proxy. Niet omzeild. In GitHub Actions naar verwachting geen probleem — NIET GEVALIDEERD. |
+| Volledige image met de stage `web` vervangen door de upstream-web-dist (review, §10) | gebouwd; levenscyclustest **16/16** (`test-evidence/p0-image-lifecycle.json`) |
 
 ## 9. Niet uitgevoerd (eerlijk)
 
 - Geen run op GitHub Actions (workflows nog niet op de standaardbranch en niet uitgevoerd).
-- Geen echte NAS, geen TrueNAS-formulier, geen A310/UHD 770, geen echte clients/tv's, geen echte upstream-sync naar v12.4.
+- Geen echte NAS, geen TrueNAS-formulier, geen A310/UHD 770, geen echte clients/tv's, geen voltooide upstream-sync naar
+  v12.4 (de syncproef faalde terecht op een conflict; bouwen/testen van 12.4 niet uitgevoerd).
+
+## 10. Onafhankelijke review P0 (2026-11-09)
+
+Alles opnieuw gedraaid op een `git archive`-export (geen lokale bouwresten), .NET-stappen in dezelfde SDK-container
+(`--cpus 2`, `-m:2`, `nice -n 10`); ruwe uitvoer: `test-evidence/p0-review-dotnet-build-test.txt`.
+
+| Controle | Resultaat |
+|---|---|
+| `dotnet build Jellyfin.sln -c Release -m:2` | 0 waarschuwingen, 0 fouten (bevestigd) |
+| `dotnet test Jellyfin.sln -c Release --no-build -m:2` | 2 555 tests: 2 544 geslaagd, 7 overgeslagen, dezelfde 4 omgevingsfouten (geen DNS voor `jellyfin.org`, `/proc/sys/net/ipv6` ontbreekt — beide hier nagemeten) |
+| OpenAPI-drift upstream | `openapi.json` byte-gelijk aan `docs/openapi/jelly-leon.openapi.json` (sha256 `f0580e74a4e4…`) |
+| Plugins (incl. nieuwe `OpenApiContractTests`) | 0 waarschuwingen/0 fouten, **16/16**; mutatieproef (veld/enumwaarde weg uit de OpenAPI) → 2 tests falen |
+| Forktools: `pytest`, `ruff`, `shellcheck`, `actionlint` (mét shellcheck) | **39** geslaagd; lint schoon |
+| Technische identiteit | `git diff upstream-v10.11.11 HEAD` buiten fork-eigen paden: alleen de 4 workflowbestanden van JL-0001; `SharedVersion.cs`, `LICENSE`, `CONTRIBUTORS.md` ongewijzigd; server meldt `Jellyfin Server` 10.11.11 |
+| Digests | `jellyfin/jellyfin:10.11.11`, `node:22.23.4-bookworm-slim`, `dotnet/sdk:9.0.320` en de gepinde GitHub-actions-SHA's opnieuw nagekeken: kloppen |
+| Manifest | validator van appstore-en-fork (alleen lezen): geldig, 1 waarschuwing (digest volgt bij release) |
+| Volledige image (productie-Dockerfile, stage `web` = upstream-web-dist 10.11.11; de broncode van `jelly-leon-web` is gelijk aan upstream) | gebouwd; proxy-CA niet in de image; `tools/jelly-leon/e2e/image_lifecycle.py` **16/16**: lege opslag → *healthy* → smoketest 18/18 → proces 1 568:568, `CapEff=0`, `CapBnd=0`, `NoNewPrivs=1` → web-client op `/web/` → `docker restart` en nieuwe container met dezelfde opslag: smoketest-herstart 20/20 (zelfde gebruiker en item-ID) → negatieve tests geweigerd, media ongemoeid |
+| Entrypoint extra | gesimuleerde `/dev/dri/renderD128` (gid 107) → groep toegevoegd, `card0` (gid 0) geweigerd; start als Custom User 568 → niets aangepast, plugin geïnstalleerd |
+
+**Gevonden en gerepareerd**
+
+1. *Upstream-sync (veiligheid):* `JL_SYNC_PUSH_TOKEN` stond in dezelfde job waarin upstream-build- en testcode draait
+   (die kon via git-hooks/`PATH`/`GITHUB_ENV` het token onderscheppen). Nu een aparte job `push` zonder upstream-code,
+   alleen voor volledig geslaagde legs, met tagvalidatie, uitgeschakelde hooks en zonder overschrijven (ADR-0006).
+2. *Entrypoint (dataverlies):* de basisimage declareert `VOLUME /config /cache`; zonder opslagregel startte de app op een
+   anoniem volume (de melding "bestaat niet" kon nooit optreden). Nu: weigeren met NL-melding (ADR-0008).
+3. *Entrypoint (root):* `JELLYFIN_DATA_DIR`/`JELLYFIN_CACHE_DIR` uit het formulier konden `chown -R` als root op elke map
+   laten uitvoeren (ook de media). Nu: alleen `/config`/`/cache` (na het oplossen van symlinks). De pluginmap wordt pas
+   na `setpriv` als 568 bijgewerkt.
+4. *Tests:* geen dekking voor "herstart zonder dataverlies", de image-levenscyclus, de smoketest zelf (kon die ten
+   onrechte slagen?) en het OpenAPI-schema van de plugin. Toegevoegd: herstartmodus + wizard-afsluitcontrole,
+   `image_lifecycle.py` (ook als CI-job `image`), simulatortests met een nep-Jellyfin, `OpenApiContractTests`.
+5. *Upstream-sync:* een al bestaande lokale `upstream-<tag>` liet een herhaalde sync falen; nu idempotent bij dezelfde
+   commit en een duidelijke stop bij een verplaatste tag.
+6. *Eerlijkheid/docs:* `validatie` in `EVIDENCE.json` noemt nu ook wat NIET GEVALIDEERD is; voorbeeldversie als tag in
+   `CUSTOM_APP.md` vervangen door de vorm; tegenstrijdige zin over de v12.4-syncproef rechtgezet.
+
+**Niet gerepareerd (buiten P0 of gebruikersbesluit):** anoniem streamen (ADR-0009), `/healthz`/`/readyz`, Hub-JWT en
+platformfoutformaat (P1), echte web-build en release-workflow (P4), echte NAS/clients/GPU (NIET GEVALIDEERD).

@@ -19,9 +19,17 @@
 3. **Geen PostgreSQL**: Jellyfin gebruikt SQLite (EF Core); een PostgreSQL-provider bestaat upstream niet. De
    database-back-up loopt via de upstream-Backup-API + ZFS-snapshot van `/config`.
 4. **Start:** `deploy/allinone/entrypoint.sh` — als root alleen `/config` en `/cache` aan 568:568 (recursief alleen als de
-   bovenste map nog niet van 568 is), eigen pluginmap bijwerken, groepen van aanwezige `/dev/dri/*` toevoegen
-   (groep 0 nooit), daarna `setpriv` naar 568:568 zonder capabilities en met `no_new_privs`. Als niet-root: niets
-   aanpassen. Geen geheimen, geen netwerk, geen andere shellfuncties.
+   bovenste map nog niet van 568 is), groepen van aanwezige `/dev/dri/*` toevoegen (groep 0 nooit), daarna `setpriv`
+   naar 568:568 zonder capabilities en met `no_new_privs`; pas in die tweede fase (als 568) wordt de eigen pluginmap
+   bijgewerkt. Als niet-root: niets aanpassen behalve de pluginmap. Geen geheimen, geen netwerk, geen andere
+   shellfuncties. **Fail-closed (review P0):**
+   - de upstream-basisimage declareert `VOLUME /config /cache`; zonder opslagregel in het formulier maakt Docker
+     stilletjes een anoniem volume en staat de database níet op de gekozen dataset (weg bij verwijderen). De
+     entrypoint herkent een anoniem volume (`…/volumes/<64 hex>/_data` in `/proc/self/mountinfo`) en weigert te
+     starten met een NL-melding ("onduidelijke datamap" is een P0-no-go). ixVolumes en hostpaden zijn geen anonieme
+     volumes;
+   - `JELLYFIN_DATA_DIR`/`JELLYFIN_CACHE_DIR` (na het oplossen van symlinks) buiten `/config` of `/cache` → weigeren:
+     als root nooit `chown -R` op systeem- of mediamappen.
 5. **Gezondheid:** upstream `/health` (HEALTHCHECK). Contract-`/healthz` en `/readyz` volgen in P1 via de plugin
    (anoniem, zonder geheimen) — geen core-patch.
 6. **GPU** standaard uit (`gpu: none` in het manifest) tot de wizard de rendernodes meet (D08); de manifeststandaard kent
@@ -36,6 +44,18 @@
 - `entrypoint.sh` op de officiële runtime met de server-stage-uitvoer: root → chown → 568:568, `CapEff=0`, `CapBnd=0`,
   `NoNewPrivs=1`; herstart zonder chown; gesimuleerde rendernode (gid 107 → toegevoegd, gid 0 → geweigerd);
   start als 568; ontbrekende mount → duidelijke NL-fout; stock-client-smoketest 17/17.
+
+## Gemeten in de review P0 (Sim-getest, geen echte NAS)
+
+- **Volledige image** gebouwd met de ongewijzigde productie-Dockerfile; alleen de stage `web` is via een BuildKit-
+  named-context vervangen door de web-dist uit de vastgezette upstream-runtime (de broncode van `jelly-leon-web` is in
+  P0 gelijk aan upstream 10.11.11; de npm-build is hier door de proxy geblokkeerd). De proxy-CA zit niet in de image.
+- `tools/jelly-leon/e2e/image_lifecycle.py` (ook CI-job `image`): lege hostmappen → *healthy* (Docker-healthcheck van
+  de image) → stock-client-smoketest → proces 1 = 568:568, `CapEff=0`, `CapBnd=0`, `NoNewPrivs=1`, alles in
+  `/config`/`/cache` van 568, web-client op `/web/` → `docker restart` en een **nieuwe container met dezelfde opslag**:
+  wizard blijft afgerond, zelfde gebruiker en item-ID, streamen byte-gelijk (geen dataverlies) → negatieve tests
+  (anoniem volume, cachemap naar de media) weigeren te starten en laten de media ongemoeid: **16/16**
+  (`docs/platform-v2/test-evidence/p0-image-lifecycle.json`). Echte NAS/TrueNAS-formulier: NIET GEVALIDEERD.
 
 ## Gevolgen
 

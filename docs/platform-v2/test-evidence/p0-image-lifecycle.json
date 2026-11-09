@@ -1,0 +1,107 @@
+{
+  "soort": "Sim-getest (Docker op de bouwmachine; geen echte NAS, geen TrueNAS-formulier)",
+  "image": "lokaal gebouwd uit deploy/allinone/Dockerfile (label org.opencontainers.image.revision=ec02197ebabe24c9c6c413e0d09d4bb74a2c3500; niet gepubliceerd)",
+  "opmerking": "Review P0, image gebouwd uit git archive van commit ec02197eb met de productie-Dockerfile; alleen de stage web vervangen door de upstream-web-dist 10.11.11 uit de vastgezette runtime-image (npm-build van jelly-leon-web is hier door de proxy geblokkeerd)",
+  "gestart": "2026-11-09T10:58:14Z",
+  "klaar": "2026-11-09T10:59:35Z",
+  "geslaagd": true,
+  "stappen": [
+    {
+      "stap": "healthy (eerste start, lege opslag)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T10:58:36Z"
+    },
+    {
+      "stap": "stock-client-smoketest (eerste start, modus nieuw)",
+      "geslaagd": true,
+      "detail": "18/18 stappen",
+      "tijd": "2026-11-09T10:58:40Z"
+    },
+    {
+      "stap": "proces 1 als 568:568 zonder capabilities",
+      "geslaagd": true,
+      "detail": "Uid=568 568 568 568; Gid=568 568 568 568; Groups=568; CapEff=0000000000000000; CapBnd=0000000000000000; NoNewPrivs=1",
+      "tijd": "2026-11-09T10:58:40Z"
+    },
+    {
+      "stap": "/config en /cache volledig van 568",
+      "geslaagd": true,
+      "detail": "0 bestanden van een andere eigenaar",
+      "tijd": "2026-11-09T10:58:40Z"
+    },
+    {
+      "stap": "Jelly Leon-plugin in de datamap",
+      "geslaagd": true,
+      "detail": "/config/plugins/JellyLeon_0.1.0.0/Jellyfin.Plugin.JellyLeon.dll",
+      "tijd": "2026-11-09T10:58:40Z"
+    },
+    {
+      "stap": "web-client bereikbaar",
+      "geslaagd": true,
+      "detail": "HTTP 200; 5331 bytes; <title> aanwezig=True",
+      "tijd": "2026-11-09T10:58:40Z"
+    },
+    {
+      "stap": "healthy (na docker restart)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T10:59:08Z"
+    },
+    {
+      "stap": "stock-client-smoketest (na herstart, modus herstart)",
+      "geslaagd": true,
+      "detail": "20/20 stappen",
+      "tijd": "2026-11-09T10:59:11Z"
+    },
+    {
+      "stap": "healthy (nieuwe container, zelfde opslag)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-09T10:59:30Z"
+    },
+    {
+      "stap": "stock-client-smoketest (nieuwe container, modus herstart)",
+      "geslaagd": true,
+      "detail": "20/20 stappen",
+      "tijd": "2026-11-09T10:59:32Z"
+    },
+    {
+      "stap": "proces 1 als 568:568 zonder capabilities",
+      "geslaagd": true,
+      "detail": "Uid=568 568 568 568; Gid=568 568 568 568; Groups=568; CapEff=0000000000000000; CapBnd=0000000000000000; NoNewPrivs=1",
+      "tijd": "2026-11-09T10:59:32Z"
+    },
+    {
+      "stap": "/config en /cache volledig van 568",
+      "geslaagd": true,
+      "detail": "0 bestanden van een andere eigenaar",
+      "tijd": "2026-11-09T10:59:32Z"
+    },
+    {
+      "stap": "Jelly Leon-plugin in de datamap",
+      "geslaagd": true,
+      "detail": "/config/plugins/JellyLeon_0.1.0.0/Jellyfin.Plugin.JellyLeon.dll",
+      "tijd": "2026-11-09T10:59:33Z"
+    },
+    {
+      "stap": "mediamap onaangeroerd",
+      "geslaagd": true,
+      "detail": "eigenaar/rechten ongewijzigd",
+      "tijd": "2026-11-09T10:59:33Z"
+    },
+    {
+      "stap": "geweigerd: geen opslagregel voor /cache (anoniem Docker-volume)",
+      "geslaagd": true,
+      "detail": "exited 1; media ongewijzigd=True; 2026-11-09T10:59:33Z jelly-leon: FOUT: /cache is een anoniem Docker-volume, geen gekozen dataset: voeg in het Custom App-formulier opslag (Host Path of ixVolume) toe met Mount Path /cache",
+      "tijd": "2026-11-09T10:59:33Z"
+    },
+    {
+      "stap": "geweigerd: JELLYFIN_CACHE_DIR wijst naar de mediamap",
+      "geslaagd": true,
+      "detail": "exited 1; media ongewijzigd=True; 2026-11-09T10:59:34Z jelly-leon: FOUT: /media/muziek (werkelijk pad /media/muziek) ligt buiten /config of /cache; als root wordt hier niets aangepast. Laat JELLYFIN_DATA_DIR/JELLYFIN_CACHE_DIR leeg in",
+      "tijd": "2026-11-09T10:59:35Z"
+    }
+  ],
+  "werkmap": "<tijdelijke map op de bouwmachine>"
+}
