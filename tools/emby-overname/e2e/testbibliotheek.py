@@ -171,7 +171,7 @@ def _srt(taal: str) -> str:
     return f"1\n00:00:01,000 --> 00:00:04,000\nOndertitel ({taal})\n\n2\n00:00:05,000 --> 00:00:08,000\nTweede regel ({taal})\n"
 
 
-def maak_synthetisch(media: Media, doel: Path, ffmpeg: list[str], werk: Path) -> None:
+def maak_synthetisch(media: Media, doel: Path, ffmpeg: list[str], werk: Path, koppelpunt: Path) -> None:
     """Kleine clip met testbeeld, één of meer sinustonen (met taaltag) en ingebedde ondertitels; deterministisch."""
     doel.parent.mkdir(parents=True, exist_ok=True)
     werk.mkdir(parents=True, exist_ok=True)
@@ -184,7 +184,7 @@ def maak_synthetisch(media: Media, doel: Path, ffmpeg: list[str], werk: Path) ->
         srt = werk / f"{taal}.srt"
         srt.write_text(_srt(taal), encoding="utf-8")
         srt_bestanden.append(srt)
-        args += ["-i", str(srt) if ffmpeg[0] != "docker" else f"/w/{srt.relative_to(werk.parent).as_posix()}"]
+        args += ["-i", str(srt) if ffmpeg[0] != "docker" else f"/w/{srt.relative_to(koppelpunt).as_posix()}"]
     args += ["-map", "0:v"]
     for i in range(len(media.audio)):
         args += ["-map", f"{i + 1}:a"]
@@ -200,7 +200,7 @@ def maak_synthetisch(media: Media, doel: Path, ffmpeg: list[str], werk: Path) ->
     for i, taal in enumerate(media.ondertitels):
         args += [f"-metadata:s:s:{i}", f"language={taal}"]
     if ffmpeg[0] == "docker":
-        uitvoer = f"/w/{doel.relative_to(werk.parent).as_posix()}"
+        uitvoer = f"/w/{doel.relative_to(koppelpunt).as_posix()}"  # koppelpunt = de map die als /w is gekoppeld
     else:
         uitvoer = str(doel)
     subprocess.run([*ffmpeg, *args, uitvoer], check=True, capture_output=True, timeout=300)
@@ -244,7 +244,7 @@ def bouw(modus: str, basis: Path, corpus: Path | None, ffmpeg: list[str] | None)
         else:
             sleutel = f"{plek.media.corpus}|{plek.media.duur}"
             if sleutel not in gemaakt:
-                maak_synthetisch(plek.media, doel, ffmpeg or [], basis / "_werk" / f"{len(gemaakt)}")
+                maak_synthetisch(plek.media, doel, ffmpeg or [], basis / "_werk" / f"{len(gemaakt)}", basis)
                 gemaakt[sleutel] = doel
             else:
                 os.link(gemaakt[sleutel], doel)
