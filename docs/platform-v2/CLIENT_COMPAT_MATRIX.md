@@ -23,6 +23,7 @@ Dezelfde 17 stappen zijn geslaagd tegen (a) de fork-build op de officiële runti
 | Statisch streamen (byte-gelijk) en seek via `Range` → 206 | Jellyfin Android | Sim-getest ✔ |
 | Sessies/apparaten zichtbaar | Jellyfin Web | Sim-getest ✔ |
 | Jelly Leon-route `/media/v1/version` (met/zonder token) | Hub | Sim-getest ✔ (`compatibel` / 401) |
+| Hub-adapter v1 (contract 1.2 §2.3, ADR-0012): eigen **niet-admin**-gebruiker leest `/media/v1/version`, krijgt 403 op `/Auth/Keys`; Hub-JWT (`Bearer` of als token) → 401 | Hub (nagebootst) | Sim-getest ✔ (reviewer-QA contract 1.2; echte Hub NIET GEVALIDEERD) |
 | Waarneming: streamen zonder token | — | HTTP 200 = upstream-gedrag, risico (ADR-0009) |
 
 Niet in de simulatie: transcoderen/HLS (geen echte video, geen GPU), ondertitels, live-tv, SyncPlay, casten, offline

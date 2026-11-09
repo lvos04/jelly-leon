@@ -1,0 +1,64 @@
+# Reviewer-QA contract 1.2 — lokale .NET-build en tests (Sim-omgeving, geen echte NAS), 2026-11-09
+# Bron: git archive van cf7dbf577 (geen C#-wijziging in de review-commits 549bc94db..08dc4be69)
+# Container: mcr.microsoft.com/dotnet/sdk:9.0.320@sha256:07ed28d9e7279248fcea27334880f6c415b42c631c39b8bc5b3caf13ec6fdaa2, als gewone gebruiker, -m:4, nice -n 10
+# Commando's: dotnet restore Jellyfin.sln; dotnet build Jellyfin.sln -c Release --no-restore -m:4;
+#   dotnet test Jellyfin.sln -c Release --no-build -m:4 --verbosity minimal; dotnet build/test plugins/JellyLeon.Plugins.sln -c Release;
+#   dotnet publish Jellyfin.Server -c Release --runtime linux-x64 --self-contained (voor de stock-client-smoketest)
+
+9.0.320
+=== restore
+RESTORE_EXIT=0
+=== build
+BUILD_EXIT=0
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:32.96
+=== test
+TEST_EXIT=0
+Passed!  - Failed:     0, Passed:    30, Skipped:     0, Total:    30, Duration: 33 ms - Jellyfin.Common.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    47, Skipped:     0, Total:    47, Duration: 220 ms - Jellyfin.MediaEncoding.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    79, Skipped:     0, Total:    79, Duration: 204 ms - Jellyfin.Api.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    28, Skipped:     0, Total:    28, Duration: 107 ms - Jellyfin.Controller.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    34, Skipped:     0, Total:    34, Duration: 191 ms - Jellyfin.XbmcMetadata.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   627, Skipped:     0, Total:   627, Duration: 3 s - Jellyfin.Model.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   119, Skipped:     0, Total:   119, Duration: 5 s - Jellyfin.Networking.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7, Duration: 90 ms - Jellyfin.Server.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   420, Skipped:     4, Total:   424, Duration: 7 s - Jellyfin.Server.Implementations.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   235, Skipped:     0, Total:   235, Duration: 817 ms - Jellyfin.Providers.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   141, Skipped:     0, Total:   141, Duration: 191 ms - Jellyfin.Extensions.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 36 ms - Jellyfin.MediaEncoding.Hls.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 36 ms - Jellyfin.MediaEncoding.Keyframes.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:    48, Skipped:     0, Total:    48, Duration: 267 ms - Jellyfin.LiveTv.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   614, Skipped:     0, Total:   614, Duration: 11 s - Jellyfin.Naming.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:   100, Skipped:     3, Total:   103, Duration: 1 m 28 s - Jellyfin.Server.Integration.Tests.dll (net9.0)
+=== openapi
+tests/Jellyfin.Server.Integration.Tests/bin/Release/net9.0/openapi.json
+=== plugins build
+PLUGIN_BUILD_EXIT=0
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.51
+=== plugins test
+PLUGIN_TEST_EXIT=0
+Passed!  - Failed:     0, Passed:    16, Skipped:     0, Total:    16, Duration: 60 ms - Jellyfin.Plugin.JellyLeon.Tests.dll (net9.0)
+=== publish (stock-client-smoketest)
+PUBLISH_EXIT=0
+KLAAR
+EXIT=0
+
+=== Overgeslagen tests (upstream, 7)
+  Skipped Jellyfin.Server.Implementations.Tests.IO.ManagedFileSystemTests.MakeAbsolutePathCorrectlyHandlesRelativeFilePathsOnWindows(folderP
+  Skipped Jellyfin.Server.Implementations.Tests.IO.ManagedFileSystemTests.MakeAbsolutePathCorrectlyHandlesRelativeFilePathsOnWindows(folderP
+  Skipped Jellyfin.Server.Implementations.Tests.IO.ManagedFileSystemTests.MakeAbsolutePathCorrectlyHandlesRelativeFilePathsOnWindows(folderP
+  Skipped Jellyfin.Server.Implementations.Tests.IO.ManagedFileSystemTests.MakeAbsolutePathCorrectlyHandlesRelativeFilePathsOnWindows(folderP
+  Skipped Jellyfin.Server.Integration.Tests.Controllers.UserLibraryControllerTests.GetIntros_UserIdAndItemId_Valid [1 ms]
+  Skipped Jellyfin.Server.Integration.Tests.Controllers.UserLibraryControllerTests.GetItem_UserIdAndItemId_Valid [1 ms]
+  Skipped Jellyfin.Server.Integration.Tests.Controllers.UserLibraryControllerTests.LocalTrailersAndSpecialFeatures_UserIdAndItemId_Valid [1 
+
+=== OpenAPI-drift (tools/jelly-leon/openapi_drift.py, structureel)
+WAARSCHUWING: OpenAPI structureel gelijk aan docs/openapi/jelly-leon.openapi.json; alleen 22 description-teksten verschillen (bekend upstream-nondeterminisme: volgorde van de XML-docbestanden uit Directory.EnumerateFiles). Geen API-wijziging.
+  - $["components"]["schemas"]["AuthenticationResult"]["properties"]["User"]["description"]
+exitcode: 0 (structureel gelijk; alleen description-teksten anders, ADR-0010)

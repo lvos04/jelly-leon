@@ -2,7 +2,7 @@
 
 > **Status: NIET GEVALIDEERD (echte NAS).** De volledige image (server + echte web-build + plugin) is lokaal én in
 > GitHub-CI (job *image*) gebouwd en met dezelfde formulierwaarden in Docker getest (Sim-getest, zie
-> `docs/platform-v2/BOUWVERIFICATIE_P0.md` §11–§13). Er is nog **geen** gepubliceerde image `ghcr.io/lvos04/jelly-leon`:
+> `docs/platform-v2/BOUWVERIFICATIE_P0.md` §11–§14). Er is nog **geen** gepubliceerde image `ghcr.io/lvos04/jelly-leon`:
 > forkversie `10.11.11-jl.0` wordt nooit uitgebracht (ADR-0005); vóór P4 gaat de basis eerst naar Jellyfin 12.x
 > (ADR-0011), de eerste release volgt daarna. Anoniem ophalen gaf op 2026-11-09 `DENIED` (er bestaat nog geen pakket).
 > Het formulier hieronder is niet op een echte TrueNAS doorlopen; veldnamen volgen TrueNAS SCALE 24.10/25.04 en kunnen

@@ -345,3 +345,61 @@ terugzetproef **10/10**), *stock-client-smoketest* 18/18. Rapporten als artefact
 - Contract-issue: de Docker-healthcheck draait in alle alles-in-één images als de containergebruiker (root zonder
   *Custom User*), met standaard-capabilities en zonder `no_new_privs` (ADR-0012, Gevolgen (a)).
 - `GET /media/v1/version` als niet-admin-gebruiker (Hub-adapter v1) is alleen uit de upstream-code afgeleid, niet getest.
+
+## 14. Onafhankelijke review van de contract 1.2-ronde (2026-11-09)
+
+Reviewer-QA op dezelfde Ubuntu-machine (gedeeld, `nice -n 10`, `-m:4`, image-build onder `flock`) en in GitHub
+Actions. Uitgangspunt: commit `cf7dbf577` (eindstand van §13). Alles is **Sim-getest**; niets op een echte NAS,
+met het echte TrueNAS-formulier, een echte Hub of echte clients. Ruwe uitvoer: `test-evidence/c12-review-*`.
+
+### 14.1 Opnieuw gedraaid zoals de CI
+
+| Commando | Resultaat |
+|---|---|
+| Nieuwe venv buiten de repo (`requirements-dev.txt`); `python -m pytest -q tools/jelly-leon/tests` | vóór de reparaties **145 geslaagd**; na de reparaties **164 geslaagd** (+8 smoketest/Hub-adapter, +4 healthcheckrechten, +7 healthcheckscript) |
+| `ruff check …`; `shellcheck -s sh deploy/allinone/entrypoint.sh deploy/allinone/healthcheck.sh`; `actionlint jelly-leon-ci.yml upstream-sync.yml` | in orde (de upstream-workflows `ci-compat.yml`, `ci-openapi.yml`, `project-automation.yml`, `release-bump-version.yaml` geven upstream-shellcheckmeldingen; die draaien niet in de fork, ADR-0007, en vallen buiten de CI-lint) |
+| `check_fork_consistency.py`; `patch_register_check.py` | in orde; alleen fork-eigen paden gewijzigd (geen core-patch) |
+| `contract_drift.py` offline, `--bron-map ../ai-server-manager` (lokale checkout op `9585741`), `--online --github` | alle drie: 2 bestanden **byte-gelijk** aan `8b54f39` (de bron is sindsdien niet gewijzigd) |
+| Validator `appstore-en-fork` `bd33052` (`git archive`, eigen venv, `--require-hashes`), ook `--strict` | **geldig**, 0 fouten, alleen `digest_pending_release`; de validator is na `bd33052` niet gewijzigd |
+| `docker buildx imagetools inspect` voor `dotnet/sdk:9.0.320`, `node:22.23.4-bookworm-slim`, `jellyfin/jellyfin:10.11.11` | digests gelijk aan de pins; geen `latest`; alle actions op commit-SHA |
+| `.NET` in `dotnet/sdk:9.0.320@sha256:07ed28d9…` (als gewone gebruiker): restore, build Release, `dotnet test Jellyfin.sln`, plugins, publish | build **0 waarschuwingen/0 fouten**; **2 548 geslaagd, 7 overgeslagen (upstream), 0 mislukt**; plugins **16/16**; OpenAPI structureel gelijk (alleen `description`-volgorde, ADR-0010) (`test-evidence/c12-review-dotnet-build-test.txt`) |
+| Stock-client-smoketest zoals CI-job *stock-client-e2e* (gepubliceerde server op de vastgezette runtime, 568, `--cap-drop ALL`, plugin; `chown` via wegwerpcontainer) | **24/24** (incl. Hub-adapter v1); daarna een **nieuwe container met dezelfde opslag**, modus `herstart`: **26/26** (zelfde item- en gebruikers-ID, niet-admin-gebruiker bestaat nog) |
+| `web_bron.py --controleer` op een verse `blob:none`-kloon van `jelly-leon-web` `2795f3365`; `git archive`-export | in orde (`jellyfin-web` 10.11.11 op upstream `v10.11.11`); sinds `2795f3365` zijn in `jelly-leon-web` alleen docs/CI/tools gewijzigd, geen web-broncode |
+| `flock … docker buildx build -f deploy/allinone/Dockerfile --build-context jelly-leon-web=<export> --build-arg BUILD_JOBS=4` (werkboom = latere commit `08dc4be69` voor alle image-bestanden) | geslaagd; de web-stage kwam uit de BuildKit-cache van exact dezelfde invoer (de verse build zonder cache: CI hieronder) |
+| `image_lifecycle.py --verwacht-web-ref 2795f3365…` | **29/29** (`test-evidence/c12-review-image-lifecycle.json`): de 27 stappen van §13 plus *healthcheck zonder root-rechten* bij een root-start en met *Custom User* |
+| `rollback_sim.py --upstream-image jellyfin/jellyfin:10.11.11@sha256:aefb67e6…` | **10/10** (`test-evidence/c12-review-rollback-sim.json`) |
+| Wijzigingen van de hele contract 1.2-ronde (`daa283809^..HEAD`) | geen wijziging aan `global.json`, servercode, upstream-workflows of `upstream-sync.yml`; `baseline.json` alleen `web_fork_commit` → **geen 12.x-wijziging** (JL1) en JL5 ongemoeid |
+
+**GitHub Actions:** run [42658489633](https://github.com/lvos04/jelly-leon/actions/runs/42658489633) (commit
+`08dc4be69`): **6/6 jobs groen** — *manifest* conform (alleen `digest_pending_release`), *forkregels* 164 tool-tests
+en contractkopie online byte-gelijk, *server* 2 548/7/0, *plugins* 16/16, *image* met de **echte web-build** zonder cache
+(`npm ci`: 1 724 pakketten; webpack-productiebuild geslaagd) → levenscyclus **29/29** (incl. healthcheck als 568) en
+terugzetproef **10/10**, *stock-client-smoketest* **24/24** (incl. Hub-adapter v1). Geen Node 20-waarschuwingen meer.
+
+### 14.2 Gevonden en gerepareerd
+
+| Bevinding | Gemeten | Reparatie | Commit |
+|---|---|---|---|
+| **De Docker-healthcheck draaide curl als root** met de standaard-capabilities en zonder `no_new_privs` (Custom App zonder *Custom User*): curl verwerkt het antwoord van de server (568) met root-rechten — in strijd met §2.2 "geen proces meer als root" (in §13 alleen als contract-issue gemeld). | vóór: `HEALTHCHECK CMD ["curl", …]` → containergebruiker root | `deploy/allinone/healthcheck.sh` (`jelly-leon-healthcheck`): `setpriv` naar 568:568 zonder capabilities, lege bounding-set en `no_new_privs` vóór curl; bij *Custom User* alleen `no_new_privs`. Gemeten na de reparatie: curl als `Uid 568`, `CapEff 0`, `CapBnd 0`, `NoNewPrivs 1` (root-start) en `NoNewPrivs 1` (*Custom User*). ADR-0014 | `e7a0420cb` |
+| **JL4 niet getest:** dat een niet-admin-gebruiker `GET /media/v1/version` mag lezen en dat geen Hub-JWT wordt geaccepteerd, was alleen uit de upstream-code afgeleid (CUSTOM_APP.md beweerde het wel). | — | stock-client-smoketest (`--expect-plugin`): niet-admin-gebruiker aanmaken/hergebruiken, inloggen, `/media/v1/version` → 200, `/Auth/Keys` → 403, Hub-JWT als `Bearer` en als token → 401; simulatortests voor elke afwijking (nooit gesimuleerd succes) | `549bc94db` |
+| CI-job *stock-client-e2e* gebruikte `sudo chown` | — | `chown` in een wegwerpcontainer van de vastgezette runtime (`--network none`) | `08dc4be69` |
+| `actions/upload-artifact` v5 (Node 20): waarschuwing op elke job | CI-annotaties run 42654781446 | v7.0.2 op commit-SHA (Node 24); `upstream-sync.yml` bewust niet aangeraakt (JL5) | `08dc4be69` |
+| EVIDENCE B03-001 en I24-24-01 noemden in `blokkade` zowel een echte installatie als echte apparaten, maar in `validatie` alleen `hardware` | — | `validatie` nu `Sim-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (hardware)` | dit bewijs-commit |
+
+### 14.3 Gecontroleerd zonder bevinding
+
+- Contract §1–§13 voor deze bestaande app (§2.3): standaard Custom App met één image, geen YAML/compose als
+  installatiemethode, poort 8096 → voorstel 30460 alleen in `network.ports`, geen enrollment in v1 (geen `HUB_*`-env,
+  geen `hub-link.json`), bestaande Jellyfin-routes en -foutformaat ongewijzigd, `/media/v1/version` vraagt een sessie
+  (401 zonder token), geen geheimen in formulier/manifest/repo/logs (smoketestrapporten redigeren tokens en
+  wachtwoorden), geen Docker-socket, geen `sh -c`/`sudo`-endpoint, geen `privileged`/`cap_add`, base-images op digest.
+- EVIDENCE.json: alleen `Bezig` en vaste `validatie`-waarden (nooit `Gereed`/`Geslaagd`; test bewaakt §11).
+- Docs in het Nederlands; geen voorbeeldwaarden (IP, poolnaam) als echte NAS-waarden; installatie zonder terminal.
+
+### 14.4 Nog steeds NIET GEVALIDEERD / open
+
+- Echte NAS, TrueNAS-formulier (`@sha256:` in het tagveld), digest-readback, ZFS-snapshot, D07/D08, GPU-doorgifte,
+  echte Hub, echte clients en hardware; geen gepubliceerde image (P4, na de 12.x-upgrade, ADR-0011).
+- Restrisico healthcheck: Docker start het healthcheckproces (en elke `docker exec`) als de containergebruiker; de `sh`
+  van het script draait daardoor heel kort als root vóór de `exec` (ADR-0014). Platformbreed contract-issue blijft.
+- Contract §5 `/healthz`/`/readyz` en `/appdata`: Jelly Leon houdt `/health` en `/config` + `/cache` (ADR-0008/0012).
