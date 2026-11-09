@@ -500,7 +500,9 @@ def zet_kijk(emby: Emby, uid: str, item: dict[str, Any], soort: str, waarde: Any
     if soort == "gezien":
         datum, aantal = waarde
         emby.admin.doe("POST", f"/Users/{uid}/PlayedItems/{iid}", {"DatePlayed": emby_datum(datum)})
-        emby.admin.doe("POST", f"/Users/{uid}/Items/{iid}/UserData", body={"PlayCount": aantal, "LastPlayedDate": ticks(datum)})
+        # Emby 4.10 zet bij deze route ook velden die ontbreken terug (gemeten: Played werd weer false); daarom expliciet.
+        emby.admin.doe("POST", f"/Users/{uid}/Items/{iid}/UserData",
+                       body={"Played": True, "PlayCount": aantal, "LastPlayedDate": ticks(datum), "PlaybackPositionTicks": 0})
     elif soort == "positie":
         fractie, datum, aantal = waarde
         positie = int(int(item.get("RunTimeTicks") or 600_000_000) * fractie) + 7  # +7: bewijst tick-exactheid
@@ -671,6 +673,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         bewijs.data["emby_kijkgegevens_aantallen"] = {n: len(v) for n, v in waarheid.items()}
         bewijs.check("JLT-70", "≥ 5 Emby-gebruikers (beheerder, 2 volwassenen, kind, gast) met kijkgeschiedenis",
                      len(waarheid) >= 5 and all(waarheid.values()), bewijs.data["emby_kijkgegevens_aantallen"])
+        soorten = Counter()
+        for per in waarheid.values():
+            for e in per.values():
+                soorten["gezien"] += e["gezien"] and e["aantal"] > 0 and e["laatst"] is not None
+                soorten["hervatpunt"] += e["positie"] > 0
+                soorten["favoriet"] += e["favoriet"]
+                soorten["beoordeling"] += e["beoordeling"] is not None or e["vind_ik_leuk"] is not None
+        bewijs.data["emby_kijkgegevens_soorten"] = dict(soorten)
+        bewijs.check("JLT-70", "Emby bevat echt gezien-status (met datum en aantal), hervatpunten en favorieten",
+                     soorten["gezien"] > 0 and soorten["hervatpunt"] > 0 and soorten["favoriet"] > 0, dict(soorten))
 
         # Proxy's en MediaGuard-simulator.
         proxy_emby = LoggendeProxy("127.0.0.1", p_emby, "emby")
