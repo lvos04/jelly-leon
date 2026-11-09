@@ -29,17 +29,21 @@ Maak (of laat de Hub maken) twee eigen datasets met preset **Apps**:
 Rechten hoef je niet aan te passen: bij de eerste start maakt de container gebruiker `568` (apps) eigenaar van
 **alleen** `/config` en `/cache`. Mediamappen worden nooit gewijzigd.
 
+Ontbreekt de opslagregel voor `/config` of `/cache`, dan zou Docker stilletjes een anoniem volume aanmaken (de database
+staat dan niet op je dataset en verdwijnt bij verwijderen). De container **weigert dan te starten** en meldt welke
+opslagregel ontbreekt.
+
 ## Formulier: Apps → Discover Apps → Custom App
 
 | Sectie | Veld | Waarde |
 |---|---|---|
 | Application Name | | `jelly-leon` |
 | Image Configuration | Repository | `ghcr.io/lvos04/jelly-leon` |
-| | Tag | de vaste forkversie, bv. `10.11.11-jl.1` (nooit `latest`; nog niet gepubliceerd) |
+| | Tag | de vaste forkversie uit de release (vorm `<upstream>-jl.<N>`, ADR-0005; nooit `latest`; nog niet gepubliceerd) |
 | | Pull Policy | *Pull the image if it is not already present on host* |
 | Container Configuration | Entrypoint / Command | leeg laten |
 | | Timezone | tijdzone van de NAS (uit de wizard) |
-| | Environment Variables | **leeg laten** (geen geheimen in het formulier) |
+| | Environment Variables | **leeg laten** (geen geheimen in het formulier; geen `JELLYFIN_*`-paden: datamappen buiten `/config`/`/cache` worden geweigerd) |
 | | Restart Policy | *Unless Stopped* |
 | Security Context | Privileged | **uit** |
 | | Capabilities | geen toevoegen |
@@ -75,7 +79,8 @@ Rechten hoef je niet aan te passen: bij de eerste start maakt de container gebru
 
 | Melding in de app-log | Oplossing |
 |---|---|
-| `FOUT: /config bestaat niet` (of `/cache`) | Storage-regel ontbreekt of Mount Path is niet exact `/config` / `/cache`. |
+| `FOUT: /config is een anoniem Docker-volume, geen gekozen dataset` (of `/cache`) | Storage-regel ontbreekt of Mount Path is niet exact `/config` / `/cache`. Voeg de opslagregel toe en start opnieuw. |
+| `FOUT: … ligt buiten /config of /cache` | Er staat een `JELLYFIN_DATA_DIR`/`JELLYFIN_CACHE_DIR` in Environment Variables: verwijderen. |
 | `geen /dev/dri-apparaten: transcoderen alleen via CPU` | Geen fout. Zet GPU pas aan na meting (D08). |
 | Poort bezet bij opslaan | Andere Host Port kiezen; Container Port blijft `8096`. |
 | Image kan niet worden opgehaald | Er is nog geen release, of het GHCR-pakket is privé (gebruikersbesluit, ADR-0004). |
