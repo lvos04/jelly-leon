@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jelly-leon/emby-overname-plan/1",
+  "title": "Goedgekeurd te keuren plan (werkmap/plannen/<plan_sha256>.json)",
+  "type": "object",
+  "required": [
+    "plan",
+    "verschillen",
+    "rapport_inhoud_sha256",
+    "run",
+    "gemaakt"
+  ],
+  "properties": {
+    "plan": {
+      "type": "object",
+      "required": [
+        "schema",
+        "emby_server_id",
+        "jl_server_id",
+        "gebruikers"
+      ],
+      "properties": {
+        "schema": {
+          "const": "jelly-leon/emby-overname-plan/1"
+        },
+        "gebruikers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "emby_uid",
+              "jl_naam",
+              "status",
+              "beleid",
+              "configuratie",
+              "acties"
+            ],
+            "properties": {
+              "acties": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "emby_uid",
+                    "emby_id",
+                    "jl_id",
+                    "velden",
+                    "basis",
+                    "doel",
+                    "emby"
+                  ],
+                  "properties": {
+                    "velden": {
+                      "type": "object",
+                      "propertyNames": {
+                        "enum": [
+                          "Played",
+                          "PlayCount",
+                          "LastPlayedDate",
+                          "PlaybackPositionTicks",
+                          "IsFavorite",
+                          "Rating",
+                          "Likes"
+                        ]
+                      }
+                    },
+                    "basis": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "gezien",
+                        "aantal",
+                        "laatst",
+                        "positie",
+                        "favoriet",
+                        "beoordeling",
+                        "vind_ik_leuk"
+                      ],
+                      "properties": {
+                        "gezien": {
+                          "type": "boolean"
+                        },
+                        "aantal": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "laatst": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{7}Z$"
+                        },
+                        "positie": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "favoriet": {
+                          "type": "boolean"
+                        },
+                        "beoordeling": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "vind_ik_leuk": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "doel": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "gezien",
+                        "aantal",
+                        "laatst",
+                        "positie",
+                        "favoriet",
+                        "beoordeling",
+                        "vind_ik_leuk"
+                      ],
+                      "properties": {
+                        "gezien": {
+                          "type": "boolean"
+                        },
+                        "aantal": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "laatst": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{7}Z$"
+                        },
+                        "positie": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "favoriet": {
+                          "type": "boolean"
+                        },
+                        "beoordeling": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "vind_ik_leuk": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "emby": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "gezien",
+                        "aantal",
+                        "laatst",
+                        "positie",
+                        "favoriet",
+                        "beoordeling",
+                        "vind_ik_leuk"
+                      ],
+                      "properties": {
+                        "gezien": {
+                          "type": "boolean"
+                        },
+                        "aantal": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "laatst": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{7}Z$"
+                        },
+                        "positie": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "favoriet": {
+                          "type": "boolean"
+                        },
+                        "beoordeling": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "vind_ik_leuk": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "verschillen": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rapport_inhoud_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

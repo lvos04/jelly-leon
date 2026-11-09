@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jelly-leon/emby-overname-akkoord/1",
+  "title": "Akkoord van de gebruiker: op het plan (soort plan) of op elk verschil vóór de overstap (soort cutover)",
+  "type": "object",
+  "required": [
+    "schema",
+    "soort",
+    "rapport_inhoud_sha256",
+    "akkoord_door",
+    "datum",
+    "verschillen"
+  ],
+  "properties": {
+    "schema": {
+      "const": "jelly-leon/emby-overname-akkoord/1"
+    },
+    "soort": {
+      "enum": [
+        "plan",
+        "cutover"
+      ]
+    },
+    "rapport_inhoud_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "akkoord_door": {
+      "type": "string",
+      "minLength": 1
+    },
+    "datum": {
+      "type": "string"
+    },
+    "verschillen": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^V-[0-9a-f]{12}$"
+      }
+    }
+  }
+}

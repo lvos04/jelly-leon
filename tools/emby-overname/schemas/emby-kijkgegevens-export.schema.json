@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jelly-leon/emby-kijkgegevens-export/1",
+  "title": "Blijvend JSON-exportarchief van alle Emby-kijkgegevens (B03-015, controlelijst §10.9.2 stap 4)",
+  "type": "object",
+  "required": [
+    "schema",
+    "gemaakt",
+    "tool",
+    "bron",
+    "bibliotheken",
+    "classificaties",
+    "plugins",
+    "items",
+    "gebruikers",
+    "inhoud_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": "jelly-leon/emby-kijkgegevens-export/1"
+    },
+    "gemaakt": {
+      "type": "string"
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "naam",
+        "versie"
+      ]
+    },
+    "bron": {
+      "type": "object",
+      "required": [
+        "server_id",
+        "server_naam",
+        "versie"
+      ]
+    },
+    "bibliotheken": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "item_id",
+          "naam",
+          "locaties"
+        ]
+      }
+    },
+    "classificaties": {
+      "type": "array"
+    },
+    "plugins": {
+      "type": "array"
+    },
+    "items": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "naam",
+          "provider_ids",
+          "pad",
+          "grootte"
+        ],
+        "properties": {
+          "provider_ids": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "pad": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grootte": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "gebruikers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "naam",
+          "beleid",
+          "configuratie",
+          "zichtbaar",
+          "kijkgegevens",
+          "spoorkeuzes",
+          "benoemde_favorieten"
+        ],
+        "properties": {
+          "kijkgegevens": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "gezien",
+                "aantal",
+                "laatst",
+                "positie",
+                "favoriet",
+                "beoordeling",
+                "vind_ik_leuk"
+              ],
+              "properties": {
+                "gezien": {
+                  "type": "boolean"
+                },
+                "aantal": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "laatst": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{7}Z$"
+                },
+                "positie": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "favoriet": {
+                  "type": "boolean"
+                },
+                "beoordeling": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "vind_ik_leuk": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "spoorkeuzes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "audio": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "required": [
+                    "type",
+                    "codec",
+                    "taal",
+                    "titel"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "codec": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "taal": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "titel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kanalen": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "ondertitel": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "required": [
+                    "type",
+                    "codec",
+                    "taal",
+                    "titel"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "codec": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "taal": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "titel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kanalen": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "bestand": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "zichtbaar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "inhoud_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

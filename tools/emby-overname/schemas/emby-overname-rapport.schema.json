@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jelly-leon/emby-overname-rapport/1",
+  "title": "Vóór/na-rapport per gebruiker (B03-015 A8); de bijbehorende .sha256 bevat de sha256 van dit bestand",
+  "type": "object",
+  "required": [
+    "schema",
+    "soort",
+    "gemaakt",
+    "tool",
+    "bron",
+    "doel",
+    "plan_sha256",
+    "plan_schrijfacties",
+    "run",
+    "toestand",
+    "inhoud_sha256",
+    "akkoord"
+  ],
+  "properties": {
+    "schema": {
+      "const": "jelly-leon/emby-overname-rapport/1"
+    },
+    "soort": {
+      "enum": [
+        "proefrun",
+        "overzetting",
+        "verificatie"
+      ]
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "inhoud_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "plan_schrijfacties": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "run": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "toestand": {
+      "type": "object",
+      "required": [
+        "gebruikers",
+        "totaal",
+        "verantwoord",
+        "verschillen"
+      ],
+      "properties": {
+        "verantwoord": {
+          "type": "boolean"
+        },
+        "verschillen": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "totaal": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "emby",
+              "gekoppeld",
+              "gelijk",
+              "jelly_leon_nieuwer",
+              "afhandellijst"
+            ],
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "gebruikers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "emby_naam",
+              "jelly_leon_naam",
+              "status",
+              "wachtwoord",
+              "telling",
+              "verantwoord",
+              "rechten",
+              "zichtbaarheid",
+              "afhandellijst"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "aanmaken",
+                  "aangemaakt_door_tool",
+                  "bestaand",
+                  "ongeldige_naam"
+                ]
+              },
+              "telling": {
+                "type": "object",
+                "required": [
+                  "gezien",
+                  "hervatpunten",
+                  "favorieten",
+                  "beoordelingen",
+                  "spoorkeuzes"
+                ],
+                "additionalProperties": {
+                  "type": "object",
+                  "required": [
+                    "emby",
+                    "gekoppeld",
+                    "gelijk",
+                    "jelly_leon_nieuwer",
+                    "afhandellijst"
+                  ],
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              "afhandellijst": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "soort",
+                    "reden",
+                    "klasse",
+                    "uitleg",
+                    "item",
+                    "kijkgegevens"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^V-[0-9a-f]{12}$"
+                    },
+                    "klasse": {
+                      "enum": [
+                        "actie",
+                        "beslissing",
+                        "kennisname"
+                      ]
+                    },
+                    "soort": {
+                      "type": "string"
+                    },
+                    "reden": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "akkoord": {
+      "type": "object",
+      "required": [
+        "vereist_voor",
+        "verschillen",
+        "aantal"
+      ]
+    }
+  }
+}
