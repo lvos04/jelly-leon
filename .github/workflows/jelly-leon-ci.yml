@@ -56,6 +56,11 @@ jobs:
       - name: Patchregister (elke core-patch geregistreerd)
         run: python tools/jelly-leon/patch_register_check.py
 
+      # Contract 1.2 (A1): de kopieën zijn byte-gelijk aan lvos04/ai-server-manager op de vastgezette bron-commit
+      # (publieke repo, geen token). Is de bron daarna gewijzigd, dan alleen een waarschuwing (overnemen = orkestratie).
+      - name: Platformcontract-kopie (drifttest tegen de bron)
+        run: python tools/jelly-leon/contract_drift.py --online --github
+
       - name: Tests van de forktools (incl. EX48-simulatie)
         run: python -m pytest -q tools/jelly-leon/tests
 

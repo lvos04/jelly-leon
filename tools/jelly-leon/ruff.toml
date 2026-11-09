@@ -14,6 +14,6 @@ ignore = ["S101", "S603", "S607"]
 
 [lint.isort]
 known-first-party = [
-  "check_fork_consistency", "conftest", "dotnet_sdk_kanaal", "image_lifecycle", "jl_common", "openapi_drift",
+  "check_fork_consistency", "conftest", "contract_drift", "dotnet_sdk_kanaal", "image_lifecycle", "jl_common", "openapi_drift",
   "patch_register_check", "stock_client_smoke", "upstream_sync",
 ]

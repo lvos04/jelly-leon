@@ -1,7 +1,7 @@
 # Architectuurbesluiten (ADR) — jelly-leon
 
 Elke keuze in deze fork die afwijkt van "upstream Jellyfin ongewijzigd laten" of die het platformcontract
-(`docs/platform-v2/PLATFORM_CONTRACTEN.md`, versie 1.1) interpreteert, staat hier als ADR.
+(`docs/platform-v2/PLATFORM_CONTRACTEN.md`, versie 1.2) interpreteert, staat hier als ADR.
 Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 
 | ADR | Titel | Status |
