@@ -1,0 +1,1262 @@
+{
+  "schema": "jelly-leon/b03-015-proefrun-bewijs/1",
+  "modus": "corpus",
+  "begin": "2026-11-09T20:48:50Z",
+  "images": {
+    "emby": "docker.io/emby/embyserver:4.10.2.0@sha256:7082c63b10a2fcb3805a7eaebba407d5723bc57c085c9f0b29b7d0a702765cc1",
+    "jellyfin": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "validatie": "Sim (echte containers op de ontwikkelmachine; NIET GEVALIDEERD op de echte NAS)",
+  "controles": [
+    {
+      "test": "B03-016",
+      "naam": "corpusbestanden kloppen met het sha256-manifest",
+      "ok": true,
+      "detail": "24 bronbestanden"
+    },
+    {
+      "test": "JLT-70",
+      "naam": "echte Emby 4.10.2.0 en stock Jellyfin 12.4 draaien",
+      "ok": true,
+      "detail": "Emby 4.10.2.0, Jellyfin 12.4.0"
+    },
+    {
+      "test": "JLT-70",
+      "naam": "bibliotheken gescand (alle testbestanden aanwezig)",
+      "ok": true,
+      "detail": {
+        "emby_ontbrekend": [],
+        "jl_ontbrekend": []
+      }
+    },
+    {
+      "test": "JLT-70",
+      "naam": "≥ 5 Emby-gebruikers (beheerder, 2 volwassenen, kind, gast) met kijkgeschiedenis",
+      "ok": true,
+      "detail": {
+        "beheerder": 13,
+        "Anna": 6,
+        "Bram": 10,
+        "Kim": 5,
+        "Gast": 2
+      }
+    },
+    {
+      "test": "JLT-70",
+      "naam": "Emby bevat echt gezien-status (met datum en aantal), hervatpunten en favorieten",
+      "ok": true,
+      "detail": {
+        "gezien": 23,
+        "hervatpunt": 7,
+        "favoriet": 6,
+        "beoordeling": 0
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: inventaris",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-70",
+      "naam": "inventaris (D07-model): versie, gebruikers, bibliotheken, plugins",
+      "ok": true,
+      "detail": {
+        "inventaris": "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03015/corpus-3/werkmap/runs/20261109T210417905798Z-inventaris/inventaris.json",
+        "sha256": "c4e60e569fb5bcc1dc94104a6334586367f29497d68562be23638746966281d4",
+        "gebruikers": 5,
+        "bibliotheken": 2
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: export vóór",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: proefrun 1",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-70",
+      "naam": "proefrun schrijft niets in Jelly Leon",
+      "ok": true,
+      "detail": "0 niet-GET-verzoeken"
+    },
+    {
+      "test": "JLT-72",
+      "naam": "proefrun: alle Emby-kijkgegevens verantwoord",
+      "ok": true,
+      "detail": {
+        "gezien": {
+          "emby": 25,
+          "gekoppeld": 21,
+          "gelijk": 21,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 4
+        },
+        "hervatpunten": {
+          "emby": 7,
+          "gekoppeld": 7,
+          "gelijk": 7,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 0
+        },
+        "favorieten": {
+          "emby": 6,
+          "gekoppeld": 5,
+          "gelijk": 5,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 1
+        },
+        "beoordelingen": {
+          "emby": 0,
+          "gekoppeld": 0,
+          "gelijk": 0,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 0
+        },
+        "spoorkeuzes": {
+          "emby": 33,
+          "gekoppeld": 28,
+          "gelijk": 8,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 25
+        }
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: overzetting 1",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-70",
+      "naam": "alle Jelly Leon-schrijfacties via de officiële routes (Users/New, Policy, Configuration, UserData)",
+      "ok": true,
+      "detail": [
+        "Configuration",
+        "New",
+        "Policy",
+        "UserData"
+      ]
+    },
+    {
+      "test": "JLT-73",
+      "naam": "exportarchief vóór en na de overzetting inhoudelijk identiek (vergelijk-export)",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "test": "JLT-70",
+      "naam": "gezien (datum, aantal), hervatpunten (ticks exact), favorieten: 100 % van de koppelbare items",
+      "ok": true,
+      "detail": {
+        "stats": {
+          "exact_overgezet": 31,
+          "afhandellijst": 5
+        },
+        "emby_items_met_kijkgegevens": 36,
+        "fouten": []
+      }
+    },
+    {
+      "test": "JLT-72",
+      "naam": "0 stil weggelaten: overgezet + afhandellijst = alle Emby-items met kijkgegevens",
+      "ok": true,
+      "detail": {
+        "som": 36,
+        "totaal": 36
+      }
+    },
+    {
+      "test": "JLT-70",
+      "naam": "kind: bibliotheken, leeftijdsgrens, geblokkeerde tag, geen toegang buitenshuis en geen downloads",
+      "ok": true,
+      "detail": {
+        "EnableAllFolders": false,
+        "MaxParentalRating": 10,
+        "BlockedTags": [
+          "Horror"
+        ],
+        "EnableRemoteAccess": false,
+        "EnableContentDownloading": false
+      }
+    },
+    {
+      "test": "JLT-70",
+      "naam": "gast: alleen Films",
+      "ok": true,
+      "detail": [
+        "db4c1708cbb5dd1676284a40f2950aba"
+      ]
+    },
+    {
+      "test": "JLT-70",
+      "naam": "taal- en ondertitelvoorkeuren overgezet (Anna)",
+      "ok": true,
+      "detail": {
+        "AudioLanguagePreference": "eng",
+        "SubtitleLanguagePreference": "dut",
+        "SubtitleMode": "Always"
+      }
+    },
+    {
+      "test": "JLT-70",
+      "naam": "beheerder blijft beheerder; overige gebruikers geen beheerder",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-70",
+      "naam": "geen gebruiker (ook het kind niet) ziet in Jelly Leon iets wat hij of zij in Emby niet mocht zien",
+      "ok": true,
+      "detail": {}
+    },
+    {
+      "test": "JLT-70",
+      "naam": "wachtwoorden niet overgezet (Emby-wachtwoord en leeg wachtwoord geweigerd)",
+      "ok": true,
+      "detail": {
+        "emby_wachtwoord": 401,
+        "leeg": 401
+      }
+    },
+    {
+      "test": "JLT-70",
+      "naam": "vóór/na-rapport per gebruiker: JSON met sha256, Markdown en HTML met akkoordveld",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-70",
+      "naam": "rapport noemt per nieuwe gebruiker dat het wachtwoord niet is overgezet",
+      "ok": true,
+      "detail": [
+        "Anna",
+        "Bram",
+        "Gast",
+        "Kim"
+      ]
+    },
+    {
+      "test": "JLT-72",
+      "naam": "spoorkeuze bij een gewijzigd bestand (zelfde pad, andere grootte) niet overgezet en wel gemeld",
+      "ok": true,
+      "detail": [
+        [
+          "ander_bestand",
+          "Sintel Kort (2010)"
+        ],
+        [
+          "spoorkeuze_niet_overzetbaar",
+          "Sintel (2010)"
+        ]
+      ]
+    },
+    {
+      "test": "JLT-72",
+      "naam": "afhandellijst bevat geen_id, dubbel en ontbreekt (opzettelijke gaten)",
+      "ok": true,
+      "detail": {
+        "wachtwoord_niet_overgezet": 4,
+        "recht_zonder_tegenhanger": 5,
+        "ander_bestand": 1,
+        "geen_id": 2,
+        "spoorkeuze_niet_overzetbaar": 1,
+        "dubbel": 1,
+        "ontbreekt": 2,
+        "recht_handmatig": 2,
+        "recht_strenger": 2
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: proefrun 2",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: overzetting 2",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-71",
+      "naam": "tweede run: 0 schrijfacties naar Jelly Leon (proxy) en 0 gepland",
+      "ok": true,
+      "detail": {
+        "proxy": 0,
+        "tool": 0,
+        "gepland": 0
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "tweede run: inhoudelijk identiek rapport (inhoud-sha256)",
+      "ok": true,
+      "detail": {
+        "run1": "71569c075089d3ff35d71be33e79b52d781cef296f08a5bf8757ed3fc16cd721",
+        "run2": "71569c075089d3ff35d71be33e79b52d781cef296f08a5bf8757ed3fc16cd721"
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: proefrun delta",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: overzetting delta",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-71",
+      "naam": "delta-run neemt precies de Emby-wijzigingen over (3 schrijfacties)",
+      "ok": true,
+      "detail": {
+        "verwacht": 3,
+        "geschreven": 3
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "nieuwere Jelly Leon-waarde (hervatpunt Kim) niet overschreven",
+      "ok": true,
+      "detail": 123456789
+    },
+    {
+      "test": "JLT-71",
+      "naam": "in Emby verwijderde favoriet staat ter beslissing op de afhandellijst",
+      "ok": true,
+      "detail": {
+        "favoriet_verwijderd_in_emby": 1,
+        "wachtwoord_niet_overgezet": 1,
+        "recht_zonder_tegenhanger": 1
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "hervatpunt 'Jelly Leon nieuwer' verklaard in het rapport",
+      "ok": true,
+      "detail": {
+        "wachtwoord_niet_overgezet": 1,
+        "hervatpunt_jelly_leon_nieuwer": 1,
+        "recht_zonder_tegenhanger": 1
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "gezien (datum, aantal), hervatpunten (ticks exact), favorieten: 100 % van de koppelbare items",
+      "ok": true,
+      "detail": {
+        "stats": {
+          "exact_overgezet": 31,
+          "afhandellijst": 5,
+          "uitzondering_jl_nieuwer": 1
+        },
+        "emby_items_met_kijkgegevens": 37,
+        "fouten": []
+      }
+    },
+    {
+      "test": "JLT-72",
+      "naam": "0 stil weggelaten: overgezet + afhandellijst = alle Emby-items met kijkgegevens",
+      "ok": true,
+      "detail": {
+        "som": 37,
+        "totaal": 37
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "afgebroken run: proces hard gestopt na 2 schrijfacties (exit 137)",
+      "ok": true,
+      "detail": {
+        "exit": 137,
+        "schrijfacties": 2
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "hervatten: elke schrijfactie precies één keer (geen dubbele), samen het hele plan",
+      "ok": true,
+      "detail": {
+        "schrijfacties": 5,
+        "gepland": 5,
+        "max_per_item": 1
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "herstel herkende de schrijfactie van vóór de kill als al uitgevoerd",
+      "ok": true,
+      "detail": {
+        "al_uitgevoerd": 1,
+        "niet_uitgevoerd": 0,
+        "onderbroken_run": "20261109T210427393117Z-overzetting",
+        "onduidelijk": 0
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "gezien (datum, aantal), hervatpunten (ticks exact), favorieten: 100 % van de koppelbare items na kill en hervatten",
+      "ok": true,
+      "detail": {
+        "stats": {
+          "exact_overgezet": 34,
+          "afhandellijst": 5,
+          "uitzondering_jl_nieuwer": 1
+        },
+        "emby_items_met_kijkgegevens": 40,
+        "fouten": []
+      }
+    },
+    {
+      "test": "JLT-72",
+      "naam": "0 stil weggelaten: overgezet + afhandellijst = alle Emby-items met kijkgegevens na kill en hervatten",
+      "ok": true,
+      "detail": {
+        "som": 40,
+        "totaal": 40
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: testhaak schrijfpoging",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-73",
+      "naam": "opzettelijke POST/DELETE vanuit de tool geweigerd vóór het netwerk",
+      "ok": true,
+      "detail": [
+        {
+          "methode": "POST",
+          "pad": "/Users/0/PlayedItems/0",
+          "geweigerd": true,
+          "melding": "Emby wordt alleen gelezen: methode POST naar /Users/0/PlayedItems/0 geweigerd vóór het netwerk"
+        },
+        {
+          "methode": "DELETE",
+          "pad": "/Users/0/PlayedItems/0",
+          "geweigerd": true,
+          "melding": "Emby wordt alleen gelezen: methode DELETE naar /Users/0/PlayedItems/0 geweigerd vóór het netwerk"
+        },
+        {
+          "methode": "POST",
+          "pad": "/Library/Refresh",
+          "geweigerd": true,
+          "melding": "Emby wordt alleen gelezen: methode POST naar /Library/Refresh geweigerd vóór het netwerk"
+        },
+        {
+          "methode": "GET",
+          "pad": "/Users/0/Items/Latest",
+          "geweigerd": true,
+          "melding": "Emby-route '/Users/0/Items/Latest' staat niet op de witte lijst; geweigerd vóór het netwerk"
+        }
+      ]
+    },
+    {
+      "test": "JLT-73",
+      "naam": "0 verzoeken anders dan GET naar Emby (loggende proxy, alle runs)",
+      "ok": true,
+      "detail": {
+        "GET": 826
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "alleen routes van de witte lijst",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "test": "JLT-73",
+      "naam": "geen sleutel in een URL",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "test": "JLT-70",
+      "naam": "overstap alleen met akkoord op elk verschil (volledig: toegestaan; één ontbreekt: geweigerd)",
+      "ok": true,
+      "detail": {
+        "volledig": 0,
+        "onvolledig": 6
+      }
+    },
+    {
+      "test": "JLT-70",
+      "naam": "stock-clientprotocol (simulator): inloggen met nieuw wachtwoord en 'Verder kijken' op de exacte tick",
+      "ok": true,
+      "detail": {
+        "Anna": {
+          "verwacht": 1,
+          "gelijk": 1
+        },
+        "Bram": {
+          "verwacht": 0,
+          "gelijk": 0
+        },
+        "Kim": {
+          "verwacht": 2,
+          "gelijk": 2
+        },
+        "Gast": {
+          "verwacht": 0,
+          "gelijk": 0
+        }
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "MediaGuard-simulator: kijkpauze bij een sessie op Emby én op Jelly Leon",
+      "ok": true,
+      "detail": {
+        "emby_s": 0.1,
+        "jelly_leon_s": 0.8
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-koppeling (X-Emby-Token) viel tijdens de hele proef op geen enkel moment weg; Jelly Leon met Authorization: MediaBrowser Token=…",
+      "ok": true,
+      "detail": {
+        "emby": {
+          "ok": 15,
+          "fout": 0
+        },
+        "jelly_leon": {
+          "ok": 15,
+          "fout": 0
+        }
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "geen API-sleutel in logs, rapporten, exports of proxylogs",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "test": "JLT-70",
+      "naam": "herimport: lege Jellyfin heeft de bibliotheek gescand",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "test": "JLT-70",
+      "naam": "herimport uit het archief op een lege Jellyfin (Emby gestopt): verantwoord",
+      "ok": true,
+      "detail": {
+        "gezien": {
+          "emby": 29,
+          "gekoppeld": 25,
+          "gelijk": 25,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 4
+        },
+        "hervatpunten": {
+          "emby": 6,
+          "gekoppeld": 6,
+          "gelijk": 6,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 0
+        },
+        "favorieten": {
+          "emby": 7,
+          "gekoppeld": 6,
+          "gelijk": 6,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 1
+        },
+        "beoordelingen": {
+          "emby": 0,
+          "gekoppeld": 0,
+          "gelijk": 0,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 0
+        },
+        "spoorkeuzes": {
+          "emby": 37,
+          "gekoppeld": 32,
+          "gelijk": 30,
+          "jelly_leon_nieuwer": 0,
+          "afhandellijst": 7
+        }
+      }
+    },
+    {
+      "test": "JLT-70",
+      "naam": "gezien (datum, aantal), hervatpunten (ticks exact), favorieten: 100 % van de koppelbare items herimport uit archief",
+      "ok": true,
+      "detail": {
+        "stats": {
+          "exact_overgezet": 35,
+          "afhandellijst": 5
+        },
+        "emby_items_met_kijkgegevens": 40,
+        "fouten": []
+      }
+    },
+    {
+      "test": "JLT-72",
+      "naam": "0 stil weggelaten: overgezet + afhandellijst = alle Emby-items met kijkgegevens herimport uit archief",
+      "ok": true,
+      "detail": {
+        "som": 40,
+        "totaal": 40
+      }
+    }
+  ],
+  "loadavg_begin": [
+    3.111328125,
+    3.25244140625,
+    2.9755859375
+  ],
+  "testbibliotheek": {
+    "modus": "corpus",
+    "bestanden": [
+      {
+        "boom": "emby",
+        "pad": "Films/Sintel (2010)/Sintel (2010).mkv",
+        "bron": "bron/blender/sintel/Sintel.2010.1080p.mkv",
+        "grootte": 1172428172
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Sintel (2010)/Sintel (2010).mkv",
+        "bron": "bron/blender/sintel/Sintel.2010.1080p.mkv",
+        "grootte": 1172428172
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Big Buck Bunny (2008)/Big Buck Bunny (2008).mp4",
+        "bron": "bron/blender/bbb/uitgepakt/bbb_sunflower_1080p_30fps_normal.mp4",
+        "grootte": 276134947
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Big Buck Bunny/Big Buck Bunny (2008).mp4",
+        "bron": "bron/blender/bbb/uitgepakt/bbb_sunflower_1080p_30fps_normal.mp4",
+        "grootte": 276134947
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Elephants Dream (2006)/Elephants Dream (2006).mov",
+        "bron": "bron/blender/ed/elephantsdream-720-h264-st-aac.mov",
+        "grootte": 152496338
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Elephants Dream (2006)/Elephants Dream (2006).mov",
+        "bron": "bron/blender/ed/elephantsdream-720-h264-st-aac.mov",
+        "grootte": 152496338
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Tears of Steel (2012)/Tears of Steel (2012).mov",
+        "bron": "bron/blender/tos/uitgepakt/tears_of_steel_1080p.mov",
+        "grootte": 583774083
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Tears of Steel (2012)/Tears of Steel (2012).mov",
+        "bron": "bron/blender/tos/uitgepakt/tears_of_steel_1080p.mov",
+        "grootte": 583774083
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Tears of Steel Multiaudio (2012)/Tears of Steel Multiaudio (2012).mkv",
+        "bron": "afgeleid/formaten/tos-multiaudio-5.1-me-subs.mkv",
+        "grootte": 700191812
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Tears of Steel Multiaudio (2012)/Tears of Steel Multiaudio (2012).mkv",
+        "bron": "afgeleid/formaten/tos-multiaudio-5.1-me-subs.mkv",
+        "grootte": 700191812
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Cosmos Laundromat (2015)/Cosmos Laundromat (2015).mp4",
+        "bron": "bron/blender/cosmos/Cosmos_Laundromat_First_Cycle_2k.mp4",
+        "grootte": 525038123
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Caminandes Llama Drama (2013)/Caminandes Llama Drama (2013).mp4",
+        "bron": "bron/blender/caminandes/01_llama_drama_1080p.mp4",
+        "grootte": 35103580
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Caminandes Llama Drama (2013)/Caminandes Llama Drama (2013).mp4",
+        "bron": "bron/blender/caminandes/01_llama_drama_1080p.mp4",
+        "grootte": 35103580
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Hero (2018)/Hero (2018).mp4",
+        "bron": "bron/blender/hero/hero.mp4",
+        "grootte": 53008532
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Hero Blender Studio (2018)/Hero Blender Studio (2018).mp4",
+        "bron": "bron/blender/hero/hero.mp4",
+        "grootte": 53008532
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Spring (2019)/Spring (2019).mkv",
+        "bron": "bron/blender/spring/Spring-Blender-Open-Movie.mkv",
+        "grootte": 81782463
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Spring A (2019)/Spring A (2019).mkv",
+        "bron": "bron/blender/spring/Spring-Blender-Open-Movie.mkv",
+        "grootte": 81782463
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Spring B (2019)/Spring B (2019).mkv",
+        "bron": "bron/blender/spring/Spring-Blender-Open-Movie.mkv",
+        "grootte": 81782463
+      },
+      {
+        "boom": "emby",
+        "pad": "Films/Sintel Kort (2010)/Sintel Kort (2010).mkv",
+        "bron": "bron/blender/sintel/Sintel.2010.1080p.mkv",
+        "grootte": 1172428172
+      },
+      {
+        "boom": "jl",
+        "pad": "Films/Sintel Kort (2010)/Sintel Kort (2010).mkv",
+        "bron": "afgeleid/kwaliteit/sintel-60s-afgekapt-70pct.mkv",
+        "grootte": 48725294
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/B03 Testserie/Season 01/B03 Testserie S01E01.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E01.mkv",
+        "grootte": 12791415
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/B03 Testserie/Season 01/B03 Testserie S01E01.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E01.mkv",
+        "grootte": 12791415
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/B03 Testserie/Season 01/B03 Testserie S01E02.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E02.mkv",
+        "grootte": 19891274
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/B03 Testserie/Season 01/B03 Testserie S01E02.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E02.mkv",
+        "grootte": 19891274
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/B03 Testserie/Season 01/B03 Testserie S01E03.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E03.mkv",
+        "grootte": 22147865
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/B03 Testserie/Season 01/B03 Testserie S01E03.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E03.mkv",
+        "grootte": 22147865
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/B03 Testserie/Season 02/B03 Testserie S02E01.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 02/B03 Testserie S02E01.mkv",
+        "grootte": 18689228
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/B03 Testserie/Season 02/B03 Testserie S02E01.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 02/B03 Testserie S02E01.mkv",
+        "grootte": 18689228
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/B03 Testserie/Season 02/B03 Testserie S02E02.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 02/B03 Testserie S02E02.mkv",
+        "grootte": 18886224
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/B03 Testserie/Season 02/B03 Testserie S02E02.mkv",
+        "bron": "afgeleid/series/B03 Testserie/Season 02/B03 Testserie S02E02.mkv",
+        "grootte": 18886224
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/B03 Anime/B03 Anime - 01.mkv",
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E01.mkv",
+        "grootte": 15737352
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/B03 Anime/Season 01/B03 Anime S01E01.mkv",
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E01.mkv",
+        "grootte": 15737352
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/B03 Anime/B03 Anime - 02.mkv",
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E02.mkv",
+        "grootte": 16462320
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/B03 Anime/Season 01/B03 Anime S01E02.mkv",
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E02.mkv",
+        "grootte": 16462320
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/B03 Anime/B03 Anime - 03.mkv",
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E03.mkv",
+        "grootte": 9712903
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/B03 Anime/Season 02/B03 Anime S02E01.mkv",
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E03.mkv",
+        "grootte": 9712903
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E01.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E01.720p.x264-VODO.mp4",
+        "grootte": 180998866
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E01.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E01.720p.x264-VODO.mp4",
+        "grootte": 180998866
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E02.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E02.720p.x264-VODO.mp4",
+        "grootte": 224326718
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E02.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E02.720p.x264-VODO.mp4",
+        "grootte": 224326718
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E03.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E03.720p.x264-VODO.mp4",
+        "grootte": 183579869
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E03.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E03.720p.x264-VODO.mp4",
+        "grootte": 183579869
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E04.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E04.720p.x264-VODO.mp4",
+        "grootte": 197431188
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E04.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E04.720p.x264-VODO.mp4",
+        "grootte": 197431188
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E05.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E05.720p.x264-VODO.mp4",
+        "grootte": 232555099
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E05.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E05.720p.x264-VODO.mp4",
+        "grootte": 232555099
+      },
+      {
+        "boom": "emby",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E06.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E06.720p.x264-VODO.mp4",
+        "grootte": 256467554
+      },
+      {
+        "boom": "jl",
+        "pad": "Series/Pioneer One/Season 01/Pioneer One S01E06.mp4",
+        "bron": "bron/pioneer-one/Pioneer.One.S01E06.720p.x264-VODO.mp4",
+        "grootte": 256467554
+      }
+    ],
+    "corpuscontrole": [
+      {
+        "bron": "afgeleid/formaten/tos-multiaudio-5.1-me-subs.mkv",
+        "sha256": "945a0414370cde8fd2929fe8a84982cb74bc8f0d6bb7cc1bc77fe5beb415b1d8",
+        "manifest": "945a0414370cde8fd2929fe8a84982cb74bc8f0d6bb7cc1bc77fe5beb415b1d8",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/kwaliteit/sintel-60s-afgekapt-70pct.mkv",
+        "sha256": "e43dda0e6e1e1c28d7685050a7f386b91a6af636fe3198eecf111a3b2a0e6a1e",
+        "manifest": "e43dda0e6e1e1c28d7685050a7f386b91a6af636fe3198eecf111a3b2a0e6a1e",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E01.mkv",
+        "sha256": "61c562ca7849dce8035441b18186d51b10ec1cf20916904016b5435736ae8c0c",
+        "manifest": "61c562ca7849dce8035441b18186d51b10ec1cf20916904016b5435736ae8c0c",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E02.mkv",
+        "sha256": "4f6c6c34e5e0a44ed255851e08f77245a16ed801f4e17f8c11253b55a6af08ab",
+        "manifest": "4f6c6c34e5e0a44ed255851e08f77245a16ed801f4e17f8c11253b55a6af08ab",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/series/B03 Anime/Season 01/B03 Anime S01E03.mkv",
+        "sha256": "e4b5e999cc1b1d4619bf3a69485e42710a818cae44810e6c4345815e7a1daa65",
+        "manifest": "e4b5e999cc1b1d4619bf3a69485e42710a818cae44810e6c4345815e7a1daa65",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E01.mkv",
+        "sha256": "82bd39fca7138322012481ed586a616961ebf12b4143111e9b75d22907aaa278",
+        "manifest": "82bd39fca7138322012481ed586a616961ebf12b4143111e9b75d22907aaa278",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E02.mkv",
+        "sha256": "6a475eaf012618398c962d2ecdad2ebbe1d351df1282922964626152ad539414",
+        "manifest": "6a475eaf012618398c962d2ecdad2ebbe1d351df1282922964626152ad539414",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/series/B03 Testserie/Season 01/B03 Testserie S01E03.mkv",
+        "sha256": "98a94625bfb0cd633d0ef5e50152e5d11cddc6a2338a5b05622cccc4073e1cad",
+        "manifest": "98a94625bfb0cd633d0ef5e50152e5d11cddc6a2338a5b05622cccc4073e1cad",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/series/B03 Testserie/Season 02/B03 Testserie S02E01.mkv",
+        "sha256": "b94dde9038a9f15e897fe001c5d1853288090f9474cec3d65b87a8d0d48fb1aa",
+        "manifest": "b94dde9038a9f15e897fe001c5d1853288090f9474cec3d65b87a8d0d48fb1aa",
+        "klopt": true
+      },
+      {
+        "bron": "afgeleid/series/B03 Testserie/Season 02/B03 Testserie S02E02.mkv",
+        "sha256": "8643c8b6d6c65facd7c6ceac1ba90b06245cb07b194ef83afc1f7b80520499b3",
+        "manifest": "8643c8b6d6c65facd7c6ceac1ba90b06245cb07b194ef83afc1f7b80520499b3",
+        "klopt": true
+      },
+      {
+        "bron": "bron/blender/bbb/uitgepakt/bbb_sunflower_1080p_30fps_normal.mp4",
+        "sha256": "ae51005850b0ff757fe60c3dd7a12d754d3cd2397d87d939b55235e457f97658",
+        "manifest": "ae51005850b0ff757fe60c3dd7a12d754d3cd2397d87d939b55235e457f97658",
+        "klopt": true
+      },
+      {
+        "bron": "bron/blender/caminandes/01_llama_drama_1080p.mp4",
+        "sha256": "90cbebdd3ce684a7f8716d45dee1f52d2b1608fd22966637b4d26af1a6db0ebf",
+        "manifest": "90cbebdd3ce684a7f8716d45dee1f52d2b1608fd22966637b4d26af1a6db0ebf",
+        "klopt": true
+      },
+      {
+        "bron": "bron/blender/cosmos/Cosmos_Laundromat_First_Cycle_2k.mp4",
+        "sha256": "039ff018ecebf0746a3d6b68e74de10c2fc3f2e99122131efb795d5e81512354",
+        "manifest": "039ff018ecebf0746a3d6b68e74de10c2fc3f2e99122131efb795d5e81512354",
+        "klopt": true
+      },
+      {
+        "bron": "bron/blender/ed/elephantsdream-720-h264-st-aac.mov",
+        "sha256": "6fc295e0e92835316ec95929ccfc664b05ed2434f673e6f5e684f98f7558a547",
+        "manifest": "6fc295e0e92835316ec95929ccfc664b05ed2434f673e6f5e684f98f7558a547",
+        "klopt": true
+      },
+      {
+        "bron": "bron/blender/hero/hero.mp4",
+        "sha256": "1a2d85e9a0303c1c0eb320b2b755705551a5344b3c60dc3ced8166d93d329800",
+        "manifest": "1a2d85e9a0303c1c0eb320b2b755705551a5344b3c60dc3ced8166d93d329800",
+        "klopt": true
+      },
+      {
+        "bron": "bron/blender/sintel/Sintel.2010.1080p.mkv",
+        "sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920",
+        "manifest": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920",
+        "klopt": true
+      },
+      {
+        "bron": "bron/blender/spring/Spring-Blender-Open-Movie.mkv",
+        "sha256": "916523651f3d6a38ec98a9f35e48daf7591e21baba473e1d1cf9a7c5dac42031",
+        "manifest": "916523651f3d6a38ec98a9f35e48daf7591e21baba473e1d1cf9a7c5dac42031",
+        "klopt": true
+      },
+      {
+        "bron": "bron/blender/tos/uitgepakt/tears_of_steel_1080p.mov",
+        "sha256": "99486359be7e3681168a0fe94e1cbb0284c48b57b2a3ce7df4fa75e185987a15",
+        "manifest": "99486359be7e3681168a0fe94e1cbb0284c48b57b2a3ce7df4fa75e185987a15",
+        "klopt": true
+      },
+      {
+        "bron": "bron/pioneer-one/Pioneer.One.S01E01.720p.x264-VODO.mp4",
+        "sha256": "94a00a806f0830f0dca8d1b9e4727940fa9892e347916c3189bab2e39c3106f9",
+        "manifest": "94a00a806f0830f0dca8d1b9e4727940fa9892e347916c3189bab2e39c3106f9",
+        "klopt": true
+      },
+      {
+        "bron": "bron/pioneer-one/Pioneer.One.S01E02.720p.x264-VODO.mp4",
+        "sha256": "45ef3c38b2d15f2631d1014c2f5d38cef905efbba8bea85ce8b97de7bf0c431f",
+        "manifest": "45ef3c38b2d15f2631d1014c2f5d38cef905efbba8bea85ce8b97de7bf0c431f",
+        "klopt": true
+      },
+      {
+        "bron": "bron/pioneer-one/Pioneer.One.S01E03.720p.x264-VODO.mp4",
+        "sha256": "414423fc83fc10810fd483f514af0481c759f9ab2310411970527e82e0aacc01",
+        "manifest": "414423fc83fc10810fd483f514af0481c759f9ab2310411970527e82e0aacc01",
+        "klopt": true
+      },
+      {
+        "bron": "bron/pioneer-one/Pioneer.One.S01E04.720p.x264-VODO.mp4",
+        "sha256": "3e0357b27926d9b31deaf1f27bfd3deaf5d47f35424edd3a2f231a2b7b335fe0",
+        "manifest": "3e0357b27926d9b31deaf1f27bfd3deaf5d47f35424edd3a2f231a2b7b335fe0",
+        "klopt": true
+      },
+      {
+        "bron": "bron/pioneer-one/Pioneer.One.S01E05.720p.x264-VODO.mp4",
+        "sha256": "1930d3ad95102c81101ca6a01c38619d4cfcd2e17afbc2997d72dbd426218f56",
+        "manifest": "1930d3ad95102c81101ca6a01c38619d4cfcd2e17afbc2997d72dbd426218f56",
+        "klopt": true
+      },
+      {
+        "bron": "bron/pioneer-one/Pioneer.One.S01E06.720p.x264-VODO.mp4",
+        "sha256": "e3f6a3176c1fe09427467cb9e9197f165d515a6a8b4b20fb923a0409ca37aaa7",
+        "manifest": "e3f6a3176c1fe09427467cb9e9197f165d515a6a8b4b20fb923a0409ca37aaa7",
+        "klopt": true
+      }
+    ]
+  },
+  "servers": {
+    "emby": {
+      "versie": "4.10.2.0"
+    },
+    "jellyfin": {
+      "versie": "12.4.0",
+      "product": "Jellyfin Server"
+    }
+  },
+  "emby_afleveringen": {
+    "Series/B03 Anime/B03 Anime - 01.mkv": {
+      "seizoen": 1,
+      "aflevering": 1
+    },
+    "Series/B03 Anime/B03 Anime - 02.mkv": {
+      "seizoen": 1,
+      "aflevering": 2
+    },
+    "Series/B03 Anime/B03 Anime - 03.mkv": {
+      "seizoen": 1,
+      "aflevering": 3
+    }
+  },
+  "spoorkeuzes_gezet": [
+    "spoorkeuze ondertitel gezet voor /mnt/emby/media/Films/Sintel (2010)/Sintel (2010).mkv",
+    "spoorkeuze audio gezet voor /mnt/emby/media/Films/Tears of Steel Multiaudio (2012)/Tears of Steel Multiaudio (2012).mkv",
+    "spoorkeuze ondertitel gezet voor /mnt/emby/media/Films/Sintel Kort (2010)/Sintel Kort (2010).mkv"
+  ],
+  "emby_kijkgegevens_aantallen": {
+    "beheerder": 13,
+    "Anna": 6,
+    "Bram": 10,
+    "Kim": 5,
+    "Gast": 2
+  },
+  "emby_kijkgegevens_soorten": {
+    "gezien": 23,
+    "hervatpunt": 7,
+    "favoriet": 6,
+    "beoordeling": 0
+  },
+  "beoordeling_diagnose": {
+    "detail_userdata": {
+      "PlaybackPositionTicks": 0,
+      "PlayCount": 1,
+      "IsFavorite": false,
+      "LastPlayedDate": "2026-10-12T20:00:00.0000000Z",
+      "Played": true
+    },
+    "lijst_userdata": {
+      "PlaybackPositionTicks": 0,
+      "PlayCount": 1,
+      "IsFavorite": false,
+      "LastPlayedDate": "2026-10-12T20:00:00.0000000Z",
+      "Played": true
+    }
+  },
+  "overzetting_1": {
+    "schrijfacties_tool": 43,
+    "proxy_niet_get": 43,
+    "routes": {
+      "Users": 12,
+      "UserItems/UserData": 31
+    },
+    "totaal": {
+      "gezien": {
+        "emby": 25,
+        "gekoppeld": 21,
+        "gelijk": 21,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 4
+      },
+      "hervatpunten": {
+        "emby": 7,
+        "gekoppeld": 7,
+        "gelijk": 7,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 0
+      },
+      "favorieten": {
+        "emby": 6,
+        "gekoppeld": 5,
+        "gelijk": 5,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 1
+      },
+      "beoordelingen": {
+        "emby": 0,
+        "gekoppeld": 0,
+        "gelijk": 0,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 0
+      },
+      "spoorkeuzes": {
+        "emby": 33,
+        "gekoppeld": 28,
+        "gelijk": 26,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 7
+      }
+    }
+  },
+  "spoorkeuzes_rapport": [
+    {
+      "reden": "ander_bestand",
+      "titel": "Sintel Kort (2010)",
+      "uitleg": "Het bestand verschilt (Emby 1172428172 bytes, Jelly Leon 48725294 bytes); de spoorkeuze (audio: eng · ac3 · “AC3 5.1 @ 640 Kbps”; ondertitel: eng · subrip) wordt daarom niet overgenomen."
+    },
+    {
+      "reden": "spoorkeuze_niet_overzetbaar",
+      "titel": "Sintel (2010)",
+      "uitleg": "Emby kiest voor deze gebruiker audio: eng · ac3 · “AC3 5.1 @ 640 Kbps”; ondertitel: uit/standaard; Jelly Leon kiest nu audio: eng · ac3 · “AC3 5.1 @ 640 Kbps”; ondertitel: deu · subrip. Jellyfin 12.4 heeft geen officiële route om een onthouden spoorkeuze te zetten (capability_unavailable): kies het spoor één keer zelf in Jelly Leon, dan onthoudt Jelly Leon het."
+    }
+  ],
+  "beoordelingen": {
+    "afhandellijst": 0,
+    "emby": 0,
+    "gekoppeld": 0,
+    "gelijk": 0,
+    "jelly_leon_nieuwer": 0
+  },
+  "afhandellijst_redenen": {
+    "wachtwoord_niet_overgezet": 4,
+    "recht_zonder_tegenhanger": 5,
+    "ander_bestand": 1,
+    "geen_id": 2,
+    "spoorkeuze_niet_overzetbaar": 1,
+    "dubbel": 1,
+    "ontbreekt": 2,
+    "recht_handmatig": 2,
+    "recht_strenger": 2
+  },
+  "verkeer": {
+    "emby": {
+      "verzoeken": 826,
+      "methodes": {
+        "GET": 826
+      }
+    },
+    "jelly_leon": {
+      "GET": 431,
+      "POST": 51
+    }
+  },
+  "archief": {
+    "voor": {
+      "archief": "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03015/corpus-3/archief/emby-kijkgegevens-voor.json",
+      "sha256": "9e4b71e06adefb61ab38332f6c8792599e62b53d9e1c8cb5c0420376f1fa6e17",
+      "inhoud_sha256": "28fbeb1723f50aca17356ec89398063df1e21807c366ebc24c50df64c54a062a",
+      "gebruikers": 5,
+      "items_met_kijkgegevens": 36
+    },
+    "na_sha256": "d96fb8cc557477303d1aec4f3619b0e5f0134b32670f1242aeb265856750033e"
+  },
+  "rapporten": {
+    "proefrun_1": "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03015/corpus-3/werkmap/runs/20261109T210418507835Z-proefrun/rapport.json",
+    "overzetting_1": "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03015/corpus-3/werkmap/runs/20261109T210419198354Z-overzetting/rapport.json",
+    "delta": "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03015/corpus-3/werkmap/runs/20261109T210425484775Z-overzetting/rapport.json",
+    "na_kill": "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03015/corpus-3/werkmap/runs/20261109T210427906898Z-overzetting/rapport.json",
+    "herimport": "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03015/corpus-3/werkmap-herimport/runs/20261109T210457721805Z-overzetting/rapport.json"
+  },
+  "mediaguard_sim": {
+    "polls": {
+      "emby": {
+        "ok": 15,
+        "fout": 0
+      },
+      "jelly_leon": {
+        "ok": 15,
+        "fout": 0
+      }
+    },
+    "fouten": [],
+    "kijkpauze_waarnemingen": {
+      "emby": 1,
+      "jelly_leon": 1
+    }
+  },
+  "einde": "2026-11-09T21:05:01Z",
+  "loadavg_einde": [
+    4.4912109375,
+    3.65673828125,
+    3.24951171875
+  ],
+  "samenvatting": {
+    "controles": 57,
+    "geslaagd": 57,
+    "mislukt": 0
+  },
+  "per_test": {
+    "B03-016": "Sim-geslaagd (1/1)",
+    "JLT-70": "Sim-geslaagd (21/21)",
+    "JLT-71": "Sim-geslaagd (11/11)",
+    "JLT-72": "Sim-geslaagd (7/7)",
+    "JLT-73": "Sim-geslaagd (17/17)"
+  }
+}

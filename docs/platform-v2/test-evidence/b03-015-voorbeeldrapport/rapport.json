@@ -1,0 +1,2059 @@
+{
+  "akkoord": {
+    "aantal": 20,
+    "vereist_voor": "overstap (cutover)",
+    "verschillen": [
+      "V-010159e30e28",
+      "V-094f9aa8d082",
+      "V-3fd1d19565bb",
+      "V-40b0a56e3b97",
+      "V-42020ffc5d64",
+      "V-4cdc4ff2c7e9",
+      "V-4fef5bd2376b",
+      "V-735dff98b365",
+      "V-8ee191a31120",
+      "V-92e6970f8f0b",
+      "V-961a7a569153",
+      "V-a81eeeadd415",
+      "V-aec6ae9eeb6f",
+      "V-b38540e9057a",
+      "V-be03623a4c23",
+      "V-c29de6c68cd0",
+      "V-dfb77f6479ef",
+      "V-ea35d9113c31",
+      "V-f4c4d1f84f90",
+      "V-f72fc53b6174"
+    ]
+  },
+  "bron": {
+    "archief": false,
+    "export_bestand": "emby-export.json",
+    "export_inhoud_sha256": "28fbeb1723f50aca17356ec89398063df1e21807c366ebc24c50df64c54a062a",
+    "export_sha256": "7b6ea7b99606aac96aefbc3cd39fcc7cbf2d67410eaffc79ed9344d1b5678d64",
+    "server_id": "c0c218b8c213491d991cfadbaafceb12",
+    "server_naam": "f1762f44b308",
+    "versie": "4.10.2.0"
+  },
+  "doel": {
+    "product": "Jellyfin Server",
+    "server_id": "4c86bc2e6e614797b008ee6373220bee",
+    "server_naam": "bc475772fa0e",
+    "versie": "12.4.0"
+  },
+  "gemaakt": "2026-11-09T21:04:21Z",
+  "inhoud_sha256": "71569c075089d3ff35d71be33e79b52d781cef296f08a5bf8757ed3fc16cd721",
+  "plan_schrijfacties": 43,
+  "plan_sha256": "134d360e560a8f12459731b93d4e82555162eb3b3acb77233180f23c27ae7ba0",
+  "run": {
+    "akkoord_door": "proefrun-harnas (simulatie van de gebruiker)",
+    "duur_s": 2.1,
+    "herstel": {
+      "al_uitgevoerd": 0,
+      "niet_uitgevoerd": 0,
+      "onderbroken_run": null,
+      "onduidelijk": 0
+    },
+    "id": "20261109T210419198354Z-overzetting",
+    "niet_bevestigd": [],
+    "per_soort": {
+      "beleid": 4,
+      "configuratie": 4,
+      "gebruiker": 4,
+      "userdata": 31
+    },
+    "schrijfacties": 43
+  },
+  "schema": "jelly-leon/emby-overname-rapport/1",
+  "soort": "overzetting",
+  "toestand": {
+    "alleen_in_jelly_leon": [],
+    "bibliotheken": {
+      "gekoppeld": {
+        "Films": "Films",
+        "Series": "Series"
+      },
+      "niet_gekoppeld": []
+    },
+    "gebruikers": [
+      {
+        "afhandellijst": [
+          {
+            "id": "V-961a7a569153",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "actie",
+            "reden": "wachtwoord_niet_overgezet",
+            "soort": "gebruiker",
+            "uitleg": "Wachtwoorden zijn niet over te zetten (Emby geeft ze niet vrij). Stel in Jelly Leon een nieuw wachtwoord in (Dashboard → Gebruikers → deze gebruiker → Wachtwoord) of gebruik SSO; tot dan kan niemand als deze gebruiker inloggen."
+          },
+          {
+            "id": "V-4cdc4ff2c7e9",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "kennisname",
+            "reden": "recht_zonder_tegenhanger",
+            "soort": "rechten",
+            "uitleg": "Emby-instellingen zonder tegenhanger in Jelly Leon (raken geen toegang tot media): AllowCameraUpload, EnableSubtitleDownloading, EnableTranscodingQuality, IsHiddenRemotely."
+          },
+          {
+            "id": "V-a81eeeadd415",
+            "item": {
+              "emby_id": "23",
+              "grootte": 1172428172,
+              "pad_emby": "/mnt/emby/media/Films/Sintel Kort (2010)/Sintel Kort (2010).mkv",
+              "pad_jelly_leon": "/data/media/Films/Sintel Kort (2010)/Sintel Kort (2010).mkv",
+              "provider_ids": {
+                "imdb": "tt9900100"
+              },
+              "titel": "Sintel Kort (2010)",
+              "type": "Movie"
+            },
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "beslissing",
+            "reden": "ander_bestand",
+            "soort": "spoorkeuze",
+            "uitleg": "Het bestand verschilt (Emby 1172428172 bytes, Jelly Leon 48725294 bytes); de spoorkeuze (audio: eng · ac3 · “AC3 5.1 @ 640 Kbps”; ondertitel: eng · subrip) wordt daarom niet overgenomen."
+          }
+        ],
+        "beheerder": false,
+        "emby_id": "cc8ad1091f9741afb37d0a0e11e99ad9",
+        "emby_naam": "Anna",
+        "jelly_leon_id": "2efe451b1764447e8c0413b5588af502",
+        "jelly_leon_naam": "Anna",
+        "rechten": [
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsAdministrator"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableUserPreferenceAccess"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteControlOfOtherUsers"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSharedDeviceControl"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaPlayback"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableAudioPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableVideoPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePlaybackRemuxing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDeletion"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDownloading"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSubtitleManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSyncTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaConversion"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePublicSharing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsDisabled"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsHidden"
+          },
+          {
+            "emby": "alle bibliotheken",
+            "jelly_leon": "alle bibliotheken",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bibliotheektoegang"
+          },
+          {
+            "emby": null,
+            "jelly_leon": null,
+            "status": "gelijk",
+            "uitleg": "geen leeftijdsgrens",
+            "veld": "MaxParentalRating"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Geblokkeerde tags"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Items zonder classificatie blokkeren"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Kanalen"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Apparaten"
+          },
+          {
+            "emby": 0,
+            "jelly_leon": 0,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bitrategrens buitenshuis"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "IsHiddenRemotely"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableTranscodingQuality"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableSubtitleDownloading"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "AllowCameraUpload"
+          },
+          {
+            "emby": "eng",
+            "jelly_leon": "eng",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "AudioLanguagePreference"
+          },
+          {
+            "emby": "dut",
+            "jelly_leon": "dut",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "SubtitleLanguagePreference"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "PlayDefaultAudioTrack"
+          },
+          {
+            "emby": "Always",
+            "jelly_leon": "Always",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "SubtitleMode"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "DisplayMissingEpisodes"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "HidePlayedInLatest"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberAudioSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberSubtitleSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableNextEpisodeAutoPlay"
+          }
+        ],
+        "status": "aangemaakt_door_tool",
+        "telling": {
+          "beoordelingen": {
+            "afhandellijst": 0,
+            "emby": 0,
+            "gekoppeld": 0,
+            "gelijk": 0,
+            "jelly_leon_nieuwer": 0
+          },
+          "favorieten": {
+            "afhandellijst": 0,
+            "emby": 1,
+            "gekoppeld": 1,
+            "gelijk": 1,
+            "jelly_leon_nieuwer": 0
+          },
+          "gezien": {
+            "afhandellijst": 0,
+            "emby": 4,
+            "gekoppeld": 4,
+            "gelijk": 4,
+            "jelly_leon_nieuwer": 0
+          },
+          "hervatpunten": {
+            "afhandellijst": 0,
+            "emby": 2,
+            "gekoppeld": 2,
+            "gelijk": 2,
+            "jelly_leon_nieuwer": 0
+          },
+          "spoorkeuzes": {
+            "afhandellijst": 1,
+            "emby": 6,
+            "gekoppeld": 6,
+            "gelijk": 5,
+            "jelly_leon_nieuwer": 0
+          }
+        },
+        "verantwoord": {
+          "klopt": true,
+          "met_kijkgegevens": 6,
+          "verantwoord": 6
+        },
+        "wachtwoord": "niet overgezet",
+        "zichtbaarheid": {
+          "alleen_in_jelly_leon": 8,
+          "emby": 42,
+          "jelly_leon": 34,
+          "ruimer": 0,
+          "smaller": 0
+        }
+      },
+      {
+        "afhandellijst": [
+          {
+            "id": "V-c29de6c68cd0",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "actie",
+            "reden": "wachtwoord_niet_overgezet",
+            "soort": "gebruiker",
+            "uitleg": "Wachtwoorden zijn niet over te zetten (Emby geeft ze niet vrij). Stel in Jelly Leon een nieuw wachtwoord in (Dashboard → Gebruikers → deze gebruiker → Wachtwoord) of gebruik SSO; tot dan kan niemand als deze gebruiker inloggen."
+          },
+          {
+            "id": "V-42020ffc5d64",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "kennisname",
+            "reden": "recht_zonder_tegenhanger",
+            "soort": "rechten",
+            "uitleg": "Emby-instellingen zonder tegenhanger in Jelly Leon (raken geen toegang tot media): AllowCameraUpload, EnableSubtitleDownloading, EnableTranscodingQuality, IsHiddenRemotely."
+          }
+        ],
+        "beheerder": false,
+        "emby_id": "7970dfaf3f1d45068cc36a963f67415e",
+        "emby_naam": "Bram",
+        "jelly_leon_id": "5b53e44f18a640098b5d380a08012391",
+        "jelly_leon_naam": "Bram",
+        "rechten": [
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsAdministrator"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableUserPreferenceAccess"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteControlOfOtherUsers"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSharedDeviceControl"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaPlayback"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableAudioPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableVideoPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePlaybackRemuxing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDeletion"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDownloading"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSubtitleManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSyncTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaConversion"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePublicSharing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsDisabled"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsHidden"
+          },
+          {
+            "emby": "alle bibliotheken",
+            "jelly_leon": "alle bibliotheken",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bibliotheektoegang"
+          },
+          {
+            "emby": null,
+            "jelly_leon": null,
+            "status": "gelijk",
+            "uitleg": "geen leeftijdsgrens",
+            "veld": "MaxParentalRating"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Geblokkeerde tags"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Items zonder classificatie blokkeren"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Kanalen"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Apparaten"
+          },
+          {
+            "emby": 0,
+            "jelly_leon": 0,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bitrategrens buitenshuis"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "IsHiddenRemotely"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableTranscodingQuality"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableSubtitleDownloading"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "AllowCameraUpload"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "PlayDefaultAudioTrack"
+          },
+          {
+            "emby": "OnlyForced",
+            "jelly_leon": "OnlyForced",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "SubtitleMode"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "DisplayMissingEpisodes"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "HidePlayedInLatest"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberAudioSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberSubtitleSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableNextEpisodeAutoPlay"
+          }
+        ],
+        "status": "aangemaakt_door_tool",
+        "telling": {
+          "beoordelingen": {
+            "afhandellijst": 0,
+            "emby": 0,
+            "gekoppeld": 0,
+            "gelijk": 0,
+            "jelly_leon_nieuwer": 0
+          },
+          "favorieten": {
+            "afhandellijst": 0,
+            "emby": 2,
+            "gekoppeld": 2,
+            "gelijk": 2,
+            "jelly_leon_nieuwer": 0
+          },
+          "gezien": {
+            "afhandellijst": 0,
+            "emby": 7,
+            "gekoppeld": 7,
+            "gelijk": 7,
+            "jelly_leon_nieuwer": 0
+          },
+          "hervatpunten": {
+            "afhandellijst": 0,
+            "emby": 1,
+            "gekoppeld": 1,
+            "gelijk": 1,
+            "jelly_leon_nieuwer": 0
+          },
+          "spoorkeuzes": {
+            "afhandellijst": 0,
+            "emby": 9,
+            "gekoppeld": 9,
+            "gelijk": 9,
+            "jelly_leon_nieuwer": 0
+          }
+        },
+        "verantwoord": {
+          "klopt": true,
+          "met_kijkgegevens": 10,
+          "verantwoord": 10
+        },
+        "wachtwoord": "niet overgezet",
+        "zichtbaarheid": {
+          "alleen_in_jelly_leon": 8,
+          "emby": 42,
+          "jelly_leon": 34,
+          "ruimer": 0,
+          "smaller": 0
+        }
+      },
+      {
+        "afhandellijst": [
+          {
+            "id": "V-be03623a4c23",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "actie",
+            "reden": "wachtwoord_niet_overgezet",
+            "soort": "gebruiker",
+            "uitleg": "Wachtwoorden zijn niet over te zetten (Emby geeft ze niet vrij). Stel in Jelly Leon een nieuw wachtwoord in (Dashboard → Gebruikers → deze gebruiker → Wachtwoord) of gebruik SSO; tot dan kan niemand als deze gebruiker inloggen."
+          },
+          {
+            "id": "V-4fef5bd2376b",
+            "item": {
+              "emby_id": "22",
+              "grootte": 53008532,
+              "pad_emby": "/mnt/emby/media/Films/Hero (2018)/Hero (2018).mp4",
+              "pad_jelly_leon": "/data/media/Films/Hero (2018)/Hero (2018).mp4",
+              "provider_ids": {},
+              "titel": "Hero (2018)",
+              "type": "Movie"
+            },
+            "kijkgegevens": {
+              "aantal": 1,
+              "beoordeling": null,
+              "favoriet": false,
+              "gezien": true,
+              "laatst": "2026-10-24T20:00:00.0000000Z",
+              "positie": 0,
+              "vind_ik_leuk": null
+            },
+            "kijkgegevens_tekst": "gezien (1×, laatst 24-10-2026 20:00:00 UTC)",
+            "klasse": "beslissing",
+            "reden": "geen_id",
+            "soort": "item",
+            "uitleg": "geen provider-ID's en geen item op hetzelfde pad in Jelly Leon. pad /data/media/Films/Hero (2018)/Hero (2018).mp4 niet gevonden"
+          },
+          {
+            "id": "V-ea35d9113c31",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "kennisname",
+            "reden": "recht_zonder_tegenhanger",
+            "soort": "rechten",
+            "uitleg": "Emby-instellingen zonder tegenhanger in Jelly Leon (raken geen toegang tot media): AllowCameraUpload, EnableSubtitleDownloading, EnableTranscodingQuality, IsHiddenRemotely."
+          },
+          {
+            "id": "V-735dff98b365",
+            "item": {
+              "emby_id": "17",
+              "grootte": 1172428172,
+              "pad_emby": "/mnt/emby/media/Films/Sintel (2010)/Sintel (2010).mkv",
+              "pad_jelly_leon": "/data/media/Films/Sintel (2010)/Sintel (2010).mkv",
+              "provider_ids": {
+                "imdb": "tt1727587",
+                "tmdb": "45745"
+              },
+              "titel": "Sintel (2010)",
+              "type": "Movie"
+            },
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "actie",
+            "reden": "spoorkeuze_niet_overzetbaar",
+            "soort": "spoorkeuze",
+            "uitleg": "Emby kiest voor deze gebruiker audio: eng · ac3 · “AC3 5.1 @ 640 Kbps”; ondertitel: uit/standaard; Jelly Leon kiest nu audio: eng · ac3 · “AC3 5.1 @ 640 Kbps”; ondertitel: deu · subrip. Jellyfin 12.4 heeft geen officiële route om een onthouden spoorkeuze te zetten (capability_unavailable): kies het spoor één keer zelf in Jelly Leon, dan onthoudt Jelly Leon het."
+          }
+        ],
+        "beheerder": false,
+        "emby_id": "ab0e69773a6f4c87bf3b57d3244981a0",
+        "emby_naam": "Gast",
+        "jelly_leon_id": "be10cd19f23947c8a2f73f51df9e6200",
+        "jelly_leon_naam": "Gast",
+        "rechten": [
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsAdministrator"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableUserPreferenceAccess"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteControlOfOtherUsers"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSharedDeviceControl"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaPlayback"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableAudioPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableVideoPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePlaybackRemuxing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDeletion"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDownloading"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSubtitleManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSyncTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaConversion"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePublicSharing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsDisabled"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsHidden"
+          },
+          {
+            "emby": "Films",
+            "jelly_leon": "Films",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bibliotheektoegang"
+          },
+          {
+            "emby": null,
+            "jelly_leon": null,
+            "status": "gelijk",
+            "uitleg": "geen leeftijdsgrens",
+            "veld": "MaxParentalRating"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Geblokkeerde tags"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Items zonder classificatie blokkeren"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Kanalen"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Apparaten"
+          },
+          {
+            "emby": 0,
+            "jelly_leon": 0,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bitrategrens buitenshuis"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "IsHiddenRemotely"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableTranscodingQuality"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableSubtitleDownloading"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "AllowCameraUpload"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "PlayDefaultAudioTrack"
+          },
+          {
+            "emby": "Smart",
+            "jelly_leon": "Smart",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "SubtitleMode"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "DisplayMissingEpisodes"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "HidePlayedInLatest"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberAudioSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberSubtitleSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableNextEpisodeAutoPlay"
+          }
+        ],
+        "status": "aangemaakt_door_tool",
+        "telling": {
+          "beoordelingen": {
+            "afhandellijst": 0,
+            "emby": 0,
+            "gekoppeld": 0,
+            "gelijk": 0,
+            "jelly_leon_nieuwer": 0
+          },
+          "favorieten": {
+            "afhandellijst": 0,
+            "emby": 0,
+            "gekoppeld": 0,
+            "gelijk": 0,
+            "jelly_leon_nieuwer": 0
+          },
+          "gezien": {
+            "afhandellijst": 1,
+            "emby": 1,
+            "gekoppeld": 0,
+            "gelijk": 0,
+            "jelly_leon_nieuwer": 0
+          },
+          "hervatpunten": {
+            "afhandellijst": 0,
+            "emby": 1,
+            "gekoppeld": 1,
+            "gelijk": 1,
+            "jelly_leon_nieuwer": 0
+          },
+          "spoorkeuzes": {
+            "afhandellijst": 2,
+            "emby": 2,
+            "gekoppeld": 1,
+            "gelijk": 0,
+            "jelly_leon_nieuwer": 0
+          }
+        },
+        "verantwoord": {
+          "klopt": true,
+          "met_kijkgegevens": 2,
+          "verantwoord": 2
+        },
+        "wachtwoord": "niet overgezet",
+        "zichtbaarheid": {
+          "alleen_in_jelly_leon": 5,
+          "emby": 20,
+          "jelly_leon": 11,
+          "ruimer": 0,
+          "smaller": 0
+        }
+      },
+      {
+        "afhandellijst": [
+          {
+            "id": "V-8ee191a31120",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "actie",
+            "reden": "wachtwoord_niet_overgezet",
+            "soort": "gebruiker",
+            "uitleg": "Wachtwoorden zijn niet over te zetten (Emby geeft ze niet vrij). Stel in Jelly Leon een nieuw wachtwoord in (Dashboard → Gebruikers → deze gebruiker → Wachtwoord) of gebruik SSO; tot dan kan niemand als deze gebruiker inloggen."
+          },
+          {
+            "id": "V-f72fc53b6174",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "kennisname",
+            "reden": "recht_zonder_tegenhanger",
+            "soort": "rechten",
+            "uitleg": "Emby-instellingen zonder tegenhanger in Jelly Leon (raken geen toegang tot media): AllowCameraUpload, EnableSubtitleDownloading, EnableTranscodingQuality, IsHiddenRemotely."
+          }
+        ],
+        "beheerder": false,
+        "emby_id": "d1cfc58729b841338039f5d8a26af36e",
+        "emby_naam": "Kim",
+        "jelly_leon_id": "07580b8c6d9948509364089896ab9f6f",
+        "jelly_leon_naam": "Kim",
+        "rechten": [
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsAdministrator"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableUserPreferenceAccess"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteControlOfOtherUsers"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSharedDeviceControl"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaPlayback"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableAudioPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableVideoPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePlaybackRemuxing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDeletion"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDownloading"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSubtitleManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSyncTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaConversion"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePublicSharing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsDisabled"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsHidden"
+          },
+          {
+            "emby": "Films, Series",
+            "jelly_leon": "Films, Series",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bibliotheektoegang"
+          },
+          {
+            "emby": "5 (PG, TV-PG)",
+            "jelly_leon": 10,
+            "status": "gelijk",
+            "uitleg": "via de classificatienaam (PG, TV-PG); Jelly Leon-score 10",
+            "veld": "MaxParentalRating"
+          },
+          {
+            "emby": [
+              "Horror"
+            ],
+            "jelly_leon": [
+              "Horror"
+            ],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Geblokkeerde tags"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Items zonder classificatie blokkeren"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Kanalen"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Apparaten"
+          },
+          {
+            "emby": 0,
+            "jelly_leon": 0,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bitrategrens buitenshuis"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "IsHiddenRemotely"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableTranscodingQuality"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableSubtitleDownloading"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "AllowCameraUpload"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "PlayDefaultAudioTrack"
+          },
+          {
+            "emby": "None",
+            "jelly_leon": "None",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "SubtitleMode"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "DisplayMissingEpisodes"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "HidePlayedInLatest"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberAudioSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberSubtitleSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableNextEpisodeAutoPlay"
+          }
+        ],
+        "status": "aangemaakt_door_tool",
+        "telling": {
+          "beoordelingen": {
+            "afhandellijst": 0,
+            "emby": 0,
+            "gekoppeld": 0,
+            "gelijk": 0,
+            "jelly_leon_nieuwer": 0
+          },
+          "favorieten": {
+            "afhandellijst": 0,
+            "emby": 1,
+            "gekoppeld": 1,
+            "gelijk": 1,
+            "jelly_leon_nieuwer": 0
+          },
+          "gezien": {
+            "afhandellijst": 0,
+            "emby": 3,
+            "gekoppeld": 3,
+            "gelijk": 3,
+            "jelly_leon_nieuwer": 0
+          },
+          "hervatpunten": {
+            "afhandellijst": 0,
+            "emby": 1,
+            "gekoppeld": 1,
+            "gelijk": 1,
+            "jelly_leon_nieuwer": 0
+          },
+          "spoorkeuzes": {
+            "afhandellijst": 0,
+            "emby": 4,
+            "gekoppeld": 4,
+            "gelijk": 4,
+            "jelly_leon_nieuwer": 0
+          }
+        },
+        "verantwoord": {
+          "klopt": true,
+          "met_kijkgegevens": 5,
+          "verantwoord": 5
+        },
+        "wachtwoord": "niet overgezet",
+        "zichtbaarheid": {
+          "alleen_in_jelly_leon": 7,
+          "emby": 30,
+          "jelly_leon": 22,
+          "ruimer": 0,
+          "smaller": 0
+        }
+      },
+      {
+        "afhandellijst": [
+          {
+            "id": "V-aec6ae9eeb6f",
+            "item": {
+              "emby_id": "20",
+              "grootte": 81782463,
+              "pad_emby": "/mnt/emby/media/Films/Spring (2019)/Spring (2019).mkv",
+              "pad_jelly_leon": "/data/media/Films/Spring (2019)/Spring (2019).mkv",
+              "provider_ids": {
+                "imdb": "tt10200208"
+              },
+              "titel": "Spring (2019)",
+              "type": "Movie"
+            },
+            "kijkgegevens": {
+              "aantal": 0,
+              "beoordeling": null,
+              "favoriet": true,
+              "gezien": false,
+              "laatst": null,
+              "positie": 0,
+              "vind_ik_leuk": null
+            },
+            "kijkgegevens_tekst": "favoriet",
+            "klasse": "beslissing",
+            "reden": "dubbel",
+            "soort": "item",
+            "uitleg": "niet eenduidig: meerdere Jelly Leon-items passen. 2 Jelly Leon-items met imdb=tt10200208 en geen eenduidig pad"
+          },
+          {
+            "id": "V-dfb77f6479ef",
+            "item": {
+              "emby_id": "22",
+              "grootte": 53008532,
+              "pad_emby": "/mnt/emby/media/Films/Hero (2018)/Hero (2018).mp4",
+              "pad_jelly_leon": "/data/media/Films/Hero (2018)/Hero (2018).mp4",
+              "provider_ids": {},
+              "titel": "Hero (2018)",
+              "type": "Movie"
+            },
+            "kijkgegevens": {
+              "aantal": 1,
+              "beoordeling": null,
+              "favoriet": false,
+              "gezien": true,
+              "laatst": "2026-09-01T19:00:00.0000000Z",
+              "positie": 0,
+              "vind_ik_leuk": null
+            },
+            "kijkgegevens_tekst": "gezien (1×, laatst 01-09-2026 19:00:00 UTC)",
+            "klasse": "beslissing",
+            "reden": "geen_id",
+            "soort": "item",
+            "uitleg": "geen provider-ID's en geen item op hetzelfde pad in Jelly Leon. pad /data/media/Films/Hero (2018)/Hero (2018).mp4 niet gevonden"
+          },
+          {
+            "id": "V-094f9aa8d082",
+            "item": {
+              "emby_id": "32",
+              "grootte": 9712903,
+              "pad_emby": "/mnt/emby/media/Series/B03 Anime/B03 Anime - 03.mkv",
+              "pad_jelly_leon": "/data/media/Series/B03 Anime/B03 Anime - 03.mkv",
+              "provider_ids": {},
+              "titel": "B03 Anime S01E03 — B03 Anime - 03",
+              "type": "Episode"
+            },
+            "kijkgegevens": {
+              "aantal": 1,
+              "beoordeling": null,
+              "favoriet": false,
+              "gezien": true,
+              "laatst": "2026-10-05T18:00:00.0000000Z",
+              "positie": 0,
+              "vind_ik_leuk": null
+            },
+            "kijkgegevens_tekst": "gezien (1×, laatst 05-10-2026 18:00:00 UTC)",
+            "klasse": "beslissing",
+            "reden": "ontbreekt",
+            "soort": "item",
+            "uitleg": "geen tegenhanger in Jelly Leon (ID's en pad gezocht). serie-ID en pad /data/media/Series/B03 Anime/B03 Anime - 03.mkv niet gevonden"
+          },
+          {
+            "id": "V-92e6970f8f0b",
+            "item": {
+              "emby_id": "19",
+              "grootte": 525038123,
+              "pad_emby": "/mnt/emby/media/Films/Cosmos Laundromat (2015)/Cosmos Laundromat (2015).mp4",
+              "pad_jelly_leon": "/data/media/Films/Cosmos Laundromat (2015)/Cosmos Laundromat (2015).mp4",
+              "provider_ids": {
+                "imdb": "tt4957236",
+                "tmdb": "358332"
+              },
+              "titel": "Cosmos Laundromat (2015)",
+              "type": "Movie"
+            },
+            "kijkgegevens": {
+              "aantal": 1,
+              "beoordeling": null,
+              "favoriet": false,
+              "gezien": true,
+              "laatst": "2026-09-02T19:00:00.0000000Z",
+              "positie": 0,
+              "vind_ik_leuk": null
+            },
+            "kijkgegevens_tekst": "gezien (1×, laatst 02-09-2026 19:00:00 UTC)",
+            "klasse": "beslissing",
+            "reden": "ontbreekt",
+            "soort": "item",
+            "uitleg": "geen tegenhanger in Jelly Leon (ID's en pad gezocht). imdb=tt4957236, tmdb=358332 en pad /data/media/Films/Cosmos Laundromat (2015)/Cosmos Laundromat (2015).mp4 niet gevonden"
+          },
+          {
+            "id": "V-40b0a56e3b97",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "actie",
+            "reden": "recht_handmatig",
+            "soort": "rechten",
+            "uitleg": "SubtitleMode: Emby 'Smart' → Jelly Leon 'Default'."
+          },
+          {
+            "id": "V-f4c4d1f84f90",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "actie",
+            "reden": "recht_handmatig",
+            "soort": "rechten",
+            "uitleg": "IsHidden: Emby False → Jelly Leon True."
+          },
+          {
+            "id": "V-010159e30e28",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "kennisname",
+            "reden": "recht_strenger",
+            "soort": "rechten",
+            "uitleg": "EnableLiveTvManagement: Emby True → Jelly Leon False."
+          },
+          {
+            "id": "V-b38540e9057a",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "kennisname",
+            "reden": "recht_strenger",
+            "soort": "rechten",
+            "uitleg": "EnableSubtitleManagement: Emby True → Jelly Leon False."
+          },
+          {
+            "id": "V-3fd1d19565bb",
+            "item": null,
+            "kijkgegevens": null,
+            "kijkgegevens_tekst": null,
+            "klasse": "kennisname",
+            "reden": "recht_zonder_tegenhanger",
+            "soort": "rechten",
+            "uitleg": "Emby-instellingen zonder tegenhanger in Jelly Leon (raken geen toegang tot media): AllowCameraUpload, AllowSharingPersonalItems, EnableSubtitleDownloading, EnableTranscodingQuality, IsHiddenRemotely."
+          }
+        ],
+        "beheerder": true,
+        "emby_id": "ad0cd4b22e534a9ebbff3965f126fd74",
+        "emby_naam": "beheerder",
+        "jelly_leon_id": "01bace38810b48778f0c21afe1c25ac9",
+        "jelly_leon_naam": "jlbeheer",
+        "rechten": [
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsAdministrator"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableUserPreferenceAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteControlOfOtherUsers"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSharedDeviceControl"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableRemoteAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": false,
+            "status": "strenger",
+            "uitleg": "",
+            "veld": "EnableLiveTvManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableLiveTvAccess"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaPlayback"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableAudioPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableVideoPlaybackTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePlaybackRemuxing"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDeletion"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableContentDownloading"
+          },
+          {
+            "emby": true,
+            "jelly_leon": false,
+            "status": "strenger",
+            "uitleg": "",
+            "veld": "EnableSubtitleManagement"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableSyncTranscoding"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableMediaConversion"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnablePublicSharing"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "IsDisabled"
+          },
+          {
+            "emby": false,
+            "jelly_leon": true,
+            "status": "handmatig",
+            "uitleg": "",
+            "veld": "IsHidden"
+          },
+          {
+            "emby": "alle",
+            "jelly_leon": "alle",
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Bibliotheektoegang"
+          },
+          {
+            "emby": null,
+            "jelly_leon": null,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "MaxParentalRating"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Geblokkeerde tags"
+          },
+          {
+            "emby": [],
+            "jelly_leon": [],
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "Items zonder classificatie blokkeren"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "PlayDefaultAudioTrack"
+          },
+          {
+            "emby": "Smart",
+            "jelly_leon": "Default",
+            "status": "handmatig",
+            "uitleg": "",
+            "veld": "SubtitleMode"
+          },
+          {
+            "emby": false,
+            "jelly_leon": false,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "DisplayMissingEpisodes"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "HidePlayedInLatest"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberAudioSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "RememberSubtitleSelections"
+          },
+          {
+            "emby": true,
+            "jelly_leon": true,
+            "status": "gelijk",
+            "uitleg": "",
+            "veld": "EnableNextEpisodeAutoPlay"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "IsHiddenRemotely"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableTranscodingQuality"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "EnableSubtitleDownloading"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "AllowCameraUpload"
+          },
+          {
+            "emby": true,
+            "jelly_leon": null,
+            "status": "niet_van_toepassing",
+            "uitleg": "Emby-instelling zonder tegenhanger in Jelly Leon; raakt geen toegang tot media",
+            "veld": "AllowSharingPersonalItems"
+          }
+        ],
+        "status": "bestaand",
+        "telling": {
+          "beoordelingen": {
+            "afhandellijst": 0,
+            "emby": 0,
+            "gekoppeld": 0,
+            "gelijk": 0,
+            "jelly_leon_nieuwer": 0
+          },
+          "favorieten": {
+            "afhandellijst": 1,
+            "emby": 2,
+            "gekoppeld": 1,
+            "gelijk": 1,
+            "jelly_leon_nieuwer": 0
+          },
+          "gezien": {
+            "afhandellijst": 3,
+            "emby": 10,
+            "gekoppeld": 7,
+            "gelijk": 7,
+            "jelly_leon_nieuwer": 0
+          },
+          "hervatpunten": {
+            "afhandellijst": 0,
+            "emby": 2,
+            "gekoppeld": 2,
+            "gelijk": 2,
+            "jelly_leon_nieuwer": 0
+          },
+          "spoorkeuzes": {
+            "afhandellijst": 4,
+            "emby": 12,
+            "gekoppeld": 8,
+            "gelijk": 8,
+            "jelly_leon_nieuwer": 0
+          }
+        },
+        "verantwoord": {
+          "klopt": true,
+          "met_kijkgegevens": 13,
+          "verantwoord": 13
+        },
+        "wachtwoord": "eigen Jelly Leon-wachtwoord",
+        "zichtbaarheid": {
+          "alleen_in_jelly_leon": 8,
+          "emby": 42,
+          "jelly_leon": 34,
+          "ruimer": 0,
+          "smaller": 0
+        }
+      }
+    ],
+    "totaal": {
+      "beoordelingen": {
+        "afhandellijst": 0,
+        "emby": 0,
+        "gekoppeld": 0,
+        "gelijk": 0,
+        "jelly_leon_nieuwer": 0
+      },
+      "favorieten": {
+        "afhandellijst": 1,
+        "emby": 6,
+        "gekoppeld": 5,
+        "gelijk": 5,
+        "jelly_leon_nieuwer": 0
+      },
+      "gezien": {
+        "afhandellijst": 4,
+        "emby": 25,
+        "gekoppeld": 21,
+        "gelijk": 21,
+        "jelly_leon_nieuwer": 0
+      },
+      "hervatpunten": {
+        "afhandellijst": 0,
+        "emby": 7,
+        "gekoppeld": 7,
+        "gelijk": 7,
+        "jelly_leon_nieuwer": 0
+      },
+      "spoorkeuzes": {
+        "afhandellijst": 7,
+        "emby": 33,
+        "gekoppeld": 28,
+        "gelijk": 26,
+        "jelly_leon_nieuwer": 0
+      }
+    },
+    "verantwoord": true,
+    "verschillen": [
+      "V-010159e30e28",
+      "V-094f9aa8d082",
+      "V-3fd1d19565bb",
+      "V-40b0a56e3b97",
+      "V-42020ffc5d64",
+      "V-4cdc4ff2c7e9",
+      "V-4fef5bd2376b",
+      "V-735dff98b365",
+      "V-8ee191a31120",
+      "V-92e6970f8f0b",
+      "V-961a7a569153",
+      "V-a81eeeadd415",
+      "V-aec6ae9eeb6f",
+      "V-b38540e9057a",
+      "V-be03623a4c23",
+      "V-c29de6c68cd0",
+      "V-dfb77f6479ef",
+      "V-ea35d9113c31",
+      "V-f4c4d1f84f90",
+      "V-f72fc53b6174"
+    ]
+  },
+  "tool": {
+    "naam": "jelly-leon-emby-overname",
+    "versie": "0.1.0"
+  }
+}

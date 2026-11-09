@@ -58,5 +58,65 @@
     "opmerking": "Sim: Docker op de bouwmachine met de formulierwaarden uit CUSTOM_APP.md; geen TrueNAS-formulier, geen echte bestaande Jellyfin.",
     "repo": "jelly-leon",
     "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "B03-015",
+    "status": "Bezig",
+    "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "Deel A (Emby, golf 0): ADR-0025 (JellyPlex-Watched v9.0.0 beoordeeld, eigen tool; commit 4da5292f5); tools/emby-overname (commits 3461a04ba, f069c761a, 650bd9765, 746b1def9 e.v.): alleen-lezen-client Emby (GET op witte lijst, weigering vóór het netwerk), koppelen provider-ID → serie+seizoen+aflevering → pad met mountroot-vertaling, afhandellijst (geen_id, dubbel, ontbreekt, ander_bestand, …), gezien met datum en aantal, hervatpunten op de tick, favorieten, gebruikers met rechten/ouderlijk toezicht (onvertaalbaar = strenger), proefrun, akkoord op het plan (sha256), write-ahead-journaal met herstel na kill, laatste delta, vóór/na-rapport (JSON+sha256, MD, HTML met akkoordveld), JSON-exportarchief + herimport, akkoord-controle voor de overstap; JSON Schemas; docs/platform-v2/OVERNAME_EMBY.md (procedure + controlelijst 'Emby verwijderen'); GitHub Actions 'Jelly Leon CI' run 42695702468 (commit 63718a92d) groen, alle jobs, waaronder emby-overname (ruff, 70 tool-tests, proefrun synthetisch met echte emby/embyserver:4.10.2.0@sha256:7082c63b…65cc1 en stock jellyfin/jellyfin:12.4@sha256:fea863d0…1771); lokaal met het echte mediacorpus (24 bronbestanden, sha256 gecontroleerd) onder stack.lock: 57/57 controles geslaagd (JLT-70 21/21, JLT-71 11/11, JLT-72 7/7, JLT-73 17/17, corpuscontrole 1/1) (test-evidence/b03-015-proefrun-corpus.json); CI-bewijs: test-evidence/b03-015-proefrun-ci-synthetisch.json; rapportvoorbeeld: test-evidence/b03-015-voorbeeldrapport/; BOUWVERIFICATIE_B03-015.md",
+    "blokkade": "Echte overname op de NAS (JLT-74) en D07 (versie, gebruikers, bibliotheken, mountpaden van de echte Emby) niet uitgevoerd/gemeten: NIET GEVALIDEERD (echte NAS). De gebruiker heeft geen terminal: de overname-assistent in het beheer van Jelly Leon (P4-0) moet de tool starten. Deel B (Jellyfin) en P4-0-herhaling tegen jelly-leon:12.x nog niet. Δ-MG-DUAL/Δ-MG-AUTH zijn van media-guard-ultimate; B12-dekking van het archief (Δ-HUB-3) van ai-server-manager.",
+    "opmerking": "Gemeten in de echte containers: Emby geeft PlayCount/LastPlayedDate in lijsten alleen met Fields=UserDataPlayCount,UserDataLastPlayedDate; Emby 4.10.2.0 bundelt films met dezelfde IMDb-ID tot één item met versies (→ dubbel); Emby gaf na een 'vind ik leuk' geen Rating/Likes terug (beoordelingen: 0 in Emby); Jellyfin 12.4 heeft geen officiële route om onthouden spoorkeuzes te zetten → afhandellijst (capability_unavailable). Android-emulator en stock-web-UI niet beproefd; het inloggen met nieuw wachtwoord en hervatten is op protocolniveau gesimuleerd.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "JLT-70",
+    "status": "Bezig",
+    "validatie": "Sim-geslaagd; NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "gezien met datum en aantal, hervatpunten op de tick, favorieten: 100 % van de koppelbare items (onafhankelijke grondwaarheid per pad); 5 gebruikers incl. kind en gast, rechten en ouderlijk toezicht, geen gebruiker ziet in Jelly Leon meer dan in Emby; wachtwoorden niet overgezet en gemeld; vóór/na-rapport JSON+sha256/MD/HTML met akkoord; overstap alleen met akkoord op elk verschil; herimport uit het archief op een lege Jellyfin (Emby gestopt) exact; inloggen met nieuw wachtwoord en 'Verder kijken' op de tick (protocolsimulator); GitHub Actions 'Jelly Leon CI' run 42695702468 (commit 63718a92d) groen, alle jobs, waaronder emby-overname (ruff, 70 tool-tests, proefrun synthetisch met echte emby/embyserver:4.10.2.0@sha256:7082c63b…65cc1 en stock jellyfin/jellyfin:12.4@sha256:fea863d0…1771); lokaal met het echte mediacorpus (24 bronbestanden, sha256 gecontroleerd) onder stack.lock: 57/57 controles geslaagd (JLT-70 21/21, JLT-71 11/11, JLT-72 7/7, JLT-73 17/17, corpuscontrole 1/1) (test-evidence/b03-015-proefrun-corpus.json); CI-bewijs: test-evidence/b03-015-proefrun-ci-synthetisch.json; rapportvoorbeeld: test-evidence/b03-015-voorbeeldrapport/; BOUWVERIFICATIE_B03-015.md",
+    "blokkade": "Alleen echte containers op de ontwikkelmachine en in CI; de echte Emby op de NAS (D07) is niet gebruikt (NIET GEVALIDEERD (echte NAS)); eindstatus pas na een echte run.",
+    "opmerking": "Android-emulator en stock-web-UI niet beproefd (alleen het clientprotocol).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "JLT-71",
+    "status": "Bezig",
+    "validatie": "Sim-geslaagd; NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "tweede run 0 schrijfacties (proxy) en identieke inhoud-sha256; delta-run precies 3 schrijfacties (= de Emby-wijzigingen); nieuwere Jelly Leon-waarde niet overschreven; verwijderde favoriet ter beslissing; kill na 2 schrijfacties (exit 137) en hervatten: elke schrijfactie precies één keer, herstel herkent de al uitgevoerde; GitHub Actions 'Jelly Leon CI' run 42695702468 (commit 63718a92d) groen, alle jobs, waaronder emby-overname (ruff, 70 tool-tests, proefrun synthetisch met echte emby/embyserver:4.10.2.0@sha256:7082c63b…65cc1 en stock jellyfin/jellyfin:12.4@sha256:fea863d0…1771); lokaal met het echte mediacorpus (24 bronbestanden, sha256 gecontroleerd) onder stack.lock: 57/57 controles geslaagd (JLT-70 21/21, JLT-71 11/11, JLT-72 7/7, JLT-73 17/17, corpuscontrole 1/1) (test-evidence/b03-015-proefrun-corpus.json); CI-bewijs: test-evidence/b03-015-proefrun-ci-synthetisch.json; rapportvoorbeeld: test-evidence/b03-015-voorbeeldrapport/; BOUWVERIFICATIE_B03-015.md",
+    "blokkade": "Alleen echte containers op de ontwikkelmachine en in CI; de echte Emby op de NAS (D07) is niet gebruikt (NIET GEVALIDEERD (echte NAS)); eindstatus pas na een echte run.",
+    "opmerking": "",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "JLT-72",
+    "status": "Bezig",
+    "validatie": "Sim-geslaagd; NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "afhandellijst met geen_id, dubbel (ook door Emby gebundelde versies), ontbreekt, absolute anime-nummering nooit gegokt, ander_bestand voor de spoorkeuze van een gewijzigd bestand; overgezet + afhandellijst = alle Emby-items met kijkgegevens (0 stil weggelaten); GitHub Actions 'Jelly Leon CI' run 42695702468 (commit 63718a92d) groen, alle jobs, waaronder emby-overname (ruff, 70 tool-tests, proefrun synthetisch met echte emby/embyserver:4.10.2.0@sha256:7082c63b…65cc1 en stock jellyfin/jellyfin:12.4@sha256:fea863d0…1771); lokaal met het echte mediacorpus (24 bronbestanden, sha256 gecontroleerd) onder stack.lock: 57/57 controles geslaagd (JLT-70 21/21, JLT-71 11/11, JLT-72 7/7, JLT-73 17/17, corpuscontrole 1/1) (test-evidence/b03-015-proefrun-corpus.json); CI-bewijs: test-evidence/b03-015-proefrun-ci-synthetisch.json; rapportvoorbeeld: test-evidence/b03-015-voorbeeldrapport/; BOUWVERIFICATIE_B03-015.md",
+    "blokkade": "Alleen echte containers op de ontwikkelmachine en in CI; de echte Emby op de NAS (D07) is niet gebruikt (NIET GEVALIDEERD (echte NAS)); eindstatus pas na een echte run.",
+    "opmerking": "",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "JLT-73",
+    "status": "Bezig",
+    "validatie": "Sim-geslaagd; NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "loggende proxy: alleen GET naar Emby, alleen routes van de witte lijst, geen sleutel in een URL; testhaak POST/DELETE geweigerd vóór het netwerk (0 netwerkverzoeken); Emby-kijkgegevens per gebruiker identiek vóór en na elke toolrun en exportarchief vóór/na identiek; geen API-sleutel in logs/rapporten/exports; MediaGuard-SIMULATOR (Emby X-Emby-Token, Jelly Leon MediaBrowser-token) zag de kijkpauze op beide servers en de Emby-koppeling viel nooit weg; GitHub Actions 'Jelly Leon CI' run 42695702468 (commit 63718a92d) groen, alle jobs, waaronder emby-overname (ruff, 70 tool-tests, proefrun synthetisch met echte emby/embyserver:4.10.2.0@sha256:7082c63b…65cc1 en stock jellyfin/jellyfin:12.4@sha256:fea863d0…1771); lokaal met het echte mediacorpus (24 bronbestanden, sha256 gecontroleerd) onder stack.lock: 57/57 controles geslaagd (JLT-70 21/21, JLT-71 11/11, JLT-72 7/7, JLT-73 17/17, corpuscontrole 1/1) (test-evidence/b03-015-proefrun-corpus.json); CI-bewijs: test-evidence/b03-015-proefrun-ci-synthetisch.json; rapportvoorbeeld: test-evidence/b03-015-voorbeeldrapport/; BOUWVERIFICATIE_B03-015.md",
+    "blokkade": "Alleen echte containers op de ontwikkelmachine en in CI; de echte Emby op de NAS (D07) is niet gebruikt (NIET GEVALIDEERD (echte NAS)); eindstatus pas na een echte run.",
+    "opmerking": "De MediaGuard-delen zijn een simulator; de echte Δ-MG-DUAL/Δ-MG-AUTH zijn werk van media-guard-ultimate.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "JLT-74",
+    "status": "Geblokkeerd",
+    "validatie": "NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "Voorbereid: procedure en controlelijst in docs/platform-v2/OVERNAME_EMBY.md; tool en proefrun Sim (zie B03-015).",
+    "blokkade": "Vraagt de echte NAS met de echte Emby (D07 gemeten), ZFS-snapshot, de overname-assistent in Jelly Leon (P4-0), B12-dekking van het archief (Δ-HUB-3) en Δ-MG-DUAL; de gebruiker verwijdert Emby zelf.",
+    "opmerking": "Wordt in deze bouwomgeving nooit afgevinkt.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-09"
   }
 ]
