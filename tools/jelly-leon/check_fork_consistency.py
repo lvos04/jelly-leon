@@ -4,7 +4,8 @@
 Controles:
   1. baseline.json: upstream_tag ↔ upstream_version ↔ fork_version (`<upstream>-jl.<N>`).
   2. SharedVersion.cs (wat de server aan clients meldt) == upstream_version (technische identiteit blijft upstream).
-  3. plugins/Directory.Build.props JellyfinVersion == upstream_version (plugins bouwen tegen dezelfde ABI).
+  3. plugins/Directory.Build.props JellyfinVersion == upstream_version en TargetFramework == dat van
+     MediaBrowser.Controller (plugins bouwen tegen dezelfde ABI).
   4. upstream_commit zit in de historie van HEAD (de basis is echt samengevoegd); lokale tag wijst naar dezelfde commit.
   5. LICENSE is nog de GPL-2.0-tekst.
   6. Manifest: versie/tag == fork_version, geen `latest`, geen compose, install.method custom_app.
@@ -31,7 +32,9 @@ from jl_common import (  # noqa: E402
     load_baseline,
     parse_stable_tag,
     read_plugin_jellyfin_version,
+    read_plugin_target_framework,
     read_shared_version,
+    read_upstream_target_framework,
     run_git,
 )
 
@@ -67,6 +70,12 @@ def check_baseline(repo: Path, baseline: dict) -> list[str]:
     plugin_version = read_plugin_jellyfin_version(repo)
     if plugin_version is not None and Version.parse(plugin_version) != upstream_version:
         errors.append(f"plugins/Directory.Build.props JellyfinVersion {plugin_version} ≠ basis {upstream_version}")
+    plugin_tf, upstream_tf = read_plugin_target_framework(repo), read_upstream_target_framework(repo)
+    if plugin_tf and upstream_tf and plugin_tf != upstream_tf:
+        errors.append(
+            f"plugins/Directory.Build.props TargetFramework {plugin_tf} ≠ upstream-ABI {upstream_tf} "
+            "(MediaBrowser.Controller.csproj)"
+        )
 
     commit = baseline["upstream_commit"]
     if run_git(repo, "cat-file", "-e", f"{commit}^{{commit}}", check=False).returncode != 0:

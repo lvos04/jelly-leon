@@ -12,9 +12,16 @@
    - `kies` bepaalt per spoor de nieuwste **stabiele** tag die nieuwer is dan de basis: `patch` (zelfde major.minor,
      bv. 10.11.x) en `nieuwste` (hoogste stabiele tag, bv. 12.4). rc/beta/tags zonder `v` tellen nooit; volgorde is
      numeriek (`v12.10` > `v12.4`).
-   - `merge` haalt de tag op in `refs/upstream-sync/<tag>`, maakt branch `sync/<tag>` vanaf de huidige HEAD, merget
-     `--no-ff`, en werkt `baseline.json` (`upstream_*`, `fork_version = <versie>-jl.0`) en `JellyfinVersion` van de
-     plugins bij. **Mergeconflict = incompatibel:** merge afbreken, branch weg, werkboom schoon, exitcode 2.
+   - `merge` haalt de tag op in `refs/upstream-sync/<tag>` en maakt branch `sync/<tag>` met één van twee methoden
+     (`--methode auto` kiest):
+     - **merge** (zelfde major.minor, bv. 10.11.11 → 10.11.12): `git merge --no-ff` van de tag;
+     - **herbasis** (andere reeks, bv. 10.11 → 12.x): boom = upstream-tag + fork-eigen paden (`fork_paths.txt`) +
+       de geregistreerde core-patches uit `PATCHES.md` (3-way toegepast), vastgelegd als merge-commit met de vorige
+       forkstand én de upstream-tag als ouders (historie blijft, geen force-push nodig). Dit is precies de regel
+       "het patchregister is de volledige delta".
+     Daarna `baseline.json` (`upstream_*`, `fork_version = <versie>-jl.0`) en de plugin-`JellyfinVersion` +
+     `TargetFramework` (uit `MediaBrowser.Controller.csproj` van de nieuwe basis) bijwerken.
+     **Conflict = incompatibel:** alles terugdraaien, branch weg, werkboom schoon, exitcode 2.
    - Weigert: rc-tags, downgrades/zelfde versie, vuile werkboom, bestaande sync-branch (exit 4).
 2. **Workflow `upstream-sync.yml`:** wekelijks (maandag 04:17 UTC) en handmatig (expliciete tag of spoor). Per kandidaat:
    merge → forkregels (consistentie zonder manifest, patchregister, tool-tests) → volledige upstream-build en -tests →
@@ -26,6 +33,17 @@
    beoordeling. Overnemen in de standaardbranch en een release (`-jl.1`) zijn handmatige, goed te keuren stappen (R2).
 4. **Grote sprongen** (andere major, bv. 10.11 → 12.x) worden net zo behandeld, maar vragen bovendien: DB-migratie op een
    kopie (canary DB copy, B03-013), clientmatrix opnieuw, terugzetpad (database + binary samen).
+
+## Echte meting (2026-11-09, tijdelijke lokale kloon, niets gepusht)
+
+- `kies` tegen `github.com/jellyfin/jellyfin`: spoor `patch` → geen nieuwere 10.11.x; spoor `nieuwste` → **v12.4**
+  (v12.0…v12.4). v12.4 vraagt .NET SDK 10 (`global.json` 10.0.0), `TargetFramework` net10.0, `AssemblyVersion` 12.4.0.
+- **merge** van v12.4: **79 conflicten**, waarvan maar 4 in door de fork gewijzigde bestanden — de rest komt doordat
+  upstream 10.11.x-fixes als backports op een releasebranch zette (gemeenschappelijke voorouder 2025-10-19, 2 443
+  upstream-commits). Een gewone merge is voor een reekssprong dus onbruikbaar.
+- **herbasis** van v12.4: **1 conflict** — `.github/workflows/commands.yml` (JL-0001): upstream wijzigde precies de
+  bewaakte `if:`-regel. De sync faalt dus terecht (EX48) en wijst exact aan welke patch handwerk vraagt.
+- Bouwen/testen van 12.4 is hier niet uitgevoerd (andere SDK, conflict eerst oplossen) — NIET GEVALIDEERD.
 
 ## Gevolgen
 

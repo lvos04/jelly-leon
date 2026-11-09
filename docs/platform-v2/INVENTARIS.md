@@ -103,7 +103,8 @@ web-client in `/jellyfin/jellyfin-web`, `JELLYFIN_*`-omgevingsvariabelen (`/conf
    LAN. Geen patch in P0 (zou stock-clients/DLNA kunnen raken); als hiaat opgenomen voor B03-010 en de netwerkopzet
    (alleen LAN/VPN, I24 §1).
 2. **Eén GPU-apparaat** (zie §5): A310/UHD 770-lanes zijn niet upstream te kiezen.
-3. **Grote upstream-sprong**: 10.11 → 12.x; database-migraties en plugin-ABI wijzigen (NuGet 12.x). Sync alleen via
+3. **Grote upstream-sprong**: 10.11 → 12.x; .NET 10 (`global.json` 10.0.0, `net10.0`), database-migraties en
+   plugin-ABI wijzigen (NuGet 12.x). Gewone merge geeft 79 conflicten (upstream-backports); sync daarom via herbasis op
    `sync/<tag>` + volledige test (ADR-0006).
 
 ## 8. Upstream-GitHub-workflows in de fork

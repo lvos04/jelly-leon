@@ -67,8 +67,11 @@ Dit is de databron voor de Hub-pagina *Versie en clientcompatibiliteit* (B03-001
 ## 6. Upstream-sync en upgradepad (ADR-0006, B03-013)
 
 - `upstream-sync.yml` (wekelijks + handmatig): nieuwste stabiele tag per spoor (`patch` = 10.11.x, `nieuwste` = nu
-  **v12.4**) → branch `sync/<tag>` → volledige build/test, plugins tegen de nieuwe ABI, stock-client-smoketest.
+  **v12.4**) → branch `sync/<tag>` (merge binnen dezelfde reeks; bij een reekssprong **herbasis**: upstream-tag +
+  fork-eigen paden + geregistreerde patches) → volledige build/test, plugins tegen de nieuwe ABI, stock-client-smoketest.
   **Incompatibel (conflict/build/test) = workflow faalt (EX48); nooit automatisch naar productie.**
+- Gemeten syncproef naar v12.4: gewone merge 79 conflicten (door upstream-backports), herbasis 1 conflict
+  (`commands.yml`, patch JL-0001) → workflow zou terecht falen; zie ADR-0006.
 - Overnemen + release zijn handmatige R2-stappen; terugzetten = oude image-tag **én** database-back-up/snapshot samen.
 - Upstream-security: nieuwe patchreleases verschijnen in de wekelijkse samenvatting; advisories volgen is een followup.
 
@@ -85,7 +88,7 @@ tot hij op een echt apparaat is getest (D15).
 | Upstream-solution bouwen + volledige tests | `jelly-leon-ci.yml` job *server* | lokaal gemeten: build 0 fouten/0 waarschuwingen; van 2 555 tests 2 544 geslaagd, 7 overgeslagen (upstream), 4 mislukt door de bouwomgeving (geen DNS/IPv6; zie `BOUWVERIFICATIE_P0.md`) |
 | OpenAPI-drift | idem | export byte-gelijk reproduceerbaar (`docs/openapi/jelly-leon.openapi.json`) |
 | Plugins | job *plugins* | 13/13 tests |
-| Forkregels | job *forkregels* | patchregister, consistentie, 23 tool-tests (incl. EX48-simulatie), actionlint |
+| Forkregels | job *forkregels* | patchregister, consistentie, 28 tool-tests (incl. EX48-simulatie), actionlint |
 | Stock-client-E2E | job *stock-client-e2e* | lokaal 17/17 (Sim-getest) |
 | Image | `deploy/allinone/Dockerfile` | schets; server-stage gebouwd, web-stage geblokkeerd in deze bouwomgeving (zie ADR-0008) |
 

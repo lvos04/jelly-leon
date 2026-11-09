@@ -1,7 +1,8 @@
 # Upstream-sync (ADR-0006, B03-013, EX48).
 #
-# Haalt de nieuwste stabiele upstream-tag van jellyfin/jellyfin op, merget hem in een aparte branch sync/<tag>
-# (vanaf de standaardbranch), werkt baseline.json bij en bouwt/test alles: upstream-solution, plugins tegen de nieuwe
+# Haalt de nieuwste stabiele upstream-tag van jellyfin/jellyfin op, neemt hem over in een aparte branch sync/<tag>
+# (vanaf de standaardbranch; merge binnen dezelfde releasereeks, anders "herbasis": upstream-tag + fork-eigen paden +
+# geregistreerde core-patches), werkt baseline.json bij en bouwt/test alles: upstream-solution, plugins tegen de nieuwe
 # Jellyfin.Controller-versie, forkregels en de stock-client-smoketest.
 #
 #   * Een mergeconflict, build- of testfout = incompatibel → de workflow FAALT (EX48). Er wordt niets gedeployd.
@@ -29,6 +30,14 @@ on:
           - patch
           - nieuwste
         default: beide
+      methode:
+        description: 'Sync-methode (auto = merge binnen dezelfde reeks, anders herbasis; ADR-0006)'
+        type: choice
+        options:
+          - auto
+          - merge
+          - herbasis
+        default: auto
 
 permissions:
   contents: read
@@ -117,11 +126,13 @@ jobs:
       - name: Upstream-tag mergen in sync/<tag> (conflict = incompatibel = falen)
         env:
           SYNC_TAG: ${{ matrix.tag }}
+          SYNC_METHODE: ${{ inputs.methode || 'auto' }}
         run: |
           set -eu
           git config user.name "jelly-leon-sync"
           git config user.email "jelly-leon-sync@users.noreply.github.com"
-          python3 tools/jelly-leon/upstream_sync.py merge --tag "$SYNC_TAG" --bron "$UPSTREAM_URL" --maak-lokale-tag
+          python3 tools/jelly-leon/upstream_sync.py merge --tag "$SYNC_TAG" --bron "$UPSTREAM_URL" \
+            --methode "$SYNC_METHODE" --maak-lokale-tag
 
       - name: Forkregels na de sync
         run: |

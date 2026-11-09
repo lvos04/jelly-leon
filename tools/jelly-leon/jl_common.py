@@ -21,6 +21,7 @@ PATCHES_REL = "docs/platform-v2/PATCHES.md"
 PLUGIN_PROPS_REL = "plugins/Directory.Build.props"
 SHARED_VERSION_REL = "SharedVersion.cs"
 MANIFEST_REL = "deploy/manifest/jelly-leon.manifest.yaml"
+UPSTREAM_ABI_PROJECT_REL = "MediaBrowser.Controller/MediaBrowser.Controller.csproj"
 
 # Stabiele upstream-tags: v10.11.11 (oude reeks) én v12.4 (nieuwe reeks zonder patchnummer).
 # Alles met een achtervoegsel (-rc1, -beta, ...) is géén stabiele release.
@@ -74,13 +75,16 @@ def parse_stable_tag(tag: str) -> Version | None:
     return Version(int(major), int(minor), int(patch))
 
 
-def run_git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_git(
+    repo: Path, *args: str, check: bool = True, input_text: str | None = None
+) -> subprocess.CompletedProcess[str]:
     """Voert git uit zonder shell; geeft stdout/stderr als tekst terug."""
     proc = subprocess.run(
         ["git", "-C", str(repo), *args],
         capture_output=True,
         text=True,
         check=False,
+        input=input_text,
     )
     if check and proc.returncode != 0:
         raise ToolError(f"git {' '.join(args)} mislukte (exit {proc.returncode}): {proc.stderr.strip()}")
@@ -160,4 +164,39 @@ def is_fork_path(file_path: str, fork_paths: list[str]) -> bool:
                 return True
         elif file_path == entry:
             return True
+    return False
+
+
+TF_RE = re.compile(r"<TargetFramework>([^<]+)</TargetFramework>")
+
+
+def read_upstream_target_framework(repo: Path) -> str | None:
+    """TargetFramework van de upstream-plugin-ABI (MediaBrowser.Controller → NuGet Jellyfin.Controller)."""
+    path = repo / UPSTREAM_ABI_PROJECT_REL
+    if not path.is_file():
+        return None
+    match = TF_RE.search(path.read_text(encoding="utf-8-sig"))
+    return match.group(1).strip() if match else None
+
+
+def read_plugin_target_framework(repo: Path) -> str | None:
+    path = repo / PLUGIN_PROPS_REL
+    if not path.is_file():
+        return None
+    match = TF_RE.search(path.read_text(encoding="utf-8"))
+    return match.group(1).strip() if match else None
+
+
+def set_plugin_target_framework(repo: Path, target_framework: str) -> bool:
+    """Zet TargetFramework in plugins/Directory.Build.props (als die er staat); True als er iets veranderde."""
+    path = repo / PLUGIN_PROPS_REL
+    if not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8")
+    if not TF_RE.search(text):
+        return False
+    new_text = TF_RE.sub(f"<TargetFramework>{target_framework}</TargetFramework>", text, count=1)
+    if new_text != text:
+        path.write_text(new_text, encoding="utf-8")
+        return True
     return False

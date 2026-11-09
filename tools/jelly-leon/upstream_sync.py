@@ -5,9 +5,16 @@ Subcommando's:
   kies   — bepaal de nieuwste stabiele upstream-tag die nieuwer is dan de basis, per spoor:
              patch     = zelfde major.minor (beveiligings-/bugfixreleases van de huidige reeks)
              nieuwste  = hoogste stabiele tag (kan een grote sprong zijn, bv. 10.11 → 12.x)
-  merge  — haal de tag op, maak branch sync/<tag> vanaf de huidige HEAD, merge de tag (--no-ff) en werk
-           baseline.json + plugins/Directory.Build.props bij. Een mergeconflict = incompatibel: de merge wordt
-           afgebroken, de branch verwijderd en de exitcode is 2 (de workflow faalt; EX48).
+  merge  — haal de tag op en maak branch sync/<tag>, dan per methode:
+             merge     = `git merge --no-ff` van de tag in de huidige HEAD (standaard binnen dezelfde reeks);
+             herbasis  = de fork opnieuw verankeren op de tag: boom = upstream-tag + fork-eigen paden + de
+                         geregistreerde core-patches (3-way), vastgelegd als merge-commit met beide ouders
+                         (standaard bij een andere major.minor: upstream-releasereeksen lopen uiteen, zodat een
+                         gewone merge conflicten geeft in bestanden die de fork nooit wijzigde);
+             auto      = merge bij dezelfde major.minor, anders herbasis.
+           Daarna baseline.json + plugins/Directory.Build.props (JellyfinVersion en TargetFramework van de nieuwe
+           upstream-ABI) bijwerken. Een conflict = incompatibel: alles wordt
+           teruggedraaid, de branch verwijderd en de exitcode is 2 (de workflow faalt; EX48).
 
 Dit script deployt NOOIT iets en pusht niets; pushen/bouwen/testen doet de workflow upstream-sync.yml.
 Exitcodes: 0 = ok, 1 = algemene fout, 2 = incompatibel (mergeconflict), 4 = branch bestaat al.
@@ -26,17 +33,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from jl_common import (  # noqa: E402
     BASELINE_REL,
     DEFAULT_REPO_ROOT,
+    PATCHES_REL,
     PLUGIN_PROPS_REL,
     ToolError,
     Version,
     load_baseline,
+    load_fork_paths,
     parse_stable_tag,
+    read_upstream_target_framework,
     run_git,
     set_plugin_jellyfin_version,
+    set_plugin_target_framework,
     write_baseline,
 )
+from patch_register_check import ACTIVE_STATUSES, parse_register  # noqa: E402
 
 TRACKS = ("patch", "nieuwste")
+METHODS = ("auto", "merge", "herbasis")
 
 
 def parse_ls_remote(output: str) -> dict[str, str]:
@@ -126,6 +139,76 @@ def current_branch(repo: Path) -> str:
     return run_git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
 
 
+def abort_sync(repo: Path, branch: str, original: str) -> None:
+    """Zet alles terug: geen half samengevoegde boom, geen achtergebleven sync-branch."""
+    run_git(repo, "merge", "--abort", check=False)
+    run_git(repo, "reset", "-q", "--hard", check=False)
+    run_git(repo, "switch", "-q", original, check=False)
+    run_git(repo, "branch", "-D", branch, check=False)
+
+
+def incompatible(tag: str, method: str, conflicts: list[str], fallback: str) -> ToolError:
+    detail = ", ".join(conflicts) if conflicts else fallback
+    return ToolError(
+        f"INCOMPATIBEL ({method}): upstream {tag} kan niet automatisch worden overgenomen. "
+        f"Conflicten ({len(conflicts)}): {detail}. Werk de betrokken core-patches in {PATCHES_REL} "
+        "handmatig bij op een aparte branch.",
+        exit_code=2,
+    )
+
+
+def do_merge(repo: Path, branch: str, tag: str, upstream_commit: str, original: str) -> None:
+    run_git(repo, "switch", "-q", "-c", branch)
+    merge = run_git(
+        repo,
+        "merge",
+        "--no-ff",
+        "--no-edit",
+        "-m",
+        f"Sync: upstream {tag} samengevoegd in {branch}",
+        upstream_commit,
+        check=False,
+    )
+    if merge.returncode != 0:
+        conflicts = run_git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.split()
+        abort_sync(repo, branch, original)
+        raise incompatible(tag, "merge", conflicts, merge.stderr.strip() or merge.stdout.strip())
+
+
+def do_rebase_anchor(
+    repo: Path, branch: str, tag: str, old_base: str, fork_head: str, upstream_commit: str, original: str
+) -> None:
+    """Herbasis: upstream-tag + fork-eigen paden + geregistreerde core-patches, als merge-commit (2 ouders)."""
+    fork_paths = load_fork_paths(repo)
+    register = (repo / PATCHES_REL).read_text(encoding="utf-8") if (repo / PATCHES_REL).is_file() else ""
+    patched = sorted({f for p in parse_register(register) if p.status in ACTIVE_STATUSES for f in p.files})
+    run_git(repo, "switch", "-q", "-c", branch, upstream_commit)
+    try:
+        for entry in fork_paths:
+            path = entry.rstrip("/")
+            if run_git(repo, "cat-file", "-e", f"{fork_head}:{path}", check=False).returncode == 0:
+                run_git(repo, "checkout", fork_head, "--", path)
+        if patched:
+            diff = run_git(repo, "diff", "--binary", old_base, fork_head, "--", *patched).stdout
+            if diff.strip():
+                applied = run_git(repo, "apply", "--3way", "--whitespace=nowarn", "-", check=False, input_text=diff)
+                if applied.returncode != 0:
+                    conflicts = run_git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.split()
+                    raise incompatible(tag, "herbasis", conflicts, applied.stderr.strip())
+        run_git(repo, "add", "-A")
+        tree = run_git(repo, "write-tree").stdout.strip()
+        message = (
+            f"Sync: fork opnieuw verankerd op upstream {tag} (herbasis)\n\n"
+            "Boom = upstream-tag + fork-eigen paden (tools/jelly-leon/fork_paths.txt) + geregistreerde core-patches\n"
+            f"({PATCHES_REL}). Ouders: vorige forkstand en de upstream-tag. Nooit automatisch naar productie."
+        )
+        commit = run_git(repo, "commit-tree", tree, "-p", fork_head, "-p", upstream_commit, "-m", message).stdout.strip()
+        run_git(repo, "reset", "-q", "--hard", commit)
+    except ToolError:
+        abort_sync(repo, branch, original)
+        raise
+
+
 def cmd_merge(args: argparse.Namespace) -> int:
     repo = args.repo.resolve()
     tag = args.tag
@@ -150,29 +233,17 @@ def cmd_merge(args: argparse.Namespace) -> int:
         raise ToolError(f"tag {tag} niet gevonden (ref {sync_ref}); fetch mislukt of tag bestaat niet")
     upstream_commit = commit_proc.stdout.strip()
 
+    method = args.method
+    if method == "auto":
+        same_line = (target_version.major, target_version.minor) == (current_version.major, current_version.minor)
+        method = "merge" if same_line else "herbasis"
+
     original = current_branch(repo)
-    run_git(repo, "switch", "-c", branch)
-    merge = run_git(
-        repo,
-        "merge",
-        "--no-ff",
-        "--no-edit",
-        "-m",
-        f"Sync: upstream {tag} samengevoegd in {branch}",
-        upstream_commit,
-        check=False,
-    )
-    if merge.returncode != 0:
-        conflicts = run_git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.split()
-        run_git(repo, "merge", "--abort", check=False)
-        run_git(repo, "switch", original, check=False)
-        run_git(repo, "branch", "-D", branch, check=False)
-        detail = ", ".join(conflicts) if conflicts else merge.stderr.strip() or merge.stdout.strip()
-        raise ToolError(
-            f"INCOMPATIBEL: upstream {tag} kan niet automatisch worden samengevoegd. Conflicten: {detail}. "
-            "Werk de betrokken core-patches in docs/platform-v2/PATCHES.md handmatig bij op een aparte branch.",
-            exit_code=2,
-        )
+    fork_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    if method == "merge":
+        do_merge(repo, branch, tag, upstream_commit, original)
+    else:
+        do_rebase_anchor(repo, branch, tag, baseline["upstream_commit"], fork_head, upstream_commit, original)
 
     version_text = str(target_version)
     baseline.update(
@@ -186,7 +257,11 @@ def cmd_merge(args: argparse.Namespace) -> int:
     )
     write_baseline(repo, baseline)
     changed = [BASELINE_REL]
-    if set_plugin_jellyfin_version(repo, version_text):
+    plugin_changed = set_plugin_jellyfin_version(repo, version_text)
+    upstream_tf = read_upstream_target_framework(repo)
+    if upstream_tf:
+        plugin_changed = set_plugin_target_framework(repo, upstream_tf) or plugin_changed
+    if plugin_changed:
         changed.append(PLUGIN_PROPS_REL)
     run_git(repo, "add", *changed)
     run_git(
@@ -203,6 +278,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
     result = {
         "branch": branch,
         "tag": tag,
+        "methode": method,
         "upstream_commit": upstream_commit,
         "fork_version": f"{version_text}-jl.0",
         "gewijzigd": changed,
@@ -230,6 +306,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_merge.add_argument("--branch")
     p_merge.add_argument("--geen-fetch", dest="no_fetch", action="store_true", help="ref al aanwezig (tests)")
     p_merge.add_argument("--maak-lokale-tag", dest="create_local_tag", action="store_true")
+    p_merge.add_argument("--methode", dest="method", choices=METHODS, default="auto")
     p_merge.set_defaults(func=cmd_merge)
     return parser
 
