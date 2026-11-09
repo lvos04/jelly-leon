@@ -2,7 +2,8 @@
 # (patchregister, versieconsistentie, OpenAPI-drift, lint), bouwt de alles-in-één image en test de levenscyclus
 # (lege opslag → healthy → herstart zonder dataverlies), de terugzetproef (upstream → Jelly Leon → terug met
 # DB-back-up + oude binary, B03-013), draait de stock-client-smoketest (simulator) en de proefrun van de overname van de
-# kijkgeschiedenis uit Emby (B03-015, JLT-70…73) met een echte Emby-container en stock Jellyfin 12.4.
+# kijkgeschiedenis uit Emby (B03-015, JLT-70…73) met een echte Emby-container en stock Jellyfin 12.4, en het B03-016-harnas
+# (corpusgenerator, CI-guard testdatalicenties, clientmatrix-rooktest en de differentiële controle-run tegen stock 12.4).
 # Deze workflow publiceert niets: geen image-push, geen release, geen deploy.
 # Upstream-workflows (ci-tests.yml e.a.) blijven bestaan; zie docs/adr/ADR-0007 voor wat er in de fork draait.
 name: Jelly Leon CI
@@ -266,6 +267,10 @@ jobs:
             --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/image-lifecycle.json" --verwacht-web-ref "$WEB_REF" \
             --opmerking "CI; web-client gebouwd uit lvos04/jelly-leon-web@$WEB_REF"
 
+      # B03-016: de image bevat geen beperkt gelicentieerde testdata (MovieLens, Pioneer One, fanondertitels, afgeleide labels).
+      - name: CI-guard testdatalicenties op de image
+        run: PYTHONPATH=tools/b03-harnas python3 -m b03h guard --image jelly-leon:ci
+
       # B03-013: migratie vanaf de bestaande upstream-Jellyfin en terug met DB-back-up (koude kopie als model voor de
       # ZFS-snapshot) + oude binary; streamen moet blijven werken. Upstream-image = de vastgezette runtime (digest).
       - name: Terugzetproef (upstream → Jelly Leon → terug met DB-back-up en oude binary)
@@ -397,3 +402,109 @@ jobs:
             ${{ runner.temp }}/emby-overname/proxy-*.jsonl
             ${{ runner.temp }}/emby-overname/werkmap/runs/
             ${{ runner.temp }}/emby-overname/werkmap-herimport/runs/
+
+  # B03-016 (golf 0): één harnasraamwerk. Unit- en recepttests (reproduceerbaar: zelfde sha256 bij dezelfde seed) op een
+  # synthetisch mini-corpus, de CI-guard testdatalicenties (hele boom én de gepushte commits), de clientmatrix-rooktest
+  # (Chromium/Firefox/WebKit, webOS/Tizen-UA, legacy-headers, stock-web via --webdir) en de differentiële controle-run
+  # tegen stock jellyfin/jellyfin:12.4 op digest. Het echte corpus en de Android-emulators blijven lokaal (BG-37, KVM).
+  b03-harnas:
+    name: B03-016-harnas (corpus, CI-guard, clientmatrix, controle-run)
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: tools/b03-harnas
+      STOCK_IMAGE: docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Python 3.12
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Werkmappen buiten de checkout (sloten, servers, mini-corpus, testsets)
+        run: |
+          {
+            echo "B03_LOCK_DIR=$RUNNER_TEMP/sloten"
+            echo "B03_WERK=$RUNNER_TEMP/b03-werk"
+            echo "B03_CORPUS=$RUNNER_TEMP/b03-corpus"
+            echo "B03_UITVOER=$RUNNER_TEMP/b03-testsets"
+          } >> "$GITHUB_ENV"
+
+      - name: Testafhankelijkheden en ffmpeg (alleen voor de recepttests op het mini-corpus)
+        run: |
+          python -m pip install --disable-pip-version-check -r tools/jelly-leon/requirements-dev.txt
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+          mkdir -p "$B03_LOCK_DIR" "$B03_WERK" "$B03_CORPUS" "$B03_UITVOER"
+
+      - name: Lint harnas (ruff)
+        run: ruff check --config tools/b03-harnas/ruff.toml tools/b03-harnas
+
+      - name: Unit-, recept- en guardtests (incl. negatieve test met beperkte testdata)
+        run: python -m pytest -q tools/b03-harnas/tests
+
+      - name: CI-guard testdatalicenties (hele boom)
+        run: python -m b03h guard --git .
+
+      - name: CI-guard testdatalicenties (gepushte commits)
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        env:
+          VOOR: ${{ github.event.before }}
+        run: |
+          if git cat-file -e "$VOOR^{commit}" 2>/dev/null; then
+            python -m b03h guard --bereik . "$VOOR..$GITHUB_SHA"
+          else
+            echo "vorige commit niet beschikbaar (force-push of nieuwe branch); alleen de boom gecontroleerd"
+          fi
+
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Playwright 1.63 met Chromium, Firefox en WebKit
+        working-directory: tools/b03-harnas/playwright
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium firefox webkit
+
+      - name: Stock-image ophalen (vaste digest) en synthetisch mini-corpus
+        run: |
+          docker pull "$STOCK_IMAGE"
+          python3 tools/b03-harnas/ci_mini_corpus.py "$B03_CORPUS" --ffmpeg-docker "$STOCK_IMAGE"
+
+      - name: Clientmatrix-rooktest tegen stock 12.4 (hero.mp4 per client)
+        run: |
+          python -m b03h clientmatrix --onderdelen web,ua,legacy,webdir --uit "$RUNNER_TEMP/b03-clientmatrix.json"
+          python3 - "$RUNNER_TEMP/b03-clientmatrix.json" <<'PY'
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          fout = [c["client"] for c in d["clients"] if not c["status"].startswith("Sim-getest")]
+          for c in d["clients"]:
+              print(f"{c['status']:60} {c['client']}")
+          sys.exit(f"rooktest mislukt voor: {fout}" if fout else 0)
+          PY
+
+      - name: Differentiële controle-run stock tegen stock (verwacht 0 verschillen) en negatieve proef
+        run: |
+          python -m b03h diffrun --uit "$RUNNER_TEMP/b03-diffrun.json"
+          if python -m b03h diffrun --negatieve-proef --uit "$RUNNER_TEMP/b03-diffrun-negatief.json"; then
+            echo "negatieve proef vond geen verschil — de vergelijking is stuk"; exit 1
+          fi
+
+      - name: Bewijs bewaren
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: b03-016-harnas
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/b03-clientmatrix.json
+            ${{ runner.temp }}/b03-clientmatrix/
+            ${{ runner.temp }}/b03-diffrun.json
+            ${{ runner.temp }}/b03-diffrun-negatief.json
