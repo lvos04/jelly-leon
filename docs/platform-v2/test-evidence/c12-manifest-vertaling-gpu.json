@@ -1,0 +1,101 @@
+{
+  "soort": "Sim-getest (vertaler van de manifesteigenaar lokaal; geen NAS, geen TrueNAS-API)",
+  "vertaler": "lvos04/appstore-en-fork@bd33052cd0174be08fbf6324f1caf296257182d3 appstore.manifest.translate.translate()",
+  "doel": "Target(truenas_version='25.04.2', ix_app_version='1.4.8', gpu_render_node=…) — proefwaarden, geen gemeten NAS-gegevens",
+  "parameters": "proefwaarden voor paden/tijdzone/RPO/RTO (nooit echte waarden); gpu per geval",
+  "gevallen": {
+    "zonder gpu-keuze": {
+      "ready_for_install": false,
+      "findings": [
+        [
+          "digest_not_pinned",
+          "error"
+        ],
+        [
+          "version_availability_unknown",
+          "warning"
+        ]
+      ],
+      "gpus": {
+        "use_all_gpus": false,
+        "nvidia_gpu_selection": {}
+      },
+      "ports": null,
+      "image": {
+        "repository": "ghcr.io/lvos04/jelly-leon",
+        "tag": "10.11.11-jl.0",
+        "pull_policy": "missing"
+      }
+    },
+    "gpu none": {
+      "ready_for_install": false,
+      "findings": [
+        [
+          "digest_not_pinned",
+          "error"
+        ],
+        [
+          "version_availability_unknown",
+          "warning"
+        ]
+      ],
+      "gpus": {
+        "use_all_gpus": false,
+        "nvidia_gpu_selection": {}
+      },
+      "ports": null,
+      "image": {
+        "repository": "ghcr.io/lvos04/jelly-leon",
+        "tag": "10.11.11-jl.0",
+        "pull_policy": "missing"
+      }
+    },
+    "gpu intel_render, render-node gemeten": {
+      "ready_for_install": false,
+      "findings": [
+        [
+          "digest_not_pinned",
+          "error"
+        ],
+        [
+          "gpu_all_render_devices",
+          "warning"
+        ],
+        [
+          "version_availability_unknown",
+          "warning"
+        ]
+      ],
+      "gpus": {
+        "use_all_gpus": true,
+        "nvidia_gpu_selection": {}
+      },
+      "ports": null,
+      "image": {
+        "repository": "ghcr.io/lvos04/jelly-leon",
+        "tag": "10.11.11-jl.0",
+        "pull_policy": "missing"
+      }
+    },
+    "gpu intel_render, NIET gemeten": {
+      "ready_for_install": false,
+      "findings": [
+        [
+          "digest_not_pinned",
+          "error"
+        ],
+        [
+          "gpu_not_measured",
+          "error"
+        ],
+        [
+          "version_availability_unknown",
+          "warning"
+        ]
+      ],
+      "gpus": null,
+      "ports": null,
+      "image": null
+    }
+  }
+}

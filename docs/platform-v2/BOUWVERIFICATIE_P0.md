@@ -10,6 +10,9 @@ met `--network host`, `HTTPS_PROXY` en de proxy-CA alleen als runtime-mount (noo
 > **Bijgewerkt in de P0-afronding (§11, Ubuntu-machine):** de 4 omgevingsfouten uit §3 slagen daar en op GitHub; de
 > volledige image mét echte web-build (§8: hier geblokkeerd) is gebouwd en getest; GitHub-CI is groen (§9). De
 > §§1–10 hieronder zijn de oorspronkelijke sandboxmetingen en blijven ongewijzigd staan.
+>
+> **Contract 1.2-ronde (§13):** contractkopie + drifttest, manifest §9 (GPU-parameter), Custom App-instructie, rooktest
+> op elk proces, *Custom User* met `no_new_privs`, en de CI-job *image* bouwt nu de echte `jelly-leon-web`-build.
 
 ## 1. Restore en build
 
@@ -281,3 +284,64 @@ drie nieuwe weigeringen, terugzetproef 10/10, stock-client-smoketest 18/18.
 **Niet getest:** de weigering van NFS/SMB (geen NFS/SMB-server in de testomgeving); in P0 zijn fork en upstream dezelfde
 versie, dus de terugzetproef bevat nog geen databasemigratie (onderscheidend pas bij 12.x, ADR-0011). Echte NAS,
 TrueNAS-formulier, ZFS-snapshot, echte clients en hardware: NIET GEVALIDEERD.
+
+## 13. Contract 1.2-ronde (2026-11-09)
+
+Op de Ubuntu-machine (zelfde omgeving als §11/§12) en in GitHub Actions. Alleen de punten die in deze ronde horen
+(`CONTRACT_1.2_CONFORMITEIT.md` §0 en §9): A1, A4, A6, JL2, JL3 uitgevoerd; JL4 alleen gedocumenteerd (ADR-0012);
+**JL1 (12.x-upgrade) niet** — aparte fase (ADR-0011); **JL5 niets gewijzigd** (`upstream-sync.yml` ongemoeid); JL6 n.v.t.
+Ruwe uitvoer: `test-evidence/c12-*.json`.
+
+### 13.1 Wat er veranderd is
+
+| Punt | Wijziging | Commit |
+|---|---|---|
+| A1 | `PLATFORM_CONTRACTEN.md` (`contracts 1.2`) en `CONTRACT_1.2_CONFORMITEIT.md` byte-gelijk uit `ai-server-manager` `8b54f39`; drifttest `tools/jelly-leon/contract_drift.py` (offline sha256-pin; `--online` tegen de publieke bron, ook als CI-stap; bron later gewijzigd = alleen waarschuwing) | `daa283809` |
+| A4 | `tools/jelly-leon/tests/test_evidence_contract.py`: EVIDENCE.json volgens §11 | `c0a91a0e2` |
+| JL2 | Manifest: `custom_app.ports` en `network.joins_platform_network` weg; GPU als wizardparameter `gpu` (D08, niet verplicht) met `privileges.gpu: intel_render` als maximum; CI-job `manifest` met de validator van `appstore-en-fork` (vaste commit `bd33052`) | `78bd2c90b` |
+| A6 / §2.2 | Rooktest controleert elk proces; nieuwe run met *Custom User* 568 en weigering van een niet-schrijfbare `/config`; entrypoint zet bij *Custom User* zelf `no_new_privs` (zie 13.3) | `58b481dff` |
+| CI | Job `image` bouwt de **echte** `jelly-leon-web`-build op `baseline.json` `web_fork_commit` (`2795f3365`) i.p.v. de upstream-web-dist; `web_bron.py` controleert de checkout (ADR-0013) | `ce980c25d` |
+| JL3 / JL4 | `deploy/truenas/CUSTOM_APP.md` (tag met digest, publieke image, registry-login als terugval, stock-Jellyfin op eigen poort, terugzetten zonder `app.rollback`); ADR-0012, ADR-0013 | `e38b8285e` |
+
+### 13.2 Lokaal gedraaid (Sim-getest, geen echte NAS)
+
+| Commando | Resultaat |
+|---|---|
+| `python -m pytest -q tools/jelly-leon/tests` (venv buiten de repo; pytest 8.4.2) | **145 geslaagd** (89 eerder + 56 nieuw: drifttest 9, EVIDENCE §11 10, manifest 1.2 13, manifestrapport 6, rooktest per proces 5, web-bron 13) |
+| `ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon`; `shellcheck -s sh deploy/allinone/entrypoint.sh`; `actionlint jelly-leon-ci.yml upstream-sync.yml` | in orde |
+| `check_fork_consistency.py`; `patch_register_check.py` | in orde (geen nieuwe core-patch: alle wijzigingen in fork-eigen paden) |
+| `contract_drift.py`, `--bron-map ../ai-server-manager`, `--online --github` | alle drie in orde (2 bestanden byte-gelijk aan `8b54f39`) |
+| Validator van `appstore-en-fork` `bd33052` (`git archive`, eigen venv, `pip install --require-hashes --no-deps -r apps/api/requirements.lock`), `python -m appstore.manifest.cli validate … --format json` + `manifest_rapport.py` | nieuw manifest **geldig, 0 fouten**, alleen `digest_pending_release` (nog geen release) → conform (`test-evidence/c12-manifest-validator.json`); het manifest van vóór JL2 geeft 2× `deprecated_field` → niet conform |
+| Vertaler van dezelfde commit (`translate()`, proefwaarden, `ix_app_version` 1.4.8) | `gpu` leeg of `none` → `use_all_gpus: false`; `intel_render` met gemeten render-node → `use_all_gpus: true` + waarschuwing `gpu_all_render_devices`; zonder meting → fout `gpu_not_measured`; poorten alleen uit `network.ports` (30460 → 8096); altijd `digest_not_pinned` (eigen image zonder release) → niet installeerbaar (`test-evidence/c12-manifest-vertaling-gpu.json`) |
+| Digests `dotnet/sdk:9.0.320`, `node:22.23.4-bookworm-slim`, `jellyfin/jellyfin:10.11.11` (`docker buildx imagetools inspect`) | gelijk aan de gepinde waarden |
+| `docker buildx build -f deploy/allinone/Dockerfile --build-context jelly-leon-web=<git archive jelly-leon-web 2795f3365> --build-arg BUILD_JOBS=4 …` op een `git archive` van `ce980c25d` (flock, nice) | geslaagd in 1 min 44 s (`npm ci` 17 s, webpack-productiebuild 75 s met 2 bundelgrootte-waarschuwingen); image 801 MB, niet gepubliceerd |
+| `image_lifecycle.py --verwacht-web-ref 2795f3365…` | **27/27** (`test-evidence/c12-image-lifecycle.json`): de 21 stappen uit §12.3 plus: elk proces 568/`CapEff 0`/`NoNewPrivs 1` (eerste start en nieuwe container), *Custom User* 568:568 → *healthy* → smoketest 20/20 (zelfde gebruiker en item-ID) → elk proces in orde, en geweigerd: *Custom User* met een `/config` die niet van 568 is (NL-melding) |
+| `rollback_sim.py --upstream-image jellyfin/jellyfin:10.11.11@sha256:aefb67e6…` | **10/10** (`test-evidence/c12-rollback-sim.json`) |
+| `ghcr.io/lvos04/jelly-leon` anoniem (`docker buildx imagetools inspect …:10.11.11-jl.0`, GHCR-token zonder login) | `403 DENIED`: er is nog geen (publiek) pakket — klopt, er is nog geen release |
+
+Niet opnieuw gedraaid: `dotnet test Jellyfin.sln` lokaal (geen C#-wijziging in deze ronde; de CI-job *server* draait de
+volledige suite) en de Chromium-web-smoketest van `jelly-leon-web` (zelfde web-commit en Dockerfile als §12.3, 21/21).
+
+**GitHub Actions:** run [42653328502](https://github.com/lvos04/jelly-leon/actions/runs/42653328502) (commit
+`ce980c25d`): **6/6 jobs groen** — *manifest* (validator `appstore-en-fork` `bd33052`: geldig, alleen
+`digest_pending_release`), *forkregels* (145 tool-tests, contractkopie online byte-gelijk aan `8b54f39`), *server*
+(2 555 tests: 2 548 geslaagd, 7 overgeslagen (upstream), 0 mislukt; OpenAPI structureel gelijk, 4 `description`-teksten
+anders zoals ADR-0010), *plugins* 16/16, *image* mét de **echte web-build** van `jelly-leon-web` `2795f3365` (bouwen
+4 min 6 s; web-bron gecontroleerd; levenscyclus **27/27** incl. herkomst, elk proces 568 en *Custom User*;
+terugzetproef **10/10**), *stock-client-smoketest* 18/18. Rapporten als artefacten van de run.
+
+### 13.3 Gevonden en gerepareerd
+
+| Bevinding | Gemeten | Reparatie |
+|---|---|---|
+| **Bij *Custom User* (start als 568) draaide de server zonder `no_new_privs`.** Contract 1.2 §2.2: het formulier zet geen `no-new-privileges`, dus de image moet het zelf zetten vóór de eerste `execve`. Bij een root-start gebeurde dat al (`setpriv`), bij een niet-root-start niet (`exec /jellyfin/jellyfin`). | nagebootst met de nieuwe image en `--entrypoint /jellyfin/jellyfin --user 568:568` (= het oude pad): `NoNewPrivs 0`, `CapBnd 00000000a80425fb`; met de nieuwe entrypoint `--user 568:568`: `NoNewPrivs 1` | entrypoint: eerst schrijfbaarheid van `/config`/`/cache` controleren (anders NL-fout), dan `setpriv --no-new-privs --inh-caps=-all`; de markering van de tweede fase telt alleen als `NoNewPrivs` echt 1 is (ADR-0012 punt 3) |
+| De rooktest keek alleen naar PID 1 (A6 vraagt elk proces) | code-review | `image_lifecycle.py` leest elk `/proc/<pid>/status` en sluit alleen de bomen uit die Docker van buiten start (`docker exec`, healthcheck: PPid 0) |
+
+### 13.4 Nog steeds NIET GEVALIDEERD / open
+
+- Echte NAS, TrueNAS-formulier (of `@sha256:` in het tagveld werkt), digest-readback, ZFS-snapshot, D07-meting van een
+  stock-Jellyfin, D08-meting en GPU-doorgifte (`use_all_gpus`), echte clients en hardware.
+- Geen gepubliceerde image (P4, na de 12.x-upgrade); de release-CI moet `image.digest` vullen en dan `--strict` halen.
+- Contract-issue: de Docker-healthcheck draait in alle alles-in-één images als de containergebruiker (root zonder
+  *Custom User*), met standaard-capabilities en zonder `no_new_privs` (ADR-0012, Gevolgen (a)).
+- `GET /media/v1/version` als niet-admin-gebruiker (Hub-adapter v1) is alleen uit de upstream-code afgeleid, niet getest.

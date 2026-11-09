@@ -1,0 +1,25 @@
+{
+  "valid": true,
+  "app_id": "jelly-leon",
+  "version": "10.11.11-jl.0",
+  "install_method": "custom_app",
+  "manifest_sha256": "sha256:54ada32aebb4888205a6dacb2d672cb7296d33d0e29c5947f6581b523c3ea20d",
+  "schema_sha256": "sha256:3c933ad5741aae845cc03ebdc2501c5cc544b6cca494ba8c482b3a9055771ca9",
+  "validator_version": "0.1.0",
+  "errors": 0,
+  "warnings": 1,
+  "findings": [
+    {
+      "code": "digest_pending_release",
+      "severity": "warning",
+      "path": "image.digest",
+      "message": "Eigen image zonder digest: de release-CI vult die in; installeren vereist de digest."
+    }
+  ],
+  "file": "deploy/manifest/jelly-leon.manifest.yaml",
+  "strict": false,
+  "result": "geldig",
+  "validator": "lvos04/appstore-en-fork@bd33052cd0174be08fbf6324f1caf296257182d3 (python -m appstore.manifest.cli validate --format json; dependencies uit apps/api/requirements.lock met --require-hashes)",
+  "beoordeling": "tools/jelly-leon/manifest_rapport.py: conform (alleen digest_pending_release toegestaan)",
+  "soort": "Sim-getest (validator lokaal, geen NAS)"
+}
