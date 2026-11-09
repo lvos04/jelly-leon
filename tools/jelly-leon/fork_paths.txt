@@ -1,0 +1,14 @@
+# Fork-eigen paden van Jelly Leon (ADR-0001). Een wijziging hier is GEEN core-patch.
+# Eén pad per regel. Eindigt een regel op "/", dan telt alles daaronder mee; anders exact dit bestand.
+# Alles buiten deze lijst dat afwijkt van de upstream-basis (tools/jelly-leon/baseline.json)
+# moet in docs/platform-v2/PATCHES.md staan, anders faalt tools/jelly-leon/patch_register_check.py.
+README.jelly-leon.md
+.env.example
+docs/platform-v2/
+docs/adr/
+docs/openapi/
+plugins/
+deploy/
+tools/jelly-leon/
+.github/workflows/jelly-leon-ci.yml
+.github/workflows/upstream-sync.yml

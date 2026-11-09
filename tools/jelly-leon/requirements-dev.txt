@@ -1,0 +1,3 @@
+# Alleen voor ontwikkeling/CI van de forktools (de tools zelf gebruiken uitsluitend de standaardbibliotheek).
+pytest==8.4.2
+actionlint-py==1.7.12.25

@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "upstream_repo": "https://github.com/jellyfin/jellyfin",
+  "upstream_tag": "v10.11.11",
+  "upstream_version": "10.11.11",
+  "upstream_commit": "1fbd8739292cce610231be93daf43368733edf63",
+  "local_upstream_tag": "upstream-v10.11.11",
+  "fork_version": "10.11.11-jl.0",
+  "dotnet_sdk_major": "9.0",
+  "web_repo": "https://github.com/lvos04/jelly-leon-web",
+  "web_upstream_tag": "v10.11.11",
+  "web_upstream_commit": "35c0793ece3adbd247eab290ae1effab851f3d37",
+  "notes_nl": "Bron van waarheid voor de forkbasis (ADR-0005). Alleen wijzigen via tools/jelly-leon/upstream_sync.py of een bewuste release-commit."
+}
