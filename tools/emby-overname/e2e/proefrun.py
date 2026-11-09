@@ -102,17 +102,31 @@ class Http:
             return fout.code
 
 
-def wacht(url: str, timeout: float = 240) -> None:
+def wacht(url: str, timeout: float = 300) -> None:
+    """Wacht tot de server echt klaar is: geldige JSON met een versie (Jellyfin 12 toont tijdens het laden een HTML-pagina)."""
     einde = time.time() + timeout
     while time.time() < einde:
         try:
             with urllib.request.urlopen(url, timeout=5) as antwoord:  # noqa: S310
-                if antwoord.status == 200 and b"loading" not in antwoord.read(200).lower():
+                data = json.loads(antwoord.read().decode("utf-8-sig"))
+                if antwoord.status == 200 and isinstance(data, dict) and data.get("Version"):
                     return
-        except (urllib.error.URLError, OSError):
+        except (urllib.error.URLError, OSError, ValueError):
             pass
         time.sleep(2)
     raise RuntimeError(f"{url} niet bereikbaar binnen {timeout} s")
+
+
+def met_herhaling(functie: Any, pogingen: int = 30) -> Any:
+    """Herhaalt bij HTTP 503 (server nog aan het opstarten)."""
+    for poging in range(pogingen):
+        try:
+            return functie()
+        except RuntimeError as fout:
+            if "HTTP 503" not in str(fout) or poging == pogingen - 1:
+                raise
+            time.sleep(3)
+    return None
 
 
 def vrije_poort() -> int:
@@ -512,8 +526,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         wacht(emby_url + "/System/Info/Public")
         wacht(jl_url + "/System/Info/Public")
         emby, jl = Emby(emby_url), Jellyfin(jl_url)
-        emby.wizard()
-        jl.wizard()
+        met_herhaling(emby.wizard)
+        met_herhaling(jl.wizard)
         info_emby = emby.anoniem.doe("GET", "/System/Info/Public")
         info_jl = jl.anoniem.doe("GET", "/System/Info/Public")
         bewijs.data["servers"] = {"emby": {"versie": info_emby.get("Version")}, "jellyfin": {"versie": info_jl.get("Version"),
@@ -634,6 +648,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                      all(r["pad"] == "/Users/New" or r["pad"].endswith(("/Policy", "/UserData")) or r["pad"] == "/Users/Configuration"
                          for r in geschreven1), sorted({r["pad"].rsplit("/", 1)[-1] for r in geschreven1}))
 
+        archief_na1 = uitvoer / "archief" / "emby-kijkgegevens-na-overzetting-1.json"
+        tool.draai("export", "--emby-url", proxy_emby.url, "--emby-sleutel-bestand", str(sleutels["emby"]), "--uitvoer", str(archief_na1))
+        code_vgl, vgl = tool.draai("vergelijk-export", str(archief_voor), str(archief_na1), verwacht=None)
+        bewijs.check("JLT-73", "exportarchief vóór en na de overzetting inhoudelijk identiek (vergelijk-export)",
+                     code_vgl == 0 and vgl.get("identiek") is True, vgl.get("verschillen"))
+
         # 3. Onafhankelijke controle tegen de grondwaarheid.
         jl_gebruikers = jl.gebruikers()
         naar_jl = {"beheerder": "jlbeheer", "Anna": "Anna", "Bram": "Bram", "Kim": "Kim", "Gast": "Gast"}
@@ -742,8 +762,6 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         # 8. Archief na, vergelijking, herimport-voorbereiding.
         archief_na = uitvoer / "archief" / "emby-kijkgegevens-na.json"
         tool.draai("export", "--emby-url", proxy_emby.url, "--emby-sleutel-bestand", str(sleutels["emby"]), "--uitvoer", str(archief_na))
-        code_vgl, vgl = tool.draai("vergelijk-export", str(archief_voor), str(archief_voor), verwacht=None)
-        bewijs.check("JLT-73", "exportarchief controleerbaar (sha256 + inhoud-sha256) en vergelijkbaar", code_vgl == 0 and vgl["identiek"])
         bewijs.data["archief"] = {"voor": export_voor, "na_sha256": (archief_na.with_name(archief_na.name + ".sha256")).read_text().split()[0]}
 
         # 9. Cutover-akkoord (alleen met akkoord op elk verschil).
@@ -789,7 +807,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         jl2_url = f"http://127.0.0.1:{p_jl2}"
         wacht(jl2_url + "/System/Info/Public")
         jl2 = Jellyfin(jl2_url)
-        jl2.wizard()
+        met_herhaling(jl2.wizard)
         sleutel_jl2 = jl2.sleutel("jelly-leon-overname")
         (werk / "geheimen" / "jl-api-key").write_text(sleutel_jl2 + "\n")
         sleutels_waarden["jl2"] = sleutel_jl2
