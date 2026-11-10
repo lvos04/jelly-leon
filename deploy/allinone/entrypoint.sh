@@ -19,6 +19,11 @@
 #    /config of /cache niet schrijfbaar, dan een NL-fout; daarna no_new_privs (setpriv) vóór de server start.
 #  * De meegeleverde Jelly Leon-plugin wordt in <datamap>/plugins/JellyLeon_<versie> gezet; andere plugins blijven
 #    onaangeroerd. Geen geheimen, geen netwerkaanroepen, geen shell voor iets anders dan deze start.
+#  * Downgradeweigering (B03-014, JLT-61 b): <datamap>/jelly-leon/datamap-versie onthoudt de hoogste forkversie die de
+#    datamap heeft gestart. Is die nieuwer dan deze image, dan stopt de container vóór elke schrijfactie met een
+#    NL-melding: een oudere server op een al gemigreerde database kan kijkgegevens beschadigen (gemeten: 10.11.11 op
+#    een 12.4-database start 'gezond', maar aanmelden geeft HTTP 500). Terugzetten = snapshot én vorige image samen;
+#    de snapshot bevat dan ook de oude datamap-versie, zodat dat pad gewoon start.
 set -eu
 
 APP_UID=568
@@ -26,6 +31,7 @@ APP_GID=568
 DATA_DIR="${JELLYFIN_DATA_DIR:-/config}"
 CACHE_DIR="${JELLYFIN_CACHE_DIR:-/cache}"
 BUNDLED_PLUGINS=/usr/share/jelly-leon/plugins
+IMAGE_VERSION_FILE=/usr/share/doc/jelly-leon/VERSION
 SELF=$(readlink -f -- "$0")
 
 log() { printf '%s jelly-leon: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
@@ -97,6 +103,69 @@ assert_persistent "$DATA_DIR" data
 assert_persistent "$CONFIG_DIR" data
 assert_persistent "$CACHE_DIR" cache
 
+# ---------------------------------------------------------------- downgradeweigering (JLT-61 b)
+DATAMAP_VERSION_FILE="$DATA_DIR/jelly-leon/datamap-versie"
+
+# "<a>.<b>.<c>-jl.<n>" → "a b c n" (leeg bij een onbekende vorm).
+version_fields() {
+  printf '%s\n' "$1" | sed -n 's/^\([0-9][0-9]*\)\.\([0-9][0-9]*\)\.\([0-9][0-9]*\)-jl\.\([0-9][0-9]*\)$/\1 \2 \3 \4/p'
+}
+
+# Exitcode 0 als versie $1 nieuwer is dan $2 (beide "a b c n" uit version_fields).
+version_newer() {
+  # shellcheck disable=SC2086 # bewust splitsen in vier getallen per versie
+  set -- $1 $2
+  for pair in "$1 $5" "$2 $6" "$3 $7" "$4 $8"; do
+    left=${pair% *}
+    right=${pair#* }
+    if [ "$left" -gt "$right" ]; then return 0; fi
+    if [ "$left" -lt "$right" ]; then return 1; fi
+  done
+  return 1
+}
+
+image_version() {
+  [ -r "$IMAGE_VERSION_FILE" ] || fail "$IMAGE_VERSION_FILE ontbreekt: deze image is niet volgens deploy/allinone/Dockerfile gebouwd"
+  head -n 1 "$IMAGE_VERSION_FILE"
+}
+
+# Leest alleen; schrijft niets. Weigert een datamap die al door een nieuwere Jelly Leon is gestart.
+assert_not_downgrade() {
+  own=$(image_version)
+  own_fields=$(version_fields "$own")
+  [ -n "$own_fields" ] || fail "forkversie van deze image ('$own') heeft geen geldige vorm <x.y.z>-jl.<n>"
+  [ -e "$DATAMAP_VERSION_FILE" ] || return 0
+  recorded=$(sed -n 's/^fork_version=//p' "$DATAMAP_VERSION_FILE" | head -n 1)
+  recorded_fields=$(version_fields "$recorded")
+  if [ -z "$recorded_fields" ]; then
+    fail "$DATAMAP_VERSION_FILE is onleesbaar (verwacht fork_version=<x.y.z>-jl.<n>); er is niets gewijzigd. Zet de snapshot van de config-dataset terug of vraag hulp via de Hub"
+  fi
+  if version_newer "$recorded_fields" "$own_fields"; then
+    fail "deze datamap is al gestart door Jelly Leon $recorded, nieuwer dan deze image ($own). Een oudere server op een al gemigreerde database kan kijkgegevens beschadigen, daarom start deze image niet; er is niets gewijzigd. Terugzetten = de snapshot van de config-dataset van vóór de update én de vorige image samen (deploy/truenas/CUSTOM_APP.md, 'Updaten en terugdraaien'); of kies weer de nieuwere image"
+  fi
+}
+
+# Alleen als 568 vlak vóór de start: hoogste forkversie vastleggen (atomair; nooit verlagen).
+record_datamap_version() {
+  own=$(image_version)
+  if [ -e "$DATAMAP_VERSION_FILE" ]; then
+    recorded=$(sed -n 's/^fork_version=//p' "$DATAMAP_VERSION_FILE" | head -n 1)
+    [ "$recorded" = "$own" ] && return 0
+  fi
+  mkdir -p "$DATA_DIR/jelly-leon" || fail "$DATA_DIR/jelly-leon kan niet worden aangemaakt"
+  tmp="$DATAMAP_VERSION_FILE.tmp.$$"
+  if ! {
+    printf '# Hoogste Jelly Leon-versie die deze datamap heeft gestart (downgradeweigering, JLT-61 b). Niet bewerken.\n'
+    printf 'fork_version=%s\n' "$own"
+  } > "$tmp" || ! mv -f "$tmp" "$DATAMAP_VERSION_FILE"; then
+    rm -f "$tmp"
+    fail "$DATAMAP_VERSION_FILE kan niet worden geschreven"
+  fi
+  log "datamap-versie vastgelegd: $own"
+}
+
+assert_not_downgrade
+
 # Alleen /config, /cache en mappen daaronder mogen als root van eigenaar wisselen (na het oplossen van symlinks).
 assert_owned_mount() {
   resolved=$(readlink -f -- "$1") || fail "$1 kan niet worden opgelost"
@@ -142,6 +211,7 @@ if [ "$(id -u)" != "0" ]; then
   if [ "${JELLY_LEON_ENTRYPOINT_STAGE:-}" = "app" ] && [ "$nnp" = "1" ]; then
     log "draait als $(id -u):$(id -g) (groepen $(id -G | tr ' ' ',')), zonder capabilities, no_new_privs"
     unset JELLY_LEON_ENTRYPOINT_STAGE
+    record_datamap_version
     install_plugins
     exec /jellyfin/jellyfin "$@"
   fi

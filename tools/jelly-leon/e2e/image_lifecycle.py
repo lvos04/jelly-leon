@@ -26,7 +26,11 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
      - JELLYFIN_CONFIG_DIR in de container zelf (instellingen weg bij elke update);
      - een padoptie (`--datadir`) in het veld Command;
      - Custom User 568 met een /config die niet van 568 is (NL-melding, nooit stil doorstarten).
-  9. bij succes wordt de werkmap opgeruimd (bestanden van 568 via een wegwerpcontainer; --behoud-werkmap houdt hem).
+  9. downgradeweigering (B03-014, JLT-61 b): na de eerste start staat de forkversie van de image in
+     /config/jelly-leon/datamap-versie; een datamap die al door een nieuwere Jelly Leon is gestart (gesimuleerd met een
+     hogere datamap-versie, want een nieuwere image bestaat nog niet) wordt geweigerd met een NL-melding, zonder dat er
+     één byte in /config verandert (sha256 van elk bestand vóór en na);
+ 10. bij succes wordt de werkmap opgeruimd (bestanden van 568 via een wegwerpcontainer; --behoud-werkmap houdt hem).
 
 Alleen standaardbibliotheek; Docker via subprocess zonder shell. Schrijft een JSON-rapport. Exitcode 0 = alles geslaagd.
 """
@@ -54,6 +58,8 @@ MAKE_MEDIA = E2E_DIR / "make_test_media.py"
 MEDIA_REL = Path("Jelly Leon Test") / "Smoketest" / "01 - Sinus 440 Hz.wav"
 APP_UID = "568"
 HEALTHCHECK = "/usr/local/bin/jelly-leon-healthcheck"
+DATAMAP_VERSION = "jelly-leon/datamap-versie"
+WEB_TITLE = b"<title>Jelly Leon</title>"
 
 
 class AssetParser(html.parser.HTMLParser):
@@ -326,8 +332,10 @@ class Lifecycle:
             status, body = self.fetch("/web/index.html", 200_000)
         except OSError as exc:
             return self.add("web-client bereikbaar", False, str(exc)[:200])
-        ok = status == 200 and b"<title>" in body
-        self.add("web-client bereikbaar", ok, f"HTTP {status}; {len(body)} bytes; <title> aanwezig={b'<title>' in body}")
+        # De echte jelly-leon-web-build (JLW-0002): zichtbare naam "Jelly Leon" vóór het laden; stock heeft "Jellyfin".
+        ok = status == 200 and WEB_TITLE in body
+        self.add("web-client bereikbaar (Jelly Leon-build)", ok,
+                 f"HTTP {status}; {len(body)} bytes; {WEB_TITLE.decode()} aanwezig={WEB_TITLE in body}")
         parser = AssetParser()
         parser.feed(body.decode("utf-8", errors="replace"))
         assets = [a for a in parser.assets if not urllib.parse.urlsplit(a).netloc]  # alleen eigen bestanden
@@ -363,6 +371,59 @@ class Lifecycle:
             ok,
             f"verwacht {expected}; label {label or '-'}; bestand: {' | '.join(revisions.split(chr(10))[:2]) or '-'}",
         )
+
+    def check_datamap_version(self) -> bool:
+        """De image legt zijn forkversie vast in de datamap (basis van de downgradeweigering)."""
+        own = docker("exec", self.name, "cat", "/usr/share/doc/jelly-leon/VERSION", check=False).stdout.strip()
+        text = docker("exec", self.name, "cat", f"/config/{DATAMAP_VERSION}", check=False).stdout
+        ok = bool(own) and f"fork_version={own}" in text.splitlines()
+        return self.add("datamap-versie vastgelegd", ok, f"image {own or '?'}; bestand: {text.strip().splitlines()[-1:] or '-'}")
+
+    def helper_sh(self, script: str) -> str:
+        """Testhulp: als root in een wegwerpcontainer zonder netwerk op de werkmap (bestanden zijn van 568)."""
+        proc = docker(
+            "run", "--rm", "--network", "none", "--entrypoint", "/bin/sh", "-v", f"{self.work}:/werk",
+            self.args.image, "-c", script, timeout=300,
+        )
+        return proc.stdout
+
+    def config_hashes(self) -> str:
+        return self.helper_sh("cd /werk/config && find . -type f -print0 | sort -z | xargs -0 sha256sum")
+
+    def expect_downgrade_refusal(self) -> bool:
+        """JLT-61 b: een oudere image op een datamap van een nieuwere Jelly Leon start niet en wijzigt niets."""
+        own = docker("run", "--rm", "--network", "none", "--entrypoint", "/bin/cat", self.args.image,
+                     "/usr/share/doc/jelly-leon/VERSION").stdout.strip()
+        newer = "99.0.0-jl.0"
+        self.helper_sh(
+            f"printf 'fork_version={newer}\\n' > /werk/config/{DATAMAP_VERSION} && chown 568:568 /werk/config/{DATAMAP_VERSION}"
+        )
+        before = self.config_hashes()
+        name = f"{self.name}-downgrade"
+        self.remove(name)
+        docker(*self.run_args(name, mounts=self.standard_mounts()))
+        deadline = time.monotonic() + 60
+        state = ""
+        while time.monotonic() < deadline:
+            state = docker("inspect", "-f", "{{.State.Status}} {{.State.ExitCode}}", name, check=False).stdout.strip()
+            if state.startswith("exited"):
+                break
+            time.sleep(1)
+        log = self.logs(name, 20)
+        self.remove(name)
+        after = self.config_hashes()
+        refused = state.startswith("exited") and not state.endswith(" 0") and f"nieuwer dan deze image ({own})" in log
+        unchanged = bool(before.strip()) and before == after
+        files = len(before.strip().splitlines())
+        last_line = log.strip().splitlines()[-1] if log.strip() else ""
+        ok = self.add(
+            "geweigerd: oudere image op een datamap van een nieuwere Jelly Leon (gesimuleerd: datamap-versie "
+            f"{newer}, image {own})",
+            refused and unchanged,
+            f"{state}; /config byte-gelijk={unchanged} ({files} bestanden, sha256); {last_line[:220]}",
+        )
+        self.helper_sh(f"printf 'fork_version={own}\\n' > /werk/config/{DATAMAP_VERSION}")
+        return ok
 
     def media_fingerprint(self) -> list[tuple[str, int, int, int]]:
         result = []
@@ -413,6 +474,7 @@ class Lifecycle:
             if not first:
                 return False
             self.check_process_and_ownership()
+            self.check_datamap_version()
             self.check_all_processes("eerste start")
             self.check_healthcheck("start als root", root_start=True)
             self.check_web_client()
@@ -445,6 +507,7 @@ class Lifecycle:
         finally:
             self.remove(self.name)
 
+        self.expect_downgrade_refusal()
         self.expect_refusal(
             "geen opslagregel voor /cache (anoniem Docker-volume)",
             mounts=[f"{self.config}:/config", f"{self.media}:/media/muziek:ro"],

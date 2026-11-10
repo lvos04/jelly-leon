@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "e2e"))
 
 import image_lifecycle  # noqa: E402
 
-INDEX = """<!doctype html><html><head><title>Jellyfin</title>
+INDEX = """<!doctype html><html><head><title>Jelly Leon</title>
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="main.jellyfin.css?abc">
 <script defer="defer" src="runtime.bundle.js?3cf5"></script>
@@ -55,7 +55,7 @@ def webserver(tmp_path: Path):
 
 def lifecycle_for(port: int, tmp_path: Path) -> image_lifecycle.Lifecycle:
     args = argparse.Namespace(
-        image="jelly-leon:test", expected_version="10.11.11", werkmap=str(tmp_path), health_timeout=1,
+        image="jelly-leon:test", expected_version="12.4.0", werkmap=str(tmp_path), health_timeout=1,
         report=None, opmerking="", verwacht_web_ref="",
     )
     lifecycle = image_lifecycle.Lifecycle(args)
@@ -79,7 +79,7 @@ def test_complete_web_client_passes(webserver, tmp_path):
     lifecycle = lifecycle_for(port, tmp_path)
     assert lifecycle.check_web_client() is True
     steps = {s["stap"]: s for s in lifecycle.steps}
-    assert steps["web-client bereikbaar"]["geslaagd"]
+    assert steps["web-client bereikbaar (Jelly Leon-build)"]["geslaagd"]
     assert steps["web-client: alle bundels uit index.html laden"]["detail"].startswith("3/3 scripts/stylesheets")
 
 
@@ -102,3 +102,13 @@ def test_index_without_bundles_fails(webserver, tmp_path):
     (web / "index.html").write_text("<html><head><title>Jellyfin</title></head></html>", encoding="utf-8")
     lifecycle = lifecycle_for(port, tmp_path)
     assert lifecycle.check_web_client() is False
+
+
+def test_stock_web_title_is_not_the_jelly_leon_build(webserver, tmp_path):
+    """De image moet de jelly-leon-web-build bevatten (zichtbare naam, JLW-0002), niet de stock-webclient."""
+    web, port = webserver
+    (web / "index.html").write_text(INDEX.replace("<title>Jelly Leon</title>", "<title>Jellyfin</title>"), encoding="utf-8")
+    lifecycle = lifecycle_for(port, tmp_path)
+    assert lifecycle.check_web_client() is False
+    step = next(s for s in lifecycle.steps if s["stap"].startswith("web-client bereikbaar"))
+    assert not step["geslaagd"] and "aanwezig=False" in step["detail"]
