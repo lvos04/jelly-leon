@@ -96,8 +96,9 @@ RUN set -eu; \
     test -x /jellyfin/jellyfin; test -f /jellyfin/jellyfin-web/index.html; test -x /usr/lib/jellyfin-ffmpeg/ffmpeg
 EXPOSE 8096
 VOLUME ["/config", "/cache"]
-# De healthcheck wisselt zelf naar 568 zonder capabilities vóór curl (Docker start hem als de containergebruiker, bij
-# een Custom App zonder Custom User dus als root; contract 1.2 §2.2, ADR-0012).
+# De healthcheck (exec-vorm, geen sh -c) wisselt als eerste handeling naar 568 zonder capabilities met no_new_privs en
+# controleert daarna zijn eigen rechten vóór curl (Docker start hem als de containergebruiker, bij een Custom App zonder
+# Custom User dus als root; contract 1.3 §2.2, ADR-0014, ADR-0028). Controlevlag voor de rooktest: --toon-rechten.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
   CMD ["/usr/local/bin/jelly-leon-healthcheck"]
 ENTRYPOINT ["/usr/local/bin/jelly-leon-entrypoint"]

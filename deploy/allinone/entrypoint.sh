@@ -1,5 +1,5 @@
 #!/bin/sh
-# Jelly Leon — start van de alles-in-één container (ADR-0008; contract 1.2 §2.2).
+# Jelly Leon — start van de alles-in-één container (ADR-0008; contract 1.3 §2.2).
 #
 #  * Start de container als root (standaard bij een TrueNAS Custom App zonder "Custom User"), dan:
 #      - /config en /cache moeten bestaan (opslag uit het formulier); alleen DIE mappen krijgen eigenaar 568:568,
@@ -216,14 +216,14 @@ if [ "$(id -u)" != "0" ]; then
     exec /jellyfin/jellyfin "$@"
   fi
   # Custom User in het formulier: geen eigenaarschapsstap, dus de opslag moet al van deze gebruiker zijn. Niet
-  # schrijfbaar → NL-melding en stoppen (healthcheck rood), nooit stil doorstarten (contract 1.2 §2.2).
+  # schrijfbaar → NL-melding en stoppen (healthcheck rood), nooit stil doorstarten (contract 1.3 §2.2).
   for dir in "$DATA_DIR" "$CACHE_DIR"; do
     if [ ! -w "$dir" ] || [ ! -x "$dir" ]; then
       fail "$dir is niet schrijfbaar voor gebruiker $(id -u):$(id -g) (Custom User in het formulier): zet Custom User uit (de container maakt dan zelf 568:568 eigenaar van /config en /cache) of maak de dataset eerst van deze gebruiker"
     fi
   done
   log "start als gebruiker $(id -u):$(id -g) (Custom User; geen eigenaarschap aangepast)"
-  # Het formulier zet geen no-new-privileges (contract 1.2 §2.2): zelf zetten vóór de eerste execve van de server.
+  # Het formulier zet geen no-new-privileges (contract 1.3 §2.2): zelf zetten vóór de eerste execve van de server.
   # (Zonder CAP_SETPCAP kan een niet-root-proces de bounding-set niet legen; met no_new_privs en CapEff 0 kan het
   # ook via setuid-bestanden geen rechten meer krijgen.)
   export JELLY_LEON_ENTRYPOINT_STAGE=app

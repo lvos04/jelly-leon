@@ -43,3 +43,26 @@
   daarom nog steeds uit; het contract-issue voor de contracteigenaar blijft staan (platformbreed besluit; andere repos
   worden hier niet gewijzigd). Dit script kan als voorbeeld dienen.
 - Geen core-patch (`deploy/` is een fork-eigen pad); upstream-code ongewijzigd.
+
+## Aanvulling contract 1.3 (2026-11-10, C1.3-JL-03; motivering in ADR-0028)
+
+Contract 1.3 §2.2 maakt dit besluit platformbreed (de contracteigenaar mat het script als conform) en scherpt drie
+dingen aan; bij het nalopen zijn die hier doorgevoerd:
+
+1. **Eerste handeling = de wissel, daarna pas controleren.** Het script leest zijn eigen rechten vóór de wissel alleen
+   met ingebouwde shellopdrachten (`read`, `case`): er start geen ander programma (`id`) meer als root. Na de wissel
+   start `setpriv` het script opnieuw (`/bin/sh <script> <modus> --na-wissel[-root]`), dat dan eerst zijn eigen
+   `/proc/self/status` controleert — Uid 568 (bij *Custom User* de eigen uid, nooit 0), `CapPrm`, `CapEff` en `CapAmb`
+   0, `NoNewPrivs 1`, na een start als root ook `Gid 568`, geen groepen en `CapBnd 0` — en pas dan `/health` opvraagt.
+2. **Exitcode 1 bij elke mislukking** (controle na de wissel, `/health`), in plaats van de foutcode van curl. Weigert
+   `setpriv` zelf de wissel, dan eindigt het met de foutcode van setpriv: Docker telt elke exitcode behalve 0 als
+   ongezond, en er blijft geen root-proces wachten (bewust `exec`, geen ouderproces als root dat de code omzet).
+3. **Het fase-argument is intern en geen omweg:** als root wordt altijd gewisseld; staat `no_new_privs` na de wissel
+   nog uit, dan rood zonder tweede poging (geen lus). Het is een argument, geen omgevingsvariabele: het formulier kan
+   het niet zetten (Docker start de healthcheck zonder argumenten).
+
+Bewaking erbij: `tools/jelly-leon/e2e/healthcheck_proef.py` (script uit de checkout in de runtime-image, als root en als
+568, met de negatieve gevallen; CI-job *stock-client-e2e*), `image_lifecycle.py` controleert de controlevlag ook op
+`CapPrm`/`CapAmb` en het fase-argument zonder echte wissel (rood), en elk proces in de boom van PID 1 op
+`CapPrm`/`CapAmb` 0 en — na een start als root — `CapBnd` 0. Het restrisico hierboven (het korte venster waarin de
+shell zelf als root draait) blijft het gemelde restrisico van §2.2.

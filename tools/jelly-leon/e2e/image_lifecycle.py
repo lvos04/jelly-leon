@@ -9,16 +9,19 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
   4. stock-client-smoketest modus `nieuw` (wizard, inloggen, bibliotheek, streamen, plugin) en web-client op /web/:
      index.html én elk daarin genoemd script/stylesheet laadt (HTTP 200, niet leeg) — een half gelukte web-build valt
      zo op; optioneel (--verwacht-web-ref) de herkomst van de web-client (label + SOURCE_REVISIONS in de image);
-  5. proces 1 draait als 568:568, zonder capabilities, met NoNewPrivs; ELK proces in de container (contract 1.2
-     §2.2/A6; behalve `docker exec`- en healthcheck-processen, die Docker zelf van buiten start) draait als 568 met
-     CapEff 0 en NoNewPrivs 1; alles in /config en /cache is van 568; de mediamap is niet gewijzigd;
-     de Docker-healthcheck van de image is `jelly-leon-healthcheck` en wisselt vóór curl naar 568 zonder
-     capabilities met NoNewPrivs (ook als de container als root start; gemeten met `--toon-rechten`, dezelfde wissel);
+  5. proces 1 draait als 568:568, zonder capabilities, met NoNewPrivs; ELK proces in de procesboom van PID 1
+     (contract 1.3 §2.2, C1.3-ALG-04; niet de `docker exec`- en healthcheck-processen, die Docker zelf van buiten
+     start) draait als 568 met CapEff, CapPrm en CapAmb 0 en NoNewPrivs 1, na een start als root ook met CapBnd 0;
+     alles in /config en /cache is van 568; de mediamap is niet gewijzigd;
+     de healthcheck apart: de Docker-healthcheck van de image is `jelly-leon-healthcheck` (exec-vorm); met de
+     controlevlag `--toon-rechten` meldt hij na de wissel Uid 568, CapEff/CapPrm/CapAmb 0 en NoNewPrivs 1 (na een start
+     als root ook Gid 568, geen groepen en CapBnd 0); het interne fase-argument slaat de wissel als root niet over,
+     en zonder echte wissel (exec als 568 met dat argument) is hij rood (exitcode 1, C1.3-JL-03);
   6. `docker restart` → healthy → smoketest modus `herstart` (zelfde gebruiker en item-ID, wizard blijft dicht);
   7. container verwijderen en opnieuw aanmaken met dezelfde opslag (zoals een app-update/herinstallatie)
      → healthy → smoketest modus `herstart`; daarna nog eens met "Custom User 568" (`--user 568:568`) → healthy →
-     smoketest `herstart` → elk proces 568, CapEff 0, NoNewPrivs 1 (de image zet no_new_privs zelf, §2.2), ook de
-     healthcheck;
+     smoketest `herstart` → elk proces 568, CapEff/CapPrm/CapAmb 0, NoNewPrivs 1 (de image zet no_new_privs zelf,
+     §2.2; CapBnd mag dan de Docker-standaardset zijn), ook de healthcheck;
   8. negatieve tests (fail-closed): de container weigert te starten en de mediamap blijft onaangeroerd bij
      - geen opslagregel voor /cache (anoniem Docker-volume);
      - JELLYFIN_CACHE_DIR naar de mediamap (root zou anders `chown -R` op de media doen);
@@ -129,15 +132,24 @@ def service_processes(processes: list[dict[str, list[str]]]) -> list[dict[str, l
     return [proc for proc in processes if not from_outside(proc["Pid"][0])]
 
 
-def process_problems(processes: list[dict[str, list[str]]], uid: str = APP_UID) -> list[str]:
-    """Contract 1.2 §2.2: elk dienstproces Uid `uid` (alle vier), CapEff 0 en NoNewPrivs 1."""
+NUL_CAPS = ["0000000000000000"]
+
+
+def process_problems(
+    processes: list[dict[str, list[str]]], uid: str = APP_UID, *, root_start: bool = False
+) -> list[str]:
+    """Contract 1.3 §2.2: elk dienstproces Uid `uid` (alle vier), CapEff, CapPrm en CapAmb 0 en NoNewPrivs 1; na een
+    start als root ook CapBnd 0 (bij "Custom User" kan een niet-root-proces de bounding set niet legen)."""
     problems: list[str] = []
     for proc in processes:
         label = f"{(proc.get('Name') or ['?'])[0]}({proc['Pid'][0]})"
         if proc.get("Uid", [])[:4] != [uid] * 4:
             problems.append(f"{label} Uid={' '.join(proc.get('Uid', []))}")
-        if proc.get("CapEff") != ["0000000000000000"]:
-            problems.append(f"{label} CapEff={''.join(proc.get('CapEff', []))}")
+        for field in ("CapEff", "CapPrm", "CapAmb"):
+            if proc.get(field) != NUL_CAPS:
+                problems.append(f"{label} {field}={''.join(proc.get(field, [])) or '?'}")
+        if root_start and proc.get("CapBnd") != NUL_CAPS:
+            problems.append(f"{label} CapBnd={''.join(proc.get('CapBnd', [])) or '?'}")
         if proc.get("NoNewPrivs") != ["1"]:
             problems.append(f"{label} NoNewPrivs={''.join(proc.get('NoNewPrivs', []))}")
     return problems
@@ -146,8 +158,9 @@ def process_problems(processes: list[dict[str, list[str]]], uid: str = APP_UID) 
 def healthcheck_problems(status_text: str, *, root_start: bool) -> list[str]:
     """Rechten waarmee de healthcheck curl start (uitvoer van `jelly-leon-healthcheck --toon-rechten`).
 
-    Altijd: Uid 568 (alle vier), CapEff 0, NoNewPrivs 1. Bij een start als root bovendien Gid 568, geen aanvullende
-    groepen en een lege bounding-set (een niet-root-proces kan die zonder CAP_SETPCAP niet legen, ADR-0012)."""
+    Altijd: Uid 568 (alle vier), CapEff, CapPrm en CapAmb 0, NoNewPrivs 1 (contract 1.3 §2.2). Bij een start als root
+    bovendien Gid 568, geen aanvullende groepen en een lege bounding-set (een niet-root-proces kan die zonder
+    CAP_SETPCAP niet legen, ADR-0012)."""
     procs = parse_proc_status(status_text)
     if len(procs) != 1:
         return [f"verwacht precies één status, gevonden {len(procs)}"]
@@ -158,7 +171,7 @@ def healthcheck_problems(status_text: str, *, root_start: bool) -> list[str]:
             problems.append(f"healthcheck Gid={' '.join(proc.get('Gid', []))}")
         if proc.get("Groups", []):
             problems.append(f"healthcheck Groups={' '.join(proc.get('Groups', []))}")
-        if proc.get("CapBnd") != ["0000000000000000"]:
+        if proc.get("CapBnd") != NUL_CAPS:
             problems.append(f"healthcheck CapBnd={''.join(proc.get('CapBnd', []))}")
     return problems
 
@@ -266,14 +279,16 @@ class Lifecycle:
         ok = (
             fields.get("Uid", [])[:4] == [APP_UID] * 4
             and fields.get("Gid", [])[:4] == [APP_UID] * 4
-            and fields.get("CapEff") == ["0000000000000000"]
-            and fields.get("CapPrm") == ["0000000000000000"]
-            and fields.get("CapBnd") == ["0000000000000000"]
+            and fields.get("CapEff") == NUL_CAPS
+            and fields.get("CapPrm") == NUL_CAPS
+            and fields.get("CapAmb") == NUL_CAPS
+            and fields.get("CapBnd") == NUL_CAPS
             and fields.get("NoNewPrivs") == ["1"]
         )
         detail = (
             f"Uid={' '.join(fields.get('Uid', []))}; Gid={' '.join(fields.get('Gid', []))}; "
             f"Groups={' '.join(fields.get('Groups', []))}; CapEff={''.join(fields.get('CapEff', []))}; "
+            f"CapPrm={''.join(fields.get('CapPrm', []))}; CapAmb={''.join(fields.get('CapAmb', []))}; "
             f"CapBnd={''.join(fields.get('CapBnd', []))}; NoNewPrivs={''.join(fields.get('NoNewPrivs', []))}"
         )
         self.add("proces 1 als 568:568 zonder capabilities", ok, detail)
@@ -283,21 +298,23 @@ class Lifecycle:
         self.add("Jelly Leon-plugin in de datamap", bool(plugin.strip()), plugin.strip() or "niet gevonden")
         return ok and not foreign
 
-    def check_all_processes(self, label: str) -> bool:
-        """A6: niet alleen PID 1 — elk proces in de container (zonder de eigen exec-boom) draait als 568 zonder rechten."""
+    def check_all_processes(self, label: str, *, root_start: bool) -> bool:
+        """§2.2: niet alleen PID 1 — elk proces in de procesboom van PID 1 (zonder de eigen exec-boom) draait als 568
+        zonder rechten; na een start als root ook met een lege bounding set."""
         proc = docker(
             "exec", self.name, "find", "/proc", "-mindepth", "2", "-maxdepth", "2", "-path", "/proc/[0-9]*/status",
             "-exec", "cat", "{}", "+", check=False,
         )
         everything = parse_proc_status(proc.stdout)
         own = service_processes(everything)
-        problems = process_problems(own)
+        problems = process_problems(own, root_start=root_start)
         names = ", ".join(f"{(p.get('Name') or ['?'])[0]}({p['Pid'][0]})" for p in own)
         ok = bool(own) and any(p["Pid"] == ["1"] for p in own) and not problems
         detail = f"{len(own)} dienstprocessen ({names}); {len(everything) - len(own)} exec-processen buiten beschouwing"
         if problems:
             detail += "; AFWIJKEND: " + "; ".join(problems[:6])
-        return self.add(f"elk proces 568, CapEff 0, NoNewPrivs 1 ({label})", ok, detail)
+        caps = "CapEff/CapPrm/CapAmb" + ("/CapBnd" if root_start else "")
+        return self.add(f"elk proces 568, {caps} 0, NoNewPrivs 1 ({label})", ok, detail)
 
     def check_healthcheck(self, label: str, *, root_start: bool) -> bool:
         """§2.2: ook de door Docker gestarte healthcheck draait curl niet als root en zonder rechten."""
@@ -316,11 +333,43 @@ class Lifecycle:
         detail = (
             f"{' '.join(test) if isinstance(test, list) else configured}; curl als Uid={' '.join(fields.get('Uid', []))}, "
             f"Groups={' '.join(fields.get('Groups', [])) or '-'}, CapEff={''.join(fields.get('CapEff', []))}, "
+            f"CapPrm={''.join(fields.get('CapPrm', []))}, CapAmb={''.join(fields.get('CapAmb', []))}, "
             f"CapBnd={''.join(fields.get('CapBnd', []))}, NoNewPrivs={''.join(fields.get('NoNewPrivs', []))}"
         )
+        if rights.returncode != 0:
+            problems.append(f"controlevlag exitcode {rights.returncode}: {rights.stderr.strip()[:160]}")
         if problems:
             detail += "; AFWIJKEND: " + "; ".join(problems[:6])
-        return self.add(f"healthcheck zonder root-rechten ({label})", not problems, detail)
+        ok = self.add(f"healthcheck zonder root-rechten ({label})", not problems, detail)
+        return self.check_healthcheck_marker(label, root_start=root_start) and ok
+
+    def check_healthcheck_marker(self, label: str, *, root_start: bool) -> bool:
+        """C1.3-JL-03: het interne fase-argument van de healthcheck (`--na-wissel`, `--na-wissel-root`) is geen omweg.
+
+        - Na een start als root: als root met `--na-wissel` wordt toch gewisseld en zijn de rechten in orde
+          (exitcode 0); `docker exec --user 568:568` met `--na-wissel-root` slaat de wissel over (geen no_new_privs,
+          volle bounding set) → rood (exitcode 1).
+        - Custom User: als 568 met `--na-wissel` zonder echte wissel (docker exec zet geen no_new_privs) → rood."""
+        if root_start:
+            forced = docker("exec", self.name, HEALTHCHECK, "--toon-rechten", "--na-wissel", check=False)
+            problems = healthcheck_problems(forced.stdout, root_start=True)
+            if forced.returncode != 0:
+                problems.append(f"exitcode {forced.returncode}: {forced.stderr.strip()[:160]}")
+            ok = self.add(
+                f"healthcheck als root met fase-argument wisselt toch ({label})", not problems,
+                "exitcode 0, rechten na de wissel in orde" if not problems else "AFWIJKEND: " + "; ".join(problems[:4]),
+            )
+            bypass = docker(
+                "exec", "--user", f"{APP_UID}:{APP_UID}", self.name, HEALTHCHECK, "", "--na-wissel-root", check=False
+            )
+        else:
+            ok = True
+            bypass = docker("exec", self.name, HEALTHCHECK, "", "--na-wissel", check=False)
+        red = bypass.returncode == 1 and "rechtenwissel niet in orde" in bypass.stderr
+        return self.add(
+            f"healthcheck zonder echte wissel is rood ({label})", red,
+            f"exitcode {bypass.returncode}; {bypass.stderr.strip()[:200]}",
+        ) and ok
 
     def fetch(self, path: str, limit: int = 20_000_000) -> tuple[int, bytes]:
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=15) as resp:  # noqa: S310
@@ -475,7 +524,7 @@ class Lifecycle:
                 return False
             self.check_process_and_ownership()
             self.check_datamap_version()
-            self.check_all_processes("eerste start")
+            self.check_all_processes("eerste start", root_start=True)
             self.check_healthcheck("start als root", root_start=True)
             self.check_web_client()
             if self.args.verwacht_web_ref:
@@ -492,7 +541,7 @@ class Lifecycle:
             if not self.smoke("nieuwe container", "herstart", first):
                 return False
             self.check_process_and_ownership()
-            self.check_all_processes("nieuwe container")
+            self.check_all_processes("nieuwe container", root_start=True)
 
             # "Custom User 568" aangevinkt in het formulier: geen eigenaarschapsstap; de image zet zelf no_new_privs.
             self.remove(self.name)
@@ -501,7 +550,7 @@ class Lifecycle:
                 return False
             if not self.smoke("Custom User 568:568", "herstart", first):
                 return False
-            self.check_all_processes("Custom User 568:568")
+            self.check_all_processes("Custom User 568:568", root_start=False)
             self.check_healthcheck("Custom User 568:568", root_start=False)
             self.add("mediamap onaangeroerd", self.media_fingerprint() == media_before, "eigenaar/rechten ongewijzigd")
         finally:
