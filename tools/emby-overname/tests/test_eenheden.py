@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 
 from emby_overname.emby import controleer_alleen_lezen
-from emby_overname.fouten import AlleenLezenFout, GeheimFout, NietToegestaneRoute
+from emby_overname.fouten import AlleenLezenFout, DoelFout, GeheimFout, NietToegestaneRoute
 from emby_overname.hulp import datum_naar_ticks, lees_geheim, ticks_naar_datum
-from emby_overname.jellyfin import controleer_route
+from emby_overname.jellyfin import JellyfinClient, controleer_route
 from emby_overname.koppelen import JellyLeonIndex, Koppelaar, Padvertaling, vertaal_pad
 from emby_overname.model import ItemInfo, Kijkgegevens, Spoor
 from emby_overname.rechten import (
@@ -23,6 +23,21 @@ from emby_overname.rechten import (
 from emby_overname.samenvoegen import samenvoegen, toepassen, velden_toegepast, verschillen_item
 
 # --- alleen lezen -------------------------------------------------------------------------------------------------
+
+
+def test_jelly_leon_client_weigert_alles_zolang_het_doel_niet_bevestigd_is():
+    """Zonder bevestigd doel geen enkel verzoek met de sleutel (poort 9: een netwerkpoging zou VerbindingsFout geven)."""
+    spoor: list[dict] = []
+    client = JellyfinClient("http://127.0.0.1:9", "sleutel", spoor=spoor.append)
+    for aanroep in (lambda: client.zet_userdata("a" * 32, "b" * 32, {"Played": True}),
+                    lambda: client.maak_gebruiker("x", "y"), lambda: client.zet_beleid("a" * 32, {}),
+                    lambda: client.gebruikers(), lambda: client.systeeminfo()):
+        with pytest.raises(DoelFout):
+            aanroep()
+    with pytest.raises(DoelFout):
+        client.controleer_niet_bron("emby-1")
+    assert spoor == []
+
 
 
 @pytest.mark.parametrize("methode", ["POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "get"])

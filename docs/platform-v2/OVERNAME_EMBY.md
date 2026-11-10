@@ -26,6 +26,13 @@ tool: `tools/emby-overname/` (README daar).
 Emby wordt **alleen gelezen** (alleen GET, met een API-sleutel die u in Emby aanmaakt); de Emby-databasebestanden worden
 nooit geopend. Emby blijft ongewijzigd draaien als terugval.
 
+**Doelcontrole (sinds de QA-review van golf 0 + P4-0):** Emby accepteert ook de aanmeldheader van Jellyfin (gemeten met
+Emby 4.10.2.0). Wijst het adres van Jelly Leon per vergissing naar Emby, dan zou een overname zonder controle in Emby
+schrijven. Daarom leest de tool eerst, zónder sleutel, `GET /System/Info/Public` van het doel en gaat alleen verder als
+dat `ProductName` "Jellyfin Server" meldt (Jellyfin en Jelly Leon doen dat; Emby niet). Zijn de adressen gelijk, of
+hebben bron en doel dezelfde server-ID, dan stopt de tool ook (exitcode 9). Er wordt dan niets geschreven en de
+Jelly Leon-sleutel wordt niet verstuurd.
+
 ## Stappen
 
 1. **Inventaris (D07)** — versie, gebruikers, bibliotheken en plugins van Emby, alleen lezen.

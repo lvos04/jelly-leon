@@ -3,6 +3,14 @@
 Schrijven alleen via de routes die het bouwplan toestaat (§10.9 "Nooit", uitzondering B03-015): gebruiker aanmaken,
 beleid, configuratie en UserData. Elke andere schrijfroute wordt vóór het netwerk geweigerd; `jellyfin.db` wordt nooit
 geopend. Authenticatie met `Authorization: MediaBrowser … Token="…"` (12.x zet legacy-auth uit; geen token in URL's).
+
+Doelcontrole (HARDE EIS: nooit schrijven in Emby): gemeten met emby/embyserver:4.10.2.0 accepteert Emby óók deze
+`Authorization: MediaBrowser … Token="…"`-header. Een per vergissing op Emby gericht doel (verkeerd adres of verkeerde
+sleutel in de overname-assistent) zou dus zonder controle schrijfacties naar Emby sturen. Daarom geldt, vóór het netwerk:
+- `bevestig_doel()` leest eerst — zonder sleutel — `GET /System/Info/Public` en eist `ProductName == "Jellyfin Server"`
+  (Jellyfin en Jelly Leon geven dat; Emby 4.10.2.0 geeft geen ProductName) en een server-ID;
+- `controleer_niet_bron()` weigert een doel met dezelfde server-ID als de bron;
+- zolang het doel niet bevestigd is, wordt elke methode behalve GET geweigerd (`DoelFout`), en elke aanroep met de sleutel.
 """
 
 from __future__ import annotations
@@ -12,7 +20,7 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 from . import __version__
-from .fouten import NietToegestaneRoute
+from .fouten import DoelFout, NietToegestaneRoute
 from .http import HttpClient
 
 _GUID = r"[0-9a-fA-F-]{32,36}"
@@ -45,6 +53,8 @@ WITTE_LIJST: dict[str, tuple[re.Pattern[str], ...]] = {
     ),
 }
 VELDEN_ITEMS = "ProviderIds,Path,MediaSources,ParentId,OfficialRating"
+# ProductName van Jellyfin én Jelly Leon (technische identiteit blijft Jellyfin; AssemblyProduct in de serverbron).
+PRODUCT_JELLYFIN = "Jellyfin Server"
 BLADGROOTTE = 500
 
 
@@ -62,10 +72,48 @@ class JellyfinClient:
             f'Version="{__version__}", Token="{sleutel}"'
         )
         self._http = HttpClient(basis_url, {"Authorization": autorisatie}, "Jelly Leon", timeout=timeout, spoor=spoor)
+        # Zonder sleutel: een verkeerd doel krijgt de Jelly Leon-sleutel nooit te zien.
+        self._publiek = HttpClient(basis_url, {}, "Jelly Leon", timeout=timeout, spoor=spoor)
+        self.doel_server_id: str | None = None
 
     def _verzoek(self, methode: str, pad: str, query: dict[str, Any] | None = None, body: Any = None) -> Any:
         controleer_route(methode, pad)
+        if self.doel_server_id is None:
+            raise DoelFout(
+                f"Jelly Leon-verzoek {methode} {pad} geweigerd vóór het netwerk: het doel {self._http.basis_url} is nog "
+                "niet bevestigd als Jellyfin/Jelly Leon"
+            )
         return self._http.verzoek(methode, pad, query, body).data
+
+    # -- doelcontrole (vóór elk verzoek met de sleutel) ---------------------------------------------------------
+    def bevestig_doel(self) -> dict[str, Any]:
+        """Is het doel echt Jellyfin/Jelly Leon? Leest alleen `GET /System/Info/Public`, zonder sleutel."""
+        self.doel_server_id = None
+        controleer_route("GET", "/System/Info/Public")
+        info = self._publiek.verzoek("GET", "/System/Info/Public").data
+        product = info.get("ProductName") if isinstance(info, dict) else None
+        server_id = str(info.get("Id") or "") if isinstance(info, dict) else ""
+        if product != PRODUCT_JELLYFIN:
+            raise DoelFout(
+                f"het doel {self._http.basis_url} is geen Jellyfin/Jelly Leon (ProductName {product!r}, verwacht "
+                f"{PRODUCT_JELLYFIN!r}; Emby geeft geen ProductName). Controleer het adres van Jelly Leon: er wordt niets "
+                "geschreven en de Jelly Leon-sleutel is niet verstuurd"
+            )
+        if not server_id:
+            raise DoelFout(f"het doel {self._http.basis_url} geeft geen server-ID; er wordt niets geschreven")
+        self.doel_server_id = server_id
+        return info
+
+    def controleer_niet_bron(self, bron_server_id: str | None) -> None:
+        """Bron (Emby of het archief) en doel mogen nooit dezelfde server zijn."""
+        if self.doel_server_id is None:
+            raise DoelFout("het doel is nog niet bevestigd (bevestig_doel) — er wordt niets geschreven")
+        if bron_server_id and str(bron_server_id) == self.doel_server_id:
+            self.doel_server_id = None
+            raise DoelFout(
+                f"bron en doel zijn dezelfde server (server-ID {bron_server_id}); de overname schrijft nooit in de bron. "
+                "Controleer de adressen van Emby en Jelly Leon"
+            )
 
     # -- lezen -------------------------------------------------------------------------------------------------
     def systeeminfo(self) -> dict[str, Any]:

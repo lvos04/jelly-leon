@@ -10,6 +10,7 @@ EXIT_VERBINDING = 5
 EXIT_CONTROLE = 6
 EXIT_GEHEIM = 7
 EXIT_ALLEEN_LEZEN = 8
+EXIT_DOEL = 9
 
 
 class OvernameFout(Exception):
@@ -33,6 +34,13 @@ class NietToegestaneRoute(OvernameFout):
     """Een verzoek naar Jelly Leon buiten de witte lijst van officiële routes; geweigerd vóór het netwerk."""
 
     exit_code = EXIT_ALLEEN_LEZEN
+
+
+class DoelFout(OvernameFout):
+    """Het doel van de overname is niet aantoonbaar Jellyfin/Jelly Leon (bijv. per vergissing Emby, of dezelfde server als
+    de bron); elke schrijfactie wordt dan vóór het netwerk geweigerd (HARDE EIS: nooit schrijven in Emby)."""
+
+    exit_code = EXIT_DOEL
 
 
 class VerbindingsFout(OvernameFout):

@@ -18,6 +18,7 @@ ondertitelvoorkeuren. Onthouden spoorkeuzes worden gelezen en vergeleken. Beslui
 | Emby wordt alleen gelezen | `EmbyLezer` staat alleen `GET` toe op een vaste witte lijst; al het andere geeft `AlleenLezenFout` vóór het netwerk; geen redirects, geen omgevingsproxy | `tests/test_eenheden.py`, `testhaak-schrijfpoging`, loggende proxy in `e2e/` (JLT-73) |
 | Emby-databasebestanden worden nooit geopend | de tool kent geen bestandsroute naar Emby, alleen de API | code |
 | API-sleutels nergens zichtbaar | alleen in een bestand met modus 0600 (anders weigert de tool); alleen als header; spoorlog zonder headers | `test_emby_identiek_voor_en_na_en_sleutels_nergens`, e2e-zoektocht |
+| Nooit per vergissing in Emby schrijven | het doel moet eerst, zonder sleutel, via `GET /System/Info/Public` `ProductName` "Jellyfin Server" melden (Emby 4.10.2.0 meldt geen ProductName maar accepteert wél de Jellyfin-aanmeldheader — gemeten); zelfde adres of zelfde server-ID als de bron → exit 9; zonder bevestigd doel weigert de client elk verzoek vóór het netwerk | `test_doel_dat_emby_is_wordt_geweigerd_voor_elke_schrijfactie`, `test_bron_en_doel_dezelfde_server_geweigerd`, e2e (JLT-73, verkeerd doel) |
 | Jelly Leon alleen via de officiële API | witte lijst: `POST /Users/New`, `/Users/{id}/Policy`, `/Users/Configuration`, `/UserItems/{id}/UserData`; nooit `jellyfin.db` | `tests/test_eenheden.py` |
 | Niets stil weglaten | elk Emby-item met kijkgegevens is gekoppeld of staat met reden op de afhandellijst (`verantwoord`) | JLT-72 |
 | Nooit gokken | provider-ID → (bij afleveringen) serie + seizoen + aflevering → pad; meerdere kandidaten zonder eenduidig pad = `dubbel` | JLT-72 |
@@ -62,7 +63,8 @@ Uitvoer per run in `W/runs/<tijd>-<soort>/`: `emby-export.json` (+ `.sha256`), `
 het archief op een dataset in de back-updekking (B12).
 
 Exitcodes: 0 in orde · 2 gebruik · 3 akkoord ontbreekt of onvolledig · 4 plan gewijzigd sinds de proefrun · 5 verbinding ·
-6 controle mislukt · 7 geheim (ontbreekt of te ruime rechten) · 8 alleen-lezen-weigering.
+6 controle mislukt · 7 geheim (ontbreekt of te ruime rechten) · 8 alleen-lezen-weigering · 9 doel is geen
+Jellyfin/Jelly Leon (bijv. Emby) of dezelfde server als de bron.
 
 ## Afhandellijst: redenen
 

@@ -85,6 +85,8 @@ class NepEmby(_Server):
             {"Name": "Series", "Guid": "aaaa0000aaaa0000aaaa0000aaaa0002", "ItemId": "5", "CollectionType": "tvshows",
              "Locations": ["/mnt/emby/media/Series"]},
         ]
+        # Elk verzoek waarin de Jelly Leon-sleutel meekwam (mag nooit: een verkeerd doel krijgt die sleutel niet).
+        self.vreemde_sleutels: list[str] = []
         super().__init__()
 
     def voeg_gebruiker(self, naam: str, beleid: dict[str, Any] | None = None, config: dict[str, Any] | None = None) -> str:
@@ -137,7 +139,14 @@ class NepEmby(_Server):
         return dto
 
     def behandel(self, methode: str, pad: str, query: dict[str, str], body: Any, headers: dict[str, str]) -> tuple[int, Any]:
-        if headers.get("X-Emby-Token") != self.SLEUTEL:
+        if any(NepJellyfin.SLEUTEL in v for v in headers.values()):
+            self.vreemde_sleutels.append(f"{methode} {pad}")
+        if methode == "GET" and pad == "/System/Info/Public":
+            # Gemeten bij emby/embyserver:4.10.2.0: anoniem, zonder ProductName.
+            return 200, {"LocalAddresses": [], "RemoteAddresses": [], "ServerName": "nep-emby", "Version": "4.10.2.0",
+                         "Id": "emby-server-1"}
+        # Gemeten bij 4.10.2.0: Emby accepteert de sleutel als X-Emby-Token én als `Authorization: MediaBrowser … Token="…"`.
+        if headers.get("X-Emby-Token") != self.SLEUTEL and f'Token="{self.SLEUTEL}"' not in headers.get("Authorization", ""):
             return 401, None
         if methode != "GET":
             return 405, None
@@ -228,6 +237,9 @@ class NepJellyfin(_Server):
         return Kijkgegevens.uit_userdata(self.userdata.get((uid, item_id)))
 
     def behandel(self, methode: str, pad: str, query: dict[str, str], body: Any, headers: dict[str, str]) -> tuple[int, Any]:
+        if methode == "GET" and pad == "/System/Info/Public":
+            return 200, {"LocalAddress": None, "ServerName": "nep-jl", "Version": "12.4.0", "ProductName": "Jellyfin Server",
+                         "OperatingSystem": "", "Id": "jl-server-1", "StartupWizardCompleted": True}
         if f'Token="{self.SLEUTEL}"' not in headers.get("Authorization", ""):
             return 401, None
         delen = pad.strip("/").split("/")

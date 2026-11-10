@@ -305,3 +305,59 @@ def test_sleutel_met_ruime_rechten_geweigerd(emby, jl, sleutels, tmp_path, capsy
     os.chmod(sleutels["emby"], modus)
     code, _ = draai(["proefrun", *basis_args(emby, jl, sleutels, tmp_path / "werk")], capsys)
     assert code == 7 and emby.verzoeken == []
+
+
+def _verkeerd_doel_args(emby, sleutels, werkmap, jl_sleutel, jl_url):
+    return ["--emby-url", emby.url, "--emby-sleutel-bestand", str(sleutels["emby"]), "--jl-url", jl_url,
+            "--jl-sleutel-bestand", str(jl_sleutel), "--werkmap", str(werkmap), "--pad", "/mnt/emby/media=/data/media"]
+
+
+@pytest.mark.parametrize("adres", ["zelfde", "ander"])
+@pytest.mark.parametrize("sleutel", ["emby", "jl"])
+def test_doel_dat_emby_is_wordt_geweigerd_voor_elke_schrijfactie(emby, jl, sleutels, tmp_path, capsys, sleutel, adres):
+    """HARDE EIS: wijst --jl-url per vergissing naar Emby, dan nooit een schrijfactie naar Emby (exit 9).
+
+    Gemeten met emby/embyserver:4.10.2.0: Emby accepteert de Jellyfin-header `Authorization: MediaBrowser Token=…`; de
+    simulator doet dat ook, dus zonder doelcontrole zou de tool hier Emby als doel lezen en beschrijven. 'zelfde' = exact
+    het Emby-adres (geweigerd vóór het netwerk); 'ander' = hetzelfde Emby via een ander adres (localhost): dan is het
+    enige verzoek van de doelkant het anonieme GET /System/Info/Public, zonder sleutel.
+    """
+    vul(emby, jl)
+    voor = {k: dict(v) for k, v in emby.userdata.items()}
+    jl_url = emby.url if adres == "zelfde" else emby.url.replace("127.0.0.1", "localhost")
+    werk = tmp_path / "werk"
+    args = _verkeerd_doel_args(emby, sleutels, werk, sleutels[sleutel], jl_url)
+    code, _ = draai(["proefrun", *args], capsys)
+    assert code == 9
+    akkoord = tmp_path / "akkoord.json"
+    akkoord.write_text(json.dumps({"schema": "jelly-leon/emby-overname-akkoord/1", "soort": "plan", "plan_sha256": "0" * 64,
+                                   "rapport_inhoud_sha256": "0" * 64, "akkoord_door": "test", "datum": "2026-11-10T00:00:00Z",
+                                   "verschillen": []}), encoding="utf-8")
+    code, _ = draai(["overzetten", *args, "--akkoord", str(akkoord)], capsys)
+    assert code == 9
+    verwacht = [] if adres == "zelfde" else [("GET", "/System/Info/Public")] * 2
+    assert emby.verzoeken == verwacht
+    assert emby.vreemde_sleutels == [] and jl.schrijfacties == [] and jl.verzoeken == []
+    assert {k: dict(v) for k, v in emby.userdata.items()} == voor
+
+
+def test_bron_en_doel_dezelfde_server_geweigerd(emby, jl, sleutels, tmp_path, capsys):
+    """Een exportarchief van server X mag nooit op server X worden 'teruggezet' (bron = doel) — exit 9, niets geschreven."""
+    vul(emby, jl)
+    archief = tmp_path / "archief.json"
+    draai(["export", "--emby-url", emby.url, "--emby-sleutel-bestand", str(sleutels["emby"]), "--uitvoer", str(archief)], capsys)
+    data = json.loads(archief.read_text(encoding="utf-8"))
+    assert data["bron"]["server_id"] == "emby-server-1"
+    # Simuleer dat het doel dezelfde server-ID heeft als de bron (bijv. per vergissing de bron zelf als doel).
+    origineel = jl.behandel
+
+    def zelfde_id(methode, pad, query, body, headers):
+        status, inhoud = origineel(methode, pad, query, body, headers)
+        if pad in ("/System/Info/Public", "/System/Info") and isinstance(inhoud, dict):
+            inhoud = {**inhoud, "Id": "emby-server-1"}
+        return status, inhoud
+
+    jl.behandel = zelfde_id
+    code, _ = draai(["proefrun", "--bron-archief", str(archief), "--jl-url", jl.url, "--jl-sleutel-bestand", str(sleutels["jl"]),
+                     "--werkmap", str(tmp_path / "werk"), "--pad", "/mnt/emby/media=/data/media"], capsys)
+    assert code == 9 and jl.schrijfacties == []

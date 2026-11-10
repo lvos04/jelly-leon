@@ -18,11 +18,21 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from . import TOOL_NAAM, __version__
 from .akkoord import controleer_cutover, controleer_verschillen, lees_akkoord
 from .emby import EmbyLezer
-from .fouten import EXIT_CONTROLE, EXIT_GEBRUIK, EXIT_OK, AkkoordFout, AlleenLezenFout, OvernameFout, PlanGewijzigd
+from .fouten import (
+    EXIT_CONTROLE,
+    EXIT_GEBRUIK,
+    EXIT_OK,
+    AkkoordFout,
+    AlleenLezenFout,
+    DoelFout,
+    OvernameFout,
+    PlanGewijzigd,
+)
 from .hulp import lees_geheim, map_stempel, nu_utc, schrijf_atomisch, schrijf_json_met_sha
 from .jellyfin import JellyfinClient
 from .koppelen import Padvertaling
@@ -59,6 +69,24 @@ def _emby(args: argparse.Namespace, spoor: Spoorlog) -> EmbyLezer:
 
 def _jl(args: argparse.Namespace, spoor: Spoorlog) -> JellyfinClient:
     return JellyfinClient(args.jl_url, lees_geheim(Path(args.jl_sleutel_bestand), "Jelly Leon-API-sleutel"), spoor=spoor)
+
+
+def _adres(url: str) -> tuple[str, str, int | None]:
+    deel = urlsplit(url)
+    try:
+        poort = deel.port or {"http": 80, "https": 443}.get(deel.scheme)
+    except ValueError:
+        poort = None
+    return deel.scheme, (deel.hostname or "").casefold(), poort
+
+
+def _weiger_zelfde_adres(args: argparse.Namespace) -> None:
+    """Vóór elk netwerkverzoek: Emby en Jelly Leon op hetzelfde adres is altijd een vergissing."""
+    if getattr(args, "bron_archief", None) or not getattr(args, "emby_url", None):
+        return
+    if _adres(args.emby_url) == _adres(args.jl_url):
+        raise DoelFout("--emby-url en --jl-url wijzen naar hetzelfde adres; de overname schrijft nooit in Emby. "
+                       "Er is niets verstuurd")
 
 
 def _opties(args: argparse.Namespace) -> Opties:
@@ -136,6 +164,9 @@ def _voorbereiden(args: argparse.Namespace, soort: str) -> tuple[Any, ...]:
     run_map = werkmap.runs / run_id
     run_map.mkdir(parents=True)
     client = _jl(args, spoor)
+    # HARDE EIS (nooit schrijven in Emby): eerst — zonder sleutel — bevestigen dat het doel Jellyfin/Jelly Leon is.
+    _weiger_zelfde_adres(args)
+    client.bevestig_doel()
     staat = werkmap.lees_staat()
     hersteld = herstel(werkmap, staat, client)
     if hersteld.onderbroken_run:
@@ -143,6 +174,7 @@ def _voorbereiden(args: argparse.Namespace, soort: str) -> tuple[Any, ...]:
                f"uitgevoerd (niet opnieuw), {len(hersteld.niet_uitgevoerd)} nog niet, {len(hersteld.onduidelijk)} onduidelijk")
     opties = _opties(args)
     opname, bron_extra = _bron(args, spoor, run_map)
+    client.controleer_niet_bron(opname["bron"].get("server_id"))
     melden("Jelly Leon lezen …")
     doel = lees_doel(client)
     plan = maak_plan(opname, doel, staat, opties, client)
