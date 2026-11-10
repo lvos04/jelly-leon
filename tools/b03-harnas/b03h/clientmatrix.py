@@ -52,6 +52,7 @@ def _web(server: StockServer, browser: str, label: str, ua: str | None = None, s
     return {"browser": f"{browser} {d.get('versie')}", "ua": (d.get("ua_effectief") or "")[:120], "besluit": item.get("besluit"),
             "orakel_ok": item.get("orakel_ok"), "eerste_frame_ms": item.get("eerste_frame_ms"),
             "tijd_tot_2s_ms": item.get("tijd_tot_2s_ms"), "audio_gedecodeerd": item.get("audio_gedecodeerd"),
+            "laatste_stand": item.get("laatste"), "orakel_reden": item.get("orakel_reden"),
             "fout": item.get("fout"), "profiel_directplay": [(p.get("Container"), p.get("VideoCodec"), p.get("AudioCodec"))
                                                              for p in profiel.get("DirectPlayProfiles", [])][:6] if ua else None}
 

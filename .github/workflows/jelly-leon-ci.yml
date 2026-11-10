@@ -472,6 +472,16 @@ jobs:
           npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium firefox webkit
 
+      # Een runner heeft geen geluidsapparaat: zonder uitvoer decodeert Chromium geen audio (het orakel ziet dan 'stil') en
+      # blijft WebKit/GStreamer na ~0,2 s hangen. Een PulseAudio-null-sink geeft beide een echte audio-uitvoer.
+      - name: Audio-uitvoer voor headless browsers (PulseAudio-null-sink)
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends pulseaudio gstreamer1.0-pulseaudio gstreamer1.0-libav
+          pulseaudio -D --exit-idle-time=-1 --system=false
+          pactl load-module module-null-sink sink_name=b03 sink_properties=device.description=b03-null
+          pactl set-default-sink b03
+          pactl info | grep -E 'Server Name|Default Sink'
+
       - name: Stock-image ophalen (vaste digest) en synthetisch mini-corpus
         run: |
           docker pull "$STOCK_IMAGE"
@@ -485,11 +495,12 @@ jobs:
           d = json.load(open(sys.argv[1]))
           fout = [c["client"] for c in d["clients"] if not c["status"].startswith("Sim-getest")]
           for c in d["clients"]:
-              print(f"{c['status']:60} {c['client']}")
+              print(f"{c['status']:60} {c['client']} {c.get('orakel_reden') or ''} {c.get('laatste_stand') or ''}")
           sys.exit(f"rooktest mislukt voor: {fout}" if fout else 0)
           PY
 
       - name: Differentiële controle-run stock tegen stock (verwacht 0 verschillen) en negatieve proef
+        if: ${{ !cancelled() }}
         run: |
           python -m b03h diffrun --uit "$RUNNER_TEMP/b03-diffrun.json"
           if python -m b03h diffrun --negatieve-proef --uit "$RUNNER_TEMP/b03-diffrun-negatief.json"; then
