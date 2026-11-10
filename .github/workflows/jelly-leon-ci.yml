@@ -58,6 +58,11 @@ jobs:
       - name: Patchregister (elke core-patch geregistreerd)
         run: python tools/jelly-leon/patch_register_check.py
 
+      # B03-019 (a): elk upstream-gedrag waarop Jelly Leon steunt heeft een anker (en waar nodig een runtime-test);
+      # een verwijzing UG-… zonder regel/test laat de build falen.
+      - name: Register van upstream-gedrag (ankers en verwijzingen)
+        run: python tools/jelly-leon/upstream_gedrag_check.py --overzicht
+
       # Contract 1.2 (A1): de kopieën zijn byte-gelijk aan lvos04/ai-server-manager op de vastgezette bron-commit
       # (publieke repo, geen token). Is de bron daarna gewijzigd, dan alleen een waarschuwing (overnemen = orkestratie).
       - name: Platformcontract-kopie (drifttest tegen de bron)
@@ -293,6 +298,16 @@ jobs:
             --stock-image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/upgrade-proef.json" \
             --opmerking "CI; Jelly Leon-image met de echte web-build van jelly-leon-web"
 
+      # JLT-64 (met de bestaande plugin) en het PlaybackInfo-deel van JLT-63: Jellyfin-antwoorden en OpenAPI van deze
+      # image = stock 12.x op dezelfde datamap, behalve paden onder /media/v1 en /connector/v1; plus de UG-runtimetests
+      # op deze image (zelfde upstream-gedrag als stock).
+      - name: API-regressie tegen stock 12.x en upstream-gedrag op de Jelly Leon-image
+        run: |
+          python3 tools/jelly-leon/e2e/compat_api.py --image jelly-leon:ci --stock-image "$JL_RUNTIME_IMAGE" \
+            --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/compat-api.json"
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image jelly-leon:ci --werkmap "$RUNNER_TEMP" \
+            --rapport "$RUNNER_TEMP/upstream-gedrag-runtime-jelly-leon.json"
+
       - name: Rapporten bewaren
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -304,6 +319,8 @@ jobs:
             ${{ runner.temp }}/image-lifecycle.json
             ${{ runner.temp }}/rollback-sim.json
             ${{ runner.temp }}/upgrade-proef.json
+            ${{ runner.temp }}/compat-api.json
+            ${{ runner.temp }}/upstream-gedrag-runtime-jelly-leon.json
 
   stock-client-e2e:
     name: Stock-client-smoketest (simulator, geen echte apparaten)
@@ -366,6 +383,12 @@ jobs:
         if: failure()
         run: docker logs jl-e2e 2>&1 | tail -200
 
+      # B03-019 (a): runtime-contracttests van UPSTREAM_GEDRAG.md op JL_RUNTIME_IMAGE (stock 12.x op digest).
+      - name: Upstream-gedrag op JL_RUNTIME_IMAGE (UG-runtimetests)
+        run: >
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP"
+          --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
+
       - name: Rapport bewaren
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -373,7 +396,9 @@ jobs:
           name: stock-client-smoke
           retention-days: 14
           if-no-files-found: ignore
-          path: ${{ runner.temp }}/stock-client-smoke.json
+          path: |
+            ${{ runner.temp }}/stock-client-smoke.json
+            ${{ runner.temp }}/upstream-gedrag-runtime.json
 
   # B03-015 deel A (golf 0, P0 van de gebruiker): overname van de kijkgeschiedenis uit Emby. Unit- en simulatortests, daarna
   # de proefrun met een echte Emby-container (4.10.2.0) en stock Jellyfin 12.4, beide op vaste digest (in de harnas), met

@@ -133,8 +133,19 @@ jobs:
           set -eu
           git config user.name "jelly-leon-sync"
           git config user.email "jelly-leon-sync@users.noreply.github.com"
+          # Per core-patch een los herbasisresultaat (B03-019 d, JLT-67); ook bij een conflict in de samenvatting.
+          set +e
           python3 tools/jelly-leon/upstream_sync.py merge --tag "$SYNC_TAG" --bron "$UPSTREAM_URL" \
-            --methode "$SYNC_METHODE" --maak-lokale-tag
+            --methode "$SYNC_METHODE" --maak-lokale-tag > "$RUNNER_TEMP/sync-resultaat.json"
+          rc=$?
+          set -e
+          {
+            echo "## Upstream-sync $SYNC_TAG: resultaat per core-patch"
+            echo '```json'
+            cat "$RUNNER_TEMP/sync-resultaat.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
 
       - name: Forkregels na de sync
         run: |
@@ -142,7 +153,27 @@ jobs:
           # Manifest volgt pas bij een release (forkversie -jl.N ≥ 1); de overige versiecontroles moeten slagen.
           python3 tools/jelly-leon/check_fork_consistency.py --zonder-manifest
           python3 tools/jelly-leon/patch_register_check.py
+          # Register van upstream-gedrag (B03-019 a): een verdwenen of verhuisd anker blokkeert de sync (JLT-67).
+          python3 tools/jelly-leon/upstream_gedrag_check.py --overzicht
           python3 -m pytest -q tools/jelly-leon/tests
+
+      # UPSTREAM_GEDRAG-runtimetests op de runtime van de NIEUWE tag (jellyfin/jellyfin:<versie>, op de gemeten digest):
+      # bestaat die image nog niet, dan blokkeert de sync met een duidelijke melding (JL_RUNTIME_IMAGE volgt bij de release).
+      - name: Upstream-gedrag op de nieuwe runtime (UG-runtimetests)
+        env:
+          SYNC_TAG: ${{ matrix.tag }}
+        run: |
+          set -eu
+          tag="${SYNC_TAG#v}"
+          if ! digest=$(docker buildx imagetools inspect "docker.io/jellyfin/jellyfin:$tag" --format '{{json .Manifest}}' \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["digest"])'); then
+            echo "::error::Runtime-image jellyfin/jellyfin:$tag niet gevonden; UG-runtimetests kunnen niet draaien (sync geblokkeerd)."
+            exit 1
+          fi
+          runtime="docker.io/jellyfin/jellyfin:$tag@$digest"
+          echo "- Nieuwe runtime voor UG-tests: \`$runtime\`" >> "$GITHUB_STEP_SUMMARY"
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$runtime" --werkmap "$RUNNER_TEMP" \
+            --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
 
       # Kanaal x.y.x uit de global.json van de NIEUWE basis (bv. 12.x: 10.0.0 → 10.0.x); de exacte ondergrens uit
       # global.json bestaat niet als download (zie tools/jelly-leon/dotnet_sdk_kanaal.py).
@@ -228,6 +259,8 @@ jobs:
           path: |
             ${{ runner.temp }}/sync.bundle
             ${{ runner.temp }}/stock-client-smoke.json
+            ${{ runner.temp }}/sync-resultaat.json
+            ${{ runner.temp }}/upstream-gedrag-runtime.json
 
       # Alleen bereikt als ALLE stappen hierboven slaagden: dit artefact is het enige dat de push-job gebruikt.
       - name: Geslaagde sync markeren voor de push-job
