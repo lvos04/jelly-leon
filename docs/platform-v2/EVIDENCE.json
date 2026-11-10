@@ -122,10 +122,10 @@
   {
     "id": "B03-016",
     "status": "Bezig",
-    "validatie": "Sim-getest; NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (Mac/Xcode)",
+    "validatie": "Sim-getest; Intel-iGPU-getest (ontwikkelmachine); NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (Mac/Xcode)",
     "bewijs": "Golf 0 (voormeting tegen stock jellyfin/jellyfin:12.4@sha256:fea863d0…1771). Code tools/b03-harnas (ADR-0026; procedure docs/platform-v2/B03-016_HARNAS.md; uitkomsten docs/platform-v2/BOUWVERIFICATIE_B03-016.md). (a) Corpus: sha256sum -c groen voor bron (34), ondertitels (75) en afgeleid (31); één corpusgenerator met 8 recepten (F1 framecode, F2 D-SYN, F3 ondertitelfouten, F4 T-QC/N-QC-rommelig, F5 gecontroleerde fouten, F6 segmenttestset, ASS, groot bestand ≤ 20 GB) met grondwaarheid, seed en licentie; reproduceerbaar op het echte corpus met jellyfin-ffmpeg 8.1.3 (f1/f2/f3/f4/f5/ass vol twee keer bit-gelijk, f6 klein twee keer) en in CI op een mini-corpus (8/8); testsets bevroren in test-evidence/b03-016-corpus/*.manifest.json en daarna opgeruimd (BG-38); F6 vol haalt alle streef-n (intro 60, outro 60, recap 48, preview 30, beschermd 60, buiten IS-venster 29, nieuwe OP 24), F4 vol 210 video- en 120 audio-decode-errors (alle effectief), 32 afgekapt/container, 20 per middel-klasse. CI-guard testdatalicenties (repo, commitbereik, image) met negatieve tests. (b) Clientmatrix-rooktest hero.mp4 (test-evidence/b03-016-clientmatrix-rooktest.json): Chromium 153, Firefox 155, WebKit 26.6, webOS/Tizen (UA-simulatie), stock-web via --webdir, legacy-headers-client, jellyfin-android 2.7.3 op telefoon- en tablet-AVD API 35, jellyfin-androidtv 0.19.10 op Android TV API 34 x86 en API 36 x86_64: allemaal geslaagd; emulators in een container met --device /dev/kvm, 4 GiB, onder gradle.lock, oom_kill 0. (c) Baselines (test-evidence/b03-016-baseline-voormeting-12.4.json): stock-standaard en stock-best, A/B afwisselend, ≥ 3 geldige runs, n + Wilson; Direct Play-beslissingen Chromium 16/25, Firefox 17/25, WebKit 21/25 (gelijk aan analyse 5, ook in sessie 2); effectief 16/17/20 van 25; DV P8.1-transcode 3,94× bij 3,69 CPU-s/media-s (software) tegen 6,53× bij 0,155 CPU-s/media-s (QSV, iGPU); MediaSegments 0/14, NL-ondertitels 0/4, kwaliteitsmeldingen 0/8. Differentiële controle-run stock tegen stock: 0 verschillen buiten de vaste uitzonderingen, negatieve proef vindt 2 (test-evidence/b03-016-diffrun-*.json). Legacy-headers: 401 voor X-Emby-Token/api_key in 12.4 (test-evidence/b03-016-legacy-headers.json). Tests: 52+ harnastests groen; GitHub Actions 'Jelly Leon CI' met job B03-016-harnas groen (run 42728331528 en later).",
     "blokkade": "Definitieve baselines op de 12.x-digest van de forkbasis wachten op B03-014 (P4-0). Desktop 2.0.0 onder Xvfb: Geblokkeerd — gebouwd (62/62) en gestart onder Xvfb, ruwe CDP werkt, maar de app laadt de serverweb niet na het verbinden (oorzaak niet vastgesteld; gezamenlijke spike met jelly-leon-clients). A310/UHD 770, echte tv's/telefoons (D15) en de NAS: NIET GEVALIDEERD; Swiftfin/Safari: NIET GEVALIDEERD (Mac/Xcode).",
-    "opmerking": "Intel-iGPU-getest (ontwikkelmachine): de stock-best-transcodes draaiden op de Meteor Lake-iGPU (/dev/dri/renderD128, h264_qsv + tonemap_vaapi); geen capaciteit van A310/UHD 770. Herhaalbaarheid: beslissingen, functiemetingen en CPU per mediaseconde vallen in een tweede meetsessie binnen het interval; de absolute transcodesnelheid niet (sessie 2 3–14 % lager, alle runs geldig; vermoedelijk thermisch) — gates vergelijken daarom alleen afwisselend binnen één sessie. Gemeten upstream-gedrag: zonder MediaSourceId + AudioStreamIndex toetst PlaybackInfo in 12.4 de audiocodec niet. In CI (geen audiohardware) worden WebKit en het audio-orakel alleen lokaal getoetst. Emulators: kleiner scherm en -feature -Vulkan om binnen 4 GiB te blijven; tv-app via Quick Connect. P4-0 (2026-11-10): de forkbasis staat op exact dezelfde 12.4-digest als de voormeting (jellyfin/jellyfin:12.4@sha256:fea863d0…1771); een nieuwe definitieve meetsessie (label definitief-forkbasis) is in deze ronde niet gedraaid. Clientmatrix-rooktest wel herhaald tegen de jelly-leon-image (7/7, test-evidence/p40/clientmatrix-rooktest-jelly-leon-12.4.json).",
+    "opmerking": "Intel-iGPU-getest (ontwikkelmachine) staat sinds contract 1.3 in validatie (C1.3-JL-02): de stock-best-transcodes draaiden op de Meteor Lake-iGPU (/dev/dri/renderD128, h264_qsv + tonemap_vaapi); geen capaciteit van A310/UHD 770. Herhaalbaarheid: beslissingen, functiemetingen en CPU per mediaseconde vallen in een tweede meetsessie binnen het interval; de absolute transcodesnelheid niet (sessie 2 3–14 % lager, alle runs geldig; vermoedelijk thermisch) — gates vergelijken daarom alleen afwisselend binnen één sessie. Gemeten upstream-gedrag: zonder MediaSourceId + AudioStreamIndex toetst PlaybackInfo in 12.4 de audiocodec niet. In CI (geen audiohardware) worden WebKit en het audio-orakel alleen lokaal getoetst. Emulators: kleiner scherm en -feature -Vulkan om binnen 4 GiB te blijven; tv-app via Quick Connect. P4-0 (2026-11-10): de forkbasis staat op exact dezelfde 12.4-digest als de voormeting (jellyfin/jellyfin:12.4@sha256:fea863d0…1771); een nieuwe definitieve meetsessie (label definitief-forkbasis) is in deze ronde niet gedraaid. Clientmatrix-rooktest wel herhaald tegen de jelly-leon-image (7/7, test-evidence/p40/clientmatrix-rooktest-jelly-leon-12.4.json).",
     "repo": "jelly-leon",
     "bijgewerkt": "2026-11-10"
   },
@@ -142,7 +142,7 @@
   {
     "id": "B03-019",
     "status": "Bezig",
-    "validatie": "Sim-getest",
+    "validatie": "Sim-getest; NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (Mac/Xcode)",
     "bewijs": "Commit 6793f07dc: docs/platform-v2/UPSTREAM_GEDRAG.md (UG-GEM-1…12) met tools/jelly-leon/upstream_gedrag_check.py (ankers, nummering, runtime-koppeling, geen UG-verwijzing zonder regel; tegenproef op 10.11.11: 4/12 ankers falen) en e2e/upstream_gedrag_runtime.py (6 runtime-contracttests: stock 12.4 6/6, jelly-leon 6/6); e2e/compat_api.py (18 Jellyfin-antwoorden incl. PlaybackInfo × 3 profielen = stock, OpenAPI alleen +/media/v1): 5/5. upstream_sync.py: herbasisresultaat per core-patch (102738f17). CI: ankercontrole in forkregels, runtime op JL_RUNTIME_IMAGE en de image, compat in de image-job; upstream-sync: per-patchresultaat, ankers en runtime op de runtime van de nieuwe tag. Tests forktools 195/195. CI: GitHub Actions 'Jelly Leon CI' run 42753563000 (commit d6a064278): forkregels (incl. register upstream-gedrag), manifest, server (build + volledige upstream-testsuite + OpenAPI-drift tegen de 12.4-export), plugins, stock-client-smoketest 25/25 + UG-runtime op JL_RUNTIME_IMAGE 6/6, image (levenscyclus 31/31, terugzetproef 10/10, upgradeproef 18/18, compat-API 5/5, UG op de image 6/6) en B03-016-harnas geslaagd; emby-overname (synthetisch, echte Emby + stock 12.4) geslaagd — 8/8 jobs groen; CI-rapporten in test-evidence/p40/ci-42753563000/",
     "blokkade": "JLT-67 wacht op een 12.y-tag (v12.4 is de nieuwste). Echte tv's/telefoons: NIET GEVALIDEERD (hardware); Swiftfin: NIET GEVALIDEERD (Mac/Xcode).",
     "opmerking": "Reeks UG-GEM voor gemeenschappelijk gedrag (ADR-0027); UG-F2/F3/F5 blijven gereserveerd voor die functies.",
@@ -172,7 +172,7 @@
   {
     "id": "JLT-62",
     "status": "Niet gestart",
-    "validatie": "NIET GEVALIDEERD (echte NAS)",
+    "validatie": "Niet getest; NIET GEVALIDEERD (echte NAS)",
     "bewijs": "—",
     "blokkade": "Overname van een bestaande Jellyfin-installatie (B03-015 deel B) geldt alleen als D07 een Jellyfin meet; de gebruiker gebruikt Emby. Overnamewizard (inventaris, schrijfopties uitzetten met back-up/diff/readback, mountcontrole, Intro Skipper-hint) is in deze ronde niet gebouwd.",
     "opmerking": "Gate P4-0 noemt JLT-62; open punt voor de volgende ronde.",
@@ -202,10 +202,140 @@
   {
     "id": "JLT-67",
     "status": "Niet gestart",
-    "validatie": "",
+    "validatie": "Niet getest",
     "bewijs": "Mechanisme klaar (6793f07dc, 102738f17): herbasisresultaat per core-patch, ankercontrole en UG-runtimetests op de runtime van de nieuwe tag in upstream-sync.yml.",
     "blokkade": "Geen 12.y-tag: v12.4 is op 2026-11-10 de nieuwste stabiele tag van jellyfin/jellyfin en jellyfin-web.",
     "opmerking": "Uitvoeren zodra upstream v12.5 of een 12.4.x publiceert.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-ALG-01",
+    "status": "Bezig",
+    "validatie": "Unit-getest",
+    "bewijs": "commit b8431a55e: docs/platform-v2/PLATFORM_CONTRACTEN.md (contracts 1.3) en CONTRACT_1.3_CONFORMITEIT.md byte-gelijk uit lvos04/ai-server-manager@02b119c (sha256 15b30cf1… en f0a2352d…); tools/jelly-leon/contract_drift.py (pin op 02b119c, historiekopie CONTRACT_1.2_CONFORMITEIT.md vastgezet op 8b54f39); lokaal: contract_drift.py offline, --bron-map (checkout ai-server-manager) en --online (raw.githubusercontent.com) alle drie in orde; tools/jelly-leon/tests/test_contract_drift.py 14/14",
+    "blokkade": "",
+    "opmerking": "Zelfde bron-commit als ai-server-manager en appstore-en-fork. CONTRACT_1.2_CONFORMITEIT.md blijft als historie (mag volgens C1.3-ALG-01).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-01",
+    "status": "Bezig",
+    "validatie": "Unit-getest",
+    "bewijs": "commit b8431a55e: docs/platform-v2/PLATFORM_CONTRACTEN.md (contracts 1.3) en CONTRACT_1.3_CONFORMITEIT.md byte-gelijk uit lvos04/ai-server-manager@02b119c (sha256 15b30cf1… en f0a2352d…); tools/jelly-leon/contract_drift.py (pin op 02b119c, historiekopie CONTRACT_1.2_CONFORMITEIT.md vastgezet op 8b54f39); lokaal: contract_drift.py offline, --bron-map (checkout ai-server-manager) en --online (raw.githubusercontent.com) alle drie in orde; tools/jelly-leon/tests/test_contract_drift.py 14/14",
+    "blokkade": "",
+    "opmerking": "Zie C1.3-ALG-01; de CI-job forkregels draait de drifttest online.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-ALG-02",
+    "status": "Bezig",
+    "validatie": "Unit-getest",
+    "bewijs": "tools/jelly-leon/tests/test_evidence_contract.py volgt §11 van 1.3 (nieuwe waarden Intel-iGPU-getest (ontwikkelmachine) en Niet getest, nooit lege validatie, Niet getest alleen bij Niet gestart, NIET GEVALIDEERD uit blokkade ook in validatie, ID's C1.3-/C1.2-/REVIEW-, contractpunten bestaan in de conformiteitslijst) met positieve en negatieve gevallen.",
+    "blokkade": "",
+    "opmerking": "Rechtgezet: B03-019 (NIET GEVALIDEERD (hardware) en (Mac/Xcode) ook in validatie), JLT-67 (Niet getest), JLT-62 (Niet getest erbij), B03-016 (Intel-iGPU-getest in validatie).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-02",
+    "status": "Bezig",
+    "validatie": "Unit-getest",
+    "bewijs": "B03-016: Intel-iGPU-getest (ontwikkelmachine) van opmerking naar validatie (ADR-0026 aangevuld); test_evidence_contract.py::test_igpu_value_is_in_validation_not_only_in_the_remark en de 1.3-regels (zie C1.3-ALG-02).",
+    "blokkade": "",
+    "opmerking": "Testrijen die maar deels zijn uitgevoerd (JLT-60, JLT-63, JLT-70, JLT-73) houden Sim-getest, met een opmerking over wat niet is gedraaid: §11 kent alleen Sim-geslaagd/Sim-mislukt voor de hele rij (ADR-0028, contractpunt gemeld).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-ALG-03",
+    "status": "Bezig",
+    "validatie": "Unit-getest",
+    "bewijs": "LICENSE is de GPL-2.0-tekst van upstream (fork houdt de upstream-licentie); bewaakt door tools/jelly-leon/check_fork_consistency.py (controle 5) in de CI-job forkregels.",
+    "blokkade": "",
+    "opmerking": "Conform volgens CONTRACT_1.3_CONFORMITEIT.md §0; geen wijziging nodig.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-ALG-04",
+    "status": "Niet gestart",
+    "validatie": "Niet getest",
+    "bewijs": "—",
+    "blokkade": "",
+    "opmerking": "In bewerking in deze ronde (zie C1.3-JL-03).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-03",
+    "status": "Niet gestart",
+    "validatie": "Niet getest",
+    "bewijs": "—",
+    "blokkade": "",
+    "opmerking": "In bewerking in deze ronde: healthcheck-controlevlag en de aparte controle in de rooktest nalopen.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-04",
+    "status": "Niet gestart",
+    "validatie": "Niet getest",
+    "bewijs": "—",
+    "blokkade": "",
+    "opmerking": "In bewerking in deze ronde (na C1.3-ASF-08, de validator van appstore-en-fork).",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-05",
+    "status": "Bezig",
+    "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "Golf 0 tegen stock 12.4 en de jelly-leon-image 12.4 met een echte Emby-container: zie B03-015 (alleen GET op een witte lijst, vóór/na-rapport per gebruiker met akkoord op elk verschil, Emby vóór/na identiek, geen schrijfactie in een database), JLT-70…73; upgrade die jellyfin.db migreert: upgrade_proef.py 10.11.11 → 12.4 met VÓÓR = NA per gebruiker en terugzetten = kopie + vorige image (JLT-60, JLT-61); downgradeweigering in het entrypoint.",
+    "blokkade": "Echte Emby op de NAS (D07) en een echte ZFS-snapshot: NIET GEVALIDEERD (echte NAS). Het akkoord per upgrade in de lifecycle (Hub/jelly-leon-platform) en de overname-assistent in het beheer van Jelly Leon zijn nog niet gebouwd.",
+    "opmerking": "Moment P4-0. Bij de upgradeproef was er geen verschil, dus er is nog geen akkoord op een upgradeverschil getoond.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-06",
+    "status": "Niet gestart",
+    "validatie": "Niet getest",
+    "bewijs": "—",
+    "blokkade": "",
+    "opmerking": "Moment P4 (B03-017, plugin): pin via het dashboard met service_id (RV4), §4.2–§4.7, zonder pin 401 not_linked, events alleen via poll, propose/apply/rollback 501.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-07",
+    "status": "Niet gestart",
+    "validatie": "Niet getest",
+    "bewijs": "—",
+    "blokkade": "",
+    "opmerking": "Moment P4 (B03-017): 1 MiB per route met IStartupFilter-spike, foutcatalogus met 423 item_in_playback, health/max_age, events in domein media; eventnamen van B03 §10.10 nalopen met ADR.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-08",
+    "status": "Niet gestart",
+    "validatie": "Niet getest",
+    "bewijs": "—",
+    "blokkade": "",
+    "opmerking": "Moment P4 (B03-009), na BG-04 (sleutel via de Hub met een dienst-JWT); acties pas na BG-05, tot dan alleen deeplink handmatig_in_mediaguard.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-10"
+  },
+  {
+    "id": "C1.3-JL-09",
+    "status": "Niet gestart",
+    "validatie": "Niet getest",
+    "bewijs": "—",
+    "blokkade": "",
+    "opmerking": "Moment P5 (na BG-06/BG-18). Gemeten nu: de Dockerfile installeert geen torch, transformers of ctranslate2.",
     "repo": "jelly-leon",
     "bijgewerkt": "2026-11-10"
   }

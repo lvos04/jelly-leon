@@ -59,7 +59,9 @@ De ontwikkelmachine is gedeeld (22 CPU's, 14,5 GiB RAM, schijf ~90 % vol) en hee
   winstclaim zonder baseline of op een niet-bevroren set is onmogelijk zonder het raamwerk te omzeilen.
 - Metingen hangen af van de last van andere agents op de gedeelde machine: ongeldige runs kosten tijd, maar maken geen
   resultaat mooier dan het is.
-- De Meteor Lake-iGPU geldt als functioneel bewijs en bovengrens ("Intel-iGPU-getest (ontwikkelmachine)", in de opmerking
-  omdat die waarde niet in contract §11 staat); A310/UHD 770 blijven NIET GEVALIDEERD (hardware).
+- De Meteor Lake-iGPU geldt als functioneel bewijs en bovengrens ("Intel-iGPU-getest (ontwikkelmachine)"); A310/UHD 770
+  blijven NIET GEVALIDEERD (hardware). Tot contract 1.2 stond die waarde in de opmerking (niet in §11); sinds contract 1.3
+  is het een vaste validatiewaarde en staat hij in `validatie` (C1.3-JL-02, bewaakt door
+  `tools/jelly-leon/tests/test_evidence_contract.py`).
 - De metingen hier zijn **voormetingen op 12.4**; in P4-0 worden ze herhaald op exact de 12.x-tag en -digest van de
   forkbasis (label `definitief-forkbasis`).
