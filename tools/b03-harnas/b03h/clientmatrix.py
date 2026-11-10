@@ -262,6 +262,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--image", default=STOCK_IMAGE,
                    help="server: stock 12.x op digest (standaard) of de jelly-leon-image (JLT-63-rooktest, B03-019)")
     a = p.parse_args(argv)
+    a.uit = a.uit.resolve()  # het harnas (Playwright) draait in een andere map; een relatief pad kwam daar terecht
     jelly_leon = a.image != STOCK_IMAGE
     webrol = "Jelly Leon-webclient (ingebouwd in de jelly-leon-image)" if jelly_leon else "stock-web (uit de stock-image)"
     delen = a.onderdelen.split(",")
