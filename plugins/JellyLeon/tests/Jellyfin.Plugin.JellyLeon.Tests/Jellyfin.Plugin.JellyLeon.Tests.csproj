@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
+    <!-- xunit.v3 (zoals upstream 12.4) bouwt testprojecten als uitvoerbaar bestand. -->
+    <OutputType>Exe</OutputType>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- Testnamen met underscores (Methode_Situatie_Verwachting) zijn hier gewenst. -->
     <NoWarn>$(NoWarn);CA1707</NoWarn>
@@ -10,7 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
-    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -26,6 +28,8 @@
 
   <ItemGroup>
     <None Include="../../../../docs/openapi/jelly-leon-plugin.openapi.json" Link="jelly-leon-plugin.openapi.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Bron van waarheid van de forkbasis: de metadatatest vergelijkt daarmee (geen vaste versie in de test). -->
+    <None Include="../../../../tools/jelly-leon/baseline.json" Link="baseline.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

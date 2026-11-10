@@ -12,7 +12,7 @@ public sealed record ForkVersionInfo
     [JsonPropertyName("schema_version")]
     public string SchemaVersion { get; init; } = "1.0";
 
-    /// <summary>Gets the fork version (bv. 10.11.11-jl.1).</summary>
+    /// <summary>Gets the fork version (bv. 12.4.0-jl.1).</summary>
     [JsonPropertyName("fork_version")]
     public required string ForkVersion { get; init; }
 

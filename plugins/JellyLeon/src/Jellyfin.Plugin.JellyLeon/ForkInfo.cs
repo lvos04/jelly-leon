@@ -96,7 +96,7 @@ public static class ForkInfo
     }
 
     /// <summary>
-    /// Vergelijkt versies numeriek; <c>10.11.11</c> en <c>10.11.11.0</c> zijn gelijk.
+    /// Vergelijkt versies numeriek; <c>12.4.0</c> en <c>12.4.0.0</c> zijn gelijk.
     /// </summary>
     /// <param name="left">Eerste versie.</param>
     /// <param name="right">Tweede versie.</param>

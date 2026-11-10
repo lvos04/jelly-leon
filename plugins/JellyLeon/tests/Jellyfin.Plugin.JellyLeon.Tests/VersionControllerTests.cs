@@ -23,7 +23,7 @@ public class VersionControllerTests
     public void GetVersion_ReportsServerIdentityFromHost()
     {
         var host = new Mock<IServerApplicationHost>();
-        host.SetupGet(h => h.ApplicationVersionString).Returns("10.11.11");
+        host.SetupGet(h => h.ApplicationVersionString).Returns("12.4.0");
         host.SetupGet(h => h.Name).Returns("Jellyfin Server");
         var controller = new JellyLeonVersionController(host.Object, new FixedClock());
 
@@ -32,7 +32,7 @@ public class VersionControllerTests
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var info = Assert.IsType<ForkVersionInfo>(ok.Value);
         Assert.Equal("compatibel", info.Status);
-        Assert.Equal("10.11.11", info.ServerVersion);
+        Assert.Equal("12.4.0", info.ServerVersion);
         Assert.Equal("2026-11-09T08:30:00Z", info.ObservedAt);
     }
 
@@ -72,7 +72,7 @@ public class VersionControllerTests
     [Fact]
     public void Response_UsesSnakeCaseContractFields()
     {
-        var info = ForkInfo.Build("10.11.11", "Jellyfin Server", "10.11.11", "10.11.11-jl.0", "v10.11.11", "abc", "0.1.0.0", DateTimeOffset.UnixEpoch);
+        var info = ForkInfo.Build("12.4.0", "Jellyfin Server", "12.4.0", "12.4.0-jl.0", "v12.4", "abc", "0.1.0.0", DateTimeOffset.UnixEpoch);
         using var doc = JsonDocument.Parse(JsonSerializer.Serialize(info));
         foreach (var name in new[] { "schema_version", "fork_version", "upstream_tag", "upstream_commit", "plugin_built_against", "server_version", "server_product_name", "status", "reason_code", "message", "observed_at" })
         {

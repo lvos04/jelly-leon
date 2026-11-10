@@ -56,10 +56,10 @@ public class OpenApiContractTests
     {
         var outcomes = new List<ForkVersionInfo>
         {
-            ForkInfo.Build("10.11.11", "Jellyfin Server", "10.11.11", "f", "t", "c", "p", Now),
-            ForkInfo.Build("12.4.0", "Jellyfin Server", "10.11.11", "f", "t", "c", "p", Now),
-            ForkInfo.Build("10.11.11", "Jelly Leon Server", "10.11.11", "f", "t", "c", "p", Now),
-            ForkInfo.Build(null, "Jellyfin Server", "10.11.11", "f", "t", "c", "p", Now),
+            ForkInfo.Build("12.4.0", "Jellyfin Server", "12.4.0", "f", "t", "c", "p", Now),
+            ForkInfo.Build("12.5.0", "Jellyfin Server", "12.4.0", "f", "t", "c", "p", Now),
+            ForkInfo.Build("12.4.0", "Jelly Leon Server", "12.4.0", "f", "t", "c", "p", Now),
+            ForkInfo.Build(null, "Jellyfin Server", "12.4.0", "f", "t", "c", "p", Now),
         };
         var statuses = outcomes.Select(o => o.Status).Distinct().OrderBy(v => v, StringComparer.Ordinal).ToArray();
         var reasons = outcomes.Select(o => o.ReasonCode).Distinct().OrderBy(v => v, StringComparer.Ordinal).ToArray();
