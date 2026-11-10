@@ -1,0 +1,322 @@
+{
+  "schema": "jelly-leon/b03-016-testset-manifest/1",
+  "recept": "f4-tqc",
+  "versie": "1",
+  "seed": 20261109,
+  "schaal": "klein",
+  "parameters": {},
+  "ffmpeg": {
+    "modus": "docker",
+    "versie": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "bronnen": [
+    {
+      "pad": "blender/bbb/uitgepakt/bbb_sunflower_1080p_30fps_normal.mp4",
+      "sha256": "ae51005850b0ff757fe60c3dd7a12d754d3cd2397d87d939b55235e457f97658",
+      "licentie": "CC BY 3.0 (Blender Foundation, Big Buck Bunny)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/caminandes/02_gran_dillama_1080p.mp4",
+      "sha256": "468e6743c674689a728726bbe4bb4b2a65bd8702a89f021af26a8bb4d450eebd",
+      "licentie": "CC BY 3.0 (Blender Foundation, Caminandes)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/caminandes/Caminandes_Llamigos-1080p.mp4",
+      "sha256": "826513349ecf02d83b22f414514704e3bba10ff28fb45408a6cdf6cc57bacc06",
+      "licentie": "CC BY 3.0 (Blender Foundation, Caminandes)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/cosmos/Cosmos_Laundromat_First_Cycle_2k.mp4",
+      "sha256": "039ff018ecebf0746a3d6b68e74de10c2fc3f2e99122131efb795d5e81512354",
+      "licentie": "CC BY-SA 4.0 (Blender Foundation, Cosmos Laundromat)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/elephantsdream-720-h264-st-aac.mov",
+      "sha256": "6fc295e0e92835316ec95929ccfc664b05ed2434f673e6f5e684f98f7558a547",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/spring/Spring-Blender-Open-Movie.mkv",
+      "sha256": "916523651f3d6a38ec98a9f35e48daf7591e21baba473e1d1cf9a7c5dac42031",
+      "licentie": "CC BY 4.0 (Blender Studio, Spring)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-de.srt",
+      "sha256": "666685daa9064a5a59144e47bddd2d570bbdda199df6e4e39f3273e479ab1f4b",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-en.srt",
+      "sha256": "ce9578f6fe098a5821045a38884b229160f9e7ba27890448a92f5be330c6e6fe",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-es.srt",
+      "sha256": "b1936989cf42eda28988ec9120a80b7303562ea6429e49441160ba688da39a5c",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-fr-orig.srt",
+      "sha256": "94cc887d34c83ee909dfe141edaccc2afc1ae8c23c7929b60e2f73905968c708",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-nl.srt",
+      "sha256": "1146fe8a924306d680d9b7c82cf652e56e9f1ed28c81142fa477daee04b45b58",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/uitgepakt/tears_of_steel_1080p.mov",
+      "sha256": "99486359be7e3681168a0fe94e1cbb0284c48b57b2a3ce7df4fa75e185987a15",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    }
+  ],
+  "licenties": [
+    "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+    "CC BY 3.0 (Blender Foundation, Big Buck Bunny)",
+    "CC BY 3.0 (Blender Foundation, Caminandes)",
+    "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+    "CC BY 4.0 (Blender Studio, Spring)",
+    "CC BY-SA 4.0 (Blender Foundation, Cosmos Laundromat)"
+  ],
+  "licentie_beperkt": false,
+  "aantallen": {
+    "N-QC-rommelig:avi_zonder_index": 1,
+    "N-QC-rommelig:gefragmenteerde_mp4": 1,
+    "N-QC-rommelig:interlaced": 1,
+    "N-QC-rommelig:ontbrekende_pts": 1,
+    "N-QC-rommelig:remux_tijdstempelgat": 1,
+    "N-QC-rommelig:ts_cc_fouten": 1,
+    "N-QC-rommelig:ts_instap_halverwege": 1,
+    "N-QC-rommelig:vfr": 1,
+    "T-QC:audio_clipping": 1,
+    "T-QC:audio_dropout": 1,
+    "T-QC:audio_shorter_than_video": 1,
+    "T-QC:channel_silent": 1,
+    "T-QC:decode_error": 7,
+    "T-QC:decode_error_audio": 6,
+    "T-QC:framerate_drift": 1,
+    "T-QC:no_audio_track": 1,
+    "T-QC:silent_track": 1,
+    "T-QC:subtitle_language_mismatch": 1,
+    "T-QC:subtitle_offset": 1,
+    "T-QC:truncated": 1,
+    "T-QC:wrong_version": 1
+  },
+  "bestanden": [
+    {
+      "pad": "grondwaarheid.json",
+      "grootte": 12241,
+      "sha256": "cca0830ac38d7c8ac140a7c2e095de71349c4f7bfb8770aa5822f287c810c691"
+    },
+    {
+      "pad": "n-qc-rommelig/avi_zonder_index-v0.avi",
+      "grootte": 1518986,
+      "sha256": "b30e6d6ee0524be9f9c23e2bad027ad77db9b91c796e0cd5c7670cea84e19182"
+    },
+    {
+      "pad": "n-qc-rommelig/gefragmenteerd-v0.mp4",
+      "grootte": 807897,
+      "sha256": "78da16fd6c2e128753f8caa74c306e47240936609bb470263d0ad461672c38be"
+    },
+    {
+      "pad": "n-qc-rommelig/interlaced_h264-v0.ts",
+      "grootte": 1529380,
+      "sha256": "33a1212ebbf52ffa6ccc8b10f16acc6d50779f3bdc4314bc778353c95674d932"
+    },
+    {
+      "pad": "n-qc-rommelig/ontbrekende_pts-v0.avi",
+      "grootte": 650574,
+      "sha256": "137a76ba5cabb8a99200c9a4d316b0441f046fd632e9929a3b099f3fdc129263"
+    },
+    {
+      "pad": "n-qc-rommelig/remux_tijdstempelgat-v0.mkv",
+      "grootte": 1411426,
+      "sha256": "7fa3cc8cc91e2ca3d0b4e1a82e45094eed5767f1fcf971c65e58549a656defea"
+    },
+    {
+      "pad": "n-qc-rommelig/ts_cc_fouten-v0.ts",
+      "grootte": 2011788,
+      "sha256": "4503da0355d6fbcfb348297b1b296793bc8eb4225c4603a96259b7efe318d958"
+    },
+    {
+      "pad": "n-qc-rommelig/ts_instap_halverwege-v0.ts",
+      "grootte": 996964,
+      "sha256": "fac57a796d81c6240106b187b2b7bdf91da18f11cfd3ee26205c59fa3571e3da"
+    },
+    {
+      "pad": "n-qc-rommelig/vfr-v0.mkv",
+      "grootte": 1017308,
+      "sha256": "8535a9734fae604f88140964debc1bf0a8c652dd1bd1493b1b2460d31d519954"
+    },
+    {
+      "pad": "t-qc/afgekapt/mkv-r0-v0.mkv",
+      "grootte": 632252,
+      "sha256": "851df11190772779b7e56bb4c7fe98b3c811e2567660ce0a48c4434c47606df3"
+    },
+    {
+      "pad": "t-qc/audio_clipping/audio_clipping-v00.mkv",
+      "grootte": 507175,
+      "sha256": "5b846970c94a39f9870cbf4982e5ee8df59678e2f082bf6c4f6a2b52b46713a7"
+    },
+    {
+      "pad": "t-qc/audio_dropout/audio_dropout-v00.mkv",
+      "grootte": 859483,
+      "sha256": "03a4d0e74644a20aa1a4a524c4562f49f5bcd0f5c79307ac258afc57dfeaa0b7"
+    },
+    {
+      "pad": "t-qc/audio_shorter_than_video/audio_shorter_than_video-v00.mkv",
+      "grootte": 723846,
+      "sha256": "df059809fcf3c7080a618b8f046a361f9361fb1eafeb2c855af509bf8e64975f"
+    },
+    {
+      "pad": "t-qc/channel_silent/channel_silent-v00.mkv",
+      "grootte": 358066,
+      "sha256": "6563e44cb13faf290f211c0677e4c932379fb8763e44339c50b077965a31446b"
+    },
+    {
+      "pad": "t-qc/decode_error_audio/aac/aac-r0-v0.mkv",
+      "grootte": 333487,
+      "sha256": "5356a6ef27ca99b005a86e9de7988090d8d8486333a8cf6f1231c061f0748482"
+    },
+    {
+      "pad": "t-qc/decode_error_audio/ac3/ac3-r0-v0.mkv",
+      "grootte": 597268,
+      "sha256": "903cb7322aa75e85cbf03e3730a501d4905ae8b3da98726a0a893388d76fae0d"
+    },
+    {
+      "pad": "t-qc/decode_error_audio/eac3/eac3-r0-v0.mkv",
+      "grootte": 437880,
+      "sha256": "dc043f4a4d3ab76dcd8bdb661005d346d0de55b59304ead3d4916cf36ab7e3a0"
+    },
+    {
+      "pad": "t-qc/decode_error_audio/flac/flac-r0-v0.mkv",
+      "grootte": 2623180,
+      "sha256": "206f33d0cd36bd77712c72c16e26243c7aec9ba5f9cba3d274cc9015f322af42"
+    },
+    {
+      "pad": "t-qc/decode_error_audio/mp3/mp3-r0-v0.mkv",
+      "grootte": 362501,
+      "sha256": "737ef6c425124e6d04f2c720dec44b989d5fa98e9653ba45e6b39468f8e801df"
+    },
+    {
+      "pad": "t-qc/decode_error_audio/opus/opus-r0-v0.mkv",
+      "grootte": 450180,
+      "sha256": "54e8741c3e3c4bffcff3ef0db2e589a4ab71f697f941ec9fea7336b51a87e1e8"
+    },
+    {
+      "pad": "t-qc/decode_error_video/av1/av1-r0-v0.mkv",
+      "grootte": 459235,
+      "sha256": "4de216ab30027c7ea881ffe77abf60e5fcc15e633812c569c0f4b7c3a7d678b9"
+    },
+    {
+      "pad": "t-qc/decode_error_video/h264/h264-r0-v0.mkv",
+      "grootte": 474238,
+      "sha256": "57856126b622a09c998e52067ea02eb6fbc827d31555399bfccc1b214e0074fd"
+    },
+    {
+      "pad": "t-qc/decode_error_video/hevc10/hevc10-r0-v0.mkv",
+      "grootte": 278136,
+      "sha256": "e1e7518f7891a6b8e5dd782a3cda27ed9b5fcbba6fcdd25954123bc1407d5078"
+    },
+    {
+      "pad": "t-qc/decode_error_video/hevc8/hevc8-r0-v0.mkv",
+      "grootte": 479555,
+      "sha256": "d18f2d8b39e21c5bc777fe53e1b6bb1633fcfc0ffe3579b2005c91c994689d73"
+    },
+    {
+      "pad": "t-qc/decode_error_video/mpeg2/mpeg2-r0-v0.ts",
+      "grootte": 2645724,
+      "sha256": "33f3397c97140b89745a9a49b3ecd40bcd202dcab90573c4d281f30f8e50b364"
+    },
+    {
+      "pad": "t-qc/decode_error_video/mpeg4/mpeg4-r0-v0.avi",
+      "grootte": 2018028,
+      "sha256": "6dc38b5462c3b71943a97ddc19c3758af3df831841b60b44d0a1cb6fe661fc9f"
+    },
+    {
+      "pad": "t-qc/decode_error_video/vp9/vp9-r0-v0.webm",
+      "grootte": 466343,
+      "sha256": "3fe9b9f322de8ed5a336e274308d3d55d381a0c66a91a1b07602f81ce9ea8d8f"
+    },
+    {
+      "pad": "t-qc/framerate_drift/v00/clip.en.srt",
+      "grootte": 250,
+      "sha256": "7f68081a88708397593dfa04b811a01b0f1aab734e1d48c4698761cdc566cfdc"
+    },
+    {
+      "pad": "t-qc/framerate_drift/v00/clip.mkv",
+      "grootte": 3086359,
+      "sha256": "ad5601836b44be5c550c01b398dcd1fbb5b5b77f34020f5e4a93cd74d1a3acae"
+    },
+    {
+      "pad": "t-qc/no_audio_track/no_audio_track-v00.mkv",
+      "grootte": 364315,
+      "sha256": "aa8928d717481aa15ac79aba4b22e9650a9d46500b3c04ebc844bfccb4a5b4a1"
+    },
+    {
+      "pad": "t-qc/silent_track/silent_track-v00.mkv",
+      "grootte": 356741,
+      "sha256": "5c4f19524215d6fb3a0847b94a6f520feab35077f558b06fb9e52c05c8308f57"
+    },
+    {
+      "pad": "t-qc/subtitle_language_mismatch/v00/clip.mkv",
+      "grootte": 3086359,
+      "sha256": "ad5601836b44be5c550c01b398dcd1fbb5b5b77f34020f5e4a93cd74d1a3acae"
+    },
+    {
+      "pad": "t-qc/subtitle_language_mismatch/v00/clip.nl.srt",
+      "grootte": 257,
+      "sha256": "8ed415edb114d6e23adc674d112ffc8344ea3fd5092eff5e7309f20ab0086757"
+    },
+    {
+      "pad": "t-qc/subtitle_offset/v00/clip.mkv",
+      "grootte": 3086359,
+      "sha256": "ad5601836b44be5c550c01b398dcd1fbb5b5b77f34020f5e4a93cd74d1a3acae"
+    },
+    {
+      "pad": "t-qc/subtitle_offset/v00/clip.nl.srt",
+      "grootte": 257,
+      "sha256": "3ec59eae761aabe32f7648dfdfe88e1907b49fcde939a6b8f1dfb80f8cd4d017"
+    },
+    {
+      "pad": "t-qc/wrong_version/v00/clip.mkv",
+      "grootte": 3086359,
+      "sha256": "ad5601836b44be5c550c01b398dcd1fbb5b5b77f34020f5e4a93cd74d1a3acae"
+    },
+    {
+      "pad": "t-qc/wrong_version/v00/clip.nl.srt",
+      "grootte": 257,
+      "sha256": "af1d1a1326632479b557903ba71f271563f127de426bc800ffa74c3570196a8b"
+    }
+  ],
+  "set_sha256": "ebbda9f8297cf79f2b45d4e28d00a292a074cfb9a03149f2d72b3af07d46fef5",
+  "totaal_bytes": 37730654,
+  "duur_s": 200.9,
+  "bevroren_op": "2026-11-10T00:39:30Z"
+}

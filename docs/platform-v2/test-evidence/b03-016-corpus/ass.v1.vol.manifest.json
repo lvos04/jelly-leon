@@ -1,0 +1,45 @@
+{
+  "schema": "jelly-leon/b03-016-testset-manifest/1",
+  "recept": "ass",
+  "versie": "1",
+  "seed": 20261109,
+  "schaal": "vol",
+  "parameters": {},
+  "ffmpeg": {
+    "modus": "docker",
+    "versie": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "bronnen": [
+    {
+      "pad": "blender/sintel/Sintel.2010.1080p.mkv",
+      "sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    }
+  ],
+  "licenties": [
+    "CC BY 3.0 (Blender Foundation, Sintel)"
+  ],
+  "licentie_beperkt": false,
+  "aantallen": {
+    "ass": 1
+  },
+  "bestanden": [
+    {
+      "pad": "formaten/sintel-60s-ass.grondwaarheid.json",
+      "grootte": 366,
+      "sha256": "92b02eee24992fa9c93b9852f81309b589184eea50627a266e71a790c94a3eaf"
+    },
+    {
+      "pad": "formaten/sintel-60s-ass.mkv",
+      "grootte": 69609209,
+      "sha256": "4e83915d634e1d0c7f8720e8a44164c6266be6c8307c5c0890c0486ed4f79e83"
+    }
+  ],
+  "set_sha256": "e7f2309e7dde116ace555454e84579537b3a0be468d5c1854f74adeac55e38bb",
+  "totaal_bytes": 69609575,
+  "duur_s": 1.4,
+  "bevroren_op": "2026-11-10T00:07:35Z"
+}

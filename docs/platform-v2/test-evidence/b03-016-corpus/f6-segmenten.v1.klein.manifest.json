@@ -1,0 +1,100 @@
+{
+  "schema": "jelly-leon/b03-016-testset-manifest/1",
+  "recept": "f6-segmenten",
+  "versie": "1",
+  "seed": 20261109,
+  "schaal": "klein",
+  "parameters": {},
+  "ffmpeg": {
+    "modus": "docker",
+    "versie": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "bronnen": [
+    {
+      "pad": "blender/cosmos/Cosmos_Laundromat_First_Cycle_2k.mp4",
+      "sha256": "039ff018ecebf0746a3d6b68e74de10c2fc3f2e99122131efb795d5e81512354",
+      "licentie": "CC BY-SA 4.0 (Blender Foundation, Cosmos Laundromat)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/1-TheWires.mp3",
+      "sha256": "0d3005b8bab3b187f1aed3104948957f27dcd5b953131f1025cc00c8c7bc97a2",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/5-EndTitle.mp3",
+      "sha256": "1b2bab76f405b30d1f00d845987496f808c538860af3f30322f5417a9a8c3a74",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/elephantsdream-720-h264-st-aac.mov",
+      "sha256": "6fc295e0e92835316ec95929ccfc664b05ed2434f673e6f5e684f98f7558a547",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/Sintel.2010.1080p.mkv",
+      "sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/spring/Spring-Blender-Open-Movie.mkv",
+      "sha256": "916523651f3d6a38ec98a9f35e48daf7591e21baba473e1d1cf9a7c5dac42031",
+      "licentie": "CC BY 4.0 (Blender Studio, Spring)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/uitgepakt/tears_of_steel_1080p.mov",
+      "sha256": "99486359be7e3681168a0fe94e1cbb0284c48b57b2a3ce7df4fa75e185987a15",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    }
+  ],
+  "licenties": [
+    "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+    "CC BY 3.0 (Blender Foundation, Sintel)",
+    "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+    "CC BY 4.0 (Blender Studio, Spring)",
+    "CC BY-SA 4.0 (Blender Foundation, Cosmos Laundromat)"
+  ],
+  "licentie_beperkt": false,
+  "aantallen": {
+    "beschermd": 2,
+    "intro": 2,
+    "outro": 2,
+    "preview": 2,
+    "recap": 1
+  },
+  "bestanden": [
+    {
+      "pad": "grondwaarheid.json",
+      "grootte": 5106,
+      "sha256": "4eca17ce2ba987a5e14daf0d6adf8834dcae61168a80623e17dc1056247db157"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 01/B03 Testset B S01E01.mkv",
+      "grootte": 5718451,
+      "sha256": "c1f735bd12759bb08f32d7e04693390644c209ecc3d05cf147b073ddf31af5c8"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 01/B03 Testset B S01E02.mkv",
+      "grootte": 5454918,
+      "sha256": "763df855cd092f931e5a5cb1fe5036d641d4cd4fdf196eb4c9bf6d6aacadb412"
+    }
+  ],
+  "set_sha256": "1d7b0897a41f6628aa36e2bd4fb9b149390f022fed6bad617a451f409559c7dd",
+  "totaal_bytes": 11178475,
+  "duur_s": 88.0,
+  "bevroren_op": "2026-11-10T00:44:38Z"
+}

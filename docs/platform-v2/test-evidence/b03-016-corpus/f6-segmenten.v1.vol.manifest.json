@@ -1,0 +1,425 @@
+{
+  "schema": "jelly-leon/b03-016-testset-manifest/1",
+  "recept": "f6-segmenten",
+  "versie": "1",
+  "seed": 20261109,
+  "schaal": "vol",
+  "parameters": {},
+  "ffmpeg": {
+    "modus": "docker",
+    "versie": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "bronnen": [
+    {
+      "pad": "blender/bbb/uitgepakt/bbb_sunflower_1080p_30fps_normal.mp4",
+      "sha256": "ae51005850b0ff757fe60c3dd7a12d754d3cd2397d87d939b55235e457f97658",
+      "licentie": "CC BY 3.0 (Blender Foundation, Big Buck Bunny)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/caminandes/02_gran_dillama_1080p.mp4",
+      "sha256": "468e6743c674689a728726bbe4bb4b2a65bd8702a89f021af26a8bb4d450eebd",
+      "licentie": "CC BY 3.0 (Blender Foundation, Caminandes)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/caminandes/Caminandes_Llamigos-1080p.mp4",
+      "sha256": "826513349ecf02d83b22f414514704e3bba10ff28fb45408a6cdf6cc57bacc06",
+      "licentie": "CC BY 3.0 (Blender Foundation, Caminandes)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/cosmos/Cosmos_Laundromat_First_Cycle_2k.mp4",
+      "sha256": "039ff018ecebf0746a3d6b68e74de10c2fc3f2e99122131efb795d5e81512354",
+      "licentie": "CC BY-SA 4.0 (Blender Foundation, Cosmos Laundromat)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/1-TheWires.mp3",
+      "sha256": "0d3005b8bab3b187f1aed3104948957f27dcd5b953131f1025cc00c8c7bc97a2",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/5-EndTitle.mp3",
+      "sha256": "1b2bab76f405b30d1f00d845987496f808c538860af3f30322f5417a9a8c3a74",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/elephantsdream-720-h264-st-aac.mov",
+      "sha256": "6fc295e0e92835316ec95929ccfc664b05ed2434f673e6f5e684f98f7558a547",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/hero/hero.mp4",
+      "sha256": "1a2d85e9a0303c1c0eb320b2b755705551a5344b3c60dc3ced8166d93d329800",
+      "licentie": "CC BY 4.0 (Blender Studio, Hero)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/Sintel.2010.1080p.mkv",
+      "sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/spring/Spring-Blender-Open-Movie.mkv",
+      "sha256": "916523651f3d6a38ec98a9f35e48daf7591e21baba473e1d1cf9a7c5dac42031",
+      "licentie": "CC BY 4.0 (Blender Studio, Spring)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/uitgepakt/tears_of_steel_1080p.mov",
+      "sha256": "99486359be7e3681168a0fe94e1cbb0284c48b57b2a3ce7df4fa75e185987a15",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    }
+  ],
+  "licenties": [
+    "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+    "CC BY 3.0 (Blender Foundation, Big Buck Bunny)",
+    "CC BY 3.0 (Blender Foundation, Caminandes)",
+    "CC BY 3.0 (Blender Foundation, Sintel)",
+    "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+    "CC BY 4.0 (Blender Studio, Hero)",
+    "CC BY 4.0 (Blender Studio, Spring)",
+    "CC BY-SA 4.0 (Blender Foundation, Cosmos Laundromat)"
+  ],
+  "licentie_beperkt": false,
+  "aantallen": {
+    "beschermd": 60,
+    "intro": 60,
+    "intro_buiten_is_venster": 29,
+    "mid_credit": 15,
+    "outro": 60,
+    "post_credit": 15,
+    "preview": 30,
+    "recap": 48,
+    "seizoensvariant_nieuwe_op": 24
+  },
+  "bestanden": [
+    {
+      "pad": "grondwaarheid.json",
+      "grootte": 148167,
+      "sha256": "5636028d3a1c3c1e6b63449c0e02ba69fdc195e8a1b3bb9868f144d20b6c2faf"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 01/B03 Testset A S01E01.mkv",
+      "grootte": 3326748,
+      "sha256": "bcfa7dd82b894f9cd201f9600ed0f6eb15284372fad1b36f477812e27e27d492"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 01/B03 Testset A S01E02.mkv",
+      "grootte": 6926976,
+      "sha256": "6fa506d4446fd34c01a3175ad358895dff9a5f925f048c6db835658a77a2d974"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 01/B03 Testset A S01E03.mkv",
+      "grootte": 6446346,
+      "sha256": "0c9135067d44725d96df2bd5e27dd7c4c414230d4b66007b7eb627c7e10819ea"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 01/B03 Testset A S01E04.mkv",
+      "grootte": 6906021,
+      "sha256": "3c59f008ebe0020c690e78ccee1699cee0520f5aa3a55c0fd1da8a39974a5172"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 01/B03 Testset A S01E05.mkv",
+      "grootte": 4825660,
+      "sha256": "7450f70df70b67ae27d0929206fa30e5c85f89fbfb40d82767b6bbaaef206581"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 01/B03 Testset A S01E06.mkv",
+      "grootte": 4851592,
+      "sha256": "8b9a7a222ef742039845f1dd10e67b51c1c1fc641d2004d1d87c23526f799334"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 02/B03 Testset A S02E01.mkv",
+      "grootte": 4470154,
+      "sha256": "fd01565c172d2d965252ba7bcc6f95e073755c40b1f1de4ff2dcbc25a15c31e5"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 02/B03 Testset A S02E02.mkv",
+      "grootte": 4397030,
+      "sha256": "ca8f4783ec4422fdd2d49071e7aa35c9cb8e4e64dd8faa99410493658e4be975"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 02/B03 Testset A S02E03.mkv",
+      "grootte": 6093964,
+      "sha256": "4710b8d2a669265d31a779dabc2975f1579ca3f1ca7c9921c19c442ed858032a"
+    },
+    {
+      "pad": "series/B03 Testset A/Season 02/B03 Testset A S02E04.mkv",
+      "grootte": 5546162,
+      "sha256": "56fb9ed1c4573941b0ca2f26fdb436a5aee183dbe7cfa2e1dc13c469a367c367"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 01/B03 Testset B S01E01.mkv",
+      "grootte": 5718451,
+      "sha256": "c1f735bd12759bb08f32d7e04693390644c209ecc3d05cf147b073ddf31af5c8"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 01/B03 Testset B S01E02.mkv",
+      "grootte": 5454918,
+      "sha256": "763df855cd092f931e5a5cb1fe5036d641d4cd4fdf196eb4c9bf6d6aacadb412"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 01/B03 Testset B S01E03.mkv",
+      "grootte": 9682724,
+      "sha256": "7134d7add9680269b863329631c644f0e87abe4b8a41573937776ec937be6166"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 01/B03 Testset B S01E04.mkv",
+      "grootte": 8816551,
+      "sha256": "cc5a836f4729329e86de496220ccb765f8bb91d12dbf51ae705d7a4dccef5648"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 01/B03 Testset B S01E05.mkv",
+      "grootte": 6869388,
+      "sha256": "bc239eb2adf81e50d76c6e7f929b5cbab0ed6ac7f4fc3e028f9dc9a033faf1c8"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 01/B03 Testset B S01E06.mkv",
+      "grootte": 7454030,
+      "sha256": "ae700c906b30b953504fefa01c07a895d4cdbac264bbcd42ea5e532d87e78aa6"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 02/B03 Testset B S02E01.mkv",
+      "grootte": 4767775,
+      "sha256": "dca161db6b0120fbd5b01fe12335ce51aa7efb5b022abaf209211dd5cd2da0c5"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 02/B03 Testset B S02E02.mkv",
+      "grootte": 5820321,
+      "sha256": "816fb6f6efe4a90656ba6a89133ee3d328571c6a68a9c632925b549621192f10"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 02/B03 Testset B S02E03.mkv",
+      "grootte": 8514729,
+      "sha256": "f7cb49b427e16a94b3603e377aebb08a5a5b9984aa91efb69bebdf6f89dcb7e2"
+    },
+    {
+      "pad": "series/B03 Testset B/Season 02/B03 Testset B S02E04.mkv",
+      "grootte": 9775750,
+      "sha256": "07146b9b65cb9238995876090efadafbc37172947cf9d972852a634bebe04623"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 01/B03 Testset C S01E01.mkv",
+      "grootte": 6327663,
+      "sha256": "f3ffdce07c67c47131e2b885ab514513ec1a700fa8b04e83b539f849121733ad"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 01/B03 Testset C S01E02.mkv",
+      "grootte": 6369775,
+      "sha256": "847a64566e6eaae45cd3f4c748a4970198def4494d1582fe6dbee55449b0ef6c"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 01/B03 Testset C S01E03.mkv",
+      "grootte": 6730099,
+      "sha256": "49643eb87d0755f02672dc1d0c00801829aadf11cefe93a71f7c7739e2a78f14"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 01/B03 Testset C S01E04.mkv",
+      "grootte": 6902557,
+      "sha256": "7ce4ed96506ce1e90b7f0c506a12e87e2472f0741c765c903da8f7cbe022d805"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 01/B03 Testset C S01E05.mkv",
+      "grootte": 7688716,
+      "sha256": "9555c22e5499e7ac2126245adc074d67a6b90d66db84a0c799b87f12402c8e62"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 01/B03 Testset C S01E06.mkv",
+      "grootte": 9605271,
+      "sha256": "52476ef8966942c3384abbd441158c9eaa737f2e19ca3190e22e84b1ff92faf8"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 02/B03 Testset C S02E01.mkv",
+      "grootte": 5250012,
+      "sha256": "e13c41439b726da41e4edd0465d245c88abf62d6585422bbe5b29754fca35ead"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 02/B03 Testset C S02E02.mkv",
+      "grootte": 5869489,
+      "sha256": "dc2c5e8eca5db47d72d75b538b50feaa74710f5d1d013109ae7fb7b81f349357"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 02/B03 Testset C S02E03.mkv",
+      "grootte": 7813928,
+      "sha256": "af5ba8f47a0625b5edddd94bc506d02656bdac03cd930df8df6a466a6f05b951"
+    },
+    {
+      "pad": "series/B03 Testset C/Season 02/B03 Testset C S02E04.mkv",
+      "grootte": 5702650,
+      "sha256": "6f70c6361cdabc170ccde547c951bbc071271f08b4530e864ac38dd2bdf20081"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 01/B03 Testset D S01E01.mkv",
+      "grootte": 5978689,
+      "sha256": "661d79d21631313587974061c083fbe684ec25281a53e3f0f508bb009e20ff7f"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 01/B03 Testset D S01E02.mkv",
+      "grootte": 5022998,
+      "sha256": "c0133979508db6a40b00f290d83463605ec8994df14dfb8f402e3caa7bd970ee"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 01/B03 Testset D S01E03.mkv",
+      "grootte": 5904514,
+      "sha256": "b4eb4d954fa8387d63866b1f36ea12a69f9292ce70884e97e3e71fc1c654ddb7"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 01/B03 Testset D S01E04.mkv",
+      "grootte": 4358000,
+      "sha256": "9ae95fcdedbd20caa1f928f64d4d72bc802136988b5ed8f2cbf099da133e437d"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 01/B03 Testset D S01E05.mkv",
+      "grootte": 4598891,
+      "sha256": "edf4beb28778358bf33189edc02ffda345e42914686c43e9462d63a7839e9713"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 01/B03 Testset D S01E06.mkv",
+      "grootte": 7953980,
+      "sha256": "1e8bb99b788b1e36d838e90f667c94cb7ab3b50d69ace65256745daaea8d570d"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 02/B03 Testset D S02E01.mkv",
+      "grootte": 6146310,
+      "sha256": "d5ff5d123642b5267f09bf7c1fd7c31fcfd942e046131401921a804b81c0b32b"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 02/B03 Testset D S02E02.mkv",
+      "grootte": 5818324,
+      "sha256": "ac4fac116453b3af9b0f0be0efd9cc8638ecc5b7198047c192926ba71cfe3461"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 02/B03 Testset D S02E03.mkv",
+      "grootte": 7977075,
+      "sha256": "3edd6a8fdddad983df4f881f4d0abb11cadd5ecf9068af0a9bdfd04f2edb4dca"
+    },
+    {
+      "pad": "series/B03 Testset D/Season 02/B03 Testset D S02E04.mkv",
+      "grootte": 6158385,
+      "sha256": "15d1bf6efb8a89fe088103461fc6ed1e1c98f0efbd25b55b7ee7eb203334a0c5"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 01/B03 Testset E S01E01.mkv",
+      "grootte": 4900909,
+      "sha256": "5c443593a49066d1c9be2be67c8a8611a60d7bed4fbb8b121f8f9884d6ffa022"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 01/B03 Testset E S01E02.mkv",
+      "grootte": 6164631,
+      "sha256": "f2ec5d80f08f30eecaae92417a29f8b679b33c8ad48d02fc639566157e772354"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 01/B03 Testset E S01E03.mkv",
+      "grootte": 6132471,
+      "sha256": "e03a28e05d3e39f0fbf0bad045afe1ef8cb467e6d2b4fb79c6f7219581d43a76"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 01/B03 Testset E S01E04.mkv",
+      "grootte": 4547222,
+      "sha256": "71187e975974a310de54c59f7c2252b8e2ed2118e55b7fe28339e4d986b3b7b7"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 01/B03 Testset E S01E05.mkv",
+      "grootte": 7883841,
+      "sha256": "9d566e3ec9619b11d80581fd5a15c42e90b0b1a61f3ffdd4e6d2b9c6f54caef4"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 01/B03 Testset E S01E06.mkv",
+      "grootte": 6968032,
+      "sha256": "f85734d7db23a3dbc080af2d91494ea0c62133fec9de108ef1d356736cf67fac"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 02/B03 Testset E S02E01.mkv",
+      "grootte": 3775195,
+      "sha256": "825b0949598ccc654ac02d8b7f6a6c1f0039a124124797a1ba74e241e85b94e4"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 02/B03 Testset E S02E02.mkv",
+      "grootte": 5513076,
+      "sha256": "04ad22fd65a629df8b6d6e4cd536b5856290ac932843402fbbb8602f886bd3a5"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 02/B03 Testset E S02E03.mkv",
+      "grootte": 7484766,
+      "sha256": "ac39ef99ff4dcb5062f84e98df20dd2c51c4fe4ab66ee1926e80e849c5aa808e"
+    },
+    {
+      "pad": "series/B03 Testset E/Season 02/B03 Testset E S02E04.mkv",
+      "grootte": 4487302,
+      "sha256": "9f96bcd48051c643a460e4c9bf9dbb8c72ff39560acb32e424b91611f8d96d8e"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 01/B03 Testset F S01E01.mkv",
+      "grootte": 5603615,
+      "sha256": "c689b436607027a3c062e6929566f4c4e015d744665a1447db37d469ac9bc7e0"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 01/B03 Testset F S01E02.mkv",
+      "grootte": 7586451,
+      "sha256": "fd4d25334d6893a9d7c47813df112d5672c00bca8eb65bafcefa22953666628a"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 01/B03 Testset F S01E03.mkv",
+      "grootte": 8491725,
+      "sha256": "5d4c8ee36bcb386ce2a0f25a359cbcf8b4efb1ad5191d2322ea9f90a58085e6b"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 01/B03 Testset F S01E04.mkv",
+      "grootte": 10202336,
+      "sha256": "8ac1a948184e4ab34b8a208a31622831e782fbbf072dcc2b0c05b09c61bc849b"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 01/B03 Testset F S01E05.mkv",
+      "grootte": 6605831,
+      "sha256": "bbdc5d86f0210c66d7d9c22f9d81228472e16948e1ba7eb079e9ae1ef107b9ca"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 01/B03 Testset F S01E06.mkv",
+      "grootte": 5820871,
+      "sha256": "06fa83d6c595d7e2fd829d11bd90458e196e07b85bd6cf4bbc0373b91ca172df"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 02/B03 Testset F S02E01.mkv",
+      "grootte": 7514172,
+      "sha256": "5c3848a353841d49966b578e3ccd0a36fe68d2448ed6e8e1b5fbd7b9e42dba47"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 02/B03 Testset F S02E02.mkv",
+      "grootte": 9337778,
+      "sha256": "c4e04da1bdc2289106da2adf26db20c1f87ea676913773d9c1b2e4bb2701f5d7"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 02/B03 Testset F S02E03.mkv",
+      "grootte": 8046346,
+      "sha256": "f1edab306d7cf74525cfa67288c1fa1845d6ecb1ed9a54a63ac9349631f127e9"
+    },
+    {
+      "pad": "series/B03 Testset F/Season 02/B03 Testset F S02E04.mkv",
+      "grootte": 5840574,
+      "sha256": "6db5d44d70af257f523bcd0e4b9017580a5cd84f5177e59ba06c71a5748d3fbd"
+    }
+  ],
+  "set_sha256": "1814c97d48417d1229e49d6c52ad0fb38fe1a200b40e6f4ca8c4e9453380c8e3",
+  "totaal_bytes": 387897927,
+  "duur_s": 691.7,
+  "bevroren_op": "2026-11-10T00:19:09Z"
+}

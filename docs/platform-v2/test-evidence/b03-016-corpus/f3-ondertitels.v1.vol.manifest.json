@@ -1,0 +1,1603 @@
+{
+  "schema": "jelly-leon/b03-016-testset-manifest/1",
+  "recept": "f3-ondertitels",
+  "versie": "1",
+  "seed": 20261109,
+  "schaal": "vol",
+  "parameters": {},
+  "ffmpeg": {
+    "modus": "docker",
+    "versie": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "bronnen": [
+    {
+      "pad": "blender/sintel/Sintel.2010.1080p.mkv",
+      "sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/subs/sintel_da.srt",
+      "sha256": "41f79ebb26bf98eb0bb1dc5714af6b06c33bda07301bb316dd48a78b2c798948",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/subs/sintel_fr.srt",
+      "sha256": "9a15ca906821342af2b34aa324130272aec911733bd0465c619b95474753062a",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/subs/sintel_nl.srt",
+      "sha256": "af6991a33a1721e91eff07310437722f4db4cb9bcc705090c7615f02b6329d24",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/subs/sintel_pl.srt",
+      "sha256": "6ae63dc9638ecd4e416d7ce130b57ffef58818078ff5749d0e1b2ffb6996ba19",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/subs/sintel_ru.srt",
+      "sha256": "8e6f8d3416971add6698cc1c3938504752e0f812711f1ac366e4a2ab3b305ba4",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/subs/sintel_swe.srt",
+      "sha256": "04d6e0248542c41aa39ec62a3c6ac518e7ff2881c4fa56ba71b5871fef2cc519",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-Dansk.srt",
+      "sha256": "4493eefa436082bf11e08b9a53b53d9dea9014cd03dafa3ba68a839232e374ac",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-de.srt",
+      "sha256": "666685daa9064a5a59144e47bddd2d570bbdda199df6e4e39f3273e479ab1f4b",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-en.srt",
+      "sha256": "ce9578f6fe098a5821045a38884b229160f9e7ba27890448a92f5be330c6e6fe",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-es.srt",
+      "sha256": "b1936989cf42eda28988ec9120a80b7303562ea6429e49441160ba688da39a5c",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-fr-orig.srt",
+      "sha256": "94cc887d34c83ee909dfe141edaccc2afc1ae8c23c7929b60e2f73905968c708",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-it.srt",
+      "sha256": "6b8f6023b88b16acadea52d1664aa92ef132d7481e3e1957f1f334260477c870",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-nl.srt",
+      "sha256": "1146fe8a924306d680d9b7c82cf652e56e9f1ed28c81142fa477daee04b45b58",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/subs/TOS-no.srt",
+      "sha256": "e8ba243d2927ef7d2751f3e6fd522669a0a7201ae2c501d12fa51b4353791c8c",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "pioneer-one/subs/S01E01.en.REFIX-VODO.English.updated.Addic7ed.com.srt",
+      "sha256": "fe6ce51ce147d86ed9fd1abf9d2cac313d30d881e0bb4143f09235cbe6477b25",
+      "licentie": "fanondertitels (Addic7ed), licentie onduidelijk — niet herverspreiden",
+      "beperkt": true,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "pioneer-one/subs/S01E01.nl.Dutch.updated.Addic7ed.com.srt",
+      "sha256": "dcd01a95145486ef1807bc1f028893c61798fa5e1eb21803afeedc1531897919",
+      "licentie": "fanondertitels (Addic7ed), licentie onduidelijk — niet herverspreiden",
+      "beperkt": true,
+      "in_corpusmanifest": true
+    }
+  ],
+  "licenties": [
+    "CC BY 3.0 (Blender Foundation, Sintel)",
+    "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+    "fanondertitels (Addic7ed), licentie onduidelijk — niet herverspreiden"
+  ],
+  "licentie_beperkt": true,
+  "aantallen": {
+    "kalibratie:afgekapt": 20,
+    "kalibratie:gehallucineerd": 20,
+    "kalibratie:geschud": 20,
+    "kalibratie:goed": 4,
+    "kalibratie:inhoudelijk_verkeerd": 20,
+    "kalibratie:onvertaald": 20,
+    "kalibratie:verkeerde_taal": 20,
+    "kalibratie:verschoven": 20,
+    "test:afgekapt": 20,
+    "test:gehallucineerd": 20,
+    "test:geschud": 20,
+    "test:goed": 22,
+    "test:inhoudelijk_verkeerd": 20,
+    "test:onvertaald": 20,
+    "test:verschoven": 20
+  },
+  "bestanden": [
+    {
+      "pad": "LICENTIE-BEPERKT.txt",
+      "grootte": 193,
+      "sha256": "3638ee27963522c9599a6d18e46d56678b4d2a99986fe0b985816efc3d7d6ba6"
+    },
+    {
+      "pad": "grondwaarheid.json",
+      "grootte": 78367,
+      "sha256": "9894e806f0525f4cc6c21fdc916163ac78b91054f9fa810d4ee6b9ba11b2ad79"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v00.nl.srt",
+      "grootte": 1353,
+      "sha256": "79539af05698f6c47f9718b74a0cb1e24cad446446f2a2f732b2cfb1c095c8c5"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v01.nl.srt",
+      "grootte": 1426,
+      "sha256": "ed11a5ef9ec4c01c7fddda1c2623d1d5350db3831be459cd880dc7a9191c05bd"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v02.nl.srt",
+      "grootte": 1394,
+      "sha256": "2b7020f4e3b4f8edadc238f8c6dc7c942940ea56a69f13557eef6570c2063a84"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v04.nl.srt",
+      "grootte": 1478,
+      "sha256": "7127b56b1ad6f6968d034691c3ce7379c6e1d672b43932d3003be6b5f7991b0b"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v06.nl.srt",
+      "grootte": 1478,
+      "sha256": "7127b56b1ad6f6968d034691c3ce7379c6e1d672b43932d3003be6b5f7991b0b"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v10.nl.srt",
+      "grootte": 1317,
+      "sha256": "d4a90d80926c2d1491c510ccfb4d70815e57481837db755999b2953f91e95343"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v11.nl.srt",
+      "grootte": 1333,
+      "sha256": "ed5f679cca30e618c7a6ded086ae28d07d6db04b3f4967bdd5d288940e7de0d5"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v14.nl.srt",
+      "grootte": 1197,
+      "sha256": "e4c440cf5fb6d79f1434c7763546633b47a3d0f04fead3c62c377916b2aa6018"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v15.nl.srt",
+      "grootte": 1333,
+      "sha256": "ed5f679cca30e618c7a6ded086ae28d07d6db04b3f4967bdd5d288940e7de0d5"
+    },
+    {
+      "pad": "kalibratie/afgekapt/sintel-v17.nl.srt",
+      "grootte": 1366,
+      "sha256": "91e3c7fb29991dcb16d647d2b4245cd1e53fa46d951b5305c64acd059677ffd8"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v03.nl.srt",
+      "grootte": 1603,
+      "sha256": "9acee640e9c1c61930aa19c66063b7722bb227daa8a3d84a0f4f5ddeb7356299"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v05.nl.srt",
+      "grootte": 1315,
+      "sha256": "7c4935c316f5d75108e0de338ec20a819c6a61bbded30c72edfd122f1505dd5c"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v07.nl.srt",
+      "grootte": 1425,
+      "sha256": "3da20375e8505554c622882bb6af9be1e475c63174b28760104b67cc4114b4ec"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v08.nl.srt",
+      "grootte": 1252,
+      "sha256": "a868d39f989b0b44c08c500e0d5d47e684fa6375f667939daaffcf68af29e468"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v09.nl.srt",
+      "grootte": 1015,
+      "sha256": "79f24ba7100cf8aa84e70fd3a7ef00c0aacafe0c19b8781711f49e1778c31d89"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v12.nl.srt",
+      "grootte": 1470,
+      "sha256": "94de4e22ef19816e7e44057f04740f5a15e0f2320bb4b39f073b1dbf2290ac2c"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v13.nl.srt",
+      "grootte": 1603,
+      "sha256": "9acee640e9c1c61930aa19c66063b7722bb227daa8a3d84a0f4f5ddeb7356299"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v16.nl.srt",
+      "grootte": 1319,
+      "sha256": "9a1ffe0a9463802261d55bb8839b7583f086b03a687cdd3ee61cb9a5f9c98922"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v18.nl.srt",
+      "grootte": 1363,
+      "sha256": "8c105ed4be9cd4126fcaf271c81dd68a1dc4d257f82e97bb28ebd308a962276c"
+    },
+    {
+      "pad": "kalibratie/afgekapt/tos-v19.nl.srt",
+      "grootte": 1097,
+      "sha256": "bbdd336ddce6536cbc5a7206f4b30167b671cd2a6a5abae4796c5db46aa97f3a"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v00.nl.srt",
+      "grootte": 1690,
+      "sha256": "54df1baacc814c7e20c52ab0caf19dde6cd190257448e0ef84f42b0c65941b48"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v06.nl.srt",
+      "grootte": 1419,
+      "sha256": "8a990fdc27f3ffef1ef86ffb71816151512a4a421507257542be2c8a47173f44"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v07.nl.srt",
+      "grootte": 1690,
+      "sha256": "60c0a41c7f4a75f770a6e4db901e5f37c4198e60c396c3a2cab84e1bab726d13"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v10.nl.srt",
+      "grootte": 1661,
+      "sha256": "50f7ed5b2618f57a2ada8b654e2fc77515f26b600be977996dba7bf7036636e9"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v12.nl.srt",
+      "grootte": 1437,
+      "sha256": "6fbde912714da747903b06e39f79eeff1990f5d9fddd52ae75a5544b7e18ed56"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v14.nl.srt",
+      "grootte": 1494,
+      "sha256": "d10b39ca79ec53cdfee173f154e1e23666952480b1459b9dbc8eeffbee64ba25"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v16.nl.srt",
+      "grootte": 1571,
+      "sha256": "bc88fd5f06f80022209a61daa84676c8f9040bf29c36b126301053ddadc6f9d7"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v17.nl.srt",
+      "grootte": 1403,
+      "sha256": "794464ca06424581e272dbeb86456f63500938b91660842deee86cf4493500d7"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v18.nl.srt",
+      "grootte": 1657,
+      "sha256": "9881fc38b5c479c172365dc65a41e662be5c7a3f21a76ac289a6a4e6aa3d1391"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/sintel-v19.nl.srt",
+      "grootte": 1690,
+      "sha256": "b9b8a0e278417abd57840e4f2bceb026db253d432a8ff305d1246802aa227207"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v01.nl.srt",
+      "grootte": 1734,
+      "sha256": "16b32c66f9de199e515b973f8043266d57c0f4ef57262ef7e54d954ccc7813d8"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v02.nl.srt",
+      "grootte": 1516,
+      "sha256": "3b65320c4b2a4be59f78e00b1eeeaac3fcf63fbc1951195cd297c0d008bce396"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v03.nl.srt",
+      "grootte": 1692,
+      "sha256": "0b6ed607fb7afe88b549f34cc8756b70bd2878a13a40d7ce18c38b74916107ce"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v04.nl.srt",
+      "grootte": 1251,
+      "sha256": "bfd4f0da4569be6bf3f023a7cea88e652f4172615df97c15c6cfd311bf30d9c4"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v05.nl.srt",
+      "grootte": 1227,
+      "sha256": "0fb6871db5b7614df3b58672c83c4641149773fce383fa723a8cffa6e0f59fbd"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v08.nl.srt",
+      "grootte": 1256,
+      "sha256": "97338c30d11600daef24d664d200a88c6f453d1c161aaf932a9919713f5f1d1f"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v09.nl.srt",
+      "grootte": 1233,
+      "sha256": "3e2fe2fb188c4292e414597ebdba2e73533d56e07cda71d3e66dfed3a8da1cff"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v11.nl.srt",
+      "grootte": 1269,
+      "sha256": "61a23e0152ea1c5f2f9eb862bb44c46fa84b07f9a364c30ff916d92bf59047d0"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v13.nl.srt",
+      "grootte": 1850,
+      "sha256": "d1a1ee9f87490ef6438e127b5936c22c41b4c75e44d462fb7677b2abfddb9dee"
+    },
+    {
+      "pad": "kalibratie/gehallucineerd/tos-v15.nl.srt",
+      "grootte": 1466,
+      "sha256": "86c039198de8b7048c238597a7d1a454fc8b0bc3c552c6119221e7132a709498"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v02.nl.srt",
+      "grootte": 1534,
+      "sha256": "e074f9c29629ab58b5d41e70cbd2e128ab36033d2222c8459373bbdf437c8536"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v03.nl.srt",
+      "grootte": 1534,
+      "sha256": "6a2cfa86da0b48f63c9fd66997b70231de392bc3f7560a5e5f06ef58885931b1"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v04.nl.srt",
+      "grootte": 1534,
+      "sha256": "d223a37fd9a629f95bcf44564acd5b7830ede62385eb9ff66819163752f51538"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v05.nl.srt",
+      "grootte": 1534,
+      "sha256": "bd0ee0389781754a833bf71a58301be4ecee738a8bce674d17009afe2174a597"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v06.nl.srt",
+      "grootte": 1534,
+      "sha256": "64215b8e9ef231033433cb5e46dec79720820cd129e56e941d4c346efe99a1fe"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v07.nl.srt",
+      "grootte": 1534,
+      "sha256": "7a92b0fe5873e585d5604479a109883bbd99daa8eff20d5450a7eea286b1e4a8"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v08.nl.srt",
+      "grootte": 1534,
+      "sha256": "18ecb2a61bca4a8f6f446171e6d2f27fbd84f0b6e059ccb7f65c871d4549425f"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v10.nl.srt",
+      "grootte": 1534,
+      "sha256": "9865a8cb754414872309767fca0789828f978eed884347d65e3a25f8f56b5317"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v12.nl.srt",
+      "grootte": 1534,
+      "sha256": "6397c90e84969be2142510b062e598322f51611df5c66525ab28e4ea9ae104aa"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v13.nl.srt",
+      "grootte": 1534,
+      "sha256": "93739c1f33c6a3cf96f9b305153143fce6913016645fc69fdcaae015967fed17"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v14.nl.srt",
+      "grootte": 1534,
+      "sha256": "3c903fca231f26693dec2d28d3e02b82d25b3f11ee711d64f7e9e55be1e70cb4"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v15.nl.srt",
+      "grootte": 1534,
+      "sha256": "45190d051dce18bf8adfd803fd08ca2ec92989b81d2cd6e3181bfcf0552433bf"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v16.nl.srt",
+      "grootte": 1534,
+      "sha256": "8e90fb4d4bb089ab6ce2764a9f3b79b948b914702467d47dfe9f0da44dec31ec"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v17.nl.srt",
+      "grootte": 1534,
+      "sha256": "07856511f10e03475cd1dd2d451939b533a7b491be05800f7130372484e7cf4e"
+    },
+    {
+      "pad": "kalibratie/geschud/sintel-v19.nl.srt",
+      "grootte": 1534,
+      "sha256": "3c3966cbd8e1eaac99399577824de516badc6fea9cba545272e94f8918330e55"
+    },
+    {
+      "pad": "kalibratie/geschud/tos-v00.nl.srt",
+      "grootte": 1469,
+      "sha256": "52dbafae3d61f51c052e7d0659e95b07712ed0a2747a095008efe328b7654557"
+    },
+    {
+      "pad": "kalibratie/geschud/tos-v01.nl.srt",
+      "grootte": 1469,
+      "sha256": "87bdf8bd634748d5c5c02bce2074b5165410c96432aab24c89454e2a8c908a10"
+    },
+    {
+      "pad": "kalibratie/geschud/tos-v09.nl.srt",
+      "grootte": 1291,
+      "sha256": "da6a15527d9e3d85fa3381502933f9530245ec29b0a96a934f25c2a807af682f"
+    },
+    {
+      "pad": "kalibratie/geschud/tos-v11.nl.srt",
+      "grootte": 1291,
+      "sha256": "54bca2328a2fca4f5724554a347fcaaf90caa14222c238b0500d7d99e31ca0dd"
+    },
+    {
+      "pad": "kalibratie/geschud/tos-v18.nl.srt",
+      "grootte": 1700,
+      "sha256": "a7ee0d9a9a75f2ba5cc5b699c82058ef22382aa5e0a119549bebf3bae65577e2"
+    },
+    {
+      "pad": "kalibratie/goed/sintel-venster00.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/goed/tos-venster00.nl.srt",
+      "grootte": 1700,
+      "sha256": "3b51c6c9f1e3c0e174ee90b55686ca89e65879f4f831f3e8994bb5a44892d6ac"
+    },
+    {
+      "pad": "kalibratie/goed/tos-venster01.nl.srt",
+      "grootte": 1469,
+      "sha256": "e142d0e8600d7e923a27a6c5f3795288fc10db5923ea645339eaf71b9753d3ed"
+    },
+    {
+      "pad": "kalibratie/goed/tos-venster02.nl.srt",
+      "grootte": 1291,
+      "sha256": "53004621566d773da684d4c6672b50332ab39e1fb3ef4f8aa89d97e12af7fb1c"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/sintel-v00.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/sintel-v02.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/sintel-v05.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/sintel-v08.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/sintel-v16.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/sintel-v17.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/sintel-v18.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/sintel-v19.nl.srt",
+      "grootte": 1534,
+      "sha256": "aa4695fe674d893949229ae58daa7a044738bfe728b688ebb4b3ea6d525aadcf"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v01.nl.srt",
+      "grootte": 1345,
+      "sha256": "63216e80c658a9d05067f74f97210282f03fae1af60862b4c0a0d941407cb2a9"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v03.nl.srt",
+      "grootte": 1290,
+      "sha256": "2b7195071e792c601d361e35fd19c7c73ba9fd6a944b854a1685100a3f30d64f"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v04.nl.srt",
+      "grootte": 1553,
+      "sha256": "6a11e58801e6ce2cd0b518ea7ba06e1a91cf8d8feefbd777f260850488f207d5"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v06.nl.srt",
+      "grootte": 1340,
+      "sha256": "b52351583f359ae49a38db52a43731d6df0d91013f831e64a93cd81f3180d30a"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v07.nl.srt",
+      "grootte": 1526,
+      "sha256": "4efe7179505fe78858cfc61eb750ff42991478c5b6b0662228dc1d1f5ccb801c"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v09.nl.srt",
+      "grootte": 1459,
+      "sha256": "10f6a8a5b96a1c10d4b4122f625d0f85466aeb4e340ecc59d400422131951180"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v10.nl.srt",
+      "grootte": 1585,
+      "sha256": "a78a392f68fafc7e1080de06feff77993c3de180d506e79234a8564730b9c0fb"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v11.nl.srt",
+      "grootte": 1346,
+      "sha256": "809ada9cd777fc830bd79d91aeb1f2bbd946c9905251fd987bf4964d25b6d3ad"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v12.nl.srt",
+      "grootte": 1560,
+      "sha256": "c1970ca7d03717e9a2490b909a3d2f5a46ab5227661b3b2f6cdf8b3973908b98"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v13.nl.srt",
+      "grootte": 1317,
+      "sha256": "019350579505c71cb9d2036d9f29f58aef4e9872074c51016d9d19a84cc8d5cd"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v14.nl.srt",
+      "grootte": 1562,
+      "sha256": "73710fa6741f9ee6cc2f275d7feb523d4e70e583b30eafef59b98ee4cf638300"
+    },
+    {
+      "pad": "kalibratie/inhoudelijk_verkeerd/tos-v15.nl.srt",
+      "grootte": 1346,
+      "sha256": "78b309497b3920559cea727e09af7887555c23ea807c9e35d3b89a555bae47b2"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v01.nl.srt",
+      "grootte": 1447,
+      "sha256": "1e8889bcb1c9ff8bd288d28310e07ee551a1dc9e89820012264008587e2c3f2d"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v02.nl.srt",
+      "grootte": 1442,
+      "sha256": "6ceaf06ef215ab3463297bed4ccdef14926a8b3cecae9429c2e5bba43ca1036d"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v05.nl.srt",
+      "grootte": 1506,
+      "sha256": "df9815c9315eca68ab06fa7e51bccb4c2cb26c1da21e7d0ad7839b6991f63fa4"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v09.nl.srt",
+      "grootte": 1442,
+      "sha256": "6ceaf06ef215ab3463297bed4ccdef14926a8b3cecae9429c2e5bba43ca1036d"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v11.nl.srt",
+      "grootte": 1528,
+      "sha256": "836f539a3aec92e3221cfb3ee08a5b13924ee34149692ac4250878d6e9131d39"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v12.nl.srt",
+      "grootte": 1535,
+      "sha256": "8fb8d2b1027313661406d702e16756507ebc5869f23c6bf8b54df6008634c919"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v13.nl.srt",
+      "grootte": 1522,
+      "sha256": "459d8edf55bc0f7e74ed25616d6082024b665d04c66b02e08015f7c5c998d292"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v14.nl.srt",
+      "grootte": 1455,
+      "sha256": "9e35bfbc378299015ab74dc6893ffaf716d1a710122e74526829aac9c4a9aab2"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v16.nl.srt",
+      "grootte": 1470,
+      "sha256": "b30e29bd3c36e3568580ed483cac654eb994c87f4c97b86b0ee1d512907301e8"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v17.nl.srt",
+      "grootte": 1442,
+      "sha256": "6ceaf06ef215ab3463297bed4ccdef14926a8b3cecae9429c2e5bba43ca1036d"
+    },
+    {
+      "pad": "kalibratie/onvertaald/sintel-v19.nl.srt",
+      "grootte": 1438,
+      "sha256": "d6b3ba84abb5e5e7d85dc9ff35c2355d5c38293a429cd527bfd68e66dd85b72c"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v00.nl.srt",
+      "grootte": 1288,
+      "sha256": "d9505548be07eb2bfdc6c1e7b7ff5eed63e9aa6f6e2e95c505cce8df1dc83768"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v03.nl.srt",
+      "grootte": 1443,
+      "sha256": "f1009bdac04a437e8d97c9733af9c19f130f1872df9550af672d11233b51180f"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v04.nl.srt",
+      "grootte": 1465,
+      "sha256": "b2dd8560079ba1263243478eaaa795e10afaa51797532ecfbb5bcd249c2cd4aa"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v06.nl.srt",
+      "grootte": 1280,
+      "sha256": "511f7eebb2baafd52342b53eabbc0cf62f5ef0cf36dd8d5c025e7835b259cbf1"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v07.nl.srt",
+      "grootte": 1678,
+      "sha256": "428770496d4fad72d68acf24a90c097f73e9dae181ad0c0e8eca2b9fc4e94c2d"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v08.nl.srt",
+      "grootte": 1681,
+      "sha256": "33b863784754c2511814853db155a6603e91a5b9e993fd0c3e8945b180eff5da"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v10.nl.srt",
+      "grootte": 1445,
+      "sha256": "5a59788866e1657f94ab84fb86f23d8233ebf1922e52b88b47284d5f8811e424"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v15.nl.srt",
+      "grootte": 1267,
+      "sha256": "b2cb7b2056b65b1dffe27cee72f2c04c3899b58c5763a6ef171bfa4361acad0b"
+    },
+    {
+      "pad": "kalibratie/onvertaald/tos-v18.nl.srt",
+      "grootte": 1445,
+      "sha256": "5a59788866e1657f94ab84fb86f23d8233ebf1922e52b88b47284d5f8811e424"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/sintel-v03.nl.srt",
+      "grootte": 1614,
+      "sha256": "10706219ac1f5fef0eb385703742f656f39243e56dd7234d0dd9b1c8a945047a"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/sintel-v04.nl.srt",
+      "grootte": 1554,
+      "sha256": "60367ba47a8bd3002c47029fd191aadef8e2cbf144d514183b4e59f2d4e2939a"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/sintel-v08.nl.srt",
+      "grootte": 1541,
+      "sha256": "9fefcf50387cfd3fd1a7483c3a9a4a98bc35848c64a1f801213ec8868f31b733"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/sintel-v12.nl.srt",
+      "grootte": 1554,
+      "sha256": "60367ba47a8bd3002c47029fd191aadef8e2cbf144d514183b4e59f2d4e2939a"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/sintel-v17.nl.srt",
+      "grootte": 1577,
+      "sha256": "b9f6c47d0b8ddb701fbab56048f4e56b830b33c0410bdb51e4dcdfffaefc6fe5"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/sintel-v18.nl.srt",
+      "grootte": 1577,
+      "sha256": "b9f6c47d0b8ddb701fbab56048f4e56b830b33c0410bdb51e4dcdfffaefc6fe5"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/sintel-v19.nl.srt",
+      "grootte": 1541,
+      "sha256": "9fefcf50387cfd3fd1a7483c3a9a4a98bc35848c64a1f801213ec8868f31b733"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v00.nl.srt",
+      "grootte": 1490,
+      "sha256": "2cbd9b44aed2597cdaa90efa726adda61f49e00fc192930e6cd7317db1bde206"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v01.nl.srt",
+      "grootte": 1309,
+      "sha256": "3ae9cd730896e7852fdb3b9d3b0c365bd4e2783d278057070b839f6805bb90be"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v02.nl.srt",
+      "grootte": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v05.nl.srt",
+      "grootte": 1490,
+      "sha256": "2cbd9b44aed2597cdaa90efa726adda61f49e00fc192930e6cd7317db1bde206"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v06.nl.srt",
+      "grootte": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v07.nl.srt",
+      "grootte": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v09.nl.srt",
+      "grootte": 1183,
+      "sha256": "181dd85ee9d8a082ff672d60aa4ffad3fb62daf0f2739b8115e705c0d2ce5fde"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v10.nl.srt",
+      "grootte": 1618,
+      "sha256": "92d5061bf8f33f53eed3f3023d10f6eb5a665a656caba82f4a05d9eb62c80192"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v11.nl.srt",
+      "grootte": 1334,
+      "sha256": "591e2fc923b5daa493ba6cb09591345571e7f8db63fa622d2238021eeaf5d104"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v13.nl.srt",
+      "grootte": 1183,
+      "sha256": "181dd85ee9d8a082ff672d60aa4ffad3fb62daf0f2739b8115e705c0d2ce5fde"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v14.nl.srt",
+      "grootte": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v15.nl.srt",
+      "grootte": 1309,
+      "sha256": "3ae9cd730896e7852fdb3b9d3b0c365bd4e2783d278057070b839f6805bb90be"
+    },
+    {
+      "pad": "kalibratie/verkeerde_taal/tos-v16.nl.srt",
+      "grootte": 1559,
+      "sha256": "30014ffb1b31997ab034a3b523c4231555c2966fee9312fe0f9a7667220b8071"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v01.nl.srt",
+      "grootte": 1534,
+      "sha256": "420e8521cd8f4f54da040df60636a87cdf18e1be749198aa857617d5ccee1f8a"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v02.nl.srt",
+      "grootte": 1534,
+      "sha256": "332ade8edf19356ebd0789911098f3648750dc79aa9a47e46a66feb63920bae1"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v04.nl.srt",
+      "grootte": 1534,
+      "sha256": "332ade8edf19356ebd0789911098f3648750dc79aa9a47e46a66feb63920bae1"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v05.nl.srt",
+      "grootte": 1534,
+      "sha256": "af82306acf4bd569e7410e669d7a5dd87ebfb34dbe8662c1f54c102d9752ce0d"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v06.nl.srt",
+      "grootte": 1534,
+      "sha256": "3483f8a449b24424b6b00c6aec8b7eb05aeb1b871ae956edce752d2b063cf659"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v08.nl.srt",
+      "grootte": 1534,
+      "sha256": "2c69df1d424ea61c4561b7ce8ccb1f1f38b08809d2e45ff176eff34ecbaadc6f"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v10.nl.srt",
+      "grootte": 1534,
+      "sha256": "332ade8edf19356ebd0789911098f3648750dc79aa9a47e46a66feb63920bae1"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v11.nl.srt",
+      "grootte": 1534,
+      "sha256": "332ade8edf19356ebd0789911098f3648750dc79aa9a47e46a66feb63920bae1"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v12.nl.srt",
+      "grootte": 1534,
+      "sha256": "e43546578c9f30189d96e3cf203eaaf1aa01ed5e5311f439ff2a565f3596bbe2"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v13.nl.srt",
+      "grootte": 1534,
+      "sha256": "b884c9ad6fed76472be0216a913f33e4e77836d32c0bec807df18587155bb9fa"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v14.nl.srt",
+      "grootte": 1534,
+      "sha256": "332ade8edf19356ebd0789911098f3648750dc79aa9a47e46a66feb63920bae1"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v15.nl.srt",
+      "grootte": 1534,
+      "sha256": "332ade8edf19356ebd0789911098f3648750dc79aa9a47e46a66feb63920bae1"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v16.nl.srt",
+      "grootte": 1534,
+      "sha256": "332ade8edf19356ebd0789911098f3648750dc79aa9a47e46a66feb63920bae1"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v17.nl.srt",
+      "grootte": 1534,
+      "sha256": "332ade8edf19356ebd0789911098f3648750dc79aa9a47e46a66feb63920bae1"
+    },
+    {
+      "pad": "kalibratie/verschoven/sintel-v19.nl.srt",
+      "grootte": 1534,
+      "sha256": "a711249e13984c313055f1b5a89aa6d04ff43907e84cbe7aedb60ed5827972fc"
+    },
+    {
+      "pad": "kalibratie/verschoven/tos-v00.nl.srt",
+      "grootte": 1291,
+      "sha256": "8591c359f025503e91c9309540b7e82a2062d0e02a449d280f1cb5e29b5ab3ff"
+    },
+    {
+      "pad": "kalibratie/verschoven/tos-v03.nl.srt",
+      "grootte": 1700,
+      "sha256": "004763bf6029df6ec5ad443b342510948e049a2be0b5773b8bce4169a292f1bb"
+    },
+    {
+      "pad": "kalibratie/verschoven/tos-v07.nl.srt",
+      "grootte": 1291,
+      "sha256": "a9e184a932764cd949b8794f5b01830cad3dbbdd6bb87ec4bbdeabe06656400b"
+    },
+    {
+      "pad": "kalibratie/verschoven/tos-v09.nl.srt",
+      "grootte": 1469,
+      "sha256": "afe8281454b65245f8ded9158105d5340ed13a003859e21a74cb027d674d4e70"
+    },
+    {
+      "pad": "kalibratie/verschoven/tos-v18.nl.srt",
+      "grootte": 1700,
+      "sha256": "004763bf6029df6ec5ad443b342510948e049a2be0b5773b8bce4169a292f1bb"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v00.nl.srt",
+      "grootte": 1725,
+      "sha256": "f369149bebfa386655559d967c550fac4b54751da1277ef45b1c2ddc2da55673"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v01.nl.srt",
+      "grootte": 1604,
+      "sha256": "763a60b1ccf2cc7c218d900e34f47b48045271c0ee0d5981eb7bcb5311833a65"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v02.nl.srt",
+      "grootte": 1573,
+      "sha256": "51fa04525db96a7c2cc7807cc2759dc069e7e8238a9a344321ca191053021774"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v03.nl.srt",
+      "grootte": 1425,
+      "sha256": "dd64487e8e771907fb606b0965cff0ae42e0a470c1cb5b0fc591a6bda6b56838"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v04.nl.srt",
+      "grootte": 1577,
+      "sha256": "618d01f5c6a6250ec6dc2968e8d3806308846b94cbd72621991dc4da8dd22c15"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v05.nl.srt",
+      "grootte": 1412,
+      "sha256": "7655988c5ed8d22e958591717639438bd9a7a7481e4c29d848a4879bb0880ce6"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v06.nl.srt",
+      "grootte": 1651,
+      "sha256": "2385b440e1771f6c2b59700dcde270c53864ddfffd5463328bfe26b21e0e8a1d"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v07.nl.srt",
+      "grootte": 1243,
+      "sha256": "78232286751eb4393c43806bf96860c0e6102ba856a2e6a15e09e1dace4690c2"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v08.nl.srt",
+      "grootte": 1425,
+      "sha256": "dd64487e8e771907fb606b0965cff0ae42e0a470c1cb5b0fc591a6bda6b56838"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v09.nl.srt",
+      "grootte": 1269,
+      "sha256": "2545e33e6066ad19ddd89b84f7e3eb3b2137d13425830d1dbe3a1c447c33a87c"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v10.nl.srt",
+      "grootte": 1350,
+      "sha256": "d93881c8c366ea969b1a0274313b61bbc882d0c007d1806387249b6446defe92"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v11.nl.srt",
+      "grootte": 1560,
+      "sha256": "1275fcaa76c694e5fb9e8664b1093cd805ba184a98bb3d56fda2ef00c7e0d64d"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v12.nl.srt",
+      "grootte": 1422,
+      "sha256": "021afbb9bd5254e39b9569aa666defe030427a0d1d45b018a49525e56aebd665"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v13.nl.srt",
+      "grootte": 1559,
+      "sha256": "80fb585a99dc546009c1c8bac9b2f5d0095f14d5fefb278698178fe39103dd89"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v14.nl.srt",
+      "grootte": 1287,
+      "sha256": "4accf3dcfc4927481454031cf91af23fc81e41634b97a7469a23b40fd4d4906c"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v15.nl.srt",
+      "grootte": 1712,
+      "sha256": "c6887126a732cac1f8595b3af89b105bb7684c6001bfc647c8af8565b763f13c"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v16.nl.srt",
+      "grootte": 1453,
+      "sha256": "47959ebeac2dadfc4fd671af298ce74e8e396b7d2fbbb17cc7ce17ae637670fd"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v17.nl.srt",
+      "grootte": 1331,
+      "sha256": "b88855297b34e827f61918008c5b98ecf4d25f7e5972fe899fdd608e865a0156"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v18.nl.srt",
+      "grootte": 1223,
+      "sha256": "f2ae51c585e80683af242fd0ac157e91794dea0d2d03f96f133c7149416a2c5d"
+    },
+    {
+      "pad": "test/afgekapt/pioneer-one-s01e01-v19.nl.srt",
+      "grootte": 1629,
+      "sha256": "3dfbe158002e7ade9b9997bb99749278aa3ae6b006f4c93374be6c743011d2d6"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v00.nl.srt",
+      "grootte": 1635,
+      "sha256": "58f20425c9b2bd75ad09b92ab650e0cb4c8005998dcbb8db6c1dcabf6be2ee23"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v01.nl.srt",
+      "grootte": 1752,
+      "sha256": "56ed97c624e7565dabfd1ba5e51138bd4d79efec6bd78bd2d8ab6c5ef65e2252"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v02.nl.srt",
+      "grootte": 1758,
+      "sha256": "ea31cd5d810975e885cbb86f19145eaa03e62e0abaa7fa20ec60a972e1db7c43"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v03.nl.srt",
+      "grootte": 1670,
+      "sha256": "52612ae6b8d4c9cdeeb2361e46cd322c07e29e2f2b52420c3032cbef961ed946"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v04.nl.srt",
+      "grootte": 2148,
+      "sha256": "1b9f61c499303579e6701ed817fe1211772b1ae2529a2f49c2007461e12ffbb4"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v05.nl.srt",
+      "grootte": 1876,
+      "sha256": "69be08f3467ee9c89500cb4c5fbfb95758f45a6872c225e408a05ecb33c758fc"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v06.nl.srt",
+      "grootte": 2435,
+      "sha256": "1fd5389ffad972619b351b156e40e23aaae8d77693294b0157296fef8df1ffee"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v07.nl.srt",
+      "grootte": 1826,
+      "sha256": "28e4956b4d22c1a3a734f24ea98a69959901d3405d13dd0327e51a025db7559d"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v08.nl.srt",
+      "grootte": 2095,
+      "sha256": "442659492c932fe88c39c7e53f60fb8b3812aaaa12b09ac0029bdafe0a4a2b80"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v09.nl.srt",
+      "grootte": 1569,
+      "sha256": "938b493d0178a530dc43f77bb99be084609b3b3307f106e5538fbd505a1a27d8"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v10.nl.srt",
+      "grootte": 2115,
+      "sha256": "bce7e9ce7a5db2a38dbbca3abb8b356167e05777d16075f63bc6495ab898e6a4"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v11.nl.srt",
+      "grootte": 1880,
+      "sha256": "de267f3a629b7791e260ebda2b0a80b6c36c2431febef839a3272f357036246a"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v12.nl.srt",
+      "grootte": 1993,
+      "sha256": "dbd1e223d0f3e9efa9a0e40e868f53639cbf34e948e1e36e23e48b7cd27e2395"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v13.nl.srt",
+      "grootte": 2533,
+      "sha256": "33e55379d8bd9904f70b4ca45ecb049440be8be2ccdb7e1bc7338ba47d81caf1"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v14.nl.srt",
+      "grootte": 2256,
+      "sha256": "25e89fbc7bd19dcfcd8b4bc25a665aed34e0c5232bdef1881df14d2033df46cb"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v15.nl.srt",
+      "grootte": 1975,
+      "sha256": "699df4b1dd3ec27d0ca4e109a5faa89ad5220b5f39bec071a736c1c8639f7022"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v16.nl.srt",
+      "grootte": 2064,
+      "sha256": "736d235c27e98cc4dfc6c4ffa6893b5a9fcbb7cdf755b01d155988d7c045b5a0"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v17.nl.srt",
+      "grootte": 1887,
+      "sha256": "aeeb03e48954d165d7921f78b5e314be3c5eba338c7b73bd9e154235c1c0527c"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v18.nl.srt",
+      "grootte": 2586,
+      "sha256": "06482307c133812bf30d297ee9fa49020946e19c6fd24d516326690582e04408"
+    },
+    {
+      "pad": "test/gehallucineerd/pioneer-one-s01e01-v19.nl.srt",
+      "grootte": 1485,
+      "sha256": "d7ec10e96eed3cf4a4fdcf9c8062376c1cc282226d34597f36da62f91fb29556"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v00.nl.srt",
+      "grootte": 2058,
+      "sha256": "f003c4cef645798e9d4c535e9e944b796bf895b5803c995932bb1f98570b398a"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v01.nl.srt",
+      "grootte": 1702,
+      "sha256": "c6c5ceeb8c1d8471a736b513f4052719302ca3a8b1c94e4112d29f23bfd53c4d"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v02.nl.srt",
+      "grootte": 2058,
+      "sha256": "80c55ce5931af104815d94aebbf57a80fe04534f66748454a4e99900c871dc7e"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v03.nl.srt",
+      "grootte": 1931,
+      "sha256": "97f24a832b8f29617748136f4f1bcd99c714e86fe556f07a865e6310307350a2"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v04.nl.srt",
+      "grootte": 2269,
+      "sha256": "d9adde561ed00cd13ac0991ff7d935d626dd5aab885b5c07e970b5e1c87553fb"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v05.nl.srt",
+      "grootte": 2269,
+      "sha256": "128a31530ae3b58ebe27165a735caf8a48c131507c0b88e9c6034cd4bfc51be1"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v06.nl.srt",
+      "grootte": 1897,
+      "sha256": "b21f0cd84915b2d4f57eeef0e2e18b859eed8fdd4be84a4a2755e3eaa8ade7c8"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v07.nl.srt",
+      "grootte": 1897,
+      "sha256": "317c9199c8e5ed0bd07c640559ba6979fb9940f0e831a518ae5f5ddc18e47152"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v08.nl.srt",
+      "grootte": 1547,
+      "sha256": "bf48316284e4a8c6d832a8da2fd786e67d65f698d2243374fb5ab036902f320f"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v09.nl.srt",
+      "grootte": 2058,
+      "sha256": "8d6462396768881c14dab85d84238e44b1b44a19c4ec66bcf42ebf26fc308c47"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v10.nl.srt",
+      "grootte": 2269,
+      "sha256": "4953337ce2c88aae53bbd39ec32f13c42d8ba3fe6219b5551a0a92bef053e791"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v11.nl.srt",
+      "grootte": 1630,
+      "sha256": "d46c0f99e8d68b843fce113de145ac2989b856dae02c18be1667d406b4e37f64"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v12.nl.srt",
+      "grootte": 1702,
+      "sha256": "c84121d3a78a00d795b32013d5c252f46ef125821e3aeb5ee110fb85c5ee5927"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v13.nl.srt",
+      "grootte": 2060,
+      "sha256": "20e606878b438683f502b9b7efc3481257e1daed932f42820b576711160252ac"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v14.nl.srt",
+      "grootte": 1599,
+      "sha256": "26216c80c429bf9c457497c192a32c2100b3cd2bf08a45f0539456eb479d550f"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v15.nl.srt",
+      "grootte": 2058,
+      "sha256": "ef6168d4ef73539a3a4cbaff5cc7b04c784a29ffe77353be8fb74b34d0978eb1"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v16.nl.srt",
+      "grootte": 1931,
+      "sha256": "baf9177d644eeab78273b3dd2bb7243b23b9c08b18a5a1924bd74ed96b17ee15"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v17.nl.srt",
+      "grootte": 2128,
+      "sha256": "7d1d25947707f9a6575274451e65d9efa4de1f22e16268ef363fbef2e59acb83"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v18.nl.srt",
+      "grootte": 2058,
+      "sha256": "41b6c966c50157cfb415cfb20ae3066365d7b149edb363364340399aa194ce4b"
+    },
+    {
+      "pad": "test/geschud/pioneer-one-s01e01-v19.nl.srt",
+      "grootte": 1696,
+      "sha256": "786087fe9d3f3cd7adde81568d4a0fbc857ff0ea36f64d757b54b1ae544a45ed"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster00.nl.srt",
+      "grootte": 2298,
+      "sha256": "04af0b4adf953d11490a7c52198135d585dc886afd9de0e8cb07f23c7c6c8ced"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster01.nl.srt",
+      "grootte": 1755,
+      "sha256": "e4be63979e5cf71b150001277da01a6f95433090ccbc353d9800258620ef3340"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster02.nl.srt",
+      "grootte": 1795,
+      "sha256": "b0d5d72091813fbedc7a04b9ff8945e101dfb35faa13f019c1851bfcd2c736e8"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster03.nl.srt",
+      "grootte": 1897,
+      "sha256": "75f166cde7b1f63e79d497779fbc5e449f5ebee48b00187bfc78e760095ae27c"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster04.nl.srt",
+      "grootte": 2269,
+      "sha256": "4efc8aea9ad0fdb72c84455e350995c97f0d535e4588ea6012fd5460d47931c3"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster05.nl.srt",
+      "grootte": 1875,
+      "sha256": "381653450eb2f5384798e74fdce165b5675f853732240351680df028bc3b282b"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster06.nl.srt",
+      "grootte": 1931,
+      "sha256": "bbe24218f2fc3079ea74bca9de1f34efdc20348cc075b6e93ab59801f6eff30c"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster07.nl.srt",
+      "grootte": 1696,
+      "sha256": "46a645726043e7a500e9289cdeec0e7164406fc35b207ddf5f05ec9a2502c6a8"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster08.nl.srt",
+      "grootte": 1547,
+      "sha256": "5d27edd47a71f8b7087b23612f432ec9baa50c02432f94773de0518acef28028"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster09.nl.srt",
+      "grootte": 1976,
+      "sha256": "3727f71a64ee5f0cdca9491d3e42075129db5f46aa45fcea6f4eb8934d77e9af"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster10.nl.srt",
+      "grootte": 2128,
+      "sha256": "38ff26c491e4cd92eb69be493a33e121707c3178623dbae4d48ec8fb7f7495e4"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster11.nl.srt",
+      "grootte": 2082,
+      "sha256": "9bd79161545b5251956c07e0b03a337883ed925229c38c1d017793f873dd9dc6"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster12.nl.srt",
+      "grootte": 1929,
+      "sha256": "6f1796fb9a9a59792b6a036394d390abfc0f8ef9d23020a23655be1037270a11"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster13.nl.srt",
+      "grootte": 1618,
+      "sha256": "b9e204df93852bdbe553a79c4d3265ed58fcc168f7d66c39de00abdd03ae749c"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster14.nl.srt",
+      "grootte": 1702,
+      "sha256": "84c78239d52d72c38ff3f49070c856abb3ec0ab3aa7287a653029a568099e342"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster15.nl.srt",
+      "grootte": 1874,
+      "sha256": "e6de84619147de8933132c5ed844d76bb1ea34c3c5e1dba5b96184671435da57"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster16.nl.srt",
+      "grootte": 1599,
+      "sha256": "9c7733eaf2b08cac22b574627ed1eb2f823cd8bdc1da2bb81f20feec1999059c"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster17.nl.srt",
+      "grootte": 2006,
+      "sha256": "bba1e70f0075bf5e7a11c09f07d8b9f87779509fc0239ad6f3b7072225011fb1"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster18.nl.srt",
+      "grootte": 1777,
+      "sha256": "039dabf531c5acbe83a743fd5f36ce6d662fa49145e45d2d9e596964e9ae577d"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster19.nl.srt",
+      "grootte": 2060,
+      "sha256": "51adbd3efd8245d244ba7b9c5358b1e304c734b8c8ee4c45f7ddf3366c5013c8"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster20.nl.srt",
+      "grootte": 2058,
+      "sha256": "7d5eb00f56027fe53052b7069895ba9aad6de897784d3b3b0767aea7f85fe60f"
+    },
+    {
+      "pad": "test/goed/pioneer-one-s01e01-venster21.nl.srt",
+      "grootte": 1630,
+      "sha256": "cfb4e157db428e0df845758015ab2d816b657c97dd284e2113671deb3f2048bb"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v00.nl.srt",
+      "grootte": 1873,
+      "sha256": "4ec2832f89af05c924f2579eeffbe6b2b1478b99ac295210f3425e5a6d2e7798"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v01.nl.srt",
+      "grootte": 1952,
+      "sha256": "617447cedaf54d70a3b32caceabfa1b80a48f8875ff6124501ed836086fb8fe5"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v02.nl.srt",
+      "grootte": 1614,
+      "sha256": "c0d2df1deea7897905aa9afe2eaf625ea0ff76c460c4a7c78443be790d53494d"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v03.nl.srt",
+      "grootte": 1602,
+      "sha256": "85c5bf44fa5022ddbbaac5348569437beecf0390201eb6fb22a3a0b0cd1bf885"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v04.nl.srt",
+      "grootte": 1699,
+      "sha256": "53ec1c3153b164438c5a70055d336fceb2e917cc52af90917200f22ce1bf806d"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v05.nl.srt",
+      "grootte": 1795,
+      "sha256": "add35dc1e890a17c8d6618ec478849c6ce8952e85d4e87a040a25d6d3ab86676"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v06.nl.srt",
+      "grootte": 1933,
+      "sha256": "f9d16f661b69a438f2239fb4d1bc2f1634d4a40c4d49e4888084b430c505d462"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v07.nl.srt",
+      "grootte": 2003,
+      "sha256": "1a2f007c0ca77f0969d651149513fd12d269b9e5cfcdb8e39ec524406ca4b9be"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v08.nl.srt",
+      "grootte": 1629,
+      "sha256": "3e33587357cfd5564b523e8c8f5d1d2a4377285f7a1647191f7d6e87fd56b3bb"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v09.nl.srt",
+      "grootte": 1941,
+      "sha256": "5b8b9b969dece05d7380ecf52ae85dfe1ec1a401b7ea5b53aa82431ce3af7324"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v10.nl.srt",
+      "grootte": 2076,
+      "sha256": "edd7cd9a628f0f2676087ea93f8d53b89656c48c73ab2b57e0d22237d381d6eb"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v11.nl.srt",
+      "grootte": 1933,
+      "sha256": "0e89c475faa554a973d7aa596d49a2cee0586c461ada3bc63aab64db8b00b7ce"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v12.nl.srt",
+      "grootte": 1871,
+      "sha256": "e1c5c6cb939296541c94bfa25cd4009a8ad4d09f255f4fbe2cf2eb2c01416fb3"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v13.nl.srt",
+      "grootte": 1938,
+      "sha256": "db5102c0561e6dee7161012160b40a5026fe4ae0500839afb5a24c654e041cb8"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v14.nl.srt",
+      "grootte": 2067,
+      "sha256": "028425dbfcbb827244580cfd94a967c37fd67a79c2d54aa5e76392a80aed9f16"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v15.nl.srt",
+      "grootte": 1613,
+      "sha256": "2965630cc776189c0d563753c60722f020685e6b5218cabbd248ffc07a3449cc"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v16.nl.srt",
+      "grootte": 1870,
+      "sha256": "f5f27dfb5cc549aa2681b39113f76db55c9b1ca633a4dabfe41173d10155e3a7"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v17.nl.srt",
+      "grootte": 1752,
+      "sha256": "84c95bbc658d09b316faf24f87b04da2f2990080e3ce32bde196b7edba6b00a3"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v18.nl.srt",
+      "grootte": 1696,
+      "sha256": "88a937aa1327035eb93ae40a0e41acc571ec6119047fc3cc1a3d0ff3f5b4e2b2"
+    },
+    {
+      "pad": "test/inhoudelijk_verkeerd/pioneer-one-s01e01-v19.nl.srt",
+      "grootte": 1603,
+      "sha256": "83be79fbefaf53f902c64472b89c5f0dac969f209f37fa052d35233654c77b96"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v00.nl.srt",
+      "grootte": 2037,
+      "sha256": "4bb622e834810451c9abf1ce0a88a67672ebd28796e3d82def9cb5ddca3a84ff"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v01.nl.srt",
+      "grootte": 1708,
+      "sha256": "6358eac9c1379cb85193260905bf653463a1eebd12320e8ec85a86195182ffdb"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v02.nl.srt",
+      "grootte": 1803,
+      "sha256": "30f321f72d10eb84e85d43d65f99dd6cb9116d1a4724d2edd995c07b4fc170e5"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v03.nl.srt",
+      "grootte": 1852,
+      "sha256": "0c033c2bb0f28df0e756734477d44fa9cb8cdb7773ddaa985ca9ac16dbfef5cd"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v04.nl.srt",
+      "grootte": 1984,
+      "sha256": "bb4aa6ba1960d78406d6c94f341b492dad840ac692ba04296abb6fe5e110ea55"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v05.nl.srt",
+      "grootte": 1548,
+      "sha256": "dcd474e2a698fc76319ac3996b23d1f1e7aaa65a6574806475ec13a10db37aa4"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v06.nl.srt",
+      "grootte": 1774,
+      "sha256": "a0029ec2df38e0994fd3afa4999e99a98b4bc44587400a46264ca7db0a787fa4"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v07.nl.srt",
+      "grootte": 1645,
+      "sha256": "56b2046aac2aabe5a117d1840a8b087fe0e9273f3a87bb1a367976812238b195"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v08.nl.srt",
+      "grootte": 1555,
+      "sha256": "1c5fa3a3bef8082d89b5558e492ee1911336aabf7be77b48830661182a762697"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v09.nl.srt",
+      "grootte": 1547,
+      "sha256": "f9238ba9e1fe8b824eeba1b2720a4f893ae898b5d03578d39b3c93f832bc71e7"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v10.nl.srt",
+      "grootte": 2293,
+      "sha256": "c173482f7aa9d47d191b839a3a284f161ce99c8ed627f78d8900f3a15255771c"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v11.nl.srt",
+      "grootte": 2075,
+      "sha256": "571ea9fcf352168a315505c324bef0190970b8b51b760b699d02f66826db0bbc"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v12.nl.srt",
+      "grootte": 2017,
+      "sha256": "866da1cbf1a9c5a209d00b472d4a1d46d998faf2a61e5cdcf1c31cf7c623f3e8"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v13.nl.srt",
+      "grootte": 1936,
+      "sha256": "42a563141f597542a9429bae5702dfe21e1fb0b8298b3dff75d969d6282a9380"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v14.nl.srt",
+      "grootte": 2257,
+      "sha256": "f8e8548aab9f0f892ba318cc9acf8985f85cfa2996f939d09bf7eb14266e017a"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v15.nl.srt",
+      "grootte": 1665,
+      "sha256": "061a69de3cbee35130ead1f25d70e1f1d5dd2003fb9f6b0e89ecc60c6b2dc71c"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v16.nl.srt",
+      "grootte": 1582,
+      "sha256": "f0fa860857fedf187693d45749e59902b75cf98d66d0cb5e72cd97be12749db8"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v17.nl.srt",
+      "grootte": 1844,
+      "sha256": "13296ad9cb1b0e3d4ce0ba1a48903d9fb112033bf260de6ea544f779e33d0eab"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v18.nl.srt",
+      "grootte": 1714,
+      "sha256": "21775ea401cd8a6a6a54f433af6316e700028f063cd1d5660051a573ede2b729"
+    },
+    {
+      "pad": "test/onvertaald/pioneer-one-s01e01-v19.nl.srt",
+      "grootte": 1683,
+      "sha256": "27e96d2907b81a070318425bf8e46123607746309e3653307ca5e498870be170"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v00.nl.srt",
+      "grootte": 1547,
+      "sha256": "4cc7aa6b5ba4834193f749276bda5058a3024e0ea2059d518eaf9ffcfafd316f"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v01.nl.srt",
+      "grootte": 2060,
+      "sha256": "c7f5e23bef2cc8cc1b0f0b0b90f106c0bd7992ac30cff93d49574e2d8e53aeb2"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v02.nl.srt",
+      "grootte": 2006,
+      "sha256": "42b062c4dc2003ec4cb48e86ee9115c6ec79bebe401a8dd0f62b2edc6ec60d06"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v03.nl.srt",
+      "grootte": 1702,
+      "sha256": "be172d150cb64230a86abde60d5c1310d7537f3881fd3baba0601c7ac4475e47"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v04.nl.srt",
+      "grootte": 1929,
+      "sha256": "73983dee18c4426ee13adcbaa874f7ded49ea386e4d98704e1e1af7408621718"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v05.nl.srt",
+      "grootte": 1897,
+      "sha256": "4c078c4d04fe8f664a7b515eca0d6b28a47c9880b4f331953477afa19aa75274"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v06.nl.srt",
+      "grootte": 1547,
+      "sha256": "568149e66a5ff5acf781017cc9af97cdd525a8c69807127fbda5f1bdef3faeaa"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v07.nl.srt",
+      "grootte": 2060,
+      "sha256": "596a66cf9d52c15b3aa644bc9abb605718d506c564433579b1a6df72296d7b74"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v08.nl.srt",
+      "grootte": 2060,
+      "sha256": "142cfbc627b342eb8e96b79ee7142e67de786afd5a05bd00547a5793a1011da1"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v09.nl.srt",
+      "grootte": 1931,
+      "sha256": "8bac70636a5eac7c01b2284729256df00316f9bc3de53e0202a477acf6d7f4cb"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v10.nl.srt",
+      "grootte": 2060,
+      "sha256": "07362999654893f7df5cd78a1f5787b1ec99a8e9cdad6cf05de47f5055e2f9a0"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v11.nl.srt",
+      "grootte": 1795,
+      "sha256": "6bc52e685edf518b1716f4c7b52d703504eac8707e9e799c33b163f5c5c44d58"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v12.nl.srt",
+      "grootte": 1897,
+      "sha256": "f324c0327ce140dc55132a78082727b1892b08026e7cede3c24e8dbe17257c51"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v13.nl.srt",
+      "grootte": 1795,
+      "sha256": "30a81571d132b6cc4f84dad256803d9c7df082f3e6e234d5886f10c4f9be4584"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v14.nl.srt",
+      "grootte": 1795,
+      "sha256": "30a81571d132b6cc4f84dad256803d9c7df082f3e6e234d5886f10c4f9be4584"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v15.nl.srt",
+      "grootte": 2082,
+      "sha256": "89d2679e52bf2df377ad8316543c85d5094076452ba9aa2d1623b20f58966a36"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v16.nl.srt",
+      "grootte": 2128,
+      "sha256": "117c31b0281ec88538054f3a7d1d249b6ab8b25078b2a101a8541a4426f9e02b"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v17.nl.srt",
+      "grootte": 1875,
+      "sha256": "0fa3962bf71187cb0e05f9b454f2d284e7a8b364b48dbb7a6fd448f3605df23e"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v18.nl.srt",
+      "grootte": 2060,
+      "sha256": "1c05f5bd6f0aaac72d826d859abc75fa47b30b6fbb1c33a06940e8cc8a975653"
+    },
+    {
+      "pad": "test/verschoven/pioneer-one-s01e01-v19.nl.srt",
+      "grootte": 1599,
+      "sha256": "9ad979335f4154011e7c5520d9b7e06dcc42bd9057b4ec6639aaedee85ba4e96"
+    }
+  ],
+  "set_sha256": "add98bd7171339aaad836391d96ce78fc6716dc97c80a78e495dd024afff1d10",
+  "totaal_bytes": 544832,
+  "duur_s": 2.0,
+  "bevroren_op": "2026-11-10T00:07:28Z"
+}

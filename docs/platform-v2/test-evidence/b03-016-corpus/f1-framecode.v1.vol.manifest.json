@@ -1,0 +1,45 @@
+{
+  "schema": "jelly-leon/b03-016-testset-manifest/1",
+  "recept": "f1-framecode",
+  "versie": "1",
+  "seed": 20261109,
+  "schaal": "vol",
+  "parameters": {},
+  "ffmpeg": {
+    "modus": "docker",
+    "versie": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "bronnen": [
+    {
+      "pad": "blender/hero/hero.mp4",
+      "sha256": "1a2d85e9a0303c1c0eb320b2b755705551a5344b3c60dc3ced8166d93d329800",
+      "licentie": "CC BY 4.0 (Blender Studio, Hero)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    }
+  ],
+  "licenties": [
+    "CC BY 4.0 (Blender Studio, Hero)"
+  ],
+  "licentie_beperkt": false,
+  "aantallen": {
+    "framecode-video": 1
+  },
+  "bestanden": [
+    {
+      "pad": "sync/hero-framecode.grondwaarheid.json",
+      "grootte": 667,
+      "sha256": "1ba77d1f2eac5daa015d79483285300fda6925cfb2ee57aba84f0b92a737c94b"
+    },
+    {
+      "pad": "sync/hero-framecode.mkv",
+      "grootte": 55801058,
+      "sha256": "fae29863f5a92ee0e521f4e0a64b9e026490dccd5374c636a20f01d890205c34"
+    }
+  ],
+  "set_sha256": "6242248286af8718f2e11ebd6492e4e2f8050fbf64177ed7519b2e0a8ac408be",
+  "totaal_bytes": 55801725,
+  "duur_s": 49.0,
+  "bevroren_op": "2026-11-10T00:06:33Z"
+}

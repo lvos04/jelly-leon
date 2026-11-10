@@ -1,0 +1,150 @@
+{
+  "schema": "jelly-leon/b03-016-testset-manifest/1",
+  "recept": "f5-fouten",
+  "versie": "1",
+  "seed": 20261109,
+  "schaal": "vol",
+  "parameters": {},
+  "ffmpeg": {
+    "modus": "docker",
+    "versie": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "bronnen": [
+    {
+      "pad": "blender/sintel/Sintel.2010.1080p.mkv",
+      "sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "jellyfin-testvideos/Test_Jellyfin_1080p_DV_P5.mp4",
+      "sha256": "c0dedeeef7d11c404955e126f9544318cdeb6eab62423528cfde9b567e8ca1a4",
+      "licentie": "CC BY-SA 4.0 (Jellyfin-testvideo's, Gnattu)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_8bit_10M.mp4",
+      "sha256": "a75296d379876ea10ef82e143a38cde791e48fd2d4a738be798c4f9ffdb2a9b4",
+      "licentie": "CC BY-SA 4.0 (Jellyfin-testvideo's, Gnattu)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_HDR10_10M.mp4",
+      "sha256": "ab2e96af8fef996ec178ccba49ccaea3d6d30e147c58f39dd8288e8894a18678",
+      "licentie": "CC BY-SA 4.0 (Jellyfin-testvideo's, Gnattu)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    }
+  ],
+  "licenties": [
+    "CC BY 3.0 (Blender Foundation, Sintel)",
+    "CC BY-SA 4.0 (Jellyfin-testvideo's, Gnattu)",
+    "eigen synthetisch materiaal (lavfi), geen rechten van derden"
+  ],
+  "licentie_beperkt": false,
+  "aantallen": {
+    "ass": 1,
+    "devset-combinatie": 3,
+    "testset-combinatie": 18
+  },
+  "bestanden": [
+    {
+      "pad": "android-profielen/geforceerd-ac3-eac3-dts.json",
+      "grootte": 642,
+      "sha256": "ea7aaf5e36e4cea035cf05a45da3a4c020f8b6bea4f1f281ae015f924cdad116"
+    },
+    {
+      "pad": "formaten/sintel-60s-ass.grondwaarheid.json",
+      "grootte": 366,
+      "sha256": "92b02eee24992fa9c93b9852f81309b589184eea50627a266e71a790c94a3eaf"
+    },
+    {
+      "pad": "formaten/sintel-60s-ass.mkv",
+      "grootte": 69609209,
+      "sha256": "4e83915d634e1d0c7f8720e8a44164c6266be6c8307c5c0890c0486ed4f79e83"
+    },
+    {
+      "pad": "grondwaarheid.json",
+      "grootte": 8024,
+      "sha256": "6b7730c3ff609b9e1e0f9d3d012a0ea7b24fc2f66ee26bdd7238467d5ed0c96c"
+    },
+    {
+      "pad": "init-scripts/dev-chromium-hevc8.js",
+      "grootte": 524,
+      "sha256": "2828edcdd44f84d5bc2f5d491aa1a4c02a2e51a503e09c826df908047ca93bbf"
+    },
+    {
+      "pad": "init-scripts/dev-firefox-ac3.js",
+      "grootte": 523,
+      "sha256": "eb27146c96ff8c6b54aeabb43779503bb1263f5489607e212bb74026a9bd84ce"
+    },
+    {
+      "pad": "init-scripts/test-chromium-dv-p5.js",
+      "grootte": 524,
+      "sha256": "a67ef0e92f359364486b5613a65503cc419e873c740b2ec088877b04733bcd25"
+    },
+    {
+      "pad": "init-scripts/test-chromium-eac3-51.js",
+      "grootte": 524,
+      "sha256": "0056f8f8c2daf525d6faa8531425f9da9fd9f0086fcc49a9248b876ad4cb94c8"
+    },
+    {
+      "pad": "init-scripts/test-chromium-flac-51-mkv.js",
+      "grootte": 516,
+      "sha256": "943bdd5af4e91b007b01c22fa41ce68a84b2f21108bd55380559a2f078bda534"
+    },
+    {
+      "pad": "init-scripts/test-chromium-h264-10bit.js",
+      "grootte": 530,
+      "sha256": "205d81dd5df8614c599473f60fd1aa6ebd8da721b57b25aa0c3c0c441cc5c9c6"
+    },
+    {
+      "pad": "init-scripts/test-chromium-hevc10-hdr10.js",
+      "grootte": 528,
+      "sha256": "9f1b35b39abe77649213991a0f89e0fa929cf0007f21ae553fe82d14b707937a"
+    },
+    {
+      "pad": "init-scripts/test-chromium-mpeg2-ts.js",
+      "grootte": 533,
+      "sha256": "d5f4c69a114d9bc29baa34139c45b38e2bdb6325657a3f8ce6cd89454128e931"
+    },
+    {
+      "pad": "init-scripts/test-firefox-dv-p5.js",
+      "grootte": 524,
+      "sha256": "a67ef0e92f359364486b5613a65503cc419e873c740b2ec088877b04733bcd25"
+    },
+    {
+      "pad": "init-scripts/test-firefox-eac3-51.js",
+      "grootte": 524,
+      "sha256": "0056f8f8c2daf525d6faa8531425f9da9fd9f0086fcc49a9248b876ad4cb94c8"
+    },
+    {
+      "pad": "init-scripts/test-firefox-flac-51-mkv.js",
+      "grootte": 516,
+      "sha256": "943bdd5af4e91b007b01c22fa41ce68a84b2f21108bd55380559a2f078bda534"
+    },
+    {
+      "pad": "init-scripts/test-firefox-h264-10bit.js",
+      "grootte": 530,
+      "sha256": "205d81dd5df8614c599473f60fd1aa6ebd8da721b57b25aa0c3c0c441cc5c9c6"
+    },
+    {
+      "pad": "init-scripts/test-firefox-hevc10-hdr10.js",
+      "grootte": 528,
+      "sha256": "9f1b35b39abe77649213991a0f89e0fa929cf0007f21ae553fe82d14b707937a"
+    },
+    {
+      "pad": "init-scripts/test-firefox-mpeg2-ts.js",
+      "grootte": 533,
+      "sha256": "d5f4c69a114d9bc29baa34139c45b38e2bdb6325657a3f8ce6cd89454128e931"
+    }
+  ],
+  "set_sha256": "9559e2796271f69c119d11aea9a0c0ee97b8b96a11dd5e085dcb0fd57cb119cc",
+  "totaal_bytes": 69625598,
+  "duur_s": 1.6,
+  "bevroren_op": "2026-11-10T00:07:31Z"
+}
