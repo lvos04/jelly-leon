@@ -1,0 +1,72 @@
+{
+  "soort": "Sim-getest (Docker op de bouwmachine; geen echte NAS, koude kopie i.p.v. ZFS-snapshot)",
+  "image": "jelly-leon:qa",
+  "upstream_image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "opmerking": "QA-review lokaal",
+  "gestart": "2026-11-10T05:00:43Z",
+  "klaar": "2026-11-10T05:01:11Z",
+  "geslaagd": true,
+  "stappen": [
+    {
+      "stap": "healthy (upstream, lege opslag)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-10T05:00:49Z"
+    },
+    {
+      "stap": "stock-client-smoketest (upstream-eerste-start, modus nieuw)",
+      "geslaagd": true,
+      "detail": "17/17 stappen",
+      "tijd": "2026-11-10T05:00:53Z"
+    },
+    {
+      "stap": "koude back-up van /config (model voor de ZFS-snapshot)",
+      "geslaagd": true,
+      "detail": "backup-config/data/jellyfin.db aanwezig=True",
+      "tijd": "2026-11-10T05:00:54Z"
+    },
+    {
+      "stap": "healthy (Jelly Leon na migratie)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-10T05:01:00Z"
+    },
+    {
+      "stap": "stock-client-smoketest (jelly-leon-na-migratie, modus herstart)",
+      "geslaagd": true,
+      "detail": "27/27 stappen",
+      "tijd": "2026-11-10T05:01:02Z"
+    },
+    {
+      "stap": "migratie zichtbaar in /config",
+      "geslaagd": true,
+      "detail": "Jelly Leon-plugin door de entrypoint geïnstalleerd=True",
+      "tijd": "2026-11-10T05:01:02Z"
+    },
+    {
+      "stap": "back-up teruggezet in /config",
+      "geslaagd": true,
+      "detail": "toestand van vóór de migratie (geen Jelly Leon-plugin meer)=True",
+      "tijd": "2026-11-10T05:01:03Z"
+    },
+    {
+      "stap": "healthy (upstream na terugzetten)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-10T05:01:09Z"
+    },
+    {
+      "stap": "stock-client-smoketest (upstream-na-terugzetten, modus herstart)",
+      "geslaagd": true,
+      "detail": "19/19 stappen",
+      "tijd": "2026-11-10T05:01:10Z"
+    },
+    {
+      "stap": "mediamap onaangeroerd",
+      "geslaagd": true,
+      "detail": "eigenaar/rechten ongewijzigd",
+      "tijd": "2026-11-10T05:01:10Z"
+    }
+  ],
+  "werkmap": "/home/transcode/truenas-v2/.lokaal/jelly-leon-qa/e2e/jl-lifecycle-1ix8j134 (opgeruimd)"
+}

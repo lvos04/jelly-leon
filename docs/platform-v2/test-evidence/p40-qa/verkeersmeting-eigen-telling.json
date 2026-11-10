@@ -1,0 +1,43 @@
+{
+  "schema": "jelly-leon/qa-verkeersmeting/1",
+  "bron": "proxy-emby.jsonl en proxy-jelly-leon.jsonl van de QA-proefrun (corpus, jelly-leon:qa), zelf geteld door de QA-reviewer, los van de controles van proefrun.py",
+  "emby": {
+    "verzoeken": 893,
+    "methodes": {
+      "GET": 893
+    },
+    "status": {
+      "200": 893
+    },
+    "sleutel_in_url": 0,
+    "paden": {
+      "/System/Info": 13,
+      "/Users": 13,
+      "/Users/{id}": 65,
+      "/Library/VirtualFolders/Query": 13,
+      "/Plugins": 13,
+      "/Localization/ParentalRatings": 12,
+      "/Users/{id}/Items": 120,
+      "/Persons": 60,
+      "/Artists": 60,
+      "/Genres": 60,
+      "/Studios": 60,
+      "/Items/{id}/PlaybackInfo": 402,
+      "/System/Info/Public": 2
+    }
+  },
+  "jelly_leon": {
+    "verzoeken": 491,
+    "methodes": {
+      "GET": 440,
+      "POST": 51
+    },
+    "schrijfroutes": {
+      "/Users/New": 4,
+      "/Users/{id}/Policy": 4,
+      "/Users/Configuration": 4,
+      "/UserItems/{id}/UserData": 39
+    },
+    "sleutel_in_url": 0
+  }
+}

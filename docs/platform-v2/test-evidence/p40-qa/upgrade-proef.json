@@ -1,0 +1,634 @@
+{
+ "schema": "jelly-leon/upgradeproef/1",
+ "soort": "Sim-getest (Docker op de ontwikkelmachine; kopie van de datamap i.p.v. ZFS-snapshot; geen NAS)",
+ "images": {
+  "oud": "docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db",
+  "jelly_leon": "jelly-leon:qa",
+  "stock_12x": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+ },
+ "opmerking": "QA-review lokaal",
+ "gestart": "2026-11-10T05:01:11Z",
+ "klaar": "2026-11-10T05:02:54Z",
+ "geslaagd": true,
+ "stappen": [
+  {
+   "stap": "oude server gestart",
+   "geslaagd": true,
+   "detail": "versie 10.11.11",
+   "tijd": "2026-11-10T05:01:16Z"
+  },
+  {
+   "stap": "oude server: bibliotheken gescand",
+   "geslaagd": true,
+   "detail": "2 items; muziek True, film True; bibliotheken ['Films', 'Muziek']",
+   "tijd": "2026-11-10T05:01:21Z"
+  },
+  {
+   "stap": "testfilm met 2 audio- en 2 ondertitelsporen",
+   "geslaagd": true,
+   "detail": "sporen {0: 'Video', 1: 'Audio', 2: 'Audio', 3: 'Subtitle', 4: 'Subtitle'}",
+   "tijd": "2026-11-10T05:01:21Z"
+  },
+  {
+   "stap": "kijkgegevens, rechten, apparaten, override en afspeellijst gezet (officiële API)",
+   "geslaagd": true,
+   "detail": "beheerder film 2× gezien + favoriet + beoordeling 8, wav 5× gezien; ouder wav favoriet + vind-ik-leuk, film hervatpunt 2,5 s; tiener wav gezien, grens 13 + tag horror; gast alleen Films, favoriet, hervatpunt 1,5 s en spoorkeuze eng/eng (voorkeur nld); kind geen bibliotheken; 5 apparaten; override titel/rating/tag/LockData; afspeellijst 2 items",
+   "tijd": "2026-11-10T05:01:25Z"
+  },
+  {
+   "stap": "VÓÓR (10.11.11): gezette gegevens aanwezig (14/14)",
+   "geslaagd": true,
+   "detail": "alle controles aanwezig",
+   "tijd": "2026-11-10T05:01:25Z"
+  },
+  {
+   "stap": "jelly-leon-image start op de gevulde 10.11.11-datamap (migraties zonder handwerk)",
+   "geslaagd": true,
+   "detail": "versie 12.4.0, product Jellyfin Server, server 1a87a49e2583",
+   "tijd": "2026-11-10T05:02:03Z"
+  },
+  {
+   "stap": "VÓÓR = NA per gebruiker (gezien, aantal, datum, hervatpunt, favoriet, beoordeling, spoorkeuze, voorkeuren, rechten, zichtbaarheid, apparaten, override, afspeellijst)",
+   "geslaagd": true,
+   "detail": "0 verschillen; sha256 1fda1ac0111dbabf…",
+   "tijd": "2026-11-10T05:02:04Z"
+  },
+  {
+   "stap": "NA (Jelly Leon 12.x): gezette gegevens aanwezig (14/14)",
+   "geslaagd": true,
+   "detail": "alle controles aanwezig",
+   "tijd": "2026-11-10T05:02:04Z"
+  },
+  {
+   "stap": "NA: gast hervat op het juiste punt met de onthouden sporen",
+   "geslaagd": true,
+   "detail": "hervatpunt 15000000 ticks; in 'Verder kijken' True; sporen 2/4; stream HTTP 206 (1024 bytes)",
+   "tijd": "2026-11-10T05:02:04Z"
+  },
+  {
+   "stap": "EnableLegacyAuthorization uit na de migratie (12.x-standaard, BG-01)",
+   "geslaagd": true,
+   "detail": "EnableLegacyAuthorization=False; HTTP {'X-Emby-Token': 401, 'api_key': 401, 'MediaBrowser Token': 200}",
+   "tijd": "2026-11-10T05:02:05Z"
+  },
+  {
+   "stap": "Jelly Leon-plugin laadt op de gemigreerde datamap",
+   "geslaagd": true,
+   "detail": "GET /media/v1/version HTTP 200: b'{\"schema_version\":\"1.0\",\"fork_version\":\"12.4.0-jl.0\",\"upstream_tag\":\"v12.4\",\"upstream_commit\":\"83d0d0e7f76e23e2e085c8ff67d28b772d35967d\",\"plugin_built_against\":'",
+   "tijd": "2026-11-10T05:02:05Z"
+  },
+  {
+   "stap": "stock 12.x op een kopie geeft hetzelfde NA-rapport",
+   "geslaagd": true,
+   "detail": "sha256 1fda1ac0111dbabf…",
+   "tijd": "2026-11-10T05:02:13Z"
+  },
+  {
+   "stap": "differentiële controle-run jellyfin.db na de migratie: stock 12.x = Jelly Leon 12.x",
+   "geslaagd": true,
+   "detail": "0 verschillen buiten de vaste uitzonderingen; 33 tabellen; uitzonderingen geraakt: {}",
+   "tijd": "2026-11-10T05:02:37Z"
+  },
+  {
+   "stap": "JLT-61 a: jellyfin.db na terugzetten byte-gelijk aan vóór de migratie",
+   "geslaagd": true,
+   "detail": "sha256 vóór 021e786a15459547…, teruggezet 021e786a15459547…",
+   "tijd": "2026-11-10T05:02:37Z"
+  },
+  {
+   "stap": "JLT-61 a: oude image + kopie: kijkgegevens = VÓÓR en afspelen werkt",
+   "geslaagd": true,
+   "detail": "0 verschillen; stream HTTP 206",
+   "tijd": "2026-11-10T05:02:43Z"
+  },
+  {
+   "stap": "JLT-61 b meting: oude stock-image 10.11.11 alleen op de gemigreerde datamap",
+   "geslaagd": true,
+   "detail": "versie 10.11.11; aanmelden HTTP 500; zichtbare weigering=False — de stock-image kent geen downgradeweigering; de weigering van de jelly-leon-image zelf meet image_lifecycle.py",
+   "tijd": "2026-11-10T05:02:48Z"
+  },
+  {
+   "stap": "JLT-61 b: geen stille schade (gemigreerde datamap na de oude image weer = NA)",
+   "geslaagd": true,
+   "detail": "0 verschillen",
+   "tijd": "2026-11-10T05:02:54Z"
+  },
+  {
+   "stap": "mediabestanden onaangeroerd (sha256 vóór = na)",
+   "geslaagd": true,
+   "detail": "2 bestanden",
+   "tijd": "2026-11-10T05:02:54Z"
+  }
+ ],
+ "voor_sha256": "1fda1ac0111dbabf7033df3afff920cd6b676b6ad953105a89b4b03cd5f7f618",
+ "na_sha256": "1fda1ac0111dbabf7033df3afff920cd6b676b6ad953105a89b4b03cd5f7f618",
+ "verschillen_voor_na": [],
+ "rapport_voor": {
+  "gebruikers": {
+   "jl-beheer": {
+    "beleid": {
+     "IsAdministrator": true,
+     "IsDisabled": false,
+     "IsHidden": true,
+     "EnableAllFolders": true,
+     "EnabledFolders": [],
+     "MaxParentalRating": null,
+     "BlockedTags": [],
+     "AllowedTags": [],
+     "EnableContentDownloading": true,
+     "EnableRemoteAccess": true,
+     "EnableMediaPlayback": true,
+     "EnableAllDevices": true,
+     "EnableSyncTranscoding": true,
+     "EnableVideoPlaybackTranscoding": true
+    },
+    "voorkeuren": {
+     "AudioLanguagePreference": null,
+     "SubtitleLanguagePreference": "",
+     "SubtitleMode": "Default",
+     "RememberAudioSelections": true,
+     "RememberSubtitleSelections": true
+    },
+    "kijkgegevens": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "Played": true,
+      "PlayCount": 2,
+      "PlaybackPositionTicks": 0,
+      "IsFavorite": true,
+      "Rating": 8.0,
+      "Likes": true,
+      "LastPlayedDate": "2026-11-01T20:15:00Z"
+     },
+     "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+      "Played": true,
+      "PlayCount": 5,
+      "PlaybackPositionTicks": 0,
+      "IsFavorite": false,
+      "Rating": null,
+      "Likes": null,
+      "LastPlayedDate": "2026-10-02T08:00:00Z"
+     }
+    },
+    "spoorkeuzes": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "DefaultAudioStreamIndex": 1,
+      "DefaultSubtitleStreamIndex": 3
+     }
+    },
+    "zichtbaar": [
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv",
+     "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav"
+    ]
+   },
+   "jl-gast": {
+    "beleid": {
+     "IsAdministrator": false,
+     "IsDisabled": false,
+     "IsHidden": true,
+     "EnableAllFolders": false,
+     "EnabledFolders": [
+      "Films"
+     ],
+     "MaxParentalRating": null,
+     "BlockedTags": [],
+     "AllowedTags": [],
+     "EnableContentDownloading": false,
+     "EnableRemoteAccess": false,
+     "EnableMediaPlayback": true,
+     "EnableAllDevices": true,
+     "EnableSyncTranscoding": true,
+     "EnableVideoPlaybackTranscoding": true
+    },
+    "voorkeuren": {
+     "AudioLanguagePreference": "nld",
+     "SubtitleLanguagePreference": "nld",
+     "SubtitleMode": "Always",
+     "RememberAudioSelections": true,
+     "RememberSubtitleSelections": true
+    },
+    "kijkgegevens": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "Played": false,
+      "PlayCount": 1,
+      "PlaybackPositionTicks": 15000000,
+      "IsFavorite": true,
+      "Rating": null,
+      "Likes": null,
+      "LastPlayedDate": "2026-11-10T05:01:22Z"
+     },
+     "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+      "geen_toegang": true
+     }
+    },
+    "spoorkeuzes": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "DefaultAudioStreamIndex": 2,
+      "DefaultSubtitleStreamIndex": 4
+     }
+    },
+    "zichtbaar": [
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv"
+    ]
+   },
+   "jl-kind": {
+    "beleid": {
+     "IsAdministrator": false,
+     "IsDisabled": false,
+     "IsHidden": true,
+     "EnableAllFolders": false,
+     "EnabledFolders": [],
+     "MaxParentalRating": 7,
+     "BlockedTags": [],
+     "AllowedTags": [],
+     "EnableContentDownloading": true,
+     "EnableRemoteAccess": false,
+     "EnableMediaPlayback": true,
+     "EnableAllDevices": true,
+     "EnableSyncTranscoding": true,
+     "EnableVideoPlaybackTranscoding": true
+    },
+    "voorkeuren": {
+     "AudioLanguagePreference": null,
+     "SubtitleLanguagePreference": "",
+     "SubtitleMode": "Default",
+     "RememberAudioSelections": true,
+     "RememberSubtitleSelections": true
+    },
+    "kijkgegevens": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "geen_toegang": true
+     },
+     "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+      "geen_toegang": true
+     }
+    },
+    "spoorkeuzes": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "geen_toegang": 404
+     }
+    },
+    "zichtbaar": []
+   },
+   "jl-ouder": {
+    "beleid": {
+     "IsAdministrator": false,
+     "IsDisabled": false,
+     "IsHidden": true,
+     "EnableAllFolders": true,
+     "EnabledFolders": [],
+     "MaxParentalRating": null,
+     "BlockedTags": [],
+     "AllowedTags": [],
+     "EnableContentDownloading": true,
+     "EnableRemoteAccess": true,
+     "EnableMediaPlayback": true,
+     "EnableAllDevices": true,
+     "EnableSyncTranscoding": true,
+     "EnableVideoPlaybackTranscoding": true
+    },
+    "voorkeuren": {
+     "AudioLanguagePreference": null,
+     "SubtitleLanguagePreference": "",
+     "SubtitleMode": "Default",
+     "RememberAudioSelections": true,
+     "RememberSubtitleSelections": true
+    },
+    "kijkgegevens": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "Played": false,
+      "PlayCount": 0,
+      "PlaybackPositionTicks": 25000000,
+      "IsFavorite": false,
+      "Rating": null,
+      "Likes": null,
+      "LastPlayedDate": null
+     },
+     "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+      "Played": false,
+      "PlayCount": 0,
+      "PlaybackPositionTicks": 0,
+      "IsFavorite": true,
+      "Rating": 10.0,
+      "Likes": true,
+      "LastPlayedDate": null
+     }
+    },
+    "spoorkeuzes": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "DefaultAudioStreamIndex": 1,
+      "DefaultSubtitleStreamIndex": 3
+     }
+    },
+    "zichtbaar": [
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv",
+     "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav"
+    ]
+   },
+   "jl-tiener": {
+    "beleid": {
+     "IsAdministrator": false,
+     "IsDisabled": false,
+     "IsHidden": true,
+     "EnableAllFolders": true,
+     "EnabledFolders": [],
+     "MaxParentalRating": 13,
+     "BlockedTags": [
+      "horror"
+     ],
+     "AllowedTags": [],
+     "EnableContentDownloading": true,
+     "EnableRemoteAccess": true,
+     "EnableMediaPlayback": true,
+     "EnableAllDevices": true,
+     "EnableSyncTranscoding": true,
+     "EnableVideoPlaybackTranscoding": true
+    },
+    "voorkeuren": {
+     "AudioLanguagePreference": null,
+     "SubtitleLanguagePreference": "",
+     "SubtitleMode": "Default",
+     "RememberAudioSelections": true,
+     "RememberSubtitleSelections": true
+    },
+    "kijkgegevens": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "Played": false,
+      "PlayCount": 0,
+      "PlaybackPositionTicks": 0,
+      "IsFavorite": false,
+      "Rating": null,
+      "Likes": null,
+      "LastPlayedDate": null
+     },
+     "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+      "Played": true,
+      "PlayCount": 1,
+      "PlaybackPositionTicks": 0,
+      "IsFavorite": false,
+      "Rating": null,
+      "Likes": null,
+      "LastPlayedDate": "2026-10-30T19:00:00Z"
+     }
+    },
+    "spoorkeuzes": {
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv": {
+      "DefaultAudioStreamIndex": 1,
+      "DefaultSubtitleStreamIndex": 3
+     }
+    },
+    "zichtbaar": [
+     "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv",
+     "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav"
+    ]
+   }
+  },
+  "items": [
+   "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv",
+   "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav"
+  ],
+  "apparaten": [
+   [
+    "jl-beheer",
+    "jl-upgrade-beheer",
+    "jelly-leon-upgradeproef"
+   ],
+   [
+    "jl-gast",
+    "jl-upgrade-gast",
+    "jelly-leon-upgradeproef"
+   ],
+   [
+    "jl-kind",
+    "jl-upgrade-kind",
+    "jelly-leon-upgradeproef"
+   ],
+   [
+    "jl-ouder",
+    "jl-upgrade-ouder",
+    "jelly-leon-upgradeproef"
+   ],
+   [
+    "jl-tiener",
+    "jl-upgrade-tiener",
+    "jelly-leon-upgradeproef"
+   ]
+  ],
+  "override_film": {
+   "Name": "Testfilm (eigen titel)",
+   "OfficialRating": "PG-13",
+   "Tags": [
+    "eigen-tag"
+   ],
+   "LockData": true
+  },
+  "afspeellijsten": {
+   "Proeflijst": [
+    "/media/films/Jelly Leon Testfilm (2026)/Jelly Leon Testfilm (2026).mkv",
+    "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav"
+   ]
+  }
+ },
+ "diffrun": {
+  "tabellen": {
+   "AccessSchedules": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "ActivityLogs": {
+    "rijen_a": 24,
+    "rijen_b": 24,
+    "genegeerde_kolommen": [
+     "Id",
+     "Overview",
+     "ShortOverview",
+     "DateCreated",
+     "RowVersion"
+    ]
+   },
+   "AncestorIds": {
+    "rijen_a": 22,
+    "rijen_b": 22,
+    "genegeerde_kolommen": []
+   },
+   "ApiKeys": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "AttachmentStreamInfos": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItemImageInfos": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItemMetadataFields": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItemProviders": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItemTrailerTypes": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItems": {
+    "rijen_a": 17,
+    "rijen_b": 17,
+    "genegeerde_kolommen": [
+     "DateLastMediaAdded",
+     "DateLastRefreshed",
+     "DateLastSaved"
+    ]
+   },
+   "Chapters": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "CustomItemDisplayPreferences": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "DeviceOptions": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": [
+     "Id"
+    ]
+   },
+   "Devices": {
+    "rijen_a": 5,
+    "rijen_b": 5,
+    "genegeerde_kolommen": [
+     "Id",
+     "AccessToken",
+     "DateCreated",
+     "DateModified",
+     "DateLastActivity"
+    ]
+   },
+   "DisplayPreferences": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "HomeSection": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "ImageInfos": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "ItemDisplayPreferences": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "ItemValues": {
+    "rijen_a": 2,
+    "rijen_b": 2,
+    "genegeerde_kolommen": []
+   },
+   "ItemValuesMap": {
+    "rijen_a": 2,
+    "rijen_b": 2,
+    "genegeerde_kolommen": []
+   },
+   "KeyframeData": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "LinkedChildren": {
+    "rijen_a": 2,
+    "rijen_b": 2,
+    "genegeerde_kolommen": []
+   },
+   "MediaSegments": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "MediaStreamInfos": {
+    "rijen_a": 6,
+    "rijen_b": 6,
+    "genegeerde_kolommen": []
+   },
+   "PeopleBaseItemMap": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "Peoples": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "Permissions": {
+    "rijen_a": 120,
+    "rijen_b": 120,
+    "genegeerde_kolommen": []
+   },
+   "Preferences": {
+    "rijen_a": 65,
+    "rijen_b": 65,
+    "genegeerde_kolommen": []
+   },
+   "TrickplayInfos": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "UserData": {
+    "rijen_a": 9,
+    "rijen_b": 9,
+    "genegeerde_kolommen": [
+     "LastPlayedDate"
+    ]
+   },
+   "Users": {
+    "rijen_a": 5,
+    "rijen_b": 5,
+    "genegeerde_kolommen": [
+     "InvalidLoginAttemptCount",
+     "LastActivityDate",
+     "LastLoginDate",
+     "RowVersion"
+    ]
+   },
+   "__EFMigrationsHistory": {
+    "rijen_a": 107,
+    "rijen_b": 107,
+    "genegeerde_kolommen": []
+   },
+   "__EFMigrationsLock": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   }
+  },
+  "verschillen_buiten_uitzonderingen": 0,
+  "uitzonderingen_geraakt": {}
+ },
+ "negatief_oude_image": {
+  "gezond": true,
+  "aanmelden_http": 500,
+  "log_staart": ".Middleware.ServerStartupMessageMiddleware.Invoke(HttpContext httpContext, IServerApplicationHost serverApplicationHost, ILocalizationManager localizationManager)\n   at Jellyfin.Api.Middleware.WebSocketHandlerMiddleware.Invoke(HttpContext httpContext, IWebSocketManager webSocketManager)\n   at Jellyfin.Api.Middleware.IPBasedAccessValidationMiddleware.Invoke(HttpContext httpContext, INetworkManager networkManager)\n   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)\n   at Jellyfin.Api.Middleware.QueryStringDecodingMiddleware.Invoke(HttpContext httpContext)\n   at Swashbuckle.AspNetCore.ReDoc.ReDocMiddleware.Invoke(HttpContext httpContext)\n   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)\n   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)\n   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)\n   at Jellyfin.Api.Middleware.RobotsRedirectionMiddleware.Invoke(HttpContext httpContext)\n   at Jellyfin.Api.Middleware.LegacyEmbyRouteRewriteMiddleware.Invoke(HttpContext httpContext)\n   at Microsoft.AspNetCore.ResponseCompression.ResponseCompressionMiddleware.InvokeCore(HttpContext context)\n   at Jellyfin.Api.Middleware.ResponseTimeMiddleware.Invoke(HttpContext context, IServerConfigurationManager serverConfigurationManager)\n   at Jellyfin.Api.Middleware.ExceptionMiddleware.Invoke(HttpContext context)\n"
+ },
+ "jlt_61_b": "Sim-mislukt voor de stock-image 10.11.11: geen zichtbare weigering (versie 10.11.11; aanmelden HTTP 500)",
+ "werkmap": "/home/transcode/truenas-v2/.lokaal/jelly-leon-qa/e2e/jl-upgrade-nqebfmox (opgeruimd)"
+}
