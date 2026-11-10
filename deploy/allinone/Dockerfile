@@ -17,9 +17,9 @@
 #     [--secret id=ca_bundle,src=<ca-bestand>] -t ghcr.io/lvos04/jelly-leon:<forkversie> .
 # Het optionele geheim ca_bundle is alleen voor bouwomgevingen achter een TLS-proxy; het komt niet in de image.
 
-ARG SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:9.0.320@sha256:07ed28d9e7279248fcea27334880f6c415b42c631c39b8bc5b3caf13ec6fdaa2
-ARG NODE_IMAGE=docker.io/library/node:22.23.4-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
-ARG RUNTIME_IMAGE=docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
+ARG SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0.403@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e
+ARG NODE_IMAGE=docker.io/library/node:24.22.2-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9
+ARG RUNTIME_IMAGE=docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
 
 # ---------------------------------------------------------------- server + plugin (.NET)
 FROM ${SDK_IMAGE} AS server
@@ -41,15 +41,25 @@ RUN --mount=type=secret,id=ca_bundle,required=false \
     test -x /out/server/jellyfin; test -f /out/plugin/Jellyfin.Plugin.JellyLeon.dll
 
 # ---------------------------------------------------------------- web-client (lvos04/jelly-leon-web)
+# jellyfin-web 12.x vraagt Node >= 24 en npm >= 11 (engine-strict); de image staat in jelly-leon-web baseline.json
+# toolchain.node_image. Hun .npmrc (o.a. ignore-scripts, engine-strict, min-release-age) gaat mee vóór `npm ci`.
 FROM ${NODE_IMAGE} AS web
+# Begrenzing van het aantal webpack/terser-werkers (geheugen); 0 = standaard van de bouwtools.
+ARG WEB_BUILD_JOBS=4
 WORKDIR /web
-COPY --from=jelly-leon-web package.json package-lock.json ./
+COPY --from=jelly-leon-web package.json package-lock.json .npmrc ./
 RUN --mount=type=secret,id=ca_bundle,required=false \
     --mount=type=cache,target=/root/.npm \
     if [ -s /run/secrets/ca_bundle ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca_bundle; fi; \
     npm ci --no-audit --no-fund
 COPY --from=jelly-leon-web . .
-RUN npm run build:production && test -f dist/index.html
+RUN set -eu; \
+    if [ "${WEB_BUILD_JOBS}" != "0" ]; then \
+      last=$((WEB_BUILD_JOBS - 1)); taskset -c "0-${last}" npm run build:production; \
+    else \
+      npm run build:production; \
+    fi; \
+    test -f dist/index.html; grep -q '<title>Jelly Leon</title>' dist/index.html
 
 # ---------------------------------------------------------------- runtime
 FROM ${RUNTIME_IMAGE}
@@ -65,7 +75,7 @@ LABEL org.opencontainers.image.title="Jelly Leon" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.version="${FORK_VERSION}" \
       org.opencontainers.image.licenses="GPL-2.0-only AND GPL-2.0-or-later" \
-      org.opencontainers.image.base.name="docker.io/jellyfin/jellyfin:10.11.11" \
+      org.opencontainers.image.base.name="docker.io/jellyfin/jellyfin:12.4" \
       io.github.lvos04.jelly-leon.web.source="https://github.com/lvos04/jelly-leon-web" \
       io.github.lvos04.jelly-leon.web.revision="${WEB_REF}"
 # url/documentation overschrijven die van de basisimage (jellyfin.org): geen schijn van een officiële release (ADR-0004).

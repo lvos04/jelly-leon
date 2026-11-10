@@ -8,8 +8,8 @@
   "fork_version": "12.4.0-jl.0",
   "dotnet_sdk_major": "10.0",
   "web_repo": "https://github.com/lvos04/jelly-leon-web",
-  "web_upstream_tag": "v10.11.11",
-  "web_upstream_commit": "35c0793ece3adbd247eab290ae1effab851f3d37",
-  "web_fork_commit": "2795f3365ffe21d16bf5b76a0da8d556f29ad38d",
+  "web_upstream_tag": "v12.4",
+  "web_upstream_commit": "0a580ce8df89282dfd120b6d5efb8e106da23bd5",
+  "web_fork_commit": "5ced8a24601e30038cafae5dab2f0520b3325427",
   "notes_nl": "Bron van waarheid voor de forkbasis (ADR-0005). Alleen wijzigen via tools/jelly-leon/upstream_sync.py of een bewuste release-commit."
 }

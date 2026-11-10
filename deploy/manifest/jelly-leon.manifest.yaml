@@ -15,12 +15,12 @@ description_nl: >-
   Mediaserver voor film, series, anime, muziek en live-tv, gebaseerd op Jellyfin (GPL-2.0). De technische identiteit
   blijft "Jellyfin", zodat bestaande Jellyfin-apps blijven werken; de zichtbare naam is Jelly Leon. Server, web-client
   en de Jelly Leon-plugin zitten in één image.
-version: "10.11.11-jl.0"
+version: "12.4.0-jl.0"
 install:
   method: custom_app
 image:
   repository: ghcr.io/lvos04/jelly-leon
-  tag: "10.11.11-jl.0"
+  tag: "12.4.0-jl.0"
   digest: null
 custom_app:
   # Geen ports hier (vervallen in contract 1.2 §9): de formulierpoorten komen uit network.ports.
@@ -156,7 +156,7 @@ backup:
   db_export:
     method: app_native
     description_nl: >-
-      Jellyfin 10.11 heeft een eigen back-up-API (/Backup, alleen beheerder) die de database en metadata exporteert;
+      Jellyfin 12.x heeft een eigen back-up-API (/Backup, alleen beheerder) die de database en metadata exporteert;
       daarnaast ZFS-snapshot van de config-dataset. Herstel van database + binary samen (B03-013).
   snapshot_datasets: [config]
   rpo: {param: rpo}

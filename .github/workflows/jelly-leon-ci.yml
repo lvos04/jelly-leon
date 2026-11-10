@@ -31,7 +31,7 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: '1'
   DOTNET_NOLOGO: '1'
   # Officiële upstream-runtime (jellyfin-ffmpeg + Intel-stack), op digest vastgezet; zelfde als deploy/allinone.
-  JL_RUNTIME_IMAGE: docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
+  JL_RUNTIME_IMAGE: docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
 
 jobs:
   forkregels:
@@ -134,8 +134,9 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      # global.json (upstream) vraagt 9.0.0 + rollForward; die exacte versie is niet te downloaden. Daarom het kanaal
-      # x.y.x uit global.json afleiden (zoals upstream zelf 9.0.x installeert); global.json blijft ongewijzigd.
+      # global.json (upstream) vraagt <major>.0.0 + rollForward (12.4: 10.0.0); die exacte versie is niet te downloaden.
+      # Daarom het kanaal x.y.x uit global.json afleiden (zoals upstream zelf 10.0.x installeert); global.json blijft
+      # ongewijzigd (ADR-0010).
       - name: .NET-SDK-kanaal uit global.json
         id: sdk
         run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
@@ -183,8 +184,9 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      # global.json (upstream) vraagt 9.0.0 + rollForward; die exacte versie is niet te downloaden. Daarom het kanaal
-      # x.y.x uit global.json afleiden (zoals upstream zelf 9.0.x installeert); global.json blijft ongewijzigd.
+      # global.json (upstream) vraagt <major>.0.0 + rollForward (12.4: 10.0.0); die exacte versie is niet te downloaden.
+      # Daarom het kanaal x.y.x uit global.json afleiden (zoals upstream zelf 10.0.x installeert); global.json blijft
+      # ongewijzigd (ADR-0010).
       - name: .NET-SDK-kanaal uit global.json
         id: sdk
         run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
@@ -209,7 +211,8 @@ jobs:
           name: plugin-jellyleon
           retention-days: 14
           if-no-files-found: error
-          path: plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net9.0/Jellyfin.Plugin.JellyLeon.dll
+          # TargetFramework volgt de upstream-ABI (plugins/Directory.Build.props; 12.x: net10.0).
+          path: plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net*/Jellyfin.Plugin.JellyLeon.dll
 
   image:
     name: Alles-in-één image bouwen (echte jelly-leon-web-build) en levenscyclus testen
@@ -299,8 +302,9 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      # global.json (upstream) vraagt 9.0.0 + rollForward; die exacte versie is niet te downloaden. Daarom het kanaal
-      # x.y.x uit global.json afleiden (zoals upstream zelf 9.0.x installeert); global.json blijft ongewijzigd.
+      # global.json (upstream) vraagt <major>.0.0 + rollForward (12.4: 10.0.0); die exacte versie is niet te downloaden.
+      # Daarom het kanaal x.y.x uit global.json afleiden (zoals upstream zelf 10.0.x installeert); global.json blijft
+      # ongewijzigd (ADR-0010).
       - name: .NET-SDK-kanaal uit global.json
         id: sdk
         run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
@@ -319,14 +323,15 @@ jobs:
           -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/server"
 
       - name: Plugin bouwen
-        run: dotnet build plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj -c Release
+        run: >
+          dotnet build plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj -c Release
+          -o "$RUNNER_TEMP/plugin"
 
       - name: Server starten op de upstream-runtime (als 568, zonder capabilities)
         run: |
           set -eu
           mkdir -p "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0" "$RUNNER_TEMP/cache" "$RUNNER_TEMP/media"
-          cp plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net9.0/Jellyfin.Plugin.JellyLeon.dll \
-             "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
+          cp "$RUNNER_TEMP/plugin/Jellyfin.Plugin.JellyLeon.dll" "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
           python3 tools/jelly-leon/e2e/make_test_media.py "$RUNNER_TEMP/media"
           # Eigenaar 568 zonder sudo: chown in een wegwerpcontainer van dezelfde vastgezette runtime (geen netwerk).
           docker run --rm --network none --user 0:0 --entrypoint /bin/chown \
