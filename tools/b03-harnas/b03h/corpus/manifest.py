@@ -98,6 +98,13 @@ def bevries(manifest: dict[str, Any], map_bevroren: Path) -> tuple[Path, str]:
             verschil = sorted({b["pad"] for b in oud["bestanden"]} ^ {b["pad"] for b in manifest["bestanden"]})[:5]
             raise ValueError(f"{pad.name}: niet reproduceerbaar (set_sha256 {manifest['set_sha256'][:12]} ≠ "
                              f"bevroren {oud['set_sha256'][:12]}; padverschil {verschil})")
+        nieuw = {k: v for k, v in manifest.get("aantallen", {}).items() if k not in oud.get("aantallen", {})}
+        if nieuw:
+            # Alleen tellingen erbij (bv. 'effectief'); de inhoud (set_sha256) is aantoonbaar gelijk.
+            oud["aantallen"] = dict(sorted({**oud.get("aantallen", {}), **nieuw}.items()))
+            oud.setdefault("tellingen_aangevuld", []).append(manifest["gemaakt"])
+            pad.write_text(json.dumps(oud, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            return pad, "gelijk aan bevroren manifest (tellingen aangevuld)"
         return pad, "gelijk aan bevroren manifest"
     map_bevroren.mkdir(parents=True, exist_ok=True)
     bevroren = {k: v for k, v in manifest.items() if k != "gemaakt"}

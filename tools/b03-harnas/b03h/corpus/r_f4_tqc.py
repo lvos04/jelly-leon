@@ -104,6 +104,8 @@ class Maker:
     def registreer(self, rel: str, klasse: str, set_: str, **gegevens: Any) -> None:
         self.index.append({"bestand": rel, "klasse": klasse, "set": set_, **gegevens})
         self.ctx.tel(f"{set_}:{klasse}")
+        if gegevens.get("effectief") is True:
+            self.ctx.tel(f"{set_}:{klasse}:effectief")  # alleen effectief beschadigde varianten tellen als positief (n van de gate)
 
 
 def _overschrijf(pad: Path, offset: int, data: bytes) -> None:

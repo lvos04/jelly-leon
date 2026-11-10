@@ -19,6 +19,7 @@ from typing import Any
 
 from . import legacy, meetslot
 from .android import APKS, AVDS, Emulator, haal_apks, maak_avd
+from .jfapi import Jellyfin
 from .stock import GEBRUIKER, STOCK_IMAGE, WACHTWOORD, WERK, StockServer, docker
 from .web import UA, harnas
 
@@ -78,26 +79,37 @@ def _speel_via_afstandsbediening(server: StockServer, client_patroon: str, timeo
     einde = time.monotonic() + timeout
     sessie = None
     while time.monotonic() < einde and sessie is None:
-        for s in server.jf.a.doe("GET", "/Sessions"):
-            if client_patroon.lower() in (s.get("Client") or "").lower() and s.get("UserName") == ANDROID_GEBRUIKER:
-                sessie = s
-                break
-        time.sleep(2)
+        # De nieuwste bestuurbare sessie van deze app (oude sessies van eerdere emulators blijven even in de lijst staan).
+        kandidaten = [s for s in server.jf.a.doe("GET", "/Sessions")
+                      if client_patroon.lower() == (s.get("Client") or "").lower() and s.get("UserName") == ANDROID_GEBRUIKER
+                      and s.get("SupportsMediaControl")]
+        if kandidaten:
+            sessie = max(kandidaten, key=lambda s: s.get("LastActivityDate") or "")
+        else:
+            time.sleep(2)
     if sessie is None:
         return {"ok": False, "reden": f"geen sessie van {client_patroon} gevonden"}
+    vooraf = (sessie.get("PlayState") or {}).get("PositionTicks")
     server.jf.a.doe("POST", f"/Sessions/{sessie['Id']}/Playing", {"playCommand": "PlayNow", "itemIds": hero["Id"]})
     t0 = time.monotonic()
-    posities = []
+    posities: list[float] = []
     while time.monotonic() - t0 < timeout:
-        s = next((x for x in server.jf.a.doe("GET", "/Sessions") if x["Id"] == sessie["Id"]), {})
+        # Gemeten (jellyfin-android 2.7.3): de native speler meldt de voortgang via een eigen sessieregel met een ander
+        # DeviceId dan de webweergave. Elke sessie van de (aparte) testgebruiker met dezelfde client telt.
+        rijen = [x for x in server.jf.a.doe("GET", "/Sessions") if x.get("UserName") == ANDROID_GEBRUIKER
+                 and (x.get("Client") or "").lower() == client_patroon.lower()]
+        s = next((x for x in rijen if (x.get("NowPlayingItem") or {}).get("Id") == hero["Id"]), {})
         np = (s.get("NowPlayingItem") or {}).get("Id")
-        pos = (s.get("PlayState") or {}).get("PositionTicks") or 0
-        if np == hero["Id"]:
-            posities.append(round(pos / 1e7, 2))
-            if pos >= 2e7:
+        ps = s.get("PlayState") or {}
+        pos = (ps.get("PositionTicks") or 0) / 1e7
+        if np == hero["Id"] and not ps.get("IsPaused"):
+            posities.append(round(pos, 2))
+            # Echt afspelen = de positie loopt ná het commando minstens 2 s op (een oude sessiestand telt niet).
+            if len(posities) >= 2 and posities[-1] - posities[0] >= 2.0 and posities[-1] > posities[-2]:
                 return {"ok": True, "sessie_client": sessie.get("Client"), "apparaat": sessie.get("DeviceName"),
-                        "app_versie": sessie.get("ApplicationVersion"), "tijd_tot_2s_s": round(time.monotonic() - t0, 1),
-                        "posities_s": posities[-5:], "afspeelmethode": (s.get("PlayState") or {}).get("PlayMethod")}
+                        "app_versie": sessie.get("ApplicationVersion"), "tijd_tot_2s_opgelopen_s": round(time.monotonic() - t0, 1),
+                        "posities_s": posities[-6:], "positie_vooraf_s": round((vooraf or 0) / 1e7, 2),
+                        "afspeelmethode": ps.get("PlayMethod")}
         time.sleep(1)
     return {"ok": False, "reden": "hero.mp4 bereikte geen 2 s afspeelpositie", "posities_s": posities[-5:],
             "sessie_client": sessie.get("Client")}
@@ -111,7 +123,7 @@ def _inloggen_telefoon(emu: Emulator, url: str) -> list[str]:
         if k:
             emu.tik(k)
             stappen.append(f"dialoog: {k.tekst}")
-    veld = emu.wacht_op(r"host|server|address|adres", timeout=60, klasse="EditText")
+    veld = emu.wacht_op(r".*", timeout=60, klasse="EditText")  # het (lege) veld onder het label 'Host'
     if not veld:
         raise RuntimeError(f"geen serveradresveld; scherm: {emu.teksten()}")
     emu.tik(veld)
@@ -121,6 +133,7 @@ def _inloggen_telefoon(emu: Emulator, url: str) -> list[str]:
     knop = emu.wacht_op(r"^(Connect|Verbinden)$", timeout=5)
     if knop:
         emu.tik(knop)
+    # De melding over batterij-optimalisatie niet aantikken: 'OK' opent de systeeminstellingen en verlaat de app.
     velden: list = []
     for _ in range(45):  # de webweergave laadt jellyfin-web van de server: wachten op gebruikersnaam + wachtwoord
         velden = [k for k in emu.dump() if "EditText" in k.klasse]
@@ -131,83 +144,111 @@ def _inloggen_telefoon(emu: Emulator, url: str) -> list[str]:
         raise RuntimeError(f"geen inlogvelden in de webweergave; scherm: {emu.teksten()}")
     emu.tik(velden[0])
     emu.typ(ANDROID_GEBRUIKER)
-    emu.tik(velden[1])
+    # Met Tab naar het wachtwoordveld: na het typen schuift het toetsenbord de pagina op, dus oude coördinaten kloppen niet
+    # meer (gemeten op de tablet: het wachtwoord kwam dan in het gebruikersveld terecht).
+    emu.toets("KEYCODE_TAB")
+    time.sleep(1)
     emu.typ(ANDROID_WACHTWOORD)
+    # Enter verstuurt het formulier; niet op 'Sign In' tikken: de batterijmelding kan erover liggen.
     emu.toets("KEYCODE_ENTER")
+    if not emu.wacht_op(r"^(My Media|Mijn media|Home|Startscherm)$", timeout=45):
+        raise RuntimeError(f"inloggen in de webweergave niet gelukt; scherm: {emu.teksten()}")
     stappen.append("ingelogd in de webweergave (jellyfin-web van de server)")
     return stappen
 
 
-def _inloggen_tv(emu: Emulator, url: str) -> list[str]:
+def _inloggen_tv(emu: Emulator, url: str, server: StockServer) -> list[str]:
+    """Gemeten flow van androidtv 0.19.10: 'Enter server address' → adres → 'Add account' → Quick Connect-code; de code
+    wordt via de officiële route POST /QuickConnect/Authorize door de testgebruiker goedgekeurd (geen wachtwoord typen)."""
     stappen = []
     emu.sh("monkey -p org.jellyfin.androidtv -c android.intent.category.LEANBACK_LAUNCHER 1 >/dev/null 2>&1")
-    knop = emu.wacht_op(r"Add server|Server toevoegen|Connect|Verbind", timeout=90)
-    if knop:
-        emu.tik(knop)
-        stappen.append(f"knop: {knop.tekst or knop.omschrijving}")
-    veld = emu.wacht_op(r".*", timeout=30, klasse="EditText")
-    if not veld:
-        raise RuntimeError(f"geen serveradresveld; scherm: {emu.teksten()}")
-    emu.tik(veld)
-    emu.typ(url)
-    emu.toets("KEYCODE_ENTER")
-    stappen.append("serveradres ingevuld")
-    time.sleep(3)
-    k = emu.wacht_op(r"Connect|Verbinden|OK", timeout=10)
-    if k and "EditText" not in k.klasse:
-        emu.tik(k)
-    # Gebruikerskeuze: handmatig inloggen (gebruikers zijn niet zichtbaar op het inlogscherm).
-    k = emu.wacht_op(r"Sign in manually|Handmatig|Add user|Gebruiker toevoegen|Login|Aanmelden", timeout=60)
-    if k:
-        emu.tik(k)
-        stappen.append(f"knop: {k.tekst or k.omschrijving}")
+    knop = emu.wacht_op(r"^Enter server address$", timeout=90)
+    if not knop:
+        raise RuntimeError(f"geen startscherm van de tv-app; scherm: {emu.teksten()}")
+    emu.tik(knop)
     velden = []
     for _ in range(15):
         velden = [x for x in emu.dump() if "EditText" in x.klasse]
-        if len(velden) >= 2:
+        if velden:
             break
-        time.sleep(2)
-    if len(velden) < 2:
-        raise RuntimeError(f"geen inlogvelden; scherm: {emu.teksten()}")
+        time.sleep(1)
+    if not velden:
+        raise RuntimeError(f"geen serveradresveld; scherm: {emu.teksten()}")
     emu.tik(velden[0])
-    emu.typ(ANDROID_GEBRUIKER)
-    emu.tik(velden[1])
-    emu.typ(ANDROID_WACHTWOORD)
+    emu.typ(url)
     emu.toets("KEYCODE_ENTER")
-    k = emu.wacht_op(r"^(Sign in|Aanmelden|Inloggen|Connect)$", timeout=5)
-    if k:
-        emu.tik(k)
+    stappen.append("serveradres ingevuld")
+    k = emu.wacht_op(r"^(Add account|Account toevoegen)$", timeout=60)
+    if not k:
+        raise RuntimeError(f"geen gebruikersscherm na verbinden; scherm: {emu.teksten()}")
+    emu.tik(k)
+    code_knoop = emu.wacht_op(r"quick_connect_code", timeout=30)
+    if not code_knoop:
+        raise RuntimeError(f"geen Quick Connect-code; scherm: {emu.teksten()}")
+    code = code_knoop.tekst.replace(" ", "")
+    jf = Jellyfin(server.url)
+    jf.login(ANDROID_GEBRUIKER, ANDROID_WACHTWOORD)
+    if jf.a.doe("POST", "/QuickConnect/Authorize", {"code": code, "userId": jf.admin_id}) is not True:
+        raise RuntimeError("Quick Connect-autorisatie geweigerd")
+    stappen.append("Quick Connect-code goedgekeurd via POST /QuickConnect/Authorize (testgebruiker)")
+    if not emu.wacht_op(r"^(My media|Mijn media|Home|Startscherm)$", timeout=60):
+        raise RuntimeError(f"startscherm van de tv-app niet bereikt; scherm: {emu.teksten()}")
     stappen.append("ingelogd (native tv-app)")
     return stappen
 
 
+def _android_poging(server: StockServer, soort: str, apks: dict[str, Path], uitmap: Path, geheugen_gib: int) -> dict[str, Any]:
+    a = AVDS[soort]
+    poging: dict[str, Any] = {"geheugenlimiet_gib": geheugen_gib}
+    maak_avd(soort)
+    emu = Emulator(soort, geheugen_gib=geheugen_gib)
+    try:
+        poging["boot_s"] = round(emu.start(apks[a["app"]].parent), 1)
+        inst = emu.adb("install", "-r", f"/apk/{apks[a['app']].name}", timeout=300)
+        poging["installatie"] = (inst.stdout + inst.stderr).strip()[-120:]
+        url = f"http://10.0.2.2:{server.poort}"
+        try:
+            if a["app"] == "android":
+                poging["stappen"] = _inloggen_telefoon(emu, url)
+                poging["afspelen"] = _speel_via_afstandsbediening(server, "Jellyfin for Android")
+            else:
+                poging["stappen"] = _inloggen_tv(emu, url, server)
+                poging["afspelen"] = _speel_via_afstandsbediening(server, "Jellyfin Android TV")
+        except RuntimeError as fout:
+            poging["afspelen"] = {"ok": False, "reden": str(fout)[:600]}
+        emu.schermafdruk(uitmap / f"android-{soort}-{geheugen_gib}gib.png")
+        poging["geheugen"] = emu.geheugen()
+    finally:
+        emu.stop()
+    poging["ok"] = bool(poging["afspelen"].get("ok")) and not poging.get("geheugen", {}).get("oom_kill")
+    return poging
+
+
 def android_rooktest(server: StockServer, soort: str, uitmap: Path) -> dict[str, Any]:
+    """Eerst binnen de plan-limiet van 4 GiB; wordt de emulator daar door de OOM-killer gestopt, dan één keer met 5 GiB
+    (afwijking van het plan, met beide pogingen in het bewijs)."""
     apks = haal_apks()
     a = AVDS[soort]
     resultaat: dict[str, Any] = {"client": f"officiële {'jellyfin-android 2.7.3' if a['app'] == 'android' else 'jellyfin-androidtv 0.19.10'}"
-                                           f" ({soort}-emulator, {a['image']}, {a['apparaat']})",
+                                           f" ({soort}-emulator, {a['image']}, {a['apparaat']} {a['config'] or ''})",
                                  "rol": "Jelly Leon-webclient (webweergave)" if a["app"] == "android" else "stock-native",
-                                 "apk": {"bestand": apks[a["app"]].name, "sha256": APKS[a["app"]]["sha256"]}}
+                                 "apk": {"bestand": apks[a["app"]].name, "sha256": APKS[a["app"]]["sha256"]}, "pogingen": []}
     with meetslot.exclusief_slot("gradle.lock", bij_wachten=log) as wacht:
         resultaat["gradle_lock_wacht_s"] = round(wacht, 1)
-        maak_avd(soort)
-        emu = Emulator(soort)
-        try:
-            resultaat["boot_s"] = round(emu.start(apks[a["app"]].parent), 1)
-            inst = emu.adb("install", "-r", f"/apk/{apks[a['app']].name}", timeout=300)
-            resultaat["installatie"] = (inst.stdout + inst.stderr).strip()[-120:]
-            url = f"http://10.0.2.2:{server.poort}"
-            try:
-                resultaat["stappen"] = (_inloggen_telefoon if a["app"] == "android" else _inloggen_tv)(emu, url)
-                resultaat["afspelen"] = _speel_via_afstandsbediening(server, "Android")
-            except RuntimeError as fout:
-                resultaat["afspelen"] = {"ok": False, "reden": str(fout)[:600]}
-            emu.schermafdruk(uitmap / f"android-{soort}.png")
-            resultaat["geheugen"] = emu.geheugen()
-        finally:
-            emu.stop()
-    ok = resultaat["afspelen"].get("ok") and not resultaat.get("geheugen", {}).get("oom_kill")
-    resultaat["status"] = "Sim-getest (rooktest geslaagd)" if ok else "Sim-mislukt"
+        for gib in (4, 5):
+            poging = _android_poging(server, soort, apks, uitmap, gib)
+            resultaat["pogingen"].append(poging)
+            if poging["ok"] or not poging.get("geheugen", {}).get("oom_kill"):
+                break
+    laatste = resultaat["pogingen"][-1]
+    resultaat["afspelen"] = laatste["afspelen"]
+    oom_4 = resultaat["pogingen"][0].get("geheugen", {}).get("oom_kill")
+    if laatste["ok"] and not oom_4:
+        resultaat["status"] = "Sim-getest (rooktest geslaagd binnen 4 GiB)"
+    elif laatste["ok"]:
+        resultaat["status"] = "Sim-getest (rooktest geslaagd met 5 GiB; binnen 4 GiB OOM-kill)"
+    else:
+        resultaat["status"] = "Sim-mislukt"
     return resultaat
 
 
@@ -217,6 +258,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="b03h clientmatrix")
     p.add_argument("--onderdelen", default="web,ua,webdir,legacy,telefoon,tablet,tv,tv36")
     p.add_argument("--uit", type=Path, default=REPO / "docs/platform-v2/test-evidence/b03-016-clientmatrix-rooktest.json")
+    p.add_argument("--aanvullen", action="store_true", help="clients toevoegen aan een bestaand bewijs (zelfde client vervangen)")
     a = p.parse_args(argv)
     delen = a.onderdelen.split(",")
     uitmap = a.uit.with_suffix("")
@@ -284,6 +326,11 @@ def main(argv: list[str] | None = None) -> int:
                 "server": STOCK_IMAGE, "testitem": "bron/blender/hero/hero.mp4 (CC BY 4.0)", "clients": clients,
                 "desktop": {"client": "jellyfin-desktop 2.0.0 onder Xvfb", "status": "zie b03-016-desktop-spike.json"},
                 "niet_hier": NIET_HIER}
+    if a.aanvullen and a.uit.exists():
+        oud = json.loads(a.uit.read_text(encoding="utf-8"))
+        nieuw = {c["client"] for c in clients}
+        document["clients"] = [c for c in oud.get("clients", []) if c["client"] not in nieuw] + clients
+        document["eerdere_sessies"] = oud.get("eerdere_sessies", []) + [{"begin": oud.get("begin"), "eind": oud.get("eind")}]
     a.uit.write_text(json.dumps(document, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     log(f"clientmatrix geschreven: {a.uit}")
     return 0

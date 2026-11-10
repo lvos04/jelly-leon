@@ -36,11 +36,16 @@ APKS = {
                   "url": "https://github.com/jellyfin/jellyfin-androidtv/releases/download/v0.19.10/jellyfin-androidtv-v0.19.10-release.apk",
                   "sha256": "8510a517c99927076082917f41bf306dd7a2546c59d492dd11bde18d6e2e4628"},
 }
+# Schermen kleiner dan het standaardapparaat: gemeten op 2026-11-10 haalde pixel_6 (1080x2400) met de app in de webweergave
+# de geheugenlimiet van 4 GiB (memory.peak 4097 MiB, oom_kill 1). De vormfactor (telefoon, tablet ≥ 600 dp, tv) blijft gelijk.
 AVDS = {
-    "telefoon": {"avd": "b03016-telefoon", "image": "system-images;android-35;google_apis;x86_64", "apparaat": "pixel_6", "app": "android"},
-    "tablet": {"avd": "b03016-tablet", "image": "system-images;android-35;google_apis;x86_64", "apparaat": "pixel_tablet", "app": "android"},
-    "tv": {"avd": "b03016-tv", "image": "system-images;android-34;android-tv;x86", "apparaat": "tv_1080p", "app": "androidtv"},
-    "tv36": {"avd": "b03016-tv36", "image": "system-images;android-36;android-tv;x86_64", "apparaat": "tv_1080p", "app": "androidtv"},
+    "telefoon": {"avd": "b03016-telefoon", "image": "system-images;android-35;google_apis;x86_64", "apparaat": "pixel_6", "app": "android",
+                 "config": {"hw.lcd.width": "720", "hw.lcd.height": "1600", "hw.lcd.density": "280"}},
+    "tablet": {"avd": "b03016-tablet", "image": "system-images;android-35;google_apis;x86_64", "apparaat": "pixel_tablet",
+               "app": "android", "config": {"hw.lcd.width": "1280", "hw.lcd.height": "800", "hw.lcd.density": "213"}},
+    "tv": {"avd": "b03016-tv", "image": "system-images;android-34;android-tv;x86", "apparaat": "tv_720p", "app": "androidtv", "config": {}},
+    "tv36": {"avd": "b03016-tv36", "image": "system-images;android-36;android-tv;x86_64", "apparaat": "tv_720p", "app": "androidtv",
+             "config": {}},
 }
 LIBS = ("libx11-6 libpulse0 libnss3 libpng16-16t64 libexpat1 libdrm2 libxcb1 libxi6 libxext6 libdbus-1-3 libxkbfile1 libgl1 "
         "libegl1 libxcomposite1 libxcursor1 libxdamage1 libxtst6 libxrender1 libxrandr2 libfontconfig1 libfreetype6 "
@@ -69,6 +74,10 @@ def maak_avd(soort: str) -> str:
                     "-d", a["apparaat"], "--force"], input="no\n", text=True, capture_output=True, env=env, check=True)
     for slot in AVD_MAP.rglob("*.lock"):
         slot.unlink(missing_ok=True) if slot.is_file() else None
+    ini = AVD_MAP / f"{a['avd']}.avd" / "config.ini"
+    regels = [r for r in ini.read_text(encoding="utf-8").splitlines() if r.split("=", 1)[0].strip() not in a["config"]]
+    regels += [f"{k}={v}" for k, v in a["config"].items()]
+    ini.write_text("\n".join(regels) + "\n", encoding="utf-8")
     return a["avd"]
 
 
@@ -88,10 +97,12 @@ class Knoop:
 
 
 class Emulator:
-    def __init__(self, soort: str) -> None:
+    def __init__(self, soort: str, gpu: str = "swiftshader_indirect", geheugen_gib: int = 4) -> None:
         self.soort = soort
         self.avd = AVDS[soort]["avd"]
         self.cid = ""
+        self.gpu = gpu
+        self.geheugen_gib = geheugen_gib
 
     def adb(self, *args: str, timeout: float = 120, check: bool = False) -> subprocess.CompletedProcess[str]:
         return subprocess.run(["docker", "exec", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp", EMU,
@@ -105,7 +116,8 @@ class Emulator:
         docker("rm", "-f", EMU, check=False)
         kvm_gid = os.stat("/dev/kvm").st_gid
         self.cid = docker("run", "-d", "--name", EMU, "--device", "/dev/kvm", "--group-add", str(kvm_gid),
-                          "--memory", "4g", "--memory-swap", "4g", "--network", "host", "--security-opt", "no-new-privileges",
+                          "--memory", f"{self.geheugen_gib}g", "--memory-swap", f"{self.geheugen_gib}g", "--network", "host",
+                          "--security-opt", "no-new-privileges",
                           "-e", f"ANDROID_AVD_HOME={AVD_MAP}", "-e", f"ANDROID_SDK_ROOT={SDK}", "-e", "HOME=/tmp",
                           "-v", f"{SDK}:{SDK}:ro", "-v", f"{AVD_MAP}:{AVD_MAP}", "-v", f"{apk_map}:/apk:ro",
                           DEBIAN, "sleep", "infinity").stdout.strip()
@@ -113,12 +125,14 @@ class Emulator:
                      ">/dev/null", check=False, timeout=900)
         if uit.returncode != 0:
             raise RuntimeError(f"apt in de emulatorcontainer faalde: {uit.stderr[-400:]}")
+        # Eerst de adb-server (maakt /tmp/.android/adbkey): de emulator zet die sleutel bij het starten in het image.
+        # Gemeten: zonder dit blijft het Android TV-image (ro.adb.secure) op 'unauthorized'.
+        self.adb("start-server")
         t0 = time.monotonic()
         subprocess.run(["docker", "exec", "-d", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp", EMU, "sh", "-c",
                         f"{SDK}/emulator/emulator -avd {self.avd} -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data "
-                        f"-gpu swiftshader_indirect -memory 2048 -cores 4 -accel on -no-metrics > /tmp/emu.log 2>&1"],  # noqa: S108
+                        f"-gpu {self.gpu} -feature -Vulkan -memory 2048 -cores 4 -accel on -no-metrics > /tmp/emu.log 2>&1"],  # noqa: S108
                        check=True)
-        self.adb("start-server")
         for _ in range(600):
             if self.sh("getprop sys.boot_completed").strip() == "1":
                 return time.monotonic() - t0
@@ -129,7 +143,7 @@ class Emulator:
 
     def geheugen(self) -> dict[str, Any]:
         basis = Path(f"/sys/fs/cgroup/system.slice/docker-{self.cid}.scope")
-        uit: dict[str, Any] = {"limiet_bytes": 4 * 1024**3}
+        uit: dict[str, Any] = {"limiet_bytes": self.geheugen_gib * 1024**3}
         try:
             uit["piek_bytes"] = int((basis / "memory.peak").read_text().strip())
             events = dict(r.split() for r in (basis / "memory.events").read_text().splitlines())
@@ -173,9 +187,10 @@ class Emulator:
             time.sleep(2)
         return None
 
-    def tik(self, k: Knoop) -> None:
+    def tik(self, k: Knoop, wacht: float = 1.0) -> None:
         x, y = k.midden
         self.sh(f"input tap {x} {y}")
+        time.sleep(wacht)  # focus en toetsenbord moeten er zijn vóór 'input text' (gemeten: anders blijft het veld leeg)
 
     def typ(self, tekst: str) -> None:
         self.sh("input text " + shlex.quote(tekst.replace(" ", "%s")))
