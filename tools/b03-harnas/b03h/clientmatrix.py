@@ -259,7 +259,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--onderdelen", default="web,ua,webdir,legacy,telefoon,tablet,tv,tv36")
     p.add_argument("--uit", type=Path, default=REPO / "docs/platform-v2/test-evidence/b03-016-clientmatrix-rooktest.json")
     p.add_argument("--aanvullen", action="store_true", help="clients toevoegen aan een bestaand bewijs (zelfde client vervangen)")
+    p.add_argument("--image", default=STOCK_IMAGE,
+                   help="server: stock 12.x op digest (standaard) of de jelly-leon-image (JLT-63-rooktest, B03-019)")
     a = p.parse_args(argv)
+    jelly_leon = a.image != STOCK_IMAGE
+    webrol = "Jelly Leon-webclient (ingebouwd in de jelly-leon-image)" if jelly_leon else "stock-web (uit de stock-image)"
     delen = a.onderdelen.split(",")
     uitmap = a.uit.with_suffix("")
     uitmap.mkdir(parents=True, exist_ok=True)
@@ -267,7 +271,7 @@ def main(argv: list[str] | None = None) -> int:
     begin = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     koppelingen = {"/media/movies/hero": "bron/blender/hero", "/media/movies/sintel": "bron/blender/sintel"}
     with meetslot.exclusief_slot(bij_wachten=log):
-        server = StockServer("clientmatrix", koppelingen=koppelingen).start()
+        server = StockServer("clientmatrix", image=a.image, koppelingen=koppelingen).start()
         try:
             server.inrichten([("Films", "movies", ["/media/movies"])])
             assert server.jf
@@ -275,7 +279,7 @@ def main(argv: list[str] | None = None) -> int:
             if "web" in delen:
                 for b in ("chromium", "firefox", "webkit"):
                     r = _web(server, b, f"web-{b}", scherm=uitmap)
-                    clients.append({"client": r["browser"] + " (Playwright 1.63, headless)", "rol": "stock-web (uit de stock-image)",
+                    clients.append({"client": r["browser"] + " (Playwright 1.63, headless)", "rol": webrol,
                                     **r, "status": "Sim-getest (rooktest geslaagd)" if r["orakel_ok"] else "Sim-mislukt",
                                     "opmerking": "WebKit op Linux is geen Safari" if b == "webkit" else ""})
                     log(f"web {b}: {clients[-1]['status']}")
@@ -311,19 +315,23 @@ def main(argv: list[str] | None = None) -> int:
             server.verwijder()
         if "webdir" in delen:
             web = stockweb_uit_image(STOCK_IMAGE, WERK / "stockweb")
-            server = StockServer("clientmatrix-webdir", koppelingen=koppelingen, webdir=web, gpu=False).start()
+            # De jelly-leon-image weigert --webdir (padopties, fail-closed); daar gaat de stock-web over de ingebouwde heen.
+            server = StockServer("clientmatrix-webdir", image=a.image, koppelingen=koppelingen, gpu=False,
+                                 webdir=None if jelly_leon else web, web_over=web if jelly_leon else None).start()
             try:
                 server.inrichten([("Films", "movies", ["/media/movies"])])
                 r = _web(server, "chromium", "webdir-chromium", scherm=uitmap)
-                clients.append({"client": r["browser"] + " tegen een server met --webdir (stock-web uit de stock-image)",
-                                "rol": "stock-web via --webdir", **r,
+                clients.append({"client": r["browser"] + (" tegen de Jelly Leon-server met de stock-web uit de stock-image"
+                                                          if jelly_leon else " tegen een server met --webdir (stock-web uit de stock-image)"),
+                                "rol": "stock-web uit de stock-image" + (" (tegen Jelly Leon)" if jelly_leon else " via --webdir"), **r,
                                 "status": "Sim-getest (rooktest geslaagd)" if r["orakel_ok"] else "Sim-mislukt",
-                                "opmerking": "mechanisme voor 'stock-web tegen de Jelly Leon-server' (JLT-05/09); hier tegen stock"})
+                                "opmerking": "stock-web tegen de Jelly Leon-server (JLT-63)" if jelly_leon else
+                                "mechanisme voor 'stock-web tegen de Jelly Leon-server' (JLT-05/09); hier tegen stock"})
             finally:
                 server.verwijder()
                 shutil.rmtree(web, ignore_errors=True)
     document = {"schema": "jelly-leon/b03-016-clientmatrix/1", "begin": begin, "eind": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "server": STOCK_IMAGE, "testitem": "bron/blender/hero/hero.mp4 (CC BY 4.0)", "clients": clients,
+                "server": a.image, "testitem": "bron/blender/hero/hero.mp4 (CC BY 4.0)", "clients": clients,
                 "desktop": {"client": "jellyfin-desktop 2.0.0 onder Xvfb", "status": "zie b03-016-desktop-spike.json"},
                 "niet_hier": NIET_HIER}
     if a.aanvullen and a.uit.exists():

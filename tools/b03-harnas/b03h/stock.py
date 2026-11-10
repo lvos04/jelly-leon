@@ -66,7 +66,7 @@ def profiel(naam: str) -> dict[str, Any]:
 class StockServer:
     def __init__(self, naam: str, *, image: str = STOCK_IMAGE, gpu: bool = True, corpus: Path = CORPUS,
                  koppelingen: dict[str, str] | None = None, werk: Path = WERK, geheugen: str = "3g",
-                 webdir: Path | None = None, cpus: str | None = None) -> None:
+                 webdir: Path | None = None, cpus: str | None = None, web_over: Path | None = None) -> None:
         self.naam = f"b03016-{naam}"
         self.image = image
         self.gpu = gpu and os.path.exists(RENDER)
@@ -75,6 +75,9 @@ class StockServer:
         self.map = werk / "servers" / naam
         self.geheugen = geheugen
         self.webdir = webdir
+        # Alternatief voor --webdir bij de jelly-leon-image (die weigert padopties): een webclient over de ingebouwde
+        # /jellyfin/jellyfin-web heen koppelen (alleen-lezen; alleen in tests, nooit in een Custom App).
+        self.web_over = web_over
         self.cpus = cpus
         self.poort = 0
         self.container_id = ""
@@ -108,6 +111,8 @@ class StockServer:
                 self.gekoppeld.append(doel)
         if self.webdir:
             cmd += ["-v", f"{self.webdir}:/stockweb:ro"]
+        if self.web_over:
+            cmd += ["-v", f"{self.web_over}:/jellyfin/jellyfin-web:ro"]
         cmd.append(self.image)
         if self.webdir:
             cmd += ["--webdir", "/stockweb"]
