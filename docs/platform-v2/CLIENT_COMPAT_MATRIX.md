@@ -1,6 +1,7 @@
 # Compatibiliteitsmatrix server ↔ clients (B03-001)
 
-Server: Jelly Leon `10.11.11-jl.0` (technische identiteit Jellyfin Server 10.11.11) · peildatum 2026-11-09.
+Server: Jelly Leon `12.4.0-jl.0` (technische identiteit Jellyfin Server 12.4.0) sinds P4-0 (2026-11-10); §1–§2 zijn de
+P0-peiling op 10.11.11, §3 de voormeting tegen stock 12.4, §4 de rooktest tegen de jelly-leon-image 12.4.
 
 **Legenda validatie:** `Sim-getest` = protocol nagebootst door `tools/jelly-leon/e2e/stock_client_smoke.py` tegen een
 echte server-build (geen echt apparaat) · `NIET GEVALIDEERD (hardware)` = nog niet op een echt apparaat getest ·
@@ -60,3 +61,22 @@ geven `X-Emby-Token`, `X-MediaBrowser-Token`, `X-Emby-Authorization` en `?api_ke
 `Authorization: MediaBrowser Token=…` en `?ApiKey=` werken); dat raakt derden-apps zoals Kodi-add-ons → besluit BG-01.
 Details en bewijs: `BOUWVERIFICATIE_B03-016.md` §2 en `test-evidence/b03-016-clientmatrix-rooktest.json`. De apps op echte
 apparaten blijven **NIET GEVALIDEERD (hardware)**; Swiftfin **NIET GEVALIDEERD (Mac/Xcode)**.
+
+## 4. Rooktest tegen de jelly-leon-image 12.4 (P4-0, B03-019, JLT-63 rooktestdeel; Sim-getest)
+
+Gemeten op 2026-11-10 tegen de lokaal gebouwde jelly-leon-image `12.4.0-jl.0` (image-ID `sha256:53a03a44…50ed`, commit
+`7dc66d364`, echte jelly-leon-web-build `5ced8a246`; alleen de bestaande plugin, nog geen modules) met
+`python -m b03h clientmatrix --onderdelen web,ua,legacy,webdir --image jelly-leon:p40`
+(`test-evidence/p40/clientmatrix-rooktest-jelly-leon-12.4.json`):
+
+| Client / rol | Uitkomst |
+|---|---|
+| Jelly Leon-webclient (ingebouwd) in Chromium 153, Firefox 155, WebKit 26.6 (Playwright 1.63, headless) | hero.mp4 speelt (orakel geslaagd; eerste frame 0,5–0,9 s) — Sim-getest |
+| webOS en Tizen via UA-simulatie (profielcode van de Jelly Leon-webclient) | speelt — Sim-getest (geen echte decoder) |
+| Stock-web uit de stock-image tegen de Jelly Leon-server (over `/jellyfin/jellyfin-web` gekoppeld; de image weigert `--webdir`) | speelt — Sim-getest |
+| Derden-client met legacy-headers (gesimuleerd) | gemeten: `X-Emby-Token`, `X-MediaBrowser-Token`, `X-Emby-Authorization`, `api_key` geweigerd op API-routes; statische stream speelt (UG-GEM-1/2) — besluit BG-01 |
+| PlaybackInfo (3 apparaatprofielen) | byte-gelijk aan stock 12.4 op dezelfde datamap, Direct Play én transcode (`test-evidence/p40/compat-api.json`) |
+
+Niet in deze ronde tegen de jelly-leon-image: de Android-/Android TV-emulators (tegen stock 12.4 wel, §3), de desktopapp
+(spike Geblokkeerd), SyncPlay, skipknoppen, downloaden en de MediaGuard-afspeeltest. Echte apparaten: NIET GEVALIDEERD
+(hardware); Swiftfin/Safari: NIET GEVALIDEERD (Mac/Xcode).

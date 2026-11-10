@@ -1,5 +1,7 @@
 # Inventaris jelly-leon (P0, B03-001) — wat upstream al kan
 
+> **Bijgewerkt 2026-11-10 (P4-0, B03-014):** de forkbasis is nu **v12.4** (`83d0d0e7f76e`, forkversie 12.4.0-jl.0, .NET 10). Dit inventaris is de P0-peiling op 10.11.11; wat 12.x verandert staat in bouwplan §8.1, de API-wijzigingen in `test-evidence/p40/openapi-10.11.11-naar-12.4.json` en het upstream-gedrag waarop we steunen in `UPSTREAM_GEDRAG.md`.
+
 Peildatum 2026-11-09 · basis `jellyfin/jellyfin` **v10.11.11** (commit `1fbd8739292c`, lokale tag `upstream-v10.11.11`) ·
 bron van waarheid `tools/jelly-leon/baseline.json`.
 

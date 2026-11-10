@@ -31,8 +31,8 @@ een paar plantekstpunten worden ingevuld die het plan open laat.
    *Grens:* de weigering werkt vanaf de eerste image die hem heeft (12.4.0-jl.0). Een image van vóór die versie (de
    nooit uitgebrachte 10.11.11-jl.0, BG-02) en stock-images kennen hem niet; voor de overgang 10.11.11 → 12.4 blijft
    JLT-61 (b) met de stock-image dus **Sim-mislukt** (zie contract_issues in het eindrapport).
-4. **Register `UPSTREAM_GEDRAG.md`: reeks `UG-GEM-<n>` voor gemeenschappelijk gedrag.** Het plan reserveert
-   `UG-F2-1…8`, `UG-F3-1…11` en `UG-F5-1…13`; gedrag waarop P4-0 en meerdere functies steunen, kreeg geen reeks. `GEM`
+4. **Register `UPSTREAM_GEDRAG.md`: reeks `UG-GEM-<n>` voor gemeenschappelijk gedrag.** Het plan reserveert de
+   F2-reeks (8 regels), de F3-reeks (11) en de F5-reeks (13); gedrag waarop P4-0 en meerdere functies steunen, kreeg geen reeks. `GEM`
    botst met geen enkele geplande regel. Elke regel heeft een anker (statisch, CI-job *forkregels* en de sync) en waar
    zinvol een runtime-test op `JL_RUNTIME_IMAGE`. In de sync draaien de runtime-tests op de runtime van de nieuwe tag
    (`jellyfin/jellyfin:<versie>` op de gemeten digest); bestaat die image nog niet, dan blokkeert de sync.

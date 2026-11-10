@@ -2,7 +2,7 @@
 
 Bron: uitvoeringspakket `TrueNAS_Home_Platform_V2_VOLLEDIG_2026-11-09.zip` (peildatum 9 november 2026).
 
-**Rol van deze repo (vast besluit):** B03 mediaserver: fork van jellyfin/jellyfin v10.11.11 (GPL-2.0), patches gescheiden van plugins, upstream-sync.
+**Rol van deze repo (vast besluit):** B03 mediaserver: fork van jellyfin/jellyfin (GPL-2.0; basis sinds P4-0 **v12.4**, daarvoor v10.11.11 — ADR-0011/ADR-0027), patches gescheiden van plugins, upstream-sync.
 
 Hier staan alleen de eigen B-, I-, A- en promptdocumenten plus de gedeelde architectuur (`00_START`, `01_ARCHITECTUUR`, `05_TESTS`). Het volledige pakket en de Excel staan in `lvos04/ai-server-manager` onder `docs/platform-v2/`.
 

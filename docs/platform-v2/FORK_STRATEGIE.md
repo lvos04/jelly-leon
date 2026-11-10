@@ -1,5 +1,7 @@
 # Forkstrategie Jelly Leon (B03-001)
 
+> **Bijgewerkt 2026-11-10 (P4-0, B03-014):** de basis is nu **v12.4** (forkversie `12.4.0-jl.0`, lokale tag `upstream-v12.4`); de strategie hieronder geldt ongewijzigd (herbasis per reekssprong, ADR-0006/ADR-0027). Versienummers in de tekst zijn die van de P0-peiling.
+
 Versie P0 (afronding) · 2026-11-09 · repo `lvos04/jelly-leon` · basis `jellyfin/jellyfin` **v10.11.11** · licentie
 **GPL-2.0** · **besluit gebruiker: vóór P4 naar de nieuwste stabiele 12.x (.NET 10), zie §6a en ADR-0011.**
 
