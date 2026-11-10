@@ -283,6 +283,16 @@ jobs:
             --expected-version "$version" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/rollback-sim.json" \
             --opmerking "CI; Jelly Leon-image met de echte web-build van jelly-leon-web"
 
+      # B03-014 (P4-0), JLT-60/61: gevulde 10.11.11-datamap (5 gebruikers met kijkgegevens, spoorkeuze, apparaten,
+      # override, afspeellijst) → deze image; VÓÓR = NA per gebruiker, hervatten, legacy-auth uit, controle-run tegen stock
+      # 12.x, terugzetten (kopie + oude image, byte-gelijke jellyfin.db) en de negatieve proef met de oude stock-image.
+      - name: Upgradeproef 10.11.11 → deze image (JLT-60, JLT-61 a/b)
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          python3 tools/jelly-leon/e2e/upgrade_proef.py --image jelly-leon:ci --expected-version "$version" \
+            --stock-image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/upgrade-proef.json" \
+            --opmerking "CI; Jelly Leon-image met de echte web-build van jelly-leon-web"
+
       - name: Rapporten bewaren
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -293,6 +303,7 @@ jobs:
           path: |
             ${{ runner.temp }}/image-lifecycle.json
             ${{ runner.temp }}/rollback-sim.json
+            ${{ runner.temp }}/upgrade-proef.json
 
   stock-client-e2e:
     name: Stock-client-smoketest (simulator, geen echte apparaten)
