@@ -150,5 +150,10 @@ Emby op de NAS (D07, JLT-74) is niet gebruikt.
 | Eigen analyse van `proxy-emby.jsonl` (run na reparatie) | 893 verzoeken naar Emby, **alle GET**, alle HTTP 200, 0 sleutels in een URL, alleen routes van de witte lijst; `test-evidence/p40-qa/verkeersmeting-eigen-telling.json` |
 | Image-E2E zoals CI-job *image*, `jelly-leon:qa`, onder `stack.lock` | levenscyclus 31/31 (lege `/config`, healthy, herstart en nieuwe container zonder dataverlies, downgradeweigering met `/config` byte-gelijk), CI-guard testdatalicenties op de image in orde, terugzetproef 10/10, upgradeproef 10.11.11 → 12.4 18/18 (JLT-61 b opnieuw gemeten: stock 10.11.11 gezond, aanmelden HTTP 500, geen stille schade → blijft Sim-mislukt), compat-API 5/5, UG-runtime 6/6; `test-evidence/p40-qa/` |
 
+GitHub Actions *Jelly Leon CI* run **42762467348** (commit `17165e8ec`): **8/8 jobs groen**; de job emby-overname draaide de
+proefrun synthetisch met `--browser chromium`: **61/61**, waaronder het verkeerde doel (exit 9, alleen 2× `GET /System/Info/Public`)
+en hervatten in Chromium (eerste PositionTicks 224 008 750 tegen 222 276 007 overgezet); bewijs
+`test-evidence/p40-qa/ci-42762467348-b03-015-proefrun-synthetisch.json`.
+
 Na afloop opgeruimd: containers, werkmappen en testsets (BG-38); de Emby-image en `jelly-leon:qa` zijn lokaal verwijderd
 (opnieuw op te halen/bouwen op digest en commit).

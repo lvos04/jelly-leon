@@ -164,3 +164,11 @@ niet aangepaste smoketest (oude aanmeldheaders in 12.x, gerepareerd in `49481a22
 - Baselines B03-016 op de 12.x-digest van de forkbasis: de forkbasis is dezelfde 12.4-digest als de voormeting; een
   nieuwe definitieve meetsessie onder het meetslot is in deze ronde niet gedraaid.
 - Echte NAS, echte Emby (D07), echte apparaten (D15), Swiftfin/Safari: NIET GEVALIDEERD.
+
+## 11. QA-review (2026-11-10)
+
+Onafhankelijke herhaling met een eigen build (`jelly-leon:qa`): levenscyclus 31/31, terugzetproef 10/10, upgradeproef
+18/18 (JLT-61 b blijft Sim-mislukt), compat-API 5/5, UG-runtime 6/6, overname uit Emby 62/62 na twee reparaties in de
+overnametool (doelcontrole en geen door een GET uitgelokte analyse in Emby). JLT-60 en JLT-63 staan sindsdien op
+`Sim-getest` (de Android-emulator en de overige clientscenario's zijn niet uitgevoerd). Details en commando's:
+`BOUWVERIFICATIE_B03-015.md` §QA-review; bewijs in `test-evidence/p40-qa/`; CI-run 42762467348 groen (8/8).
