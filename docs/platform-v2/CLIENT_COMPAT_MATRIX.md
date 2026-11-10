@@ -49,3 +49,14 @@ met een 12.x-server werken is nog niet gemeten → **unknown** tot de upgradefas
 
 **Regel:** een client gaat pas op "getest" na een echte sessie (inloggen, afspelen, ondertitel, hervatten) op het
 apparaat dat in huis gebruikt wordt, met app-versie, datum en bewijs. Geen aanname dat elk tv-platform werkt (B03 §5).
+
+## 3. Clientmatrix-rooktest tegen stock 12.4 (B03-016, golf 0, Sim-getest)
+
+Gemeten op 2026-11-10 tegen stock `jellyfin/jellyfin:12.4` op digest (emulators en browsers, geen echte apparaten):
+Chromium 153, Firefox 155 en WebKit 26.6 (Playwright 1.63), webOS/Tizen via UA-simulatie, stock-web via `--webdir`, een
+gesimuleerde derden-client met legacy-headers, jellyfin-android 2.7.3 op een telefoon- en tablet-AVD (API 35) en
+jellyfin-androidtv 0.19.10 op Android TV API 34 (x86) en API 36 (x86_64) spelen `hero.mp4` af (**Sim-getest**). Met 12.4
+geven `X-Emby-Token`, `X-MediaBrowser-Token`, `X-Emby-Authorization` en `?api_key=` een 401 op API-routes (alleen
+`Authorization: MediaBrowser Token=…` en `?ApiKey=` werken); dat raakt derden-apps zoals Kodi-add-ons → besluit BG-01.
+Details en bewijs: `BOUWVERIFICATIE_B03-016.md` §2 en `test-evidence/b03-016-clientmatrix-rooktest.json`. De apps op echte
+apparaten blijven **NIET GEVALIDEERD (hardware)**; Swiftfin **NIET GEVALIDEERD (Mac/Xcode)**.

@@ -111,8 +111,10 @@ async function speelItem(page, item, opts) {
           ab: v.webkitAudioDecodedByteCount ?? null, ma: v.mozHasAudio ?? null, t: performance.now() - window.__b03.klik } : null;
       });
       if (s) spoor.push(s);
-      // Beeld loopt ≥ 2 s; bij audio ook wachten tot er audio gedecodeerd is (trage runners starten audio later), binnen het venster.
-      const audioNogNiet = s && (s.ab === 0 || s.ma === false);
+      // Beeld loopt ≥ 2 s; heeft het item audio, dan ook wachten tot er audio gedecodeerd is (trage runners starten audio
+      // later), binnen het venster. Items zonder audiospoor (o.a. de Jellyfin-testvideo's) wachten niet.
+      const metAudio = (vang.antwoord?.MediaSources?.[0]?.MediaStreams || []).some((x) => x.Type === 'Audio');
+      const audioNogNiet = metAudio && s && (s.ab === 0 || s.ma === false);
       if (s && s.ct >= 2 && s.w > 0 && !s.err && !audioNogNiet) { ok = true; break; }
       await page.waitForTimeout(100);
     }
