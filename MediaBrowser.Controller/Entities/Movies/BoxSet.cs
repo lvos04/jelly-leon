@@ -11,6 +11,7 @@ using Jellyfin.Data;
 using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
+using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Querying;
 
@@ -37,9 +38,7 @@ namespace MediaBrowser.Controller.Entities.Movies
 
         /// <inheritdoc />
         [JsonIgnore]
-        public IReadOnlyList<BaseItem> LocalTrailers => GetExtras()
-            .Where(extra => extra.ExtraType == Model.Entities.ExtraType.Trailer)
-            .ToArray();
+        public IReadOnlyList<BaseItem> LocalTrailers => GetExtras([Model.Entities.ExtraType.Trailer]).ToArray();
 
         /// <summary>
         /// Gets or sets the display order.
@@ -91,7 +90,7 @@ namespace MediaBrowser.Controller.Entities.Movies
                 return base.GetNonCachedChildren(directoryService);
             }
 
-            return Enumerable.Empty<BaseItem>();
+            return [];
         }
 
         protected override IReadOnlyList<BaseItem> LoadChildren()
@@ -160,25 +159,75 @@ namespace MediaBrowser.Controller.Entities.Movies
                 return base.IsVisible(user, skipAllowedTagsCheck);
             }
 
-            if (base.IsVisible(user, skipAllowedTagsCheck))
+            if (!IsParentalAllowed(user, skipAllowedTagsCheck))
             {
-                if (LinkedChildren.Length == 0)
-                {
-                    return true;
-                }
-
-                var userLibraryFolderIds = GetLibraryFolderIds(user);
-                var libraryFolderIds = LibraryFolderIds ?? GetLibraryFolderIds();
-
-                if (libraryFolderIds.Length == 0)
-                {
-                    return true;
-                }
-
-                return userLibraryFolderIds.Any(i => libraryFolderIds.Contains(i));
+                return false;
             }
 
-            return false;
+            if (LinkedChildren.Length == 0)
+            {
+                return true;
+            }
+
+            List<BaseItem> linkedItems = null;
+            var libraryFolderIds = LibraryFolderIds;
+            if (libraryFolderIds is null)
+            {
+                linkedItems = GetLinkedChildren(DtoOptions.StoredColumnsOnly);
+                libraryFolderIds = GetLibraryFolderIds(linkedItems);
+            }
+
+            if (libraryFolderIds.Length == 0)
+            {
+                return true;
+            }
+
+            var userLibraryFolderIds = GetLibraryFolderIds(user);
+
+            if (!userLibraryFolderIds.Any(i => libraryFolderIds.Contains(i)))
+            {
+                return false;
+            }
+
+            // If user has parental controls, hide the BoxSet when all children are restricted
+            if (user.MaxParentalRatingScore.HasValue)
+            {
+                linkedItems ??= GetLinkedChildren(DtoOptions.StoredColumnsOnly);
+                if (linkedItems.Count > 0 && linkedItems.All(child => !child.IsParentalAllowed(user, true)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public override void MarkPlayed(User user, DateTime? datePlayed, bool resetPosition)
+        {
+            if (IsLegacyBoxSet)
+            {
+                base.MarkPlayed(user, datePlayed, resetPosition);
+                return;
+            }
+
+            foreach (var item in GetLinkedChildren(user))
+            {
+                item.MarkPlayed(user, datePlayed, resetPosition);
+            }
+        }
+
+        public override void MarkUnplayed(User user)
+        {
+            if (IsLegacyBoxSet)
+            {
+                base.MarkUnplayed(user);
+                return;
+            }
+
+            foreach (var item in GetLinkedChildren(user))
+            {
+                item.MarkUnplayed(user);
+            }
         }
 
         public override bool IsVisibleStandalone(User user)
@@ -200,10 +249,19 @@ namespace MediaBrowser.Controller.Entities.Movies
 
         public Guid[] GetLibraryFolderIds()
         {
-            var expandedFolders = new List<Guid>();
+            return GetLibraryFolderIds(GetLinkedChildren(DtoOptions.StoredColumnsOnly));
+        }
 
-            return FlattenItems(this, expandedFolders)
-                .SelectMany(LibraryManager.GetCollectionFolders)
+        private Guid[] GetLibraryFolderIds(IEnumerable<BaseItem> linkedChildren)
+        {
+            // Seeded with this box set so a cycle through a nested collection terminates.
+            var expandedFolders = new List<Guid> { Id };
+
+            // The user root children are the same for every item.
+            var rootChildren = LibraryManager.GetUserRootFolder().Children.OfType<Folder>().ToList();
+
+            return FlattenItems(linkedChildren, expandedFolders)
+                .SelectMany(i => LibraryManager.GetCollectionFolders(i, rootChildren))
                 .Select(i => i.Id)
                 .Distinct()
                 .ToArray();
@@ -223,13 +281,13 @@ namespace MediaBrowser.Controller.Entities.Movies
                 {
                     expandedFolders.Add(item.Id);
 
-                    return FlattenItems(boxset.GetLinkedChildren(), expandedFolders);
+                    return FlattenItems(boxset.GetLinkedChildren(DtoOptions.StoredColumnsOnly), expandedFolders);
                 }
 
-                return Array.Empty<BaseItem>();
+                return [];
             }
 
-            return new[] { item };
+            return [item];
         }
     }
 }
