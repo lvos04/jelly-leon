@@ -1,0 +1,322 @@
+{
+ "schema": "jelly-leon/openapi-upgraderapport/1",
+ "oud": "10.11.11",
+ "nieuw": "12.4.0",
+ "telling": {
+  "operaties_oud": 388,
+  "operaties_nieuw": 364,
+  "operaties_verwijderd": 25,
+  "waarvan_nog_in_broncode": 22,
+  "operaties_nieuw_toegevoegd": 1,
+  "operaties_breekbaar_gewijzigd": 12,
+  "schemas_breekbaar_gewijzigd": 20
+ },
+ "breekbaar": {
+  "operaties_verwijderd": [
+   "GET /Environment/NetworkShares",
+   "GET /Items/{itemId}/CriticReviews",
+   "GET /LiveTv/Recordings/Groups/{groupId}"
+  ],
+  "operaties_alleen_uit_documentatie": {
+   "DELETE /PlayingItems/{itemId}": [
+    "PlaystateController.cs"
+   ],
+   "DELETE /Videos/ActiveEncodings": [
+    "HlsSegmentController.cs"
+   ],
+   "GET /Artists/InstantMix": [
+    "InstantMixController.cs"
+   ],
+   "GET /Audio/{itemId}/hls/{segmentId}/stream.aac": [
+    "HlsSegmentController.cs"
+   ],
+   "GET /Audio/{itemId}/hls/{segmentId}/stream.mp3": [
+    "HlsSegmentController.cs"
+   ],
+   "GET /Audio/{itemId}/hls1/{playlistId}/{segmentId}.{container}": [
+    "DynamicHlsController.cs"
+   ],
+   "GET /Audio/{itemId}/main.m3u8": [
+    "DynamicHlsController.cs"
+   ],
+   "GET /Audio/{itemId}/master.m3u8": [
+    "DynamicHlsController.cs"
+   ],
+   "GET /LiveTv/Recordings/Groups": [
+    "LiveTvController.cs"
+   ],
+   "GET /LiveTv/Recordings/Series": [
+    "LiveTvController.cs"
+   ],
+   "GET /MusicGenres": [
+    "MusicGenresController.cs"
+   ],
+   "GET /Tmdb/ClientConfiguration": [
+    "TmdbController.cs"
+   ],
+   "GET /Videos/{itemId}/hls/{playlistId}/stream.m3u8": [
+    "HlsSegmentController.cs"
+   ],
+   "GET /Videos/{itemId}/hls/{playlistId}/{segmentId}.{segmentContainer}": [
+    "HlsSegmentController.cs"
+   ],
+   "GET /Videos/{itemId}/hls1/{playlistId}/{segmentId}.{container}": [
+    "DynamicHlsController.cs"
+   ],
+   "GET /Videos/{itemId}/live.m3u8": [
+    "DynamicHlsController.cs"
+   ],
+   "GET /Videos/{itemId}/main.m3u8": [
+    "DynamicHlsController.cs"
+   ],
+   "GET /Videos/{itemId}/master.m3u8": [
+    "DynamicHlsController.cs"
+   ],
+   "HEAD /Audio/{itemId}/master.m3u8": [
+    "DynamicHlsController.cs"
+   ],
+   "HEAD /Videos/{itemId}/master.m3u8": [
+    "DynamicHlsController.cs"
+   ],
+   "POST /PlayingItems/{itemId}": [
+    "PlaystateController.cs"
+   ],
+   "POST /PlayingItems/{itemId}/Progress": [
+    "PlaystateController.cs"
+   ]
+  },
+  "operaties_gewijzigd": {
+   "DELETE /Devices": [
+    "parametertype query:id: string → array<string>"
+   ],
+   "GET /Audio/{itemId}/stream": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "GET /Audio/{itemId}/stream.{container}": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "GET /Audio/{itemId}/universal": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "GET /Shows/NextUp": [
+    "parameter verwijderd: query:disableFirstEpisode"
+   ],
+   "GET /Videos/{itemId}/stream": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "GET /Videos/{itemId}/stream.{container}": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "HEAD /Audio/{itemId}/stream": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "HEAD /Audio/{itemId}/stream.{container}": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "HEAD /Audio/{itemId}/universal": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "HEAD /Videos/{itemId}/stream": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ],
+   "HEAD /Videos/{itemId}/stream.{container}": [
+    "parameter verwijderd: query:breakOnNonKeyFrames"
+   ]
+  },
+  "schemas": {
+   "BackupManifestDto": [
+    "eigenschap verplicht geworden: BackupEngineVersion",
+    "eigenschap verplicht geworden: DateCreated",
+    "eigenschap verplicht geworden: Options",
+    "eigenschap verplicht geworden: Path",
+    "eigenschap verplicht geworden: ServerVersion"
+   ],
+   "BackupRestoreRequestDto": [
+    "eigenschap verplicht geworden: ArchiveFileName"
+   ],
+   "CastReceiverApplication": [
+    "eigenschap verplicht geworden: Id",
+    "eigenschap verplicht geworden: Name"
+   ],
+   "ChannelMappingOptionsDto": [
+    "eigenschap verplicht geworden: ProviderChannels",
+    "eigenschap verplicht geworden: TunerChannels"
+   ],
+   "ConfigImageTypes": [
+    "schema verwijderd"
+   ],
+   "CreatePlaylistDto": [
+    "eigenschap verplicht geworden: Name"
+   ],
+   "CustomDatabaseOption": [
+    "eigenschap verplicht geworden: Key",
+    "eigenschap verplicht geworden: Value"
+   ],
+   "CustomDatabaseOptions": [
+    "eigenschap verplicht geworden: ConnectionString",
+    "eigenschap verplicht geworden: PluginAssembly",
+    "eigenschap verplicht geworden: PluginName"
+   ],
+   "DatabaseConfigurationOptions": [
+    "eigenschap verplicht geworden: DatabaseType"
+   ],
+   "FolderStorageDto": [
+    "eigenschap verplicht geworden: Path"
+   ],
+   "LibraryStorageDto": [
+    "eigenschap verplicht geworden: Folders",
+    "eigenschap verplicht geworden: Id",
+    "eigenschap verplicht geworden: Name"
+   ],
+   "LogFile": [
+    "eigenschap verplicht geworden: Name"
+   ],
+   "PlaylistDto": [
+    "eigenschap verplicht geworden: ItemIds",
+    "eigenschap verplicht geworden: Shares"
+   ],
+   "RemoteLyricInfoDto": [
+    "eigenschap verplicht geworden: Id",
+    "eigenschap verplicht geworden: Lyrics",
+    "eigenschap verplicht geworden: ProviderName"
+   ],
+   "SessionInfoDto": [
+    "eigenschap verwijderd: NowPlayingQueueFullItems"
+   ],
+   "StartupRemoteAccessDto": [
+    "eigenschap verwijderd: EnableAutomaticPortMapping"
+   ],
+   "SubtitleOptions": [
+    "schema verwijderd"
+   ],
+   "SystemStorageDto": [
+    "eigenschap verplicht geworden: CacheFolder",
+    "eigenschap verplicht geworden: ImageCacheFolder",
+    "eigenschap verplicht geworden: InternalMetadataFolder",
+    "eigenschap verplicht geworden: Libraries",
+    "eigenschap verplicht geworden: LogFolder",
+    "eigenschap verplicht geworden: ProgramDataFolder",
+    "eigenschap verplicht geworden: TranscodingTempFolder",
+    "eigenschap verplicht geworden: WebFolder"
+   ],
+   "UserDataChangeInfo": [
+    "eigenschap verplicht geworden: UserDataList"
+   ],
+   "UserItemDataDto": [
+    "eigenschap verplicht geworden: Key"
+   ]
+  }
+ },
+ "additief": {
+  "operaties_nieuw": [
+   "GET /Items/{itemId}/Collections"
+  ],
+  "operaties_gewijzigd": {
+   "GET /Artists": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /Artists/AlbumArtists": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /Artists/{name}": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /Items": [
+    "parameter nieuw: query:audioLanguages",
+    "parameter nieuw: query:subtitleLanguages"
+   ],
+   "GET /MusicGenres/InstantMix": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /MusicGenres/{genreName}": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /MusicGenres/{name}/InstantMix": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /Persons": [
+    "parameter nieuw: query:nameLessThan",
+    "parameter nieuw: query:nameStartsWith",
+    "parameter nieuw: query:nameStartsWithOrGreater",
+    "parameter nieuw: query:parentId",
+    "parameter nieuw: query:startIndex"
+   ],
+   "GET /Startup/Configuration": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /Startup/FirstUser": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /Startup/User": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "GET /System/ActivityLog/Entries": [
+    "parameter nieuw: query:itemId",
+    "parameter nieuw: query:maxDate",
+    "parameter nieuw: query:name",
+    "parameter nieuw: query:overview",
+    "parameter nieuw: query:severity",
+    "parameter nieuw: query:shortOverview",
+    "parameter nieuw: query:sortBy",
+    "parameter nieuw: query:sortOrder",
+    "parameter nieuw: query:type",
+    "parameter nieuw: query:username"
+   ],
+   "GET /Trailers": [
+    "parameter nieuw: query:audioLanguages",
+    "parameter nieuw: query:subtitleLanguages",
+    "nu als deprecated gemarkeerd"
+   ],
+   "POST /Playlists/{playlistId}/Items": [
+    "parameter nieuw: query:position"
+   ],
+   "POST /Startup/Configuration": [
+    "nu als deprecated gemarkeerd"
+   ],
+   "POST /Startup/RemoteAccess": [
+    "nu als deprecated gemarkeerd"
+   ]
+  },
+  "schemas": {
+   "ActivityLogSortBy": [
+    "schema nieuw"
+   ],
+   "BaseItemDto": [
+    "eigenschap nieuw: AlbumNormalizationGain",
+    "eigenschap nieuw: OriginalLanguage"
+   ],
+   "EncodingOptions": [
+    "eigenschap nieuw: HlsAudioSeekStrategy",
+    "eigenschap nieuw: SubtitleExtractionTimeoutMinutes"
+   ],
+   "HlsAudioSeekStrategy": [
+    "schema nieuw"
+   ],
+   "LibraryTypeOptionsDto": [
+    "eigenschap nieuw: SimilarItemProviders"
+   ],
+   "MediaStream": [
+    "eigenschap nieuw: IsOriginal",
+    "eigenschap nieuw: LocalizedLanguage",
+    "eigenschap nieuw: LocalizedOriginal"
+   ],
+   "PersonKind": [
+    "enumwaarden nieuw: ['Narrator']"
+   ],
+   "ProfileConditionValue": [
+    "enumwaarden nieuw: ['VideoRotation']"
+   ],
+   "QueryFilters": [
+    "eigenschap nieuw: AudioLanguages",
+    "eigenschap nieuw: SubtitleLanguages"
+   ],
+   "TranscodeReason": [
+    "enumwaarden nieuw: ['VideoRotationNotSupported']"
+   ],
+   "TypeOptions": [
+    "eigenschap nieuw: SimilarItemProviderOrder",
+    "eigenschap nieuw: SimilarItemProviders"
+   ]
+  }
+ }
+}

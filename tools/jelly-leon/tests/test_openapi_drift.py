@@ -13,7 +13,9 @@ from pathlib import Path
 import pytest
 
 import openapi_drift
-from jl_common import DEFAULT_REPO_ROOT
+from jl_common import BASELINE_REL, DEFAULT_REPO_ROOT
+
+BASELINE = DEFAULT_REPO_ROOT / BASELINE_REL
 
 BASE = {
     "openapi": "3.0.4",
@@ -124,11 +126,12 @@ def test_cli_github_annotations(tmp_path, capsys):
 
 
 def test_real_spec_against_itself_and_description_variant():
-    """Integratie met de echte vastgelegde upstream-spec (315 paden): gelijk aan zichzelf; beschrijvingsvariant = waarschuwing."""
+    """Integratie met de echte vastgelegde upstream-spec (12.4: 294 paden): gelijk aan zichzelf; beschrijving = waarschuwing."""
     spec = DEFAULT_REPO_ROOT / "docs/openapi/jelly-leon.openapi.json"
     assert openapi_drift.compare(spec, spec)[0] == 0
     doc = json.loads(spec.read_text(encoding="utf-8"))
-    assert len(doc["paths"]) == 315
+    assert doc["info"]["version"] == json.loads(BASELINE.read_text(encoding="utf-8"))["upstream_version"]
+    assert len(doc["paths"]) == 294
     stripped = openapi_drift.strip_descriptions(doc)
     assert "description" not in json.dumps(stripped["components"]["schemas"]["AuthenticationResult"]["properties"]["User"])
     assert stripped["paths"].keys() == doc["paths"].keys()
