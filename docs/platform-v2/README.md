@@ -6,9 +6,12 @@ Bron: uitvoeringspakket `TrueNAS_Home_Platform_V2_VOLLEDIG_2026-11-09.zip` (peil
 
 Hier staan alleen de eigen B-, I-, A- en promptdocumenten plus de gedeelde architectuur (`00_START`, `01_ARCHITECTUUR`, `05_TESTS`). Het volledige pakket en de Excel staan in `lvos04/ai-server-manager` onder `docs/platform-v2/`.
 
-**Platformcontract:** `PLATFORM_CONTRACTEN.md` (`contracts 1.2`) en `CONTRACT_1.2_CONFORMITEIT.md` zijn byte-gelijke
-kopieën uit `lvos04/ai-server-manager` (bron van waarheid, bron-commit `8b54f39`). Ze worden hier nooit aangepast;
-`tools/jelly-leon/contract_drift.py` (CI-job *forkregels*) bewaakt de sha256 en vergelijkt online met de bron.
+**Platformcontract:** `PLATFORM_CONTRACTEN.md` (`contracts 1.3`) en `CONTRACT_1.3_CONFORMITEIT.md` zijn byte-gelijke
+kopieën uit `lvos04/ai-server-manager` (bron van waarheid, bron-commit `02b119c`, dezelfde als in de andere repos). Ze
+worden hier nooit aangepast; `tools/jelly-leon/contract_drift.py` (CI-job *forkregels*) bewaakt de sha256 en vergelijkt
+online met de bron. `CONTRACT_1.2_CONFORMITEIT.md` blijft als historie staan (byte-gelijk aan bron-commit `8b54f39`, ook
+vastgezet; nooit bijwerken). Wat 1.3 voor deze repo vraagt en wat daarvan in de conformiteitsronde is gedaan:
+`../adr/ADR-0028-contract-1-3.md` en de regels `C1.3-JL-…` in `EVIDENCE.json`.
 
 Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; ze worden via de onboarding-wizard in de web-UI vastgelegd.
 
@@ -42,8 +45,9 @@ Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; z
 
 ## Bestanden
 
-- `PLATFORM_CONTRACTEN.md` (kopie, contract 1.2)
-- `CONTRACT_1.2_CONFORMITEIT.md` (kopie; voor deze repo §9, JL1–JL6)
+- `PLATFORM_CONTRACTEN.md` (kopie, contract 1.3)
+- `CONTRACT_1.3_CONFORMITEIT.md` (kopie; voor deze repo §9, C1.3-JL-01…09)
+- `CONTRACT_1.2_CONFORMITEIT.md` (historie, kopie van de 1.2-ronde; voor deze repo §9, JL1–JL6)
 - `00_START/BESLUITEN_EN_ONBEKENDEN.md`
 - `00_START/INHOUDSOPGAVE.md`
 - `00_START/INHOUD_CONTROLE.json`

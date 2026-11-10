@@ -63,8 +63,9 @@ jobs:
       - name: Register van upstream-gedrag (ankers en verwijzingen)
         run: python tools/jelly-leon/upstream_gedrag_check.py --overzicht
 
-      # Contract 1.2 (A1): de kopieën zijn byte-gelijk aan lvos04/ai-server-manager op de vastgezette bron-commit
-      # (publieke repo, geen token). Is de bron daarna gewijzigd, dan alleen een waarschuwing (overnemen = orkestratie).
+      # Contract 1.3 (C1.3-ALG-01): de kopieën zijn byte-gelijk aan lvos04/ai-server-manager op de vastgezette
+      # bron-commit, de historiekopie van 1.2 op die van de 1.2-ronde (publieke repo, geen token). Is de bron daarna
+      # gewijzigd, dan alleen een waarschuwing (overnemen = orkestratie).
       - name: Platformcontract-kopie (drifttest tegen de bron)
         run: python tools/jelly-leon/contract_drift.py --online --github
 
