@@ -90,3 +90,17 @@ De mislukte CI-runs daarvoor zijn de iteraties uit §5 (harnas en één echte to
 - Spoorkeuzes kunnen via de officiële Jellyfin 12.4-API niet worden gezet (`capability_unavailable`, afhandellijst).
 - De overname-assistent (UI, zodat de gebruiker geen terminal nodig heeft) bestaat nog niet (P4-0).
 - Herhaling tegen `jelly-leon:12.x` (gate P4-0) en deel B (overname van een Jellyfin-installatie) nog niet.
+
+## P4-0-herhaling tegen jelly-leon:12.x (2026-11-10)
+
+De gate P4-0 vraagt JLT-70…73 ook tegen de jelly-leon-image (bouwplan §8.3, FASERING golf 0 → P4-0). `proefrun.py` kreeg
+daarvoor `--jellyfin-image` (standaard blijft stock 12.4; het bewijs noemt de gebruikte image).
+
+| Commando | Uitkomst |
+|---|---|
+| `flock …/stack.lock nice -n 10 tools/jelly-leon/.venv/bin/python tools/emby-overname/e2e/proefrun.py --modus corpus --jellyfin-image jelly-leon:p40 --uitvoer …/emby-p40` | **57/57 geslaagd** (corpus 1/1, JLT-70 21/21, JLT-71 11/11, JLT-72 7/7, JLT-73 17/17) in 16 min 19 s; echte `emby/embyserver:4.10.2.0@sha256:7082c63b…65cc1` en de lokaal gebouwde jelly-leon-image 12.4.0-jl.0 (image-ID `sha256:53a03a44…50ed`, gebouwd op commit `7dc66d364`, echte jelly-leon-web-build `5ced8a246`); bewijs `test-evidence/p40/b03-015-proefrun-corpus-jelly-leon-12.4.json` |
+
+Gemeten: dezelfde uitkomst als tegen stock 12.4 (31/31 koppelbare items exact gelijk, 0 stil weggelaten: 37/37
+verantwoord, tweede run 0 schrijfacties met identieke inhoud-sha256, alleen GET naar Emby, Emby-kijkgegevens per
+gebruiker vóór en na identiek, herimport uit het archief exact). Containers, testset en werkmappen zijn daarna
+opgeruimd (BG-38). Nog steeds alleen Sim: de echte Emby op de NAS (D07, JLT-74) is niet gebruikt.

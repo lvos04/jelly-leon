@@ -47,6 +47,8 @@ from testbibliotheek import FILMS, SERIES, Item, bouw, recept  # noqa: E402
 
 EMBY_IMAGE = "docker.io/emby/embyserver:4.10.2.0@sha256:7082c63b10a2fcb3805a7eaebba407d5723bc57c085c9f0b29b7d0a702765cc1"
 JL_IMAGE = "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+# Doel van de overname: standaard stock 12.4 (golf 0); in P4-0 de jelly-leon-image (--jellyfin-image, JLT-70…73 herhaald).
+DOEL_IMAGE = JL_IMAGE
 CORPUS = Path("/home/transcode/truenas-v2/.lokaal/media-corpus")
 EMBY_ROOT, JL_ROOT = "/mnt/emby/media", "/data/media"
 WACHTWOORD_BEHEER = "Proefrun-Beheer-2026!"
@@ -159,7 +161,7 @@ class Bewijs:
     def __init__(self, modus: str) -> None:
         self.data: dict[str, Any] = {
             "schema": "jelly-leon/b03-015-proefrun-bewijs/1", "modus": modus, "begin": nu(),
-            "images": {"emby": EMBY_IMAGE, "jellyfin": JL_IMAGE},
+            "images": {"emby": EMBY_IMAGE, "jellyfin": DOEL_IMAGE},
             "validatie": "Sim (echte containers op de ontwikkelmachine; NIET GEVALIDEERD op de echte NAS)",
             "controles": [], "loadavg_begin": os.getloadavg(),
         }
@@ -545,7 +547,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
     p.add_argument("--corpus", default=str(CORPUS))
     p.add_argument("--ffmpeg", choices=("auto", "host", "docker"), default="auto")
     p.add_argument("--behoud", action="store_true", help="containers en testset niet opruimen (alleen voor diagnose)")
+    p.add_argument("--jellyfin-image", default=JL_IMAGE,
+                   help="doelserver: stock 12.4 op digest (golf 0) of de lokaal gebouwde jelly-leon-image (P4-0)")
     args = p.parse_args(argv)
+    global DOEL_IMAGE  # noqa: PLW0603 - één doorlopend scenario; het bewijs noemt de gebruikte image
+    DOEL_IMAGE = args.jellyfin_image
 
     uitvoer = Path(args.uitvoer).resolve()
     uitvoer.mkdir(parents=True, exist_ok=True)
@@ -557,7 +563,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
     mg: MediaGuardSim | None = None
     code = 1
     try:
-        for image in (EMBY_IMAGE, JL_IMAGE):
+        for image in (EMBY_IMAGE, JL_IMAGE, DOEL_IMAGE):
             if docker("image", "inspect", image, check=False).returncode != 0:
                 log(f"image ophalen: {image}")
                 docker("pull", image)
@@ -587,7 +593,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         containers.append(naam_emby)
         docker("run", "-d", "--name", naam_jl, "--user", f"{os.getuid()}:{os.getgid()}", "-p", f"127.0.0.1:{p_jl}:8096",
                "-v", f"{werk / 'jl-config'}:/config", "-v", f"{werk / 'jl-cache'}:/cache",
-               "-v", f"{werk / 'bib' / 'jl'}:{JL_ROOT}:ro", "--memory", "1536m", "--cpus", "4", JL_IMAGE)
+               "-v", f"{werk / 'bib' / 'jl'}:{JL_ROOT}:ro", "--memory", "1536m", "--cpus", "4", DOEL_IMAGE)
         containers.append(naam_jl)
         emby_url, jl_url = f"http://127.0.0.1:{p_emby}", f"http://127.0.0.1:{p_jl}"
         wacht(emby_url + "/System/Info/Public")
@@ -599,7 +605,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         info_jl = jl.anoniem.doe("GET", "/System/Info/Public")
         bewijs.data["servers"] = {"emby": {"versie": info_emby.get("Version")}, "jellyfin": {"versie": info_jl.get("Version"),
                                                                                              "product": info_jl.get("ProductName")}}
-        bewijs.check("JLT-70", "echte Emby 4.10.2.0 en stock Jellyfin 12.4 draaien",
+        bewijs.check("JLT-70", f"echte Emby 4.10.2.0 en {'stock Jellyfin 12.4' if DOEL_IMAGE == JL_IMAGE else 'Jelly Leon 12.x'} draaien",
                      info_emby.get("Version") == "4.10.2.0" and str(info_jl.get("Version")).startswith("12.4"),
                      f"Emby {info_emby.get('Version')}, Jellyfin {info_jl.get('Version')}")
         sleutels_waarden = {"emby": emby.sleutel("jelly-leon-overname"), "jl": jl.sleutel("jelly-leon-overname"),
@@ -893,7 +899,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         naam_jl2 = f"jlb03015-jl2-{run_id}"
         docker("run", "-d", "--name", naam_jl2, "--user", f"{os.getuid()}:{os.getgid()}", "-p", f"127.0.0.1:{p_jl2}:8096",
                "-v", f"{werk / 'jl2-config'}:/config", "-v", f"{werk / 'jl2-cache'}:/cache",
-               "-v", f"{werk / 'bib' / 'jl'}:{JL_ROOT}:ro", "--memory", "1536m", "--cpus", "4", JL_IMAGE)
+               "-v", f"{werk / 'bib' / 'jl'}:{JL_ROOT}:ro", "--memory", "1536m", "--cpus", "4", DOEL_IMAGE)
         containers.append(naam_jl2)
         jl2_url = f"http://127.0.0.1:{p_jl2}"
         wacht(jl2_url + "/System/Info/Public")
