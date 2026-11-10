@@ -1,8 +1,10 @@
 # ADR-0011 — Server naar de nieuwste stabiele Jellyfin 12.x (.NET 10) vóór P4, als aparte fase
 
 - **Status:** Aanvaard — besluit van de gebruiker (2026-11-09, besluit 2 in
-  `ai-server-manager/docs/platform-v2/OVERDRACHT/STATUS.md`). **Uitvoering in een aparte fase vóór P4; in de
-  P0-afronding is de upgrade NIET uitgevoerd** (basis blijft `v10.11.11`, forkversie `10.11.11-jl.0`).
+  `ai-server-manager/docs/platform-v2/OVERDRACHT/STATUS.md`). **Uitgevoerd in P4-0 op 2026-11-10** (B03-014): basis
+  `v12.4` (`83d0d0e7f76e`), forkversie `12.4.0-jl.0`, .NET 10; keuzes bij de uitvoering in ADR-0027, bewijs in
+  `docs/platform-v2/BOUWVERIFICATIE_P4-0.md` (Sim-getest; echte NAS NIET GEVALIDEERD). In de P0-afronding was de
+  upgrade nog niet uitgevoerd (basis toen `v10.11.11`).
 - **Context:** De fork staat op upstream `v10.11.11` (.NET 9). Upstream heeft al een nieuwe releasereeks: gemeten op
   2026-11-09 (`git ls-remote --tags`, alleen lezen) zijn `v12.0`…`v12.4` de stabiele tags na `v10.11.11`
   (`v12.4` = commit `83d0d0e7f76e`), en `jellyfin-web` heeft dezelfde tags. B03 (P4) zou anders eerst op 10.11 gebouwd

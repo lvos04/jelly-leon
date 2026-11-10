@@ -1,7 +1,7 @@
 # Jelly Leon
 
 Jelly Leon is de mediaserver van het TrueNAS Home Platform V2 (bouwplan **B03**): een fork van
-[Jellyfin](https://github.com/jellyfin/jellyfin) **v10.11.11**, gelicenseerd onder **GPL-2.0** (zie `LICENSE`;
+[Jellyfin](https://github.com/jellyfin/jellyfin) **v12.4** (sinds P4-0, B03-014; daarvoor v10.11.11), gelicenseerd onder **GPL-2.0** (zie `LICENSE`;
 upstream-credits in `CONTRIBUTORS.md`). De technische identiteit blijft *Jellyfin* zodat alle bestaande Jellyfin-apps
 blijven werken; alleen de zichtbare naam is *Jelly Leon*. Jelly Leon is geen officiële Jellyfin-release.
 

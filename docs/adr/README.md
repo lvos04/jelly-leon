@@ -16,7 +16,7 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0008](ADR-0008-alles-in-een-image.md) | Alles-in-één image `ghcr.io/lvos04/jelly-leon` als standaard Custom App | Voorgesteld (lokaal volledig gebouwd en Sim-getest) |
 | [ADR-0009](ADR-0009-upstream-risicos-niet-patchen-in-p0.md) | Bekende upstream-risico's (anoniem streamen, één GPU) vastleggen, niet patchen in P0 | Aanvaard |
 | [ADR-0010](ADR-0010-ci-sdk-kanaal-en-openapi-drift.md) | CI: .NET-SDK-kanaal uit global.json en structurele OpenAPI-driftcontrole | Aanvaard |
-| [ADR-0011](ADR-0011-upgrade-12x-voor-p4.md) | Server naar de nieuwste stabiele Jellyfin 12.x (.NET 10) vóór P4, als aparte fase (besluit gebruiker) | Aanvaard (uitvoering later) |
+| [ADR-0011](ADR-0011-upgrade-12x-voor-p4.md) | Server naar de nieuwste stabiele Jellyfin 12.x (.NET 10) vóór P4, als aparte fase (besluit gebruiker) | Aanvaard; uitgevoerd in P4-0 op v12.4 (ADR-0027, Sim-getest) |
 | [ADR-0012](ADR-0012-contract-1-2.md) | Contract 1.2: manifest §9 (GPU-parameter), Custom App-instructie, Custom User met no_new_privs, Hub-adapter v1 | Aanvaard (Sim-getest) |
 | [ADR-0013](ADR-0013-ci-echte-web-build.md) | CI bouwt de image met de echte jelly-leon-web-build op een vaste commit | Aanvaard |
 | [ADR-0014](ADR-0014-healthcheck-zonder-root.md) | Docker-healthcheck zonder root-rechten (curl als 568, no_new_privs) | Aanvaard (Sim-getest) |
@@ -32,6 +32,7 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0024](ADR-0024-b03-clientrollen.md) | B03: clientrollen; stock-clients nooit geweigerd of aangepast zonder opt-in | Aanvaard (plan goedgekeurd 2026-11-09; uitvoering later) |
 | [ADR-0025](ADR-0025-b03-015-eigen-overnametool-niet-jellyplex-watched.md) | B03-015: eigen overnametool (alleen-lezen uit Emby) in plaats van JellyPlex-Watched | Aanvaard (bouwerbesluit B03-015 A2) |
 | [ADR-0026](ADR-0026-b03-016-harnas-corpus-clientmatrix-baseline.md) | B03-016: één harnasraamwerk voor corpusgenerator, clientmatrix en baselines van stock Jellyfin | Aanvaard (bouwerbesluit B03-016) |
+| [ADR-0027](ADR-0027-p4-0-uitvoering-12x.md) | P4-0 uitgevoerd: herbasis op v12.4, downgradeweigering, register UG-GEM en gekozen interpretaties | Aanvaard (Sim-getest) |
 
 ## B03 2.0 — herkomst van de ADR's
 

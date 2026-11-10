@@ -2,9 +2,10 @@
 
 > **Status: NIET GEVALIDEERD (echte NAS).** De volledige image (server + echte web-build + plugin) is lokaal én in
 > GitHub-CI (job *image*) gebouwd en met dezelfde formulierwaarden in Docker getest (Sim-getest, zie
-> `docs/platform-v2/BOUWVERIFICATIE_P0.md` §11–§14). Er is nog **geen** gepubliceerde image `ghcr.io/lvos04/jelly-leon`:
-> forkversie `10.11.11-jl.0` wordt nooit uitgebracht (ADR-0005); vóór P4 gaat de basis eerst naar Jellyfin 12.x
-> (ADR-0011), de eerste release volgt daarna. Anoniem ophalen gaf op 2026-11-09 `DENIED` (er bestaat nog geen pakket).
+> `docs/platform-v2/BOUWVERIFICATIE_P0.md` §11–§14 en `BOUWVERIFICATIE_P4-0.md`). Sinds P4-0 (B03-014) staat de basis op
+> **Jellyfin 12.4** (forkversie `12.4.0-jl.0`, .NET 10, webclient jelly-leon-web 12.4). Er is nog **geen** gepubliceerde
+> image `ghcr.io/lvos04/jelly-leon`: een `-jl.0`-forkversie wordt nooit uitgebracht (ADR-0005) en de eerste release op
+> 12.x is een aparte R2-stap (BG-02). Anoniem ophalen gaf op 2026-11-09 `DENIED` (er bestaat nog geen pakket).
 > Het formulier hieronder is niet op een echte TrueNAS doorlopen; veldnamen volgen TrueNAS SCALE 24.10/25.04 en kunnen
 > per versie iets afwijken (welke versie op jouw NAS staat, meet de wizard: D01). De installatie gebeurt normaal **door
 > het platform** (Hub → executor → TrueNAS-API `app.create` met precies deze formulierwaarden, vertaald uit
@@ -121,6 +122,15 @@ vóór de controle van `/health` naar 568 zonder capabilities (ADR-0014). Je hoe
   `<forkversie>@sha256:<digest>` **én** de config-snapshot van vóór de update terugzetten (database + binary samen,
   B03-013, I06 stap 8). Alleen de tag terugzetten is niet veilig na een databasemigratie. Via de platform-UI doet de
   Hub/lifecycle dit met de vóór de update bewaarde formulierwaarden.
+- **Downgradeweigering (sinds 12.4.0-jl.0, JLT-61 b):** de image onthoudt in `<config>/jelly-leon/datamap-versie` de
+  hoogste Jelly Leon-versie die deze datamap heeft gestart. Kies je alléén een oudere tag (zonder de snapshot), dan
+  start de app niet en staat in de log `FOUT: deze datamap is al gestart door Jelly Leon <x>, nieuwer dan deze image`;
+  er is dan niets gewijzigd. Zet de snapshot mee terug (die bevat ook de oude datamap-versie) of kies weer de nieuwere
+  tag. Gemeten (Sim): een **stock** Jellyfin 10.11.11 op een door 12.4 gemigreerde datamap start wél "gezond", maar
+  aanmelden geeft HTTP 500 — die image kent deze weigering niet; daarom nooit alleen de image terugzetten.
+- **Aanmelden van apps (12.x, BG-01):** de oude aanmeldmethode (`X-Emby-Token`, `?api_key=`, `X-Emby-Authorization`)
+  staat in 12.x uit en blijft uit. De officiële Jellyfin-apps gebruiken de nieuwe methode; een oudere derden-app die
+  dat niet doet, kan niet meer aanmelden (zie `CLIENT_COMPAT_MATRIX.md`).
 
 ## Problemen
 
@@ -133,6 +143,8 @@ vóór de controle van `/health` naar 568 zonder capabilities (ADR-0014). Je hoe
 | `FOUT: … staat niet op eigen opslag maar in de container zelf` | Er staat een `JELLYFIN_CONFIG_DIR` (of ander `JELLYFIN_*`-pad) in Environment Variables: verwijderen. |
 | `FOUT: opdrachtregeloptie '--datadir' …` (of `--configdir`, `--cachedir`, `--logdir`, `--webdir`) | Veld Entrypoint/Command leegmaken. |
 | `geen /dev/dri-apparaten: transcoderen alleen via CPU` | Geen fout. Zet GPU pas aan na meting (D08). |
+| `FOUT: deze datamap is al gestart door Jelly Leon <x>, nieuwer dan deze image (<y>)` | Je zette alleen de image terug na een update. Zet de config-snapshot van vóór die update mee terug, of kies weer de nieuwere tag (zie *Updaten en terugdraaien*). Er is niets gewijzigd. |
+| `FOUT: … datamap-versie is onleesbaar` | Het bestand `jelly-leon/datamap-versie` in de config-dataset is beschadigd: zet de snapshot van de config-dataset terug. |
 | Poort bezet bij opslaan | Andere Host Port kiezen; Container Port blijft `8096`. |
 | `FOUT: /config is niet schrijfbaar voor gebruiker 568:568 (Custom User in het formulier)` | Custom User staat aan maar de dataset is (nog) niet van 568: zet Custom User uit (de container regelt het eigenaarschap zelf) of maak de dataset eerst van 568. |
 | Image kan niet worden opgehaald | Er is nog geen release, of het GHCR-pakket is (nog) privé: dan de registry-login hierboven als terugvaloptie. Tag met digest geweigerd: alleen de exacte forkversie invullen (zie *Tag met digest*). |
