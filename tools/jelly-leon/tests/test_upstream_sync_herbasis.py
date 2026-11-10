@@ -196,3 +196,78 @@ def test_herbasis_fails_cleanly_when_patch_no_longer_applies(diverged, capsys):
     assert git(fork, "rev-parse", "HEAD") == head
     assert git(fork, "status", "--porcelain") == ""
     assert git(fork, "branch", "--list", "sync/v2.1") == ""
+
+
+
+
+def _two_patch_fork(diverged) -> Path:
+    """Fork met twee geregistreerde core-patches: bot.yml (botst in 2.1) en src/Server.cs (blijft schoon)."""
+    fork = _fork_on_release_line(diverged)
+    register = (fork / "docs/platform-v2/PATCHES.md").read_text()
+    extra = (
+        "\n## JL-9002 — Serverkleinigheid\n\n| Veld | Waarde |\n|---|---|\n| Status | actief |\n"
+        "| Doel | test |\n| Bestanden | `src/Extra.cs` |\n| Waarom geen plugin/configuratie | test |\n"
+        "| Upstream-PR-kans | laag |\n| Test | test |\n"
+    )
+    write(fork, "docs/platform-v2/PATCHES.md", register + extra)
+    write(fork, "src/Extra.cs", "class Extra {}\n")
+    commit_all(fork, "tweede core-patch")
+    upstream = diverged["upstream"]
+    write(upstream, ".github/workflows/bot.yml", "name: bot\njobs:\n  a:\n    runs-on: ubuntu-24.04\n")
+    commit_all(upstream, "upstream 2.1 wijzigt de gepatchte regels")
+    git(upstream, "tag", "-a", "v2.1", "-m", "2.1")
+    return fork
+
+
+def test_herbasis_reports_result_per_patch_and_aborts_without_manual(diverged, capsys):
+    fork = _two_patch_fork(diverged)
+    head = git(fork, "rev-parse", "HEAD")
+    capsys.readouterr()
+    rc = upstream_sync.main(["--repo", str(fork), "merge", "--tag", "v2.1", "--bron", str(diverged["upstream"])])
+    out, err = capsys.readouterr()
+    assert rc == 2 and "INCOMPATIBEL (herbasis)" in err
+    per_patch = {r["patch"]: r for r in json.loads(out)["patches"]}
+    assert per_patch["JL-9002"]["resultaat"] == "schoon"
+    assert per_patch[next(p for p in per_patch if p != "JL-9002")]["resultaat"] == "conflict"
+    assert git(fork, "rev-parse", "HEAD") == head and git(fork, "status", "--porcelain") == ""
+    assert git(fork, "branch", "--list", "sync/v2.1") == ""
+
+
+def test_herbasis_manual_resolution_then_voltooi(diverged, capsys):
+    fork = _two_patch_fork(diverged)
+    fork_head = git(fork, "rev-parse", "HEAD")
+    capsys.readouterr()
+    rc = upstream_sync.main(
+        ["--repo", str(fork), "merge", "--tag", "v2.1", "--bron", str(diverged["upstream"]), "--handmatig-oplossen"]
+    )
+    out, err = capsys.readouterr()
+    assert rc == 2 and "voltooi" in err
+    assert json.loads(out)["status"] == "wacht_op_handmatig_oplossen"
+    assert git(fork, "rev-parse", "--abbrev-ref", "HEAD") == "sync/v2.1"
+    bot = fork / ".github/workflows/bot.yml"
+    assert "<<<<<<<" in bot.read_text()
+
+    # Nog niet opgelost: voltooi weigert (onopgelost bestand of markeringen).
+    assert upstream_sync.main(["--repo", str(fork), "voltooi"]) == 1
+    assert "onopgelost" in capsys.readouterr().err
+    git(fork, "add", ".github/workflows/bot.yml")
+    assert upstream_sync.main(["--repo", str(fork), "voltooi"]) == 1
+    assert "conflictmarkeringen" in capsys.readouterr().err
+
+    # Guard opnieuw op de nieuwe upstream-regel zetten (zoals JL-0001 bij v12.4).
+    write(fork, ".github/workflows/bot.yml",
+          "name: bot\njobs:\n  a:\n    if: github.repository == 'up/stream'\n    runs-on: ubuntu-24.04\n")
+    git(fork, "add", ".github/workflows/bot.yml")
+    assert upstream_sync.main(["--repo", str(fork), "voltooi"]) == 0, capsys.readouterr().err
+    result = json.loads(capsys.readouterr().out)
+    states = {r["patch"]: r["resultaat"] for r in result["patches"]}
+    assert states["JL-9002"] == "schoon" and "conflict_handmatig_opgelost" in states.values()
+    baseline = json.loads((fork / "tools/jelly-leon/baseline.json").read_text())
+    assert baseline["upstream_tag"] == "v2.1" and baseline["fork_version"] == "2.1.0-jl.0"
+    anchor = git(fork, "rev-parse", "HEAD~1")
+    upstream_v21 = git(diverged["upstream"], "rev-parse", "v2.1^{commit}")
+    assert git(fork, "rev-list", "--parents", "-n", "1", anchor).split()[1:] == [fork_head, upstream_v21]
+    assert (fork / "src/Extra.cs").read_text() == "class Extra {}\n"
+    errors, _ = patch_register_check.check(fork, None, "HEAD")
+    assert errors == []
+    assert upstream_sync.main(["--repo", str(fork), "voltooi"]) == 1  # toestand opgeruimd
