@@ -33,6 +33,11 @@ dat `ProductName` "Jellyfin Server" meldt (Jellyfin en Jelly Leon doen dat; Emby
 hebben bron en doel dezelfde server-ID, dan stopt de tool ook (exitcode 9). Er wordt dan niets geschreven en de
 Jelly Leon-sleutel wordt niet verstuurd.
 
+**Geen analyse uitlokken:** gemeten met Emby 4.10.2.0 laat een `GET /Items/{id}/PlaybackInfo` op een bestand dat Emby nog
+niet heeft geanalyseerd (grootte 0, geen streams) Emby dat bestand alsnog analyseren en opslaan. Voor zo'n bestand vraagt
+de tool daarom geen afspeelinformatie; het staat in de export onder `spoorkeuzes_niet_gelezen`. Een nooit afgespeeld
+bestand heeft geen onthouden spoorkeuze, dus er gaat niets verloren.
+
 ## Stappen
 
 1. **Inventaris (D07)** — versie, gebruikers, bibliotheken en plugins van Emby, alleen lezen.

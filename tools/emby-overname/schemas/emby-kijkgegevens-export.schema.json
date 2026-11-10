@@ -253,6 +253,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "spoorkeuzes_niet_gelezen": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Items met kijkgegevens waarvan Emby het bestand nog niet heeft geanalyseerd (grootte 0): de tool vraagt dan geen PlaybackInfo, omdat Emby het bestand anders alsnog analyseert en opslaat (alleen lezen). Zo'n bestand is nooit afgespeeld en heeft dus geen onthouden spoorkeuze."
           }
         }
       }

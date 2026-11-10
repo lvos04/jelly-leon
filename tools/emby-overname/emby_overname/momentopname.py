@@ -75,10 +75,18 @@ def maak_momentopname(lezer: EmbyLezer, met_spoorkeuzes: bool = True,
             benoemd.append(info_item.id)
         configuratie = dict(gebruiker.get("Configuration") or {})
         spoorkeuzes: dict[str, Any] = {}
+        niet_gelezen: list[str] = []
         onthoudt = configuratie.get("RememberAudioSelections") or configuratie.get("RememberSubtitleSelections")
         if met_spoorkeuzes and onthoudt:
             for item_id in sorted(kijk):
                 if items[item_id]["type"] in AFSPEELBAAR and items[item_id]["type"] != "Audio":
+                    if items[item_id].get("grootte") == 0:
+                        # Gemeten (Emby 4.10.2.0, QA-review): een bestand dat Emby nog niet heeft geanalyseerd heeft grootte 0
+                        # en geen streams; een GET PlaybackInfo laat Emby het dan alsnog analyseren en die mediagegevens
+                        # opslaan. Alleen lezen betekent: dan geen PlaybackInfo. Zo'n bestand is in Emby nooit afgespeeld
+                        # (afspelen analyseert het), dus er is geen onthouden spoorkeuze; het staat wel in de export.
+                        niet_gelezen.append(item_id)
+                        continue
                     keuze = effectieve_spoorkeuze(lezer.afspeelinfo(item_id, uid))
                     if keuze:
                         spoorkeuzes[item_id] = keuze
@@ -88,7 +96,8 @@ def maak_momentopname(lezer: EmbyLezer, met_spoorkeuzes: bool = True,
                 "id": uid, "naam": gebruiker.get("Name"), "beleid": beleid, "configuratie": configuratie,
                 "heeft_wachtwoord": bool(gebruiker.get("HasConfiguredPassword") or gebruiker.get("HasPassword")),
                 "zichtbaar": sorted(set(zichtbaar)), "kijkgegevens": dict(sorted(kijk.items())),
-                "spoorkeuzes": spoorkeuzes, "benoemde_favorieten": sorted(set(benoemd)),
+                "spoorkeuzes": spoorkeuzes, "spoorkeuzes_niet_gelezen": niet_gelezen,
+                "benoemde_favorieten": sorted(set(benoemd)),
             }
         )
     opname: dict[str, Any] = {

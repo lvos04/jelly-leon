@@ -361,3 +361,23 @@ def test_bron_en_doel_dezelfde_server_geweigerd(emby, jl, sleutels, tmp_path, ca
     code, _ = draai(["proefrun", "--bron-archief", str(archief), "--jl-url", jl.url, "--jl-sleutel-bestand", str(sleutels["jl"]),
                      "--werkmap", str(tmp_path / "werk"), "--pad", "/mnt/emby/media=/data/media"], capsys)
     assert code == 9 and jl.schrijfacties == []
+
+
+def test_niet_geanalyseerd_bestand_geen_playbackinfo(emby, jl, sleutels, tmp_path, capsys):
+    """Alleen lezen (QA-review, gemeten bij Emby 4.10.2.0): voor een bestand dat Emby nog niet heeft geanalyseerd (grootte 0)
+    laat GET PlaybackInfo Emby het alsnog analyseren en opslaan. De export vraagt dan geen PlaybackInfo en noemt het item."""
+    vul(emby, jl)
+    emby.voeg_item("16", "Movie", "Ongeanalyseerd", "/mnt/emby/media/Films/Nieuw/Nieuw.mkv", FILMS_E, {"Imdb": "tt0000016"},
+                   grootte=0)
+    anna = next(u for u, g in emby.gebruikers.items() if g["Name"] == "Anna")
+    emby.zet(anna, "16", IsFavorite=True)
+    archief = tmp_path / "archief.json"
+    code, _ = draai(["export", "--emby-url", emby.url, "--emby-sleutel-bestand", str(sleutels["emby"]), "--uitvoer", str(archief)],
+                    capsys)
+    assert code == 0
+    assert ("GET", "/Items/16/PlaybackInfo") not in emby.verzoeken
+    assert ("GET", "/Items/10/PlaybackInfo") in emby.verzoeken  # geanalyseerde bestanden wel
+    data = json.loads(archief.read_text(encoding="utf-8"))
+    g = next(x for x in data["gebruikers"] if x["naam"] == "Anna")
+    assert g["spoorkeuzes_niet_gelezen"] == ["16"] and "16" not in g["spoorkeuzes"] and "16" in g["kijkgegevens"]
+    assert {m for m, _ in emby.verzoeken} == {"GET"}
