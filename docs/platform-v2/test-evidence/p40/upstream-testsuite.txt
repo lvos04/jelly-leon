@@ -1,0 +1,25 @@
+# Volledige upstream-testsuite Jelly Leon 12.4.0-jl.0 (B03-014) — lokaal, 2026-11-10
+# Omgeving: mcr.microsoft.com/dotnet/sdk:10.0.403@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e (Ubuntu 24.04.5),
+#   docker run --memory 7g --cpus 6, dotnet -m:4, onder flock docker-build.lock, nice -n 10; TZ=UTC; HEAD d6a064278 (code gelijk aan 7dc66d364 voor Jellyfin.sln)
+# Run 1 (zonder libfontconfig1 in de SDK-image): build 0 waarschuwingen / 0 fouten (00:00:41); 4206 tests: 4059 geslaagd, 131 mislukt
+#   (alle 131 = SkiaSharp 'libfontconfig.so.1: cannot open shared object file': 124 integratietests + 7 Skia-tests) = omgevingsafwijking.
+# Run 2 (zelfde build, libfontconfig1 in de wegwerpcontainer geïnstalleerd, dotnet test als eigen gebruiker via setpriv):
+Passed!  - Failed:     0, Passed:    30, Skipped:     0, Total:    30, Duration: 21 ms - Jellyfin.Common.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   156, Skipped:     0, Total:   156, Duration: 861 ms - Jellyfin.Api.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   103, Skipped:     1, Total:   104, Duration: 2 s - Jellyfin.MediaEncoding.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   219, Skipped:     0, Total:   219, Duration: 980 ms - Jellyfin.Controller.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    39, Skipped:     0, Total:    39, Duration: 307 ms - Jellyfin.XbmcMetadata.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   147, Skipped:     0, Total:   147, Duration: 612 ms - Jellyfin.Networking.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   748, Skipped:     0, Total:   748, Duration: 5 s - Jellyfin.Model.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    39, Skipped:     0, Total:    39, Duration: 2 s - Jellyfin.Server.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   515, Skipped:     0, Total:   515, Duration: 4 s - Jellyfin.Providers.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   701, Skipped:     0, Total:   701, Duration: 20 s - Jellyfin.Naming.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   164, Skipped:     0, Total:   164, Duration: 199 ms - Jellyfin.Extensions.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    18, Skipped:     0, Total:    18, Duration: 43 ms - Jellyfin.MediaEncoding.Hls.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 46 ms - Jellyfin.MediaEncoding.Keyframes.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    78, Skipped:     0, Total:    78, Duration: 390 ms - Jellyfin.LiveTv.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    28, Skipped:     0, Total:    28, Duration: 58 ms - Jellyfin.Drawing.Skia.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:  1074, Skipped:    12, Total:  1086, Duration: 28 s - Jellyfin.Server.Implementations.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   129, Skipped:     3, Total:   132, Duration: 43 s - Jellyfin.Server.Integration.Tests.dll (net10.0)
+# Totaal run 2 (TRX): 4206 tests, 4190 geslaagd, 0 mislukt, 16 overgeslagen (upstream-skips: Windows-paden e.d.)
+# Plugins (zelfde SDK-container): dotnet build plugins/JellyLeon.Plugins.sln -c Release -m:4 → 0 waarschuwingen, 0 fouten; dotnet test → 16/16 geslaagd

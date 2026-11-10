@@ -1,0 +1,111 @@
+{
+ "schema": "jelly-leon/compat-api/1",
+ "soort": "Sim-getest (twee wegwerpcontainers op kopieën van één datamap)",
+ "images": {
+  "stock": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "jelly_leon": "jelly-leon:p40"
+ },
+ "geslaagd": true,
+ "stappen": [
+  {
+   "stap": "datamap ingericht met stock 12.x",
+   "geslaagd": true,
+   "detail": "2 items (testfilm + WAV)",
+   "tijd": "2026-11-10T04:04:35Z"
+  },
+  {
+   "stap": "zelfde serverversie",
+   "geslaagd": true,
+   "detail": "stock 12.4.0, Jelly Leon 12.4.0",
+   "tijd": "2026-11-10T04:04:50Z"
+  },
+  {
+   "stap": "Jellyfin-antwoorden Jelly Leon = stock (vaste veldenlijst, vluchtige velden weg)",
+   "geslaagd": true,
+   "detail": "18 antwoorden vergeleken, 0 verschillen",
+   "tijd": "2026-11-10T04:04:50Z"
+  },
+  {
+   "stap": "PlaybackInfo dekt Direct Play én transcode",
+   "geslaagd": true,
+   "detail": "{\"PlaybackInfo 01 - Sinus 440 Hz.wav [web-directplay]\": [[true, true, false]], \"PlaybackInfo 01 - Sinus 440 Hz.wav [tv-transcode]\": [[false, false, false]], \"PlaybackInfo 01 - Sinus 440 Hz.wav [alleen-audio]\": [[false, true, true]], \"PlaybackInfo Jelly Leon Testfilm (2026).mkv [web-directplay]\": [[true, true, false]], \"PlaybackInfo Jelly Leon Testfilm (2026).mkv [tv-transcode]\": [[false, true, true]], \"PlaybackInfo Jelly Leon Testfilm (2026).mkv [alleen-audio]\": [[false, false, false]]}",
+   "tijd": "2026-11-10T04:04:50Z"
+  },
+  {
+   "stap": "OpenAPI van de server: alleen additief onder /media/v1 en /connector/v1",
+   "geslaagd": true,
+   "detail": "toegevoegd: ['/media/v1/version', 'schema ForkVersionInfo']",
+   "tijd": "2026-11-10T04:04:50Z"
+  }
+ ],
+ "verschillen": [],
+ "playbackinfo_besluiten": {
+  "PlaybackInfo 01 - Sinus 440 Hz.wav [web-directplay]": [
+   [
+    true,
+    true,
+    false
+   ]
+  ],
+  "PlaybackInfo 01 - Sinus 440 Hz.wav [tv-transcode]": [
+   [
+    false,
+    false,
+    false
+   ]
+  ],
+  "PlaybackInfo 01 - Sinus 440 Hz.wav [alleen-audio]": [
+   [
+    false,
+    true,
+    true
+   ]
+  ],
+  "PlaybackInfo Jelly Leon Testfilm (2026).mkv [web-directplay]": [
+   [
+    true,
+    true,
+    false
+   ]
+  ],
+  "PlaybackInfo Jelly Leon Testfilm (2026).mkv [tv-transcode]": [
+   [
+    false,
+    true,
+    true
+   ]
+  ],
+  "PlaybackInfo Jelly Leon Testfilm (2026).mkv [alleen-audio]": [
+   [
+    false,
+    false,
+    false
+   ]
+  ]
+ },
+ "openapi_toegevoegd": [
+  "/media/v1/version",
+  "schema ForkVersionInfo"
+ ],
+ "openapi_problemen": [],
+ "vergeleken": [
+  "/Items",
+  "/Items/dbd1b4c93b1c7df92633765df6054ff3",
+  "/Items/dbd1b4c93b1c7df92633765df6054ff3/Similar",
+  "/Items/dc751cbcca8db3d6e70a3dc859f4e677",
+  "/Items/dc751cbcca8db3d6e70a3dc859f4e677/Similar",
+  "/MediaSegments/dbd1b4c93b1c7df92633765df6054ff3",
+  "/MediaSegments/dc751cbcca8db3d6e70a3dc859f4e677",
+  "/Shows/NextUp",
+  "/SyncPlay/List",
+  "/System/Info/Public",
+  "/UserItems/Resume",
+  "/UserViews",
+  "PlaybackInfo 01 - Sinus 440 Hz.wav [alleen-audio]",
+  "PlaybackInfo 01 - Sinus 440 Hz.wav [tv-transcode]",
+  "PlaybackInfo 01 - Sinus 440 Hz.wav [web-directplay]",
+  "PlaybackInfo Jelly Leon Testfilm (2026).mkv [alleen-audio]",
+  "PlaybackInfo Jelly Leon Testfilm (2026).mkv [tv-transcode]",
+  "PlaybackInfo Jelly Leon Testfilm (2026).mkv [web-directplay]"
+ ]
+}

@@ -1,0 +1,43 @@
+{
+ "schema": "jelly-leon/upstream-gedrag-runtime/1",
+ "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+ "server": {
+  "versie": "12.4.0",
+  "product": "Jellyfin Server"
+ },
+ "tijd": "2026-11-10T04:12:10Z",
+ "geslaagd": true,
+ "tests": [
+  {
+   "test": "runtime:hardwareversnelling_standaard_uit",
+   "geslaagd": true,
+   "detail": "HardwareAccelerationType=none"
+  },
+  {
+   "test": "runtime:hls_verborgen_maar_actief",
+   "geslaagd": true,
+   "detail": "niet in OpenAPI: 3/3; zonder token HTTP {'/Videos/{itemId}/master.m3u8': 401, '/Videos/{itemId}/main.m3u8': 401, '/Audio/{itemId}/master.m3u8': 401} (404 = route verdwenen)"
+  },
+  {
+   "test": "runtime:legacy_auth_uit",
+   "geslaagd": true,
+   "detail": "EnableLegacyAuthorization=False; HTTP {'login X-Emby-Authorization': 400, 'X-Emby-Token': 401, 'api_key': 401, 'Authorization MediaBrowser Token': 200}"
+  },
+  {
+   "test": "runtime:mediasegmenten_alleen_lezen",
+   "geslaagd": true,
+   "detail": "routes {'/MediaSegments/{itemId}': ['get']}; MediaSegmentType ['Unknown', 'Commercial', 'Preview', 'Recap', 'Outro', 'Intro']"
+  },
+  {
+   "test": "runtime:stream_zonder_token",
+   "geslaagd": true,
+   "detail": "zonder token: HTTP 206, 100 bytes"
+  },
+  {
+   "test": "runtime:syncplay_routes",
+   "geslaagd": true,
+   "detail": "22 operaties"
+  }
+ ],
+ "soort": "Sim-getest (wegwerpcontainer op 127.0.0.1)"
+}

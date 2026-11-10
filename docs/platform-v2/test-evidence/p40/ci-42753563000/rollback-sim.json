@@ -1,0 +1,72 @@
+{
+  "soort": "Sim-getest (Docker op de bouwmachine; geen echte NAS, koude kopie i.p.v. ZFS-snapshot)",
+  "image": "jelly-leon:ci",
+  "upstream_image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "opmerking": "CI; Jelly Leon-image met de echte web-build van jelly-leon-web",
+  "gestart": "2026-11-10T04:11:26Z",
+  "klaar": "2026-11-10T04:12:02Z",
+  "geslaagd": true,
+  "stappen": [
+    {
+      "stap": "healthy (upstream, lege opslag)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-10T04:11:39Z"
+    },
+    {
+      "stap": "stock-client-smoketest (upstream-eerste-start, modus nieuw)",
+      "geslaagd": true,
+      "detail": "17/17 stappen",
+      "tijd": "2026-11-10T04:11:44Z"
+    },
+    {
+      "stap": "koude back-up van /config (model voor de ZFS-snapshot)",
+      "geslaagd": true,
+      "detail": "backup-config/data/jellyfin.db aanwezig=True",
+      "tijd": "2026-11-10T04:11:44Z"
+    },
+    {
+      "stap": "healthy (Jelly Leon na migratie)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-10T04:11:51Z"
+    },
+    {
+      "stap": "stock-client-smoketest (jelly-leon-na-migratie, modus herstart)",
+      "geslaagd": true,
+      "detail": "27/27 stappen",
+      "tijd": "2026-11-10T04:11:53Z"
+    },
+    {
+      "stap": "migratie zichtbaar in /config",
+      "geslaagd": true,
+      "detail": "Jelly Leon-plugin door de entrypoint geïnstalleerd=True",
+      "tijd": "2026-11-10T04:11:53Z"
+    },
+    {
+      "stap": "back-up teruggezet in /config",
+      "geslaagd": true,
+      "detail": "toestand van vóór de migratie (geen Jelly Leon-plugin meer)=True",
+      "tijd": "2026-11-10T04:11:54Z"
+    },
+    {
+      "stap": "healthy (upstream na terugzetten)",
+      "geslaagd": true,
+      "detail": "Docker-healthcheck van de image: running healthy",
+      "tijd": "2026-11-10T04:12:00Z"
+    },
+    {
+      "stap": "stock-client-smoketest (upstream-na-terugzetten, modus herstart)",
+      "geslaagd": true,
+      "detail": "19/19 stappen",
+      "tijd": "2026-11-10T04:12:02Z"
+    },
+    {
+      "stap": "mediamap onaangeroerd",
+      "geslaagd": true,
+      "detail": "eigenaar/rechten ongewijzigd",
+      "tijd": "2026-11-10T04:12:02Z"
+    }
+  ],
+  "werkmap": "/home/runner/work/_temp/jl-lifecycle-xkry7qrn (opgeruimd)"
+}
