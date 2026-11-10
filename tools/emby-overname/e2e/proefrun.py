@@ -27,6 +27,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -547,6 +548,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
     p.add_argument("--corpus", default=str(CORPUS))
     p.add_argument("--ffmpeg", choices=("auto", "host", "docker"), default="auto")
     p.add_argument("--behoud", action="store_true", help="containers en testset niet opruimen (alleen voor diagnose)")
+    p.add_argument("--browser", choices=("geen", "chromium"), default="geen",
+                   help="JLT-70 clientdeel: de webclient van de doelserver in een echte browser (Playwright-harnas van "
+                        "B03-016; vraagt `npm ci` in tools/b03-harnas/playwright en Chromium)")
     p.add_argument("--jellyfin-image", default=JL_IMAGE,
                    help="doelserver: stock 12.4 op digest (golf 0) of de lokaal gebouwde jelly-leon-image (P4-0)")
     args = p.parse_args(argv)
@@ -633,9 +637,13 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                 volgende_scan = time.time() + 90
             paden_emby = emby_paden(emby)
             paden_jl = {i["Path"][len(JL_ROOT) + 1:]: i for i in jl.items() if i.get("Path", "").startswith(JL_ROOT)}
+            klaar_jl = verwacht_jl <= set(paden_jl)
+            if klaar_jl and not verwacht_emby <= set(paden_emby):
+                # Door Emby gebundelde versies staan alleen in de itemdetails (QA-review: zonder deze stap wachtte de lus
+                # altijd de volle 15 minuten).
+                paden_emby = emby_paden(emby, detail=True)
             klaar_emby = verwacht_emby <= set(paden_emby) and all(paden_emby[pd].get("ProviderIds") for pd in verwacht_emby
                                                                   if any(i.emby and i.emby.pad == pd and i.emby.nfo for i in items_recept))
-            klaar_jl = verwacht_jl <= set(paden_jl)
             if klaar_emby and klaar_jl:
                 break
             time.sleep(5)
@@ -839,6 +847,28 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                             afhandel_per_gebruiker(rapport4), paden_jl, uitzonderingen={("Kim", per_sleutel["llama"].jl[0].pad)},
                             label="na kill en hervatten")
 
+        # 6b. Verkeerd doel (HARDE EIS, QA-review): het Jelly Leon-adres wijst per vergissing naar Emby (via een ander adres,
+        # localhost i.p.v. 127.0.0.1), met de Emby-sleutel als "Jelly Leon-sleutel". Gemeten: Emby 4.10.2.0 accepteert de
+        # Jellyfin-header `Authorization: MediaBrowser Token=…`, dus alleen de doelcontrole van de tool houdt dit tegen.
+        # Verwacht: proefrun en overzetten exit 9; van de doelkant alleen het anonieme GET /System/Info/Public.
+        merk_emby = proxy_emby.markeer()
+        verkeerd_adres = proxy_emby.url.replace("127.0.0.1", "localhost")
+
+        def verkeerd_doel() -> tuple[int, int]:
+            args = ["--emby-url", proxy_emby.url, "--emby-sleutel-bestand", str(sleutels["emby"]), "--jl-url", verkeerd_adres,
+                    "--jl-sleutel-bestand", str(sleutels["emby"]), "--werkmap", str(uitvoer / "werkmap-verkeerd-doel"),
+                    "--pad", f"{EMBY_ROOT}={JL_ROOT}"]
+            c_proef, _ = tool.draai("proefrun", *args, verwacht=None)
+            c_over, _ = tool.draai("overzetten", *args, "--akkoord", str(akkoord4), verwacht=None)
+            return c_proef, c_over
+
+        c_proef, c_over = emby_gelijk_rond("verkeerd doel (Jelly Leon-adres wijst naar Emby)", verkeerd_doel)
+        doelkant = proxy_emby.sinds(merk_emby)
+        bewijs.check("JLT-73", "verkeerd doel (Jelly Leon-adres wijst naar Emby): proefrun en overzetten geweigerd (exit 9), "
+                     "alleen GET /System/Info/Public zonder sleutel, 0 niet-GET",
+                     c_proef == 9 and c_over == 9 and [(r["methode"], r["pad"]) for r in doelkant] == [("GET", "/System/Info/Public")] * 2,
+                     {"exit": [c_proef, c_over], "verzoeken": [(r["methode"], r["pad"], r["status"]) for r in doelkant]})
+
         # 7. Verkeersmeting en testhaak (JLT-73).
         code_haak, haak = emby_gelijk_rond("testhaak schrijfpoging", lambda: tool.draai(
             "testhaak-schrijfpoging", "--emby-url", proxy_emby.url, "--emby-sleutel-bestand", str(sleutels["emby"]), verwacht=None))
@@ -877,6 +907,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
 
         # 11. MediaGuard-simulator: kijkpauze bij een sessie op Emby én op Jelly Leon; Emby-koppeling nooit weg (JLT-73).
         controleer_mediaguard(bewijs, mg, emby, jl, uids, jl_gebruikers, paden_emby, paden_jl, per_sleutel)
+
+        # 11b. Webclient in een echte browser (alleen met --browser): inloggen met het nieuwe wachtwoord uit stap 10 en
+        # hervatten op het juiste punt (JLT-70, clientdeel). De Android-emulator volgt apart (B03-016-harnas).
+        if args.browser != "geen":
+            controleer_browser(bewijs, jl, jl_gebruikers, naar_jl, waarheid_kill, items_recept, paden_jl, args.browser)
 
         # 12. Sleutels nergens (logs, rapporten, exports, proxylogs).
         proxy_emby.schrijf(str(uitvoer / "proxy-emby.jsonl"))
@@ -1137,6 +1172,79 @@ def controleer_clients(bewijs: Bewijs, jl: Jellyfin, jl_gebruikers: dict[str, di
     bewijs.check("JLT-70", "stock-clientprotocol (simulator): inloggen met nieuw wachtwoord en 'Verder kijken' op de exacte tick",
                  all(r["verwacht"] == r["gelijk"] for r in resultaten.values()) and any(r["verwacht"] for r in resultaten.values()),
                  resultaten)
+
+
+def controleer_browser(bewijs: Bewijs, jl: Jellyfin, jl_gebruikers: dict[str, dict[str, Any]], naar_jl: dict[str, str],
+                       waarheid: dict[str, dict[str, dict[str, Any]]], items: list[Item], paden_jl: dict[str, dict[str, Any]],
+                       browser: str) -> None:
+    """JLT-70 clientdeel (QA-review): de webclient die de doelserver zelf serveert (stock-web bij stock 12.4, Jelly Leon-web
+    bij de image) in een echte browser via het Playwright-harnas van B03-016. Een overgezette gebruiker logt in met het
+    nieuwe wachtwoord (stap 10) en klikt op de detailpagina op afspelen/hervatten. Gemeten aan de serverkant (niet via de
+    tool): de eerste PositionTicks van die websessie (PlaybackStart) ligt binnen 3 s van het overgezette hervatpunt, en het
+    beeld loopt echt (breedte > 0, tijd loopt op, geen mediafout). Testdata met een beperkte licentie (Pioneer One) wordt
+    niet gekozen; er worden geen schermafbeeldingen gemaakt."""
+    sys.path.insert(0, str(TOOL.parent / "b03-harnas"))
+    from b03h.web import harnas  # noqa: PLC0415 - alleen met --browser nodig
+
+    assert jl.admin
+    per_emby_pad = {i.emby.pad: i for i in items if i.emby}
+    kandidaten = []
+    for gebruiker in ("Anna", "Bram", "Kim", "Gast"):
+        uid = jl_gebruikers[naar_jl[gebruiker]]["Id"]
+        nu = jl_toestand(jl, uid)
+        for pad, e in waarheid[gebruiker].items():
+            item = per_emby_pad.get(pad)
+            if not item or item.verwacht != "gekoppeld" or e["positie"] <= 0 or e["gezien"] or item.sleutel.startswith("pioneer"):
+                continue
+            jl_pad = item.jl_doel or item.jl[0].pad
+            if jl_pad in paden_jl and nu.get(jl_pad, {}).get("positie") == e["positie"]:
+                kandidaten.append((not jl_pad.endswith(".mp4"), gebruiker, jl_pad, e["positie"], paden_jl[jl_pad]["Id"]))
+    if not kandidaten:
+        bewijs.check("JLT-70", f"webclient in {browser}: hervatbaar overgezet item gevonden", False, "geen kandidaat")
+        return
+    _, gebruiker, jl_pad, verwacht, item_id = sorted(kandidaten)[0]
+    cfg = {"browser": browser, "url": jl.url, "gebruiker": gebruiker, "wachtwoord": f"Nieuw-{gebruiker}-Jelly-Leon-1",
+           "items": [{"id": item_id, "naam": "hervatten"}], "orakelMs": 30000, "duurMs": 8000, "label": f"jlt70-{browser}"}
+    uitkomst: dict[str, Any] = {}
+
+    def speel() -> None:
+        try:
+            uitkomst["res"] = harnas("speel", cfg, timeout=600)
+        except Exception as fout:  # noqa: BLE001 - vastleggen in het bewijs
+            uitkomst["fout"] = str(fout)[:600]
+
+    draad = threading.Thread(target=speel, daemon=True)
+    draad.start()
+    posities: list[int] = []
+    while draad.is_alive():
+        try:
+            sessies = jl.admin.doe("GET", "/Sessions", {"activeWithinSeconds": "300"}) or []
+        except Exception:  # noqa: BLE001 - een gemiste peiling is geen fout
+            sessies = []
+        for sessie in sessies:
+            if sessie.get("UserName") == gebruiker and (sessie.get("NowPlayingItem") or {}).get("Id") == item_id:
+                pt = (sessie.get("PlayState") or {}).get("PositionTicks")
+                if pt is not None and (not posities or posities[-1] != int(pt)):
+                    posities.append(int(pt))
+        time.sleep(0.5)
+    draad.join()
+    res = uitkomst.get("res") or {}
+    speel_res = (res.get("items") or [{}])[0]
+    spoor = speel_res.get("spoor") or []
+    laatste = speel_res.get("laatste") or {}
+    detail = {"gebruiker": gebruiker, "item": jl_pad, "verwacht_ticks": verwacht, "posities_sessie": posities[:10],
+              "browser": res.get("browser"), "versie": res.get("versie"), "besluit": speel_res.get("besluit"),
+              "laatste": laatste, "spoor": spoor[:8], "fout": uitkomst.get("fout") or res.get("fout") or speel_res.get("fout")}
+    bewijs.data.setdefault("browser", []).append(detail)
+    bewijs.check("JLT-70", f"webclient in {browser}: inloggen met het nieuwe wachtwoord en het item openen",
+                 bool(res) and not detail["fout"], detail["fout"] or {"gebruiker": gebruiker, "versie": res.get("versie")})
+    loopt = bool(laatste) and laatste.get("w", 0) > 0 and not laatste.get("err") and len(spoor) >= 2 \
+        and spoor[-1][1] - spoor[0][1] >= 1.5
+    bewijs.check("JLT-70", f"webclient in {browser}: beeld loopt (breedte > 0, tijd loopt op, geen mediafout)", loopt,
+                 {"laatste": laatste, "spoor": spoor[:8], "besluit": speel_res.get("besluit")})
+    bewijs.check("JLT-70", f"webclient in {browser}: hervat op het overgezette hervatpunt (eerste PositionTicks binnen 3 s)",
+                 bool(posities) and abs(posities[0] - verwacht) <= 30_000_000,
+                 {"verwacht": verwacht, "eerste": posities[0] if posities else None, "posities": posities[:10]})
 
 
 def controleer_mediaguard(bewijs: Bewijs, mg: MediaGuardSim, emby: Emby, jl: Jellyfin, uids: dict[str, str],

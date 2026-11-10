@@ -425,9 +425,22 @@ jobs:
       - name: Unit- en simulatortests (geen netwerk, geen Docker)
         run: python -m pytest -q tools/emby-overname/tests
 
-      - name: Proefrun met echte Emby-container en stock Jellyfin 12.4 (synthetische media)
+      # JLT-70 clientdeel: de webclient van de doelserver in een echte browser (Chromium via het B03-016-harnas):
+      # inloggen met het nieuwe wachtwoord en hervatten op het overgezette hervatpunt (gemeten aan de serversessie).
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Playwright 1.63 met Chromium (B03-016-harnas)
+        working-directory: tools/b03-harnas/playwright
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Proefrun met echte Emby-container en stock Jellyfin 12.4 (synthetische media, webclient in Chromium)
         run: >
-          python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker
+          python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker --browser chromium
           --uitvoer "$RUNNER_TEMP/emby-overname"
 
       - name: Bewijs en rapporten bewaren
