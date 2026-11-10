@@ -38,8 +38,12 @@ class FakeJellyfin:
         completed: bool = False,
         item_id: str = "item-1",
         hub_user: bool = False,
+        version: str = "10.11.11",
     ) -> None:
         self.defects = defects or set()
+        self.version = version
+        # 12.x: EnableLegacyAuthorization standaard uit (X-Emby-*, api_key werken niet meer); defect legacy_open = aan.
+        self.legacy = version.startswith("10.") or "legacy_open" in self.defects
         self.completed = completed
         self.user_id = "gebruiker-1"
         self.item_id = item_id
@@ -81,9 +85,15 @@ class FakeJellyfin:
                 self.wfile.write(data)
 
             def _token(self) -> str | None:
-                header = self.headers.get("Authorization") or self.headers.get("X-Emby-Authorization") or ""
+                if fake.legacy:
+                    header = self.headers.get("Authorization") or self.headers.get("X-Emby-Authorization") or ""
+                else:
+                    header = self.headers.get("Authorization") or ""
                 match = TOKEN_RE.search(header)
-                token = match.group(1) if match else self.headers.get("X-Emby-Token")
+                token = match.group(1) if match else None
+                if token is None and fake.legacy:
+                    query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                    token = self.headers.get("X-Emby-Token") or (query.get("api_key") or [None])[0]
                 return token if token in fake.tokens else None
 
             def _body(self) -> dict:
@@ -105,7 +115,7 @@ class FakeJellyfin:
                 if path == "/System/Info/Public":
                     product = "Jelly Leon Server" if "renamed" in fake.defects else "Jellyfin Server"
                     return self._send(
-                        200, {"ProductName": product, "Version": "10.11.11", "StartupWizardCompleted": fake.completed}
+                        200, {"ProductName": product, "Version": fake.version, "StartupWizardCompleted": fake.completed}
                     )
                 if path.startswith("/Startup/"):
                     if fake.completed and "wizard_open" not in fake.defects and not authed:
@@ -115,6 +125,8 @@ class FakeJellyfin:
                     return self._send(204)
                 if path == "/Users/AuthenticateByName":
                     body = self._body()
+                    if not fake.legacy and not self.headers.get("Authorization"):
+                        return self._send(400)  # gemeten in 12.4: X-Emby-Authorization zonder legacy-auth → 400
                     header = self.headers.get("Authorization") or self.headers.get("X-Emby-Authorization") or ""
                     hub = body.get("Username") == HUB_USER
                     if hub:
@@ -190,7 +202,7 @@ def run_smoke(tmp_path: Path, fake: FakeJellyfin, *extra: str) -> tuple[int, dic
     report = tmp_path / "rapport.json"
     rc = stock_client_smoke.main(
         [
-            "--url", fake.url, "--expected-version", "10.11.11", "--media-file", str(media),
+            "--url", fake.url, "--expected-version", fake.version, "--media-file", str(media),
             "--library-path", "/media/muziek", "--expect-plugin", "--password", PASSWORD,
             "--start-timeout", "5", "--scan-timeout", "5", "--report", str(report), *extra,
         ]
@@ -308,3 +320,22 @@ def test_fake_hub_jwt_has_hub_service_shape():
     payload = decode(claims)
     assert payload["token_use"] == "hub_service" and payload["aud"] == "jelly-leon" and payload["jti"]
     assert payload["exp"] - payload["iat"] <= 120
+
+
+def test_12x_legacy_auth_off_passes_and_old_headers_are_refused(tmp_path):
+    """12.x (BG-01): EnableLegacyAuthorization uit — de oude headers MOETEN geweigerd worden, moderne werkt."""
+    with FakeJellyfin(version="12.4.0") as fake:
+        rc, result = run_smoke(tmp_path, fake)
+    assert rc == 0, failed_steps(result)
+    names = [s["stap"] for s in result["stappen"]]
+    assert any("X-Emby-Authorization-header geweigerd" in n for n in names)
+    assert "oude X-Emby-Token-header en ?api_key= geweigerd (legacy-auth uit, BG-01)" in names
+    assert "inloggen Kodi (Authorization)" in names
+
+
+def test_12x_with_legacy_auth_on_never_passes(tmp_path):
+    """Staat legacy-auth op 12.x toch aan (tokens in URL's en logs), dan faalt de smoketest."""
+    with FakeJellyfin({"legacy_open"}, version="12.4.0") as fake:
+        rc, result = run_smoke(tmp_path, fake)
+    assert rc == 1
+    assert "oude X-Emby-Token-header en ?api_key= geweigerd (legacy-auth uit, BG-01)" in failed_steps(result)

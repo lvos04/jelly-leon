@@ -9,7 +9,9 @@ Controleert tegen een draaiende server (eigen build van deze fork):
   2. modus `nieuw` (lege datamap): eerste-startwizard via de upstream-API, daarna is de wizard niet meer anoniem
      bereikbaar; modus `herstart` (na herstart/herinstallatie met dezelfde opslag): wizard staat op afgerond en blijft
      dicht — gebruiker, bibliotheek en item-ID zijn behouden (geen dataverlies);
-  3. inloggen met de moderne `Authorization: MediaBrowser …`-header én de oude `X-Emby-Authorization`-header;
+  3. inloggen met de moderne `Authorization: MediaBrowser …`-header; de oude headers (`X-Emby-Authorization`,
+     `X-Emby-Token`, `?api_key=`) werken alleen als EnableLegacyAuthorization aan staat. Vanaf 12.x staat die
+     standaard uit en blijft uit (BG-01): dan MOETEN ze geweigerd worden (`--legacy-auth auto` = uit vanaf 12.x);
   4. negatieve tests: fout wachtwoord → 401, geen token → 401, Jelly Leon-route zonder token → 401;
      (waarneming, geen slaagcriterium: upstream-streamroutes zijn anoniem bereikbaar — zie INVENTARIS.md §7);
   5. bibliotheek (aanmaken in modus `nieuw`), scannen en een audio-item statisch streamen (volledig én met Range → 206),
@@ -40,7 +42,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 CLIENTS = {
-    "web": {"Client": "Jellyfin Web", "Device": "Firefox", "DeviceId": "jl-smoke-web-0001", "Version": "10.11.11"},
+    "web": {"Client": "Jellyfin Web", "Device": "Firefox", "DeviceId": "jl-smoke-web-0001", "Version": "12.4.0"},
     "android": {"Client": "Jellyfin Android", "Device": "Pixel", "DeviceId": "jl-smoke-android-0001", "Version": "2.6.3"},
     "kodi": {"Client": "Kodi", "Device": "Woonkamer", "DeviceId": "jl-smoke-kodi-0001", "Version": "1.0.0"},
 }
@@ -230,7 +232,11 @@ def run(args: argparse.Namespace) -> Report:
 
     tokens: dict[str, str] = {}
     user_id = ""
-    for name, header_name in (("web", "Authorization"), ("android", "Authorization"), ("kodi", "X-Emby-Authorization")):
+    legacy_on = legacy_auth_expected(args)
+    attempts = [("web", "Authorization"), ("android", "Authorization"), ("kodi", "X-Emby-Authorization")]
+    if not legacy_on:
+        attempts.append(("kodi", "Authorization"))  # een bijgewerkte derden-client met de moderne header
+    for name, header_name in attempts:
         status, body = client.json(
             "POST",
             "/Users/AuthenticateByName",
@@ -238,6 +244,13 @@ def run(args: argparse.Namespace) -> Report:
             body={"Username": args.username, "Pw": args.password},
         )
         token = body.get("AccessToken") if isinstance(body, dict) else None
+        if header_name == "X-Emby-Authorization" and not legacy_on:
+            report.add(
+                f"inloggen {CLIENTS[name]['Client']} met de oude {header_name}-header geweigerd (legacy-auth uit, BG-01)",
+                status in (400, 401) and not token,
+                f"HTTP {status} (verwacht 400/401)",
+            )
+            continue
         if status == 200 and token:
             tokens[name] = token
             report.secrets.append(token)
@@ -257,7 +270,16 @@ def run(args: argparse.Namespace) -> Report:
     report.add("zonder token geweigerd", status == 401, f"HTTP {status} (verwacht 401)")
     legacy = {"X-Emby-Token": tokens["kodi"]}
     status, _ = client.json("GET", "/Users/Me", headers=legacy)
-    report.add("oude X-Emby-Token-header", status == 200, f"HTTP {status}")
+    status_key, _ = client.json("GET", "/Users/Me?" + urllib.parse.urlencode({"api_key": tokens["kodi"]}))
+    if legacy_on:
+        report.add("oude X-Emby-Token-header en ?api_key=", status == 200 and status_key == 200,
+                   f"HTTP {status} / {status_key}")
+    else:
+        report.add(
+            "oude X-Emby-Token-header en ?api_key= geweigerd (legacy-auth uit, BG-01)",
+            status == 401 and status_key == 401,
+            f"HTTP {status} / {status_key} (verwacht 401/401)",
+        )
 
     if args.mode == "nieuw":
         # Bibliotheek aanmaken en scannen.
@@ -385,6 +407,18 @@ def hub_adapter_v1(client: Client, report: Report, admin_auth: dict[str, str], a
         report.add(f"Hub-JWT niet geaccepteerd ({label})", status == 401, f"HTTP {status} (verwacht 401)")
 
 
+def legacy_auth_expected(args: argparse.Namespace) -> bool:
+    """Werkt de oude aanmelding (X-Emby-*, api_key)? auto: alleen vóór 12.x (12.x zet EnableLegacyAuthorization uit)."""
+    if args.legacy_auth == "aan":
+        return True
+    if args.legacy_auth == "uit":
+        return False
+    try:
+        return int(args.expected_version.split(".")[0]) < 12
+    except ValueError:
+        return False
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Stock-client-smoketest (simulator) tegen een Jelly Leon-server.")
     parser.add_argument("--url", required=True, help="bv. http://127.0.0.1:38096")
@@ -405,6 +439,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--verwacht-item", dest="expect_item", help="item-ID uit het rapport van de vorige run")
     parser.add_argument("--verwacht-gebruiker", dest="expect_user", help="gebruikers-ID uit de vorige run")
+    parser.add_argument(
+        "--legacy-auth",
+        choices=("auto", "aan", "uit"),
+        default="auto",
+        help="verwachting voor EnableLegacyAuthorization (auto: uit vanaf 12.x, BG-01)",
+    )
     parser.add_argument("--start-timeout", type=float, default=180)
     parser.add_argument("--scan-timeout", type=float, default=180)
     parser.add_argument("--report", help="pad voor het JSON-rapport")
