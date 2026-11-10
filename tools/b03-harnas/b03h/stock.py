@@ -80,6 +80,7 @@ class StockServer:
         self.container_id = ""
         self.jf: Jellyfin | None = None
         self.info: dict[str, Any] = {}
+        self.gekoppeld: list[str] = []
 
     @property
     def url(self) -> str:
@@ -100,9 +101,11 @@ class StockServer:
         if self.gpu:
             gid = render_gid()
             cmd += ["--device", f"{RENDER}:{RENDER}"] + (["--group-add", str(gid)] if gid is not None else [])
+        self.gekoppeld = []
         for doel, bron in self.koppelingen.items():
             if (self.corpus / bron).exists():
                 cmd += ["-v", f"{self.corpus / bron}:{doel}:ro"]
+                self.gekoppeld.append(doel)
         if self.webdir:
             cmd += ["-v", f"{self.webdir}:/stockweb:ro"]
         cmd.append(self.image)
@@ -117,7 +120,10 @@ class StockServer:
         assert self.jf
         self.jf.wizard(GEBRUIKER, WACHTWOORD)
         for naam, soort, paden in (BIBLIOTHEKEN if bibliotheken is None else bibliotheken):
-            self.jf.bibliotheek(naam, soort, paden)
+            # Alleen paden waaronder echt iets gekoppeld is (in CI ontbreken delen van het corpus; 12.4 weigert dan met 400).
+            bestaand = [p for p in paden if any(g == p or g.startswith(p.rstrip("/") + "/") for g in self.gekoppeld)]
+            if bestaand:
+                self.jf.bibliotheek(naam, soort, bestaand)
         return self.jf.scan()
 
     def herstart(self) -> None:

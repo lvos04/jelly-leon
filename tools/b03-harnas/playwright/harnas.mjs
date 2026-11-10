@@ -111,7 +111,9 @@ async function speelItem(page, item, opts) {
           ab: v.webkitAudioDecodedByteCount ?? null, ma: v.mozHasAudio ?? null, t: performance.now() - window.__b03.klik } : null;
       });
       if (s) spoor.push(s);
-      if (s && s.ct >= 2 && s.w > 0 && !s.err) { ok = true; break; }
+      // Beeld loopt ≥ 2 s; bij audio ook wachten tot er audio gedecodeerd is (trage runners starten audio later), binnen het venster.
+      const audioNogNiet = s && (s.ab === 0 || s.ma === false);
+      if (s && s.ct >= 2 && s.w > 0 && !s.err && !audioNogNiet) { ok = true; break; }
       await page.waitForTimeout(100);
     }
     if (ok && opts.duurMs > 0) {
@@ -134,6 +136,9 @@ async function speelItem(page, item, opts) {
     // Orakel (F5 K1): ook stilte bij een item met audio telt als falen (Chromium/WebKit: gedecodeerde audiobytes; Firefox: mozHasAudio).
     res.heeft_audio = heeftAudio;
     res.audio_gedecodeerd = !heeftAudio ? null : (l.ab != null ? l.ab > 0 : l.ma != null ? !!l.ma : null);
+    if (!ok && l.ct >= 2 && l.w > 0 && !l.err && heeftAudio && res.audio_gedecodeerd === false) {
+      res.orakel_reden = 'geen audio gedecodeerd (stil)';
+    }
     if (ok && heeftAudio && res.audio_gedecodeerd === false) { ok = false; res.orakel_reden = 'geen audio gedecodeerd (stil)'; }
     res.besluit = ms.SupportsDirectPlay ? 'DirectPlay' : ms.SupportsDirectStream ? 'DirectStream' : ms.SupportsTranscoding ? 'Transcode' : 'Geen';
     res.redenen = (tu.match(/TranscodeReasons=([^&]*)/) || [])[1] || '';
