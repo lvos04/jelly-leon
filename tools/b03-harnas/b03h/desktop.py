@@ -16,6 +16,7 @@ import json
 import os
 import subprocess
 import time
+import traceback
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -61,15 +62,14 @@ def bouw() -> dict[str, Any]:
     return {"clients_commit": commit, "bouw_s": round(time.monotonic() - t0), "binary": str(binary.relative_to(UIT))}
 
 
-def draai(uitmap: Path) -> dict[str, Any]:
+def draai(uitmap: Path, resultaat: dict[str, Any]) -> dict[str, Any]:
     binary = next(iter(UIT.glob("build/**/jellyfin-desktop")), None)
     if binary is None:
         raise RuntimeError("geen gebouwde jellyfin-desktop; eerst --stap bouw")
-    resultaat: dict[str, Any] = {}
     koppelingen = {"/media/movies/hero": "bron/blender/hero"}
     with meetslot.exclusief_slot(bij_wachten=log):
         server = StockServer("desktop", koppelingen=koppelingen, gpu=False).start()
-        naam = "b03016-desktop"
+        naam = "b03016-desktop-app"  # niet gelijk aan de stockserver (die heet b03016-desktop)
         try:
             server.inrichten([("Films", "movies", ["/media/movies"])])
             assert server.jf
@@ -81,7 +81,11 @@ def draai(uitmap: Path) -> dict[str, Any]:
                    "-e", "HOME=/tmp", IMAGE, "sleep", "infinity")
             apt = docker("exec", "-u", "0", naam, "sh", "-c", "apt-get update -qq >/dev/null && DEBIAN_FRONTEND=noninteractive "
                          "apt-get install -y -qq --no-install-recommends xvfb xauth mesa-va-drivers intel-media-va-driver "
-                         "fonts-dejavu-core >/dev/null", check=False, timeout=900)
+                         "fonts-dejavu-core qml6-module-qtwebengine qml6-module-qtwebchannel qml6-module-qtquick-controls "
+                         "qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates >/dev/null",
+                         check=False, timeout=900)
+            # Runtime-QML-modules uit desktop/debian/control (Depends); zonder deze faalt de app met
+            # "Failed to parse application engine script" (gemeten in de eerste spike-poging).
             resultaat["runtime_apt"] = "ok" if apt.returncode == 0 else apt.stderr[-300:]
             app = (f"Xvfb :99 -screen 0 1600x900x24 >/tmp/xvfb.log 2>&1 & sleep 2; "
                    f"DISPLAY=:99 QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox LIBVA_DRIVER_NAME=iHD "
@@ -102,8 +106,12 @@ def draai(uitmap: Path) -> dict[str, Any]:
             web = Path(__file__).resolve().parents[1] / "desktop" / "cdp.mjs"
             cfg = {"cdp": cdp, "server": server.url, "gebruiker": GEBRUIKER, "wachtwoord": WACHTWOORD, "item": hero["Id"],
                    "scherm": str(uitmap / "desktop-spike.png")}
-            r = subprocess.run(["node", str(web), json.dumps(cfg)], capture_output=True, text=True, timeout=600, check=False)
-            resultaat["cdp"] = json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else {"fout": r.stderr[-400:]}
+            try:
+                r = subprocess.run(["node", str(web), json.dumps(cfg)], capture_output=True, text=True, timeout=420, check=False)
+                resultaat["cdp"] = json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else {"fout": r.stderr[-400:]}
+            except subprocess.TimeoutExpired as fout:
+                staart = fout.stderr.decode(errors="replace") if isinstance(fout.stderr, bytes) else (fout.stderr or "")
+                resultaat["cdp"] = {"ok": False, "fout": "CDP-besturing liep vast (420 s)", "stappen_tot_dan": staart[-800:]}
             # Afspelen aan de serverkant controleren (de desktop speelt via libmpv, niet via een <video>-element).
             pos = []
             for _ in range(40):
@@ -116,8 +124,11 @@ def draai(uitmap: Path) -> dict[str, Any]:
                     break
                 time.sleep(1)
             resultaat["posities_s"] = pos[-5:]
-            resultaat["app_log"] = docker("exec", naam, "tail", "-15", APP_LOG, check=False).stdout[-1200:]
         finally:
+            resultaat["app_log"] = docker("exec", naam, "tail", "-25", APP_LOG, check=False).stdout[-2000:]
+            staat = docker("inspect", "--format", "{{json .State}}", server.naam, check=False).stdout.strip()
+            resultaat["server_staat"] = staat[:400]
+            resultaat["server_log"] = server.logs(25)[-1500:]
             docker("rm", "-f", naam, check=False)
             server.verwijder()
     ok = bool(resultaat.get("posities_s")) and resultaat["posities_s"][-1] >= 2
@@ -138,10 +149,11 @@ def main(argv: list[str] | None = None) -> int:
         if a.stap in ("bouw", "alles"):
             document["bouw"] = bouw()
         if a.stap in ("draai", "alles"):
-            document |= draai(uitmap)
+            draai(uitmap, document)
     except Exception as fout:  # noqa: BLE001 - de spike rapporteert elke fout eerlijk als blokkade
         document["status"] = "Geblokkeerd (spike niet geslaagd)"
         document["reden"] = str(fout)[:1500]
+        document["traceback"] = traceback.format_exc()[-1500:]
     a.uit.write_text(json.dumps(document, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     log(document["status"])
     return 0

@@ -8,6 +8,7 @@ import fs from 'node:fs';
 const cfg = JSON.parse(process.argv[2]);
 const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
 const uit = { stappen: [], fouten: [] };
+const stap = (t) => { uit.stappen.push(t); process.stderr.write(`STAP ${t}\n`); };
 
 async function doelen() {
   const r = await fetch(`${cfg.cdp}/json/list`);
@@ -25,7 +26,12 @@ async function verbind(doel) {
     if (d.method === 'Runtime.exceptionThrown') uit.fouten.push(d.params.exceptionDetails?.exception?.description?.slice(0, 200));
     if (d.method === 'Log.entryAdded' && d.params.entry.level === 'error') uit.fouten.push(d.params.entry.text.slice(0, 200));
   };
-  const stuur = (method, params = {}) => new Promise((ok) => { id += 1; wachtend.set(id, ok); ws.send(JSON.stringify({ id, method, params })); });
+  // Elke CDP-aanroep met een time-out: tijdens een paginawissel beantwoordt het oude doel niets meer.
+  const stuur = (method, params = {}) => new Promise((ok, nok) => {
+    id += 1; const mijn = id; wachtend.set(mijn, ok);
+    setTimeout(() => { if (wachtend.delete(mijn)) nok(new Error(`CDP-time-out: ${method}`)); }, 15000);
+    try { ws.send(JSON.stringify({ id: mijn, method, params })); } catch (e) { wachtend.delete(mijn); nok(e); }
+  });
   await stuur('Runtime.enable');
   await stuur('Log.enable');
   const evalueer = async (expr) => {
@@ -48,12 +54,14 @@ async function wachtOp(evalueer, expr, ms) {
 async function main() {
   let d = (await doelen())[0];
   if (!d) throw new Error('geen paginadoel in /json/list');
-  uit.stappen.push(`doel: ${d.url.slice(0, 80)}`);
+  stap(`doel: ${d.url.slice(0, 80)}`);
   let c = await verbind(d);
   if (/find-webclient/.test(d.url) || (await c.evalueer("!!document.getElementById('address')"))) {
+    // De knop staat uit tot er een 'input'-event komt (find-webclient.js); daarna het formulier versturen.
     await c.evalueer(`(() => { const a = document.getElementById('address'); a.value = ${JSON.stringify(cfg.server)};
-      document.getElementById('connect-button').click(); return true; })()`);
-    uit.stappen.push('serveradres ingevuld op find-webclient');
+      a.dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('connect-form').requestSubmit(); return true; })()`);
+    stap('serveradres ingevuld op find-webclient');
   }
   // Na het verbinden laadt de app de jellyfin-web van de server (eventueel in een nieuw paginadoel).
   for (let i = 0; i < 60; i++) {
@@ -65,7 +73,7 @@ async function main() {
       break;
     }
   }
-  uit.stappen.push(`webclient: ${d.url.slice(0, 80)}`);
+  stap(`webclient: ${d.url.slice(0, 80)}`);
   const login = await wachtOp(c.evalueer, "!!document.querySelector('#txtManualName, .btnManual')", 60000);
   uit.chunkloaderror = uit.fouten.some((f) => /ChunkLoadError/.test(f || ''));
   if (!login) throw new Error('inlogscherm van jellyfin-web verscheen niet');
@@ -77,12 +85,12 @@ async function main() {
     document.querySelector('.manualLoginForm button[type=submit]').click(); return true; })()`);
   const ingelogd = await wachtOp(c.evalueer, "(() => { try { return JSON.parse(localStorage.getItem('jellyfin_credentials')||'{}').Servers?.some(s => s.AccessToken); } catch { return false; } })()", 30000);
   if (!ingelogd) throw new Error('inloggen in jellyfin-web lukte niet');
-  uit.stappen.push('ingelogd');
+  stap('ingelogd');
   await c.evalueer(`(() => { location.hash = '#/details?id=${cfg.item}'; return true; })()`);
   const knop = await wachtOp(c.evalueer, "[...document.querySelectorAll('.mainDetailButtons .btnPlay, button.btnPlay')].some(b => b.offsetParent)", 30000);
   if (!knop) throw new Error('afspeelknop niet gevonden');
   await c.evalueer("(() => { [...document.querySelectorAll('.mainDetailButtons .btnPlay, button.btnPlay')].find(b => b.offsetParent).click(); return true; })()");
-  uit.stappen.push('afspelen aangeklikt');
+  stap('afspelen aangeklikt');
   uit.nativeshell = await c.evalueer("typeof window.NativeShell === 'object'");
   await wacht(8000);
   const shot = await c.stuur('Page.captureScreenshot', { format: 'png' });

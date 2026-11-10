@@ -33,8 +33,11 @@ def regel(m: dict[str, Any]) -> str:
         herhaling = [_getal(x) for x in (w.get("herhaalsessie") or {}).get("waarden", [])] or "—"
         binnen = (w.get("herhaalsessie") or {}).get("binnen_voorspellingsinterval")
     else:
-        punt = ", ".join(f"{k}={v}" for k, v in w.items() if k != "herhalingen")
-        interval, herhaling, binnen = "—", "zie runs", None
+        punt = ", ".join(f"{k}={v}" for k, v in w.items() if k not in ("herhalingen", "herhaalsessie"))
+        gelijk = all({k: v for k, v in h.items() if k != "herhalingen"} == {k: v for k, v in w.items() if k not in (
+            "herhalingen", "herhaalsessie")} for h in w.get("herhalingen", []) + ([w["herhaalsessie"]["waarde"]]
+                                                                            if w.get("herhaalsessie") else []))
+        interval, herhaling, binnen = "—", "runs + sessie 2" if w.get("herhaalsessie") else "runs", gelijk
     geldig = f"{m.get('runs_geldig')}/{len(m.get('runs', []))}"
     binnen_t = {True: "ja", False: "**nee**", None: "—"}[binnen]
     return (f"| {m['id']} | {m['systeem']} | {punt} | {interval} | {m.get('gate') or '—'} | {geldig} | {herhaling} | {binnen_t} |")
