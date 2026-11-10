@@ -1,0 +1,40 @@
+{
+ "EnableLegacyAuthorization": false,
+ "status_per_vorm": {
+  "authorization_mediabrowser_token": {
+   "system_info": 200,
+   "gebruiker_items": 200,
+   "stream_statisch": 206
+  },
+  "x_emby_token": {
+   "system_info": 401,
+   "gebruiker_items": 401,
+   "stream_statisch": 206
+  },
+  "x_mediabrowser_token": {
+   "system_info": 401,
+   "gebruiker_items": 401,
+   "stream_statisch": 206
+  },
+  "x_emby_authorization": {
+   "system_info": 401,
+   "gebruiker_items": 401,
+   "stream_statisch": 206
+  },
+  "query_api_key": {
+   "system_info": 401,
+   "gebruiker_items": 401,
+   "stream_statisch": 206
+  },
+  "query_apikey_hoofdletter": {
+   "system_info": 200,
+   "gebruiker_items": 200,
+   "stream_statisch": 206
+  },
+  "zonder_token": {
+   "system_info": 401,
+   "gebruiker_items": 401,
+   "stream_statisch": 206
+  }
+ }
+}

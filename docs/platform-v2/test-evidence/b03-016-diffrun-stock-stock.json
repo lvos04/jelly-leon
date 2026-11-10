@@ -1,0 +1,270 @@
+{
+ "schema": "jelly-leon/b03-016-diffrun/1",
+ "begin": "2026-11-10T02:06:52Z",
+ "negatieve_proef": false,
+ "meetslot_wacht_s": 0.0,
+ "images": {
+  "a": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "b": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+ },
+ "scenario": {
+  "a": {
+   "handelingen": 14,
+   "items": 17
+  },
+  "b": {
+   "handelingen": 14,
+   "items": 17
+  }
+ },
+ "vaste_uitzonderingen": {
+  "Users": [
+   "InvalidLoginAttemptCount",
+   "LastActivityDate",
+   "LastLoginDate",
+   "RowVersion"
+  ],
+  "BaseItems": [
+   "DateLastMediaAdded",
+   "DateLastRefreshed",
+   "DateLastSaved"
+  ],
+  "Devices": [
+   "AccessToken",
+   "DateCreated",
+   "DateLastActivity",
+   "DateModified",
+   "Id"
+  ],
+  "DeviceOptions": [
+   "Id"
+  ],
+  "ActivityLogs": [
+   "DateCreated",
+   "Id",
+   "Overview",
+   "RowVersion",
+   "ShortOverview"
+  ],
+  "UserData": [
+   "LastPlayedDate"
+  ],
+  "__EFMigrationsHistory": []
+ },
+ "toegestaan_module": {},
+ "rapport": {
+  "tabellen": {
+   "AccessSchedules": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "ActivityLogs": {
+    "rijen_a": 7,
+    "rijen_b": 7,
+    "genegeerde_kolommen": [
+     "Id",
+     "Overview",
+     "ShortOverview",
+     "DateCreated",
+     "RowVersion"
+    ]
+   },
+   "AncestorIds": {
+    "rijen_a": 105,
+    "rijen_b": 105,
+    "genegeerde_kolommen": []
+   },
+   "ApiKeys": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "AttachmentStreamInfos": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItemImageInfos": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItemMetadataFields": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItemProviders": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItemTrailerTypes": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "BaseItems": {
+    "rijen_a": 33,
+    "rijen_b": 33,
+    "genegeerde_kolommen": [
+     "DateLastMediaAdded",
+     "DateLastRefreshed",
+     "DateLastSaved"
+    ]
+   },
+   "Chapters": {
+    "rijen_a": 23,
+    "rijen_b": 23,
+    "genegeerde_kolommen": []
+   },
+   "CustomItemDisplayPreferences": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "DeviceOptions": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": [
+     "Id"
+    ]
+   },
+   "Devices": {
+    "rijen_a": 1,
+    "rijen_b": 1,
+    "genegeerde_kolommen": [
+     "Id",
+     "AccessToken",
+     "DateCreated",
+     "DateModified",
+     "DateLastActivity"
+    ]
+   },
+   "DisplayPreferences": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "HomeSection": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "ImageInfos": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "ItemDisplayPreferences": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "ItemValues": {
+    "rijen_a": 1,
+    "rijen_b": 1,
+    "genegeerde_kolommen": []
+   },
+   "ItemValuesMap": {
+    "rijen_a": 3,
+    "rijen_b": 3,
+    "genegeerde_kolommen": []
+   },
+   "KeyframeData": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "LinkedChildren": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "MediaSegments": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "MediaStreamInfos": {
+    "rijen_a": 38,
+    "rijen_b": 38,
+    "genegeerde_kolommen": []
+   },
+   "PeopleBaseItemMap": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "Peoples": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "Permissions": {
+    "rijen_a": 24,
+    "rijen_b": 24,
+    "genegeerde_kolommen": []
+   },
+   "Preferences": {
+    "rijen_a": 13,
+    "rijen_b": 13,
+    "genegeerde_kolommen": []
+   },
+   "TrickplayInfos": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   },
+   "UserData": {
+    "rijen_a": 17,
+    "rijen_b": 17,
+    "genegeerde_kolommen": [
+     "LastPlayedDate"
+    ]
+   },
+   "Users": {
+    "rijen_a": 1,
+    "rijen_b": 1,
+    "genegeerde_kolommen": [
+     "InvalidLoginAttemptCount",
+     "LastActivityDate",
+     "LastLoginDate",
+     "RowVersion"
+    ]
+   },
+   "__EFMigrationsHistory": {
+    "rijen_a": 105,
+    "rijen_b": 105,
+    "genegeerde_kolommen": []
+   },
+   "__EFMigrationsLock": {
+    "rijen_a": 0,
+    "rijen_b": 0,
+    "genegeerde_kolommen": []
+   }
+  },
+  "verschillen_buiten_uitzonderingen": 0,
+  "uitzonderingen_geraakt": {
+   "ActivityLogs": [
+    "DateCreated"
+   ],
+   "Devices": [
+    "AccessToken",
+    "DateCreated",
+    "DateModified",
+    "DateLastActivity"
+   ],
+   "UserData": [
+    "LastPlayedDate"
+   ],
+   "Users": [
+    "LastActivityDate",
+    "LastLoginDate"
+   ]
+  }
+ },
+ "uitkomst": "0 verschillen buiten de vaste uitzonderingen",
+ "validatie": "Sim-getest (echte stock-containers op de ontwikkelmachine)"
+}

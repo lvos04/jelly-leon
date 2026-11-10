@@ -1,0 +1,918 @@
+{
+ "stock-standaard": [
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 0,
+    "begin": "2026-11-10T02:06:12Z",
+    "eind": "2026-11-10T02:06:12Z",
+    "loadavg_voor": [
+     2.69,
+     3.88,
+     5.08
+    ],
+    "loadavg_na": [
+     2.69,
+     3.88,
+     5.08
+    ],
+    "cpu": {
+     "duur_s": 0.447,
+     "machine_kernen": 1.119,
+     "eigen_kernen": 0.045,
+     "container_kernen": 0.943,
+     "andere_kernen": 0.132
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "segmenten": {
+    "B03 Anime S01E01.mkv": 0,
+    "B03 Testserie S01E01.mkv": 0,
+    "Pioneer.One.S01E01.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E02.mkv": 0,
+    "B03 Testserie S01E02.mkv": 0,
+    "Pioneer.One.S01E02.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E03.mkv": 0,
+    "B03 Testserie S01E03.mkv": 0,
+    "Pioneer.One.S01E03.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E04.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E05.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E06.720p.x264-VODO.mp4": 0,
+    "B03 Testserie S02E01.mkv": 0,
+    "B03 Testserie S02E02.mkv": 0
+   },
+   "ondertitels_nld": {
+    "Sintel.2010.1080p.mkv": 0,
+    "tears_of_steel_1080p.mov": 0,
+    "hero.mp4": 0,
+    "Spring-Blender-Open-Movie.mkv": 0
+   },
+   "kwaliteit": {
+    "beschadigd-midden": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "afgekapt-70pct": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "stilte-25-33s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "clipping-40-43s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "zonder-audio": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "SDR"
+     }
+    },
+    "verkeerde-taaltags": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 130.04,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/nld"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "me-als-hoofdspoor": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 120.67,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/eng",
+       "aac/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "hlg-tag-op-hdr10": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 29.95,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "HDR10"
+     }
+    }
+   },
+   "aanbevelingen": {
+    "categorieen": 0,
+    "suggesties": 12,
+    "similar_serie_pioneer": 2,
+    "similar_sintel": []
+   }
+  },
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 1,
+    "begin": "2026-11-10T02:06:13Z",
+    "eind": "2026-11-10T02:06:13Z",
+    "loadavg_voor": [
+     2.63,
+     3.85,
+     5.07
+    ],
+    "loadavg_na": [
+     2.63,
+     3.85,
+     5.07
+    ],
+    "cpu": {
+     "duur_s": 0.255,
+     "machine_kernen": 2.433,
+     "eigen_kernen": 0.039,
+     "container_kernen": 1.298,
+     "andere_kernen": 1.096
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "segmenten": {
+    "B03 Anime S01E01.mkv": 0,
+    "B03 Testserie S01E01.mkv": 0,
+    "Pioneer.One.S01E01.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E02.mkv": 0,
+    "B03 Testserie S01E02.mkv": 0,
+    "Pioneer.One.S01E02.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E03.mkv": 0,
+    "B03 Testserie S01E03.mkv": 0,
+    "Pioneer.One.S01E03.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E04.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E05.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E06.720p.x264-VODO.mp4": 0,
+    "B03 Testserie S02E01.mkv": 0,
+    "B03 Testserie S02E02.mkv": 0
+   },
+   "ondertitels_nld": {
+    "Sintel.2010.1080p.mkv": 0,
+    "tears_of_steel_1080p.mov": 0,
+    "hero.mp4": 0,
+    "Spring-Blender-Open-Movie.mkv": 0
+   },
+   "kwaliteit": {
+    "beschadigd-midden": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "afgekapt-70pct": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "stilte-25-33s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "clipping-40-43s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "zonder-audio": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "SDR"
+     }
+    },
+    "verkeerde-taaltags": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 130.04,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/nld"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "me-als-hoofdspoor": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 120.67,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/eng",
+       "aac/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "hlg-tag-op-hdr10": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 29.95,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "HDR10"
+     }
+    }
+   },
+   "aanbevelingen": {
+    "categorieen": 0,
+    "suggesties": 12,
+    "similar_serie_pioneer": 2,
+    "similar_sintel": []
+   }
+  },
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 2,
+    "begin": "2026-11-10T02:06:13Z",
+    "eind": "2026-11-10T02:06:13Z",
+    "loadavg_voor": [
+     2.63,
+     3.85,
+     5.07
+    ],
+    "loadavg_na": [
+     2.63,
+     3.85,
+     5.07
+    ],
+    "cpu": {
+     "duur_s": 0.236,
+     "machine_kernen": 2.16,
+     "eigen_kernen": 0.042,
+     "container_kernen": 0.938,
+     "andere_kernen": 1.181
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "segmenten": {
+    "B03 Anime S01E01.mkv": 0,
+    "B03 Testserie S01E01.mkv": 0,
+    "Pioneer.One.S01E01.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E02.mkv": 0,
+    "B03 Testserie S01E02.mkv": 0,
+    "Pioneer.One.S01E02.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E03.mkv": 0,
+    "B03 Testserie S01E03.mkv": 0,
+    "Pioneer.One.S01E03.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E04.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E05.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E06.720p.x264-VODO.mp4": 0,
+    "B03 Testserie S02E01.mkv": 0,
+    "B03 Testserie S02E02.mkv": 0
+   },
+   "ondertitels_nld": {
+    "Sintel.2010.1080p.mkv": 0,
+    "tears_of_steel_1080p.mov": 0,
+    "hero.mp4": 0,
+    "Spring-Blender-Open-Movie.mkv": 0
+   },
+   "kwaliteit": {
+    "beschadigd-midden": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "afgekapt-70pct": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "stilte-25-33s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "clipping-40-43s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "zonder-audio": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "SDR"
+     }
+    },
+    "verkeerde-taaltags": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 130.04,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/nld"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "me-als-hoofdspoor": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 120.67,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/eng",
+       "aac/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "hlg-tag-op-hdr10": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 29.95,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "HDR10"
+     }
+    }
+   },
+   "aanbevelingen": {
+    "categorieen": 0,
+    "suggesties": 12,
+    "similar_serie_pioneer": 2,
+    "similar_sintel": []
+   }
+  }
+ ],
+ "stock-best": [
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 0,
+    "begin": "2026-11-10T02:06:12Z",
+    "eind": "2026-11-10T02:06:13Z",
+    "loadavg_voor": [
+     2.69,
+     3.88,
+     5.08
+    ],
+    "loadavg_na": [
+     2.69,
+     3.88,
+     5.08
+    ],
+    "cpu": {
+     "duur_s": 0.25,
+     "machine_kernen": 2.237,
+     "eigen_kernen": 0.04,
+     "container_kernen": 1.01,
+     "andere_kernen": 1.187
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "segmenten": {
+    "B03 Anime S01E01.mkv": 0,
+    "B03 Testserie S01E01.mkv": 0,
+    "Pioneer.One.S01E01.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E02.mkv": 0,
+    "B03 Testserie S01E02.mkv": 0,
+    "Pioneer.One.S01E02.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E03.mkv": 0,
+    "B03 Testserie S01E03.mkv": 0,
+    "Pioneer.One.S01E03.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E04.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E05.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E06.720p.x264-VODO.mp4": 0,
+    "B03 Testserie S02E01.mkv": 0,
+    "B03 Testserie S02E02.mkv": 0
+   },
+   "ondertitels_nld": {
+    "Sintel.2010.1080p.mkv": 0,
+    "tears_of_steel_1080p.mov": 0,
+    "hero.mp4": 0,
+    "Spring-Blender-Open-Movie.mkv": 0
+   },
+   "kwaliteit": {
+    "beschadigd-midden": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "afgekapt-70pct": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "stilte-25-33s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "clipping-40-43s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "zonder-audio": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "SDR"
+     }
+    },
+    "verkeerde-taaltags": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 130.04,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/nld"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "me-als-hoofdspoor": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 120.67,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/eng",
+       "aac/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "hlg-tag-op-hdr10": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 29.95,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "HDR10"
+     }
+    }
+   },
+   "aanbevelingen": {
+    "categorieen": 0,
+    "suggesties": 12,
+    "similar_serie_pioneer": 2,
+    "similar_sintel": []
+   }
+  },
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 1,
+    "begin": "2026-11-10T02:06:13Z",
+    "eind": "2026-11-10T02:06:13Z",
+    "loadavg_voor": [
+     2.69,
+     3.88,
+     5.08
+    ],
+    "loadavg_na": [
+     2.63,
+     3.85,
+     5.07
+    ],
+    "cpu": {
+     "duur_s": 0.254,
+     "machine_kernen": 2.401,
+     "eigen_kernen": 0.079,
+     "container_kernen": 1.246,
+     "andere_kernen": 1.077
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "segmenten": {
+    "B03 Anime S01E01.mkv": 0,
+    "B03 Testserie S01E01.mkv": 0,
+    "Pioneer.One.S01E01.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E02.mkv": 0,
+    "B03 Testserie S01E02.mkv": 0,
+    "Pioneer.One.S01E02.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E03.mkv": 0,
+    "B03 Testserie S01E03.mkv": 0,
+    "Pioneer.One.S01E03.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E04.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E05.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E06.720p.x264-VODO.mp4": 0,
+    "B03 Testserie S02E01.mkv": 0,
+    "B03 Testserie S02E02.mkv": 0
+   },
+   "ondertitels_nld": {
+    "Sintel.2010.1080p.mkv": 0,
+    "tears_of_steel_1080p.mov": 0,
+    "hero.mp4": 0,
+    "Spring-Blender-Open-Movie.mkv": 0
+   },
+   "kwaliteit": {
+    "beschadigd-midden": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "afgekapt-70pct": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "stilte-25-33s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "clipping-40-43s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "zonder-audio": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "SDR"
+     }
+    },
+    "verkeerde-taaltags": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 130.04,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/nld"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "me-als-hoofdspoor": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 120.67,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/eng",
+       "aac/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "hlg-tag-op-hdr10": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 29.95,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "HDR10"
+     }
+    }
+   },
+   "aanbevelingen": {
+    "categorieen": 0,
+    "suggesties": 12,
+    "similar_serie_pioneer": 2,
+    "similar_sintel": []
+   }
+  },
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 2,
+    "begin": "2026-11-10T02:06:13Z",
+    "eind": "2026-11-10T02:06:14Z",
+    "loadavg_voor": [
+     2.63,
+     3.85,
+     5.07
+    ],
+    "loadavg_na": [
+     2.63,
+     3.85,
+     5.07
+    ],
+    "cpu": {
+     "duur_s": 0.247,
+     "machine_kernen": 1.862,
+     "eigen_kernen": 0.081,
+     "container_kernen": 1.282,
+     "andere_kernen": 0.499
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "segmenten": {
+    "B03 Anime S01E01.mkv": 0,
+    "B03 Testserie S01E01.mkv": 0,
+    "Pioneer.One.S01E01.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E02.mkv": 0,
+    "B03 Testserie S01E02.mkv": 0,
+    "Pioneer.One.S01E02.720p.x264-VODO.mp4": 0,
+    "B03 Anime S01E03.mkv": 0,
+    "B03 Testserie S01E03.mkv": 0,
+    "Pioneer.One.S01E03.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E04.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E05.720p.x264-VODO.mp4": 0,
+    "Pioneer.One.S01E06.720p.x264-VODO.mp4": 0,
+    "B03 Testserie S02E01.mkv": 0,
+    "B03 Testserie S02E02.mkv": 0
+   },
+   "ondertitels_nld": {
+    "Sintel.2010.1080p.mkv": 0,
+    "tears_of_steel_1080p.mov": 0,
+    "hero.mp4": 0,
+    "Spring-Blender-Open-Movie.mkv": 0
+   },
+   "kwaliteit": {
+    "beschadigd-midden": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "afgekapt-70pct": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "stilte-25-33s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "clipping-40-43s": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "ac3/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "zonder-audio": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 62.08,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "SDR"
+     }
+    },
+    "verkeerde-taaltags": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 130.04,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/nld"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "me-als-hoofdspoor": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 120.67,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [
+       "aac/eng",
+       "aac/eng"
+      ],
+      "videorange": "SDR"
+     }
+    },
+    "hlg-tag-op-hdr10": {
+     "gemeld": false,
+     "meldingen": [],
+     "waarneming": {
+      "runtime_s": 29.95,
+      "referentie_runtime_s": 62.08,
+      "audio_sporen": [],
+      "videorange": "HDR10"
+     }
+    }
+   },
+   "aanbevelingen": {
+    "categorieen": 0,
+    "suggesties": 12,
+    "similar_serie_pioneer": 2,
+    "similar_sintel": []
+   }
+  }
+ ]
+}

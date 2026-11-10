@@ -1,0 +1,526 @@
+{
+ "schema": "jelly-leon/b03-016-clientmatrix/1",
+ "begin": "2026-11-10T01:24:55Z",
+ "eind": "2026-11-10T01:28:20Z",
+ "server": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+ "testitem": "bron/blender/hero/hero.mp4 (CC BY 4.0)",
+ "clients": [
+  {
+   "client": "chromium 153.0.8010.12 (Playwright 1.63, headless)",
+   "rol": "stock-web (uit de stock-image)",
+   "browser": "chromium 153.0.8010.12",
+   "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 615,
+   "tijd_tot_2s_ms": 2732,
+   "audio_gedecodeerd": true,
+   "laatste_stand": {
+    "ct": 2.048231,
+    "w": 2048,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": 39353,
+    "ma": null,
+    "t": 2731.5
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": null,
+   "status": "Sim-getest (rooktest geslaagd)",
+   "opmerking": ""
+  },
+  {
+   "client": "firefox 155.0 (Playwright 1.63, headless)",
+   "rol": "stock-web (uit de stock-image)",
+   "browser": "firefox 155.0",
+   "ua": "Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 487,
+   "tijd_tot_2s_ms": 2597,
+   "audio_gedecodeerd": true,
+   "laatste_stand": {
+    "ct": 2.069645,
+    "w": 2048,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": null,
+    "ma": true,
+    "t": 2597
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": null,
+   "status": "Sim-getest (rooktest geslaagd)",
+   "opmerking": ""
+  },
+  {
+   "client": "webkit 26.6 (Playwright 1.63, headless)",
+   "rol": "stock-web (uit de stock-image)",
+   "browser": "webkit 26.6",
+   "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6 Safari/605.1.15",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 886,
+   "tijd_tot_2s_ms": 2916,
+   "audio_gedecodeerd": null,
+   "laatste_stand": {
+    "ct": 2.027988,
+    "w": 2048,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": null,
+    "ma": null,
+    "t": 2916
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": null,
+   "status": "Sim-getest (rooktest geslaagd)",
+   "opmerking": "WebKit op Linux is geen Safari"
+  },
+  {
+   "client": "webos via UA-simulatie (Chromium-engine)",
+   "rol": "Jelly Leon-webclient (profielcode)",
+   "browser": "chromium 153.0.8010.12",
+   "ua": "Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.5359.211 Safari/537.36 WebAppMana",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 380,
+   "tijd_tot_2s_ms": 2521,
+   "audio_gedecodeerd": true,
+   "laatste_stand": {
+    "ct": 2.073265,
+    "w": 2048,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": 40045,
+    "ma": null,
+    "t": 2520.5
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": [
+    [
+     "webm",
+     "vp8,vp9,av1",
+     "vorbis,opus"
+    ],
+    [
+     "mp4,m4v",
+     "h264,hevc,mpeg2video,vc1,vp9,av1",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,opus,flac,vorbis"
+    ],
+    [
+     "mkv",
+     "h264,hevc,mpeg2video,vc1,vp9,av1",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,opus,flac,vorbis"
+    ],
+    [
+     "m2ts",
+     "h264,vc1,mpeg2video",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,opus,flac,vorbis"
+    ],
+    [
+     "wmv",
+     "",
+     ""
+    ],
+    [
+     "ts,mpegts",
+     "h264,hevc,vc1,mpeg2video",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,opus,flac,vorbis"
+    ]
+   ],
+   "status": "Sim-getest (UA-simulatie, geen echte decoder)",
+   "opmerking": "alleen de takken in browserDeviceProfile.js; echte tv NIET GEVALIDEERD (hardware)"
+  },
+  {
+   "client": "tizen via UA-simulatie (Chromium-engine)",
+   "rol": "Jelly Leon-webclient (profielcode)",
+   "browser": "chromium 153.0.8010.12",
+   "ua": "Mozilla/5.0 (SMART-TV; LINUX; Tizen 8.0) AppleWebKit/537.36 (KHTML, like Gecko) 120.0.6099.5/8.0 TV Safari/537.36",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 415,
+   "tijd_tot_2s_ms": 2550,
+   "audio_gedecodeerd": true,
+   "laatste_stand": {
+    "ct": 2.060336,
+    "w": 2048,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": 39713,
+    "ma": null,
+    "t": 2550.2000000476837
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": [
+    [
+     "webm",
+     "vp8,vp9,av1",
+     "vorbis,opus"
+    ],
+    [
+     "mp4,m4v",
+     "h264,hevc,mpeg2video,vc1,msmpeg4v2,vp9,av1",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,aac_latm,vorbis"
+    ],
+    [
+     "mkv",
+     "h264,hevc,mpeg2video,vc1,msmpeg4v2,vp9,av1",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,aac_latm,opus,vorbis"
+    ],
+    [
+     "m2ts",
+     "h264,vc1,mpeg2video",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,aac_latm,vorbis"
+    ],
+    [
+     "wmv",
+     "",
+     ""
+    ],
+    [
+     "ts,mpegts",
+     "h264,hevc,vc1,mpeg2video",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,aac_latm,vorbis"
+    ]
+   ],
+   "status": "Sim-getest (UA-simulatie, geen echte decoder)",
+   "opmerking": "alleen de takken in browserDeviceProfile.js; echte tv NIET GEVALIDEERD (hardware)"
+  },
+  {
+   "client": "derden-client met legacy-headers (gesimuleerd: X-Emby-Token, X-MediaBrowser-Token, X-Emby-Authorization, api_key)",
+   "rol": "stock-native (derden)",
+   "status_per_vorm": {
+    "authorization_mediabrowser_token": {
+     "system_info": 200,
+     "gebruiker_items": 200,
+     "stream_statisch": 206
+    },
+    "x_emby_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "x_mediabrowser_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "x_emby_authorization": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "query_api_key": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "query_apikey_hoofdletter": {
+     "system_info": 200,
+     "gebruiker_items": 200,
+     "stream_statisch": 206
+    },
+    "zonder_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    }
+   },
+   "status": "Sim-getest (gemeten: legacy-auth geweigerd op API-routes; statische stream speelt)",
+   "opmerking": "12.4: EnableLegacyAuthorization uit → 401 voor X-Emby-Token/api_key op API-routes; ?ApiKey= en Authorization: MediaBrowser Token=… werken; /Videos/{id}/stream?static=true geeft 206 ook zonder token (ADR-0009). Besluit derden-clients: BG-01"
+  },
+  {
+   "client": "officiële jellyfin-androidtv 0.19.10 (tv-emulator, system-images;android-34;android-tv;x86, tv_720p )",
+   "rol": "stock-native",
+   "apk": {
+    "bestand": "jellyfin-androidtv-v0.19.10-release.apk",
+    "sha256": "8510a517c99927076082917f41bf306dd7a2546c59d492dd11bde18d6e2e4628"
+   },
+   "pogingen": [
+    {
+     "geheugenlimiet_gib": 4,
+     "boot_s": 41.3,
+     "installatie": "Performing Streamed Install\nSuccess",
+     "stappen": [
+      "serveradres ingevuld",
+      "Quick Connect-code goedgekeurd via POST /QuickConnect/Authorize (testgebruiker)",
+      "ingelogd (native tv-app)"
+     ],
+     "afspelen": {
+      "ok": true,
+      "sessie_client": "Jellyfin Android TV",
+      "apparaat": "AOSP TV on x86",
+      "app_versie": "0.19.10",
+      "tijd_tot_2s_opgelopen_s": 4.2,
+      "posities_s": [
+       0.0,
+       0.0,
+       1.0,
+       2.0
+      ],
+      "positie_vooraf_s": 0.0,
+      "afspeelmethode": "DirectPlay"
+     },
+     "geheugen": {
+      "limiet_bytes": 4294967296,
+      "piek_bytes": 4295213056,
+      "oom": 0,
+      "oom_kill": 0
+     },
+     "ok": true
+    }
+   ],
+   "gradle_lock_wacht_s": 0.0,
+   "afspelen": {
+    "ok": true,
+    "sessie_client": "Jellyfin Android TV",
+    "apparaat": "AOSP TV on x86",
+    "app_versie": "0.19.10",
+    "tijd_tot_2s_opgelopen_s": 4.2,
+    "posities_s": [
+     0.0,
+     0.0,
+     1.0,
+     2.0
+    ],
+    "positie_vooraf_s": 0.0,
+    "afspeelmethode": "DirectPlay"
+   },
+   "status": "Sim-getest (rooktest geslaagd binnen 4 GiB)"
+  },
+  {
+   "client": "officiële jellyfin-androidtv 0.19.10 (tv36-emulator, system-images;android-36;android-tv;x86_64, tv_720p )",
+   "rol": "stock-native",
+   "apk": {
+    "bestand": "jellyfin-androidtv-v0.19.10-release.apk",
+    "sha256": "8510a517c99927076082917f41bf306dd7a2546c59d492dd11bde18d6e2e4628"
+   },
+   "pogingen": [
+    {
+     "geheugenlimiet_gib": 4,
+     "boot_s": 88.6,
+     "installatie": "Performing Streamed Install\nSuccess",
+     "stappen": [
+      "serveradres ingevuld",
+      "Quick Connect-code goedgekeurd via POST /QuickConnect/Authorize (testgebruiker)",
+      "ingelogd (native tv-app)"
+     ],
+     "afspelen": {
+      "ok": true,
+      "sessie_client": "Jellyfin Android TV",
+      "apparaat": "sdk_google_atv64_x86_64",
+      "app_versie": "0.19.10",
+      "tijd_tot_2s_opgelopen_s": 5.2,
+      "posities_s": [
+       0.0,
+       0.0,
+       1.0,
+       2.0
+      ],
+      "positie_vooraf_s": 0.0,
+      "afspeelmethode": "DirectPlay"
+     },
+     "geheugen": {
+      "limiet_bytes": 4294967296,
+      "piek_bytes": 3941765120,
+      "oom": 0,
+      "oom_kill": 0
+     },
+     "ok": true
+    }
+   ],
+   "gradle_lock_wacht_s": 0.0,
+   "afspelen": {
+    "ok": true,
+    "sessie_client": "Jellyfin Android TV",
+    "apparaat": "sdk_google_atv64_x86_64",
+    "app_versie": "0.19.10",
+    "tijd_tot_2s_opgelopen_s": 5.2,
+    "posities_s": [
+     0.0,
+     0.0,
+     1.0,
+     2.0
+    ],
+    "positie_vooraf_s": 0.0,
+    "afspeelmethode": "DirectPlay"
+   },
+   "status": "Sim-getest (rooktest geslaagd binnen 4 GiB)"
+  },
+  {
+   "client": "chromium 153.0.8010.12 tegen een server met --webdir (stock-web uit de stock-image)",
+   "rol": "stock-web via --webdir",
+   "browser": "chromium 153.0.8010.12",
+   "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 1075,
+   "tijd_tot_2s_ms": 3187,
+   "audio_gedecodeerd": true,
+   "laatste_stand": {
+    "ct": 2.06888,
+    "w": 2048,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": 39713,
+    "ma": null,
+    "t": 3187.2999999523163
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": null,
+   "status": "Sim-getest (rooktest geslaagd)",
+   "opmerking": "mechanisme voor 'stock-web tegen de Jelly Leon-server' (JLT-05/09); hier tegen stock"
+  },
+  {
+   "client": "officiële jellyfin-android 2.7.3 (telefoon-emulator, system-images;android-35;google_apis;x86_64, pixel_6 {'hw.lcd.width': '720', 'hw.lcd.height': '1600', 'hw.lcd.density': '280'})",
+   "rol": "Jelly Leon-webclient (webweergave)",
+   "apk": {
+    "bestand": "jellyfin-android-v2.7.3-libre-release.apk",
+    "sha256": "f9f4b3ab46cc9434df811194c2d4351417f4db83a4c1a0facd0a662d69533f7f"
+   },
+   "pogingen": [
+    {
+     "geheugenlimiet_gib": 4,
+     "boot_s": 21.3,
+     "installatie": "Performing Streamed Install\nSuccess",
+     "stappen": [
+      "serveradres ingevuld",
+      "ingelogd in de webweergave (jellyfin-web van de server)"
+     ],
+     "afspelen": {
+      "ok": true,
+      "sessie_client": "Jellyfin for Android",
+      "apparaat": "sdk_gphone64_x86_64",
+      "app_versie": "2.7.3",
+      "tijd_tot_2s_opgelopen_s": 5.1,
+      "posities_s": [
+       0.01,
+       1.01,
+       2.01,
+       3.01
+      ],
+      "positie_vooraf_s": 0.0,
+      "afspeelmethode": "DirectPlay"
+     },
+     "geheugen": {
+      "limiet_bytes": 4294967296,
+      "piek_bytes": 4295118848,
+      "oom": 0,
+      "oom_kill": 0
+     },
+     "ok": true
+    }
+   ],
+   "gradle_lock_wacht_s": 0.0,
+   "afspelen": {
+    "ok": true,
+    "sessie_client": "Jellyfin for Android",
+    "apparaat": "sdk_gphone64_x86_64",
+    "app_versie": "2.7.3",
+    "tijd_tot_2s_opgelopen_s": 5.1,
+    "posities_s": [
+     0.01,
+     1.01,
+     2.01,
+     3.01
+    ],
+    "positie_vooraf_s": 0.0,
+    "afspeelmethode": "DirectPlay"
+   },
+   "status": "Sim-getest (rooktest geslaagd binnen 4 GiB)"
+  },
+  {
+   "client": "officiële jellyfin-android 2.7.3 (tablet-emulator, system-images;android-35;google_apis;x86_64, pixel_tablet {'hw.lcd.width': '1280', 'hw.lcd.height': '800', 'hw.lcd.density': '213'})",
+   "rol": "Jelly Leon-webclient (webweergave)",
+   "apk": {
+    "bestand": "jellyfin-android-v2.7.3-libre-release.apk",
+    "sha256": "f9f4b3ab46cc9434df811194c2d4351417f4db83a4c1a0facd0a662d69533f7f"
+   },
+   "pogingen": [
+    {
+     "geheugenlimiet_gib": 4,
+     "boot_s": 23.5,
+     "installatie": "Performing Streamed Install\nSuccess",
+     "stappen": [
+      "serveradres ingevuld",
+      "ingelogd in de webweergave (jellyfin-web van de server)"
+     ],
+     "afspelen": {
+      "ok": true,
+      "sessie_client": "Jellyfin for Android",
+      "apparaat": "sdk_gphone64_x86_64",
+      "app_versie": "2.7.3",
+      "tijd_tot_2s_opgelopen_s": 2.0,
+      "posities_s": [
+       89.01,
+       90.01,
+       91.01
+      ],
+      "positie_vooraf_s": 0.0,
+      "afspeelmethode": "DirectPlay"
+     },
+     "geheugen": {
+      "limiet_bytes": 4294967296,
+      "piek_bytes": 4295495680,
+      "oom": 0,
+      "oom_kill": 0
+     },
+     "ok": true
+    }
+   ],
+   "gradle_lock_wacht_s": 0.0,
+   "afspelen": {
+    "ok": true,
+    "sessie_client": "Jellyfin for Android",
+    "apparaat": "sdk_gphone64_x86_64",
+    "app_versie": "2.7.3",
+    "tijd_tot_2s_opgelopen_s": 2.0,
+    "posities_s": [
+     89.01,
+     90.01,
+     91.01
+    ],
+    "positie_vooraf_s": 0.0,
+    "afspeelmethode": "DirectPlay"
+   },
+   "status": "Sim-getest (rooktest geslaagd binnen 4 GiB)"
+  }
+ ],
+ "desktop": {
+  "client": "jellyfin-desktop 2.0.0 onder Xvfb",
+  "status": "zie b03-016-desktop-spike.json"
+ },
+ "niet_hier": [
+  {
+   "client": "Swiftfin 1.6.1 (iOS/tvOS), Safari, Apple TV",
+   "rol": "stock-native",
+   "status": "NIET GEVALIDEERD (Mac/Xcode)",
+   "reden": "geen Mac/Xcode in deze bouwomgeving"
+  },
+  {
+   "client": "echte tv's, telefoons, tablets, receivers, Chromecast, DLNA",
+   "rol": "alle",
+   "status": "NIET GEVALIDEERD (hardware)",
+   "reden": "geen echte apparaten; D15 onbekend (JLT-69)"
+  }
+ ],
+ "eerdere_sessies": [
+  {
+   "begin": "2026-11-10T01:06:37Z",
+   "eind": "2026-11-10T01:21:14Z"
+  }
+ ]
+}

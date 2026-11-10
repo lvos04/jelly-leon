@@ -1,0 +1,50 @@
+{
+ "schema": "jelly-leon/b03-016-desktop-spike/1",
+ "client": "jellyfin-desktop 2.0.0 (forkbron 2.0.0-jl.0, jelly-leon-clients/desktop) onder Xvfb",
+ "server": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+ "runtime_apt": "ok",
+ "cdp_versie": "jellyfin-desktop/2.0.0",
+ "cdp": {
+  "ok": false,
+  "fout": "CDP-besturing liep vast (420 s)",
+  "stappen_tot_dan": "STAP doel: qrc:///web-client/extension/find-webclient.html\nSTAP serveradres ingevuld op find-webclient\nSTAP webclient: qrc:///web-client/extension/find-webclient.html\n"
+ },
+ "posities_s": [],
+ "app_log": "\nDevTools listening on ws://127.0.0.1:9333/devtools/browser/b699f177-bb42-4512-b152-09e55e1ec748\nCould not read config file.\nCould not read config file.\nLIRC Socket Error :  QLocalSocket::ServerNotFoundError\nDisplayManager : unable to retrieve main display\n[W][74741.259717] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client-rt.conf: No such file or directory\n[E][74741.259727] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client-rt.conf: No such file or directory\nCannot load libcuda.so.1\n",
+ "server_staat": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":3653380,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-11-10T02:53:26.397124467Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"healthy\",\"FailingStreak\":0,\"Log\":[{\"Start\":\"2026-11-10T04:00:02.185395361+01:00\",\"End\":\"2026-11-10T04:00:02.230988555+01:00\",\"ExitCode\":0,\"Output\":\"Healthy\"},{\"S",
+ "server_log": "7] Emby.Server.Implementations.Library.LibraryManager: Post-scan task StudiosPostScanTask completed after 0 minute(s) and 0 seconds\n[02:53:35.670] [INF] [7] Emby.Server.Implementations.Library.LibraryManager: Running post-scan task 8/9: CleanDatabaseScheduledTask\n[02:53:35.672] [INF] [7] Emby.Server.Implementations.Library.LibraryManager: Post-scan task CleanDatabaseScheduledTask completed after 0 minute(s) and 0 seconds\n[02:53:35.672] [INF] [7] Emby.Server.Implementations.Library.LibraryManager: Running post-scan task 9/9: RefreshDatabaseStatisticsPostScanTask\n[02:53:35.672] [INF] [7] Jellyfin.Database.Providers.Sqlite.SqliteDatabaseProvider: Analyzing jellyfin.db\n[02:53:35.673] [INF] [7] Emby.Server.Implementations.Library.LibraryManager: Post-scan task RefreshDatabaseStatisticsPostScanTask completed after 0 minute(s) and 0 seconds\n[02:53:35.673] [INF] [7] Emby.Server.Implementations.Library.LibraryManager: All post-scan tasks completed after 0 minute(s) and 0 seconds\n[02:53:35.674] [INF] [7] Emby.Server.Implementations.ScheduledTasks.TaskManager: Scan Media Library Completed after 0 minute(s) and 0 seconds\n[03:00:00.059] [INF] [52] Emby.Server.Implementations.ScheduledTasks.TaskManager: Trickplay-afbeeldingen genereren Completed after 0 minute(s) and 0 seconds\n[03:00:01.002] [INF] [46] Emby.Server.Implementations.ScheduledTasks.TaskManager: Daily trigger for Trickplay-afbeeldingen genereren set to fire at 2026-11-11 03:00:00.000 +00:00, which is 23:59:58.9973457 from now.\n",
+ "status": "Geblokkeerd (spike niet geslaagd)",
+ "bouw": {
+  "clients_commit": "f11bf13fe66613aa8d699e34cc108679378132e3",
+  "bouw_s": 34,
+  "binary": "build/src/jellyfin-desktop"
+ },
+ "pogingen": [
+  {
+   "poging": 1,
+   "uitkomst": "app crasht bij start: 'Failed to parse application engine script' (QML-runtimemodules ontbraken in de bouwimage)",
+   "oplossing": "qml6-module-qtwebengine/-qtwebchannel/-qtquick-* uit desktop/debian/control (Depends) in de runtimecontainer"
+  },
+  {
+   "poging": 2,
+   "uitkomst": "app start, CDP (ruwe websocket) antwoordt; besturingsscript liep vast zonder time-outs",
+   "oplossing": "time-out per CDP-aanroep, voortgang per stap"
+  },
+  {
+   "poging": "3–5",
+   "uitkomst": "harnasfouten: de runtimecontainer had dezelfde naam als de stockserver en verving die; recursie in de stapfunctie",
+   "oplossing": "aparte containernaam; stapfunctie gerepareerd"
+  },
+  {
+   "poging": 6,
+   "uitkomst": "find-webclient bestuurd; knop bleef uit (zonder 'input'-event)",
+   "oplossing": "input-event + requestSubmit"
+  },
+  {
+   "poging": 7,
+   "uitkomst": "serveradres verstuurd, maar de app laadt de jellyfin-web van de server niet binnen 60 s (blijft op qrc:///web-client/extension/find-webclient.html); oorzaak niet vastgesteld (jmpCheckServerConnectivity in C++; consolelog niet uitgelezen)",
+   "oplossing": "open — gezamenlijke spike met jelly-leon-clients"
+  }
+ ],
+ "samenvatting": "jellyfin-desktop 2.0.0 (forkbron jelly-leon-clients@f11bf13, alleen-lezen) gebouwd in de bouwomgeving van jelly-leon-clients (62/62 stappen), start onder Xvfb in een container met libmpv/VA-API-drivers; ruwe CDP via de Node 22-WebSocket werkt (Browser: jellyfin-desktop/2.0.0), Playwright connectOverCDP is niet nodig. Niet gelukt: de app laadt de serverweb niet na het verbinden; daardoor is inloggen en afspelen van hero.mp4 niet beproefd en is de ChunkLoadError-vraag uit analyse 5 §4 niet beantwoord. Status: Geblokkeerd (spike niet geslaagd)."
+}

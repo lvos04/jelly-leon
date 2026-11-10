@@ -1,0 +1,521 @@
+{
+ "stock-standaard|dv-p8.1-1080p": [
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 0,
+    "begin": "2026-11-10T02:00:05Z",
+    "eind": "2026-11-10T02:00:29Z",
+    "loadavg_voor": [
+     3.69,
+     4.52,
+     5.78
+    ],
+    "loadavg_na": [
+     2.59,
+     4.19,
+     5.64
+    ],
+    "cpu": {
+     "duur_s": 24.676,
+     "machine_kernen": 0.866,
+     "eigen_kernen": 0.522,
+     "container_kernen": 0.14,
+     "andere_kernen": 0.203
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 639,
+   "orakel_ok": true,
+   "besluit": "DirectPlay",
+   "redenen": "",
+   "container_cpu_s": 3.46,
+   "cpu_s_per_media_s": null,
+   "kernen_tijdens_transcode": null,
+   "log": null
+  },
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 1,
+    "begin": "2026-11-10T02:02:41Z",
+    "eind": "2026-11-10T02:03:08Z",
+    "loadavg_voor": [
+     2.91,
+     3.82,
+     5.31
+    ],
+    "loadavg_na": [
+     4.1,
+     4.07,
+     5.35
+    ],
+    "cpu": {
+     "duur_s": 27.296,
+     "machine_kernen": 5.348,
+     "eigen_kernen": 0.804,
+     "container_kernen": 4.049,
+     "andere_kernen": 0.496
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 2915,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 110.51,
+   "cpu_s_per_media_s": 3.847,
+   "kernen_tijdens_transcode": 13.46,
+   "log": "FFmpeg.Transcode-2026-11-10_02-02-43_0049e99cdab9dece5d8f3e5ec9bbb775_275ece30.log",
+   "media_s": 28.73,
+   "snelheid_x": 3.5,
+   "video_encoder": "libx264",
+   "tonemap": "tonemapx",
+   "hwaccel": null
+  },
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 2,
+    "begin": "2026-11-10T02:03:40Z",
+    "eind": "2026-11-10T02:04:07Z",
+    "loadavg_voor": [
+     3.69,
+     3.99,
+     5.28
+    ],
+    "loadavg_na": [
+     5.59,
+     4.5,
+     5.42
+    ],
+    "cpu": {
+     "duur_s": 26.985,
+     "machine_kernen": 5.601,
+     "eigen_kernen": 0.819,
+     "container_kernen": 4.124,
+     "andere_kernen": 0.657
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 2645,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 111.29,
+   "cpu_s_per_media_s": 3.794,
+   "kernen_tijdens_transcode": 14.04,
+   "log": "FFmpeg.Transcode-2026-11-10_02-03-42_0049e99cdab9dece5d8f3e5ec9bbb775_f0617420.log",
+   "media_s": 29.33,
+   "snelheid_x": 3.7,
+   "video_encoder": "libx264",
+   "tonemap": "tonemapx",
+   "hwaccel": null
+  }
+ ],
+ "stock-standaard|hevc10-hdr10-1080p": [
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 0,
+    "begin": "2026-11-10T02:00:29Z",
+    "eind": "2026-11-10T02:00:56Z",
+    "loadavg_voor": [
+     2.59,
+     4.19,
+     5.64
+    ],
+    "loadavg_na": [
+     3.7,
+     4.35,
+     5.65
+    ],
+    "cpu": {
+     "duur_s": 26.787,
+     "machine_kernen": 4.971,
+     "eigen_kernen": 0.795,
+     "container_kernen": 3.838,
+     "andere_kernen": 0.338
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 2447,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 102.81,
+   "cpu_s_per_media_s": 3.535,
+   "kernen_tijdens_transcode": 14.14,
+   "log": "FFmpeg.Transcode-2026-11-10_02-00-31_4955a385c1a9fe2858f70241e3d484b8_5470d1e0.log",
+   "media_s": 29.08,
+   "snelheid_x": 4.0,
+   "video_encoder": "libx264",
+   "tonemap": "tonemapx",
+   "hwaccel": null
+  },
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 1,
+    "begin": "2026-11-10T02:03:13Z",
+    "eind": "2026-11-10T02:03:40Z",
+    "loadavg_voor": [
+     3.85,
+     4.02,
+     5.33
+    ],
+    "loadavg_na": [
+     3.69,
+     3.99,
+     5.28
+    ],
+    "cpu": {
+     "duur_s": 26.951,
+     "machine_kernen": 5.229,
+     "eigen_kernen": 0.807,
+     "container_kernen": 3.846,
+     "andere_kernen": 0.576
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 2607,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 103.66,
+   "cpu_s_per_media_s": 3.502,
+   "kernen_tijdens_transcode": 13.59,
+   "log": "FFmpeg.Transcode-2026-11-10_02-03-15_4955a385c1a9fe2858f70241e3d484b8_124a852c.log",
+   "media_s": 29.6,
+   "snelheid_x": 3.88,
+   "video_encoder": "libx264",
+   "tonemap": "tonemapx",
+   "hwaccel": null
+  },
+  {
+   "last": {
+    "systeem": "stock-standaard",
+    "run": 2,
+    "begin": "2026-11-10T02:04:37Z",
+    "eind": "2026-11-10T02:05:04Z",
+    "loadavg_voor": [
+     3.93,
+     4.2,
+     5.29
+    ],
+    "loadavg_na": [
+     4.74,
+     4.42,
+     5.33
+    ],
+    "cpu": {
+     "duur_s": 27.23,
+     "machine_kernen": 5.076,
+     "eigen_kernen": 0.8,
+     "container_kernen": 3.768,
+     "andere_kernen": 0.508
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 2923,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 102.6,
+   "cpu_s_per_media_s": 3.562,
+   "kernen_tijdens_transcode": 12.97,
+   "log": "FFmpeg.Transcode-2026-11-10_02-04-39_4955a385c1a9fe2858f70241e3d484b8_bf8fcc5b.log",
+   "media_s": 28.8,
+   "snelheid_x": 3.64,
+   "video_encoder": "libx264",
+   "tonemap": "tonemapx",
+   "hwaccel": null
+  }
+ ],
+ "stock-best|dv-p8.1-1080p": [
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 0,
+    "begin": "2026-11-10T02:00:56Z",
+    "eind": "2026-11-10T02:01:22Z",
+    "loadavg_voor": [
+     3.7,
+     4.35,
+     5.65
+    ],
+    "loadavg_na": [
+     2.78,
+     4.08,
+     5.52
+    ],
+    "cpu": {
+     "duur_s": 26.249,
+     "machine_kernen": 1.559,
+     "eigen_kernen": 0.88,
+     "container_kernen": 0.162,
+     "andere_kernen": 0.517
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 1868,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 4.24,
+   "cpu_s_per_media_s": 0.157,
+   "kernen_tijdens_transcode": 1.01,
+   "log": "FFmpeg.Transcode-2026-11-10_02-00-58_0049e99cdab9dece5d8f3e5ec9bbb775_06c5013e.log",
+   "media_s": 27.01,
+   "snelheid_x": 6.45,
+   "video_encoder": "h264_qsv",
+   "tonemap": "tonemap_vaapi",
+   "hwaccel": "vaapi"
+  },
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 1,
+    "begin": "2026-11-10T02:01:49Z",
+    "eind": "2026-11-10T02:02:15Z",
+    "loadavg_voor": [
+     2.82,
+     3.95,
+     5.43
+    ],
+    "loadavg_na": [
+     2.86,
+     3.88,
+     5.37
+    ],
+    "cpu": {
+     "duur_s": 26.183,
+     "machine_kernen": 1.444,
+     "eigen_kernen": 0.867,
+     "container_kernen": 0.162,
+     "andere_kernen": 0.416
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 1857,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 4.24,
+   "cpu_s_per_media_s": 0.157,
+   "kernen_tijdens_transcode": 0.94,
+   "log": "FFmpeg.Transcode-2026-11-10_02-01-50_0049e99cdab9dece5d8f3e5ec9bbb775_6aa453e7.log",
+   "media_s": 27.08,
+   "snelheid_x": 5.98,
+   "video_encoder": "h264_qsv",
+   "tonemap": "tonemap_vaapi",
+   "hwaccel": "vaapi"
+  },
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 2,
+    "begin": "2026-11-10T02:05:19Z",
+    "eind": "2026-11-10T02:05:46Z",
+    "loadavg_voor": [
+     3.91,
+     4.25,
+     5.26
+    ],
+    "loadavg_na": [
+     3.45,
+     4.12,
+     5.19
+    ],
+    "cpu": {
+     "duur_s": 26.439,
+     "machine_kernen": 1.54,
+     "eigen_kernen": 0.888,
+     "container_kernen": 0.158,
+     "andere_kernen": 0.494
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 1947,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 4.18,
+   "cpu_s_per_media_s": 0.152,
+   "kernen_tijdens_transcode": 0.86,
+   "log": "FFmpeg.Transcode-2026-11-10_02-05-21_0049e99cdab9dece5d8f3e5ec9bbb775_4bbdb44e.log",
+   "media_s": 27.45,
+   "snelheid_x": 5.66,
+   "video_encoder": "h264_qsv",
+   "tonemap": "tonemap_vaapi",
+   "hwaccel": "vaapi"
+  }
+ ],
+ "stock-best|hevc10-hdr10-1080p": [
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 0,
+    "begin": "2026-11-10T02:01:22Z",
+    "eind": "2026-11-10T02:01:49Z",
+    "loadavg_voor": [
+     2.78,
+     4.08,
+     5.52
+    ],
+    "loadavg_na": [
+     2.82,
+     3.95,
+     5.43
+    ],
+    "cpu": {
+     "duur_s": 26.09,
+     "machine_kernen": 1.572,
+     "eigen_kernen": 0.855,
+     "container_kernen": 0.162,
+     "andere_kernen": 0.555
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 1753,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 4.22,
+   "cpu_s_per_media_s": 0.157,
+   "kernen_tijdens_transcode": 1.0,
+   "log": "FFmpeg.Transcode-2026-11-10_02-01-24_4955a385c1a9fe2858f70241e3d484b8_d08c3ed3.log",
+   "media_s": 26.9,
+   "snelheid_x": 6.38,
+   "video_encoder": "h264_qsv",
+   "tonemap": "tonemap_vaapi",
+   "hwaccel": "vaapi"
+  },
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 1,
+    "begin": "2026-11-10T02:02:15Z",
+    "eind": "2026-11-10T02:02:41Z",
+    "loadavg_voor": [
+     2.86,
+     3.88,
+     5.37
+    ],
+    "loadavg_na": [
+     2.91,
+     3.82,
+     5.31
+    ],
+    "cpu": {
+     "duur_s": 26.107,
+     "machine_kernen": 1.218,
+     "eigen_kernen": 0.855,
+     "container_kernen": 0.157,
+     "andere_kernen": 0.207
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 1711,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 4.1,
+   "cpu_s_per_media_s": 0.151,
+   "kernen_tijdens_transcode": 0.87,
+   "log": "FFmpeg.Transcode-2026-11-10_02-02-16_4955a385c1a9fe2858f70241e3d484b8_1d5caa9f.log",
+   "media_s": 27.21,
+   "snelheid_x": 5.75,
+   "video_encoder": "h264_qsv",
+   "tonemap": "tonemap_vaapi",
+   "hwaccel": "vaapi"
+  },
+  {
+   "last": {
+    "systeem": "stock-best",
+    "run": 2,
+    "begin": "2026-11-10T02:05:46Z",
+    "eind": "2026-11-10T02:06:12Z",
+    "loadavg_voor": [
+     3.45,
+     4.12,
+     5.19
+    ],
+    "loadavg_na": [
+     2.69,
+     3.88,
+     5.08
+    ],
+    "cpu": {
+     "duur_s": 26.217,
+     "machine_kernen": 1.552,
+     "eigen_kernen": 0.862,
+     "container_kernen": 0.149,
+     "andere_kernen": 0.542
+    },
+    "zware_sloten_voor": [],
+    "zware_sloten_na": [],
+    "geldig": true,
+    "reden": ""
+   },
+   "ongeldige_pogingen": [],
+   "eerste_frame_ms": 1857,
+   "orakel_ok": true,
+   "besluit": "Transcode",
+   "redenen": "VideoCodecNotSupported",
+   "container_cpu_s": 3.9,
+   "cpu_s_per_media_s": 0.143,
+   "kernen_tijdens_transcode": 0.82,
+   "log": "FFmpeg.Transcode-2026-11-10_02-05-48_4955a385c1a9fe2858f70241e3d484b8_03b61759.log",
+   "media_s": 27.21,
+   "snelheid_x": 5.75,
+   "video_encoder": "h264_qsv",
+   "tonemap": "tonemap_vaapi",
+   "hwaccel": "vaapi"
+  }
+ ]
+}
