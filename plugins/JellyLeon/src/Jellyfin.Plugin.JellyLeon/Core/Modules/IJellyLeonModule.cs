@@ -35,6 +35,9 @@ internal interface IJellyLeonModule
     /// <summary>Telt de rijen die nog naar de gebruiker verwijzen (bewijs voor de UserDeleted-test).</summary>
     int TelGebruiker(Guid gebruiker);
 
+    /// <summary>Haalt na een verwijdering ook de resten uit het logbestand van de eigen database (WAL).</summary>
+    void WisSporen();
+
     /// <summary>Opent de eigen opslag; gooit bij een fout (voor de health-check).</summary>
     void ControleerOpslag();
 

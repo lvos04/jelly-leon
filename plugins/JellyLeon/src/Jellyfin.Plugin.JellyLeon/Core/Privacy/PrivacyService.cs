@@ -49,6 +49,14 @@ internal sealed class PrivacyService
             verwijderd += module.VerwijderGebruiker(gebruiker);
         }
 
+        // Ook de resten weg: secure_delete overschrijft de vrije pagina's, dit kort het WAL in (JLT-65: 0 GUID's in de
+        // bestanden, niet alleen in de tabellen).
+        _core.Db.WisSporen();
+        foreach (var module in _modules.Alle)
+        {
+            module.WisSporen();
+        }
+
         return verwijderd;
     }
 

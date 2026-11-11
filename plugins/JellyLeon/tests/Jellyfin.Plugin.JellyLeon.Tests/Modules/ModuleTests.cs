@@ -188,6 +188,10 @@ public sealed class ModuleTests : IDisposable
 
         public int TelGebruiker(Guid gebruiker) => 0;
 
+        public void WisSporen()
+        {
+        }
+
         public void ControleerOpslag()
         {
         }

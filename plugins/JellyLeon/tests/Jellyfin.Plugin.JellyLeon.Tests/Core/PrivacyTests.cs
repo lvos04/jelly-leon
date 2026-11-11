@@ -94,11 +94,16 @@ public sealed class PrivacyTests : IDisposable
         var privacy = _h.Dienst<PrivacyService>();
         Assert.Equal(3, privacy.TelGebruiker(weg.Id));
         Assert.NotEmpty(Vindplaatsen(weg.Id));
+        Assert.NotEmpty(RuweVindplaatsen(weg.Id));
 
         await new UserDeletedConsumer(privacy, NullLogger<UserDeletedConsumer>.Instance).OnEvent(new UserDeletedEventArgs(weg));
 
         Assert.Equal(0, privacy.TelGebruiker(weg.Id));
         Assert.Empty(Vindplaatsen(weg.Id));
+
+        // Ook niet meer in de bestanden zelf (vrije pagina's, WAL): secure_delete en het inkorten van het WAL.
+        Assert.Empty(RuweVindplaatsen(weg.Id));
+        Assert.NotEmpty(RuweVindplaatsen(blijft));
         Assert.Equal(2, privacy.TelGebruiker(blijft));
 
         // Een tweede keer is onschadelijk.
@@ -186,6 +191,30 @@ public sealed class PrivacyTests : IDisposable
     }
 
     /// <summary>Zoekt de account-ID (beide schrijfwijzen en het pseudoniem) in elke tabel van elke eigen database.</summary>
+    private List<string> RuweVindplaatsen(Guid gebruiker)
+    {
+        var naalden = new[] { gebruiker.ToString("N"), gebruiker.ToString("D"), _h.Dienst<PrivacyService>().Pseudoniem(gebruiker) }
+            .Select(System.Text.Encoding.ASCII.GetBytes)
+            .ToList();
+        var gevonden = new List<string>();
+        foreach (var bestand in Directory.GetFiles(Path.Combine(_h.Map, "data", "jelly-leon"), "*", SearchOption.AllDirectories))
+        {
+            byte[] inhoud;
+            using (var stroom = new FileStream(bestand, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                inhoud = new byte[stroom.Length];
+                stroom.ReadExactly(inhoud);
+            }
+
+            if (naalden.Any(naald => inhoud.AsSpan().IndexOf(naald) >= 0))
+            {
+                gevonden.Add(Path.GetFileName(bestand));
+            }
+        }
+
+        return gevonden;
+    }
+
     private List<string> Vindplaatsen(Guid gebruiker)
     {
         var naalden = new[] { gebruiker.ToString("N"), gebruiker.ToString("D"), _h.Dienst<PrivacyService>().Pseudoniem(gebruiker) };

@@ -46,6 +46,8 @@ internal abstract class ModuleBasis : IJellyLeonModule
 
     public abstract int TelGebruiker(Guid gebruiker);
 
+    public void WisSporen() => Db.WisSporen();
+
     public abstract JsonObject Status(DateTimeOffset nu);
 
     public void ControleerOpslag() => Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM instellingen"));

@@ -55,6 +55,12 @@ internal sealed class JlDatabase
         }
     }
 
+    /// <summary>
+    /// Schrijft het WAL-bestand weg en kort het in tot nul bytes. Na een verwijdering staan oude paginabeelden (met de
+    /// verwijderde inhoud) anders nog in het WAL tot de volgende controle van SQLite.
+    /// </summary>
+    public void WisSporen() => Met(v => Voer(v, "PRAGMA wal_checkpoint(TRUNCATE);"));
+
     public void Met(Action<SqliteConnection> werk) => Met(v =>
     {
         werk(v);
@@ -122,6 +128,10 @@ internal sealed class JlDatabase
         try
         {
             Voer(verbinding, "PRAGMA busy_timeout=5000;");
+
+            // Verwijderde rijen worden met nullen overschreven: anders blijft de inhoud (bijvoorbeeld een account-ID na
+            // UserDeleted) in vrije pagina's van het bestand leesbaar. Geldt per verbinding.
+            Voer(verbinding, "PRAGMA secure_delete=ON;");
             if (!_klaar)
             {
                 Voer(verbinding, "PRAGMA journal_mode=WAL;");
