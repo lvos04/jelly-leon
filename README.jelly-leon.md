@@ -18,7 +18,7 @@ De upstream-README staat ongewijzigd in `README.md`.
 | `docs/platform-v2/CLIENT_COMPAT_MATRIX.md` | compatibiliteit server ↔ clients |
 | `docs/platform-v2/BOUWVERIFICATIE_*.md`, `test-evidence/` | gemeten bouw- en testresultaten (P0, B03-015, B03-016, P4-0) |
 | `docs/platform-v2/EVIDENCE.json` | status per Excel-taak (nooit "Gereed" zonder echte acceptatie) |
-| `docs/adr/` | architectuurbesluiten ADR-0001…0027 (ADR-0011: vóór P4 naar Jellyfin 12.x, besluit gebruiker; ADR-0025: eigen overnametool uit Emby; ADR-0026: B03-016-harnas; ADR-0027: P4-0 uitgevoerd op v12.4) |
+| `docs/adr/` | architectuurbesluiten ADR-0001…0028 (ADR-0011: vóór P4 naar Jellyfin 12.x, besluit gebruiker; ADR-0025: eigen overnametool uit Emby; ADR-0026: B03-016-harnas; ADR-0027: P4-0 uitgevoerd op v12.4; ADR-0028: contract 1.3) |
 | `docs/openapi/` | upstream-API (gegenereerd) en de fork-eigen pluginroutes |
 | `plugins/` | eigen Jellyfin-plugins (eigen solution, tegen dezelfde Jellyfin-versie) |
 | `tools/b03-harnas/` | B03-016: corpusgenerator (recepten F1–F6, bevroren sha256-manifesten), CI-guard testdatalicenties, clientmatrix-rooktest, baselines van stock Jellyfin en de differentiële controle-run (ADR-0026; procedure in `docs/platform-v2/B03-016_HARNAS.md`) |

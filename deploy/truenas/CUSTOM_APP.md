@@ -1,4 +1,4 @@
-# Jelly Leon installeren als standaard TrueNAS Custom App (contract 1.2)
+# Jelly Leon installeren als standaard TrueNAS Custom App (contract 1.3)
 
 > **Status: NIET GEVALIDEERD (echte NAS).** De volledige image (server + echte web-build + plugin) is lokaal én in
 > GitHub-CI (job *image*) gebouwd en met dezelfde formulierwaarden in Docker getest (Sim-getest, zie
@@ -102,6 +102,16 @@ vóór de controle van `/health` naar 568 zonder capabilities (ADR-0014). Je hoe
 
 - Open `http://<NAS-adres>:<hostpoort>` (adres uit de wizard, D03). De Jellyfin-startwizard verschijnt (technische
   identiteit blijft Jellyfin: bestaande Jellyfin-apps herkennen de server gewoon).
+- **Rond de startwizard direct af** en maak daarin het beheerdersaccount met een eigen wachtwoord. Zolang de
+  startwizard openstaat, kan iedereen op het netwerk die de pagina opent beheerder worden. In het manifest staat dit
+  als controle na installatie (`post_install_checks`: `startwizard_afronden`, contract 1.3 §9): volgens het contract
+  toont de Hub hem als taak en telt de app pas als gezond nadat de beheerder hem bevestigt (met de echte Hub NIET
+  GEVALIDEERD). De kijkgeschiedenis uit Emby overnemen kan daarna en is een eigen keuze; Emby blijft ongewijzigd
+  draaien.
+- **Bewaking (monitorplan, contract 1.3 §9):** het manifest noemt `GET /health` met verwachte status 200 (timeout
+  10 s, elke 60 s). De Hub maakt daar alleen een plan van en past Uptime Kuma niet zelf aan: je neemt de monitor zelf
+  over in de Uptime Kuma-UI en bevestigt hem daar ("handmatig bevestigd"). Zonder die bevestiging is de bewaking niet
+  gevalideerd.
 - Bestaande Jellyfin-apps (web, Android, Android TV, iOS/Swiftfin, Kodi, …) verbinden met hetzelfde adres en dezelfde
   poort. Welke apps getest zijn: `docs/platform-v2/CLIENT_COMPAT_MATRIX.md` (nu alles **NIET GEVALIDEERD** op echte apparaten).
 - **Koppelen met de Hub (v1, contract §2.3, ADR-0012):** geen enrollment en geen `HUB_URL`/`HUB_ENROLLMENT_TOKEN` in het

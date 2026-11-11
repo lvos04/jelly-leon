@@ -1,7 +1,7 @@
 # Architectuurbesluiten (ADR) — jelly-leon
 
 Elke keuze in deze fork die afwijkt van "upstream Jellyfin ongewijzigd laten" of die het platformcontract
-(`docs/platform-v2/PLATFORM_CONTRACTEN.md`, versie 1.2) interpreteert, staat hier als ADR.
+(`docs/platform-v2/PLATFORM_CONTRACTEN.md`, versie 1.3) interpreteert, staat hier als ADR.
 Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 
 | ADR | Titel | Status |
@@ -33,6 +33,7 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0025](ADR-0025-b03-015-eigen-overnametool-niet-jellyplex-watched.md) | B03-015: eigen overnametool (alleen-lezen uit Emby) in plaats van JellyPlex-Watched | Aanvaard (bouwerbesluit B03-015 A2) |
 | [ADR-0026](ADR-0026-b03-016-harnas-corpus-clientmatrix-baseline.md) | B03-016: één harnasraamwerk voor corpusgenerator, clientmatrix en baselines van stock Jellyfin | Aanvaard (bouwerbesluit B03-016) |
 | [ADR-0027](ADR-0027-p4-0-uitvoering-12x.md) | P4-0 uitgevoerd: herbasis op v12.4, downgradeweigering, register UG-GEM en gekozen interpretaties | Aanvaard (Sim-getest) |
+| [ADR-0028](ADR-0028-contract-1-3.md) | Contract 1.3: kopie en drifttest, EVIDENCE §11, healthcheck §2.2 (controlevlag), manifest §9 (monitorplan, post_install_checks, accepted_findings, CI met `--strict`) | Aanvaard (Unit-getest en Sim-getest) |
 
 ## B03 2.0 — herkomst van de ADR's
 
