@@ -10,6 +10,10 @@ buiten (`--network none`, alleen de eigen loopback).
      CapAmb en CapBnd 0 en NoNewPrivs 1 (exitcode 0); zonder server op 8096 is de healthcheck rood (exitcode 1);
   2. als root met het interne fase-argument `--na-wissel`: er wordt toch gewisseld (rechten in orde, exitcode 0);
   3. `docker exec --user 568:568` met `--na-wissel-root` (geen echte wissel, geen no_new_privs): rood (exitcode 1);
+     daarna twee wissels die bewust één soort recht laten staan, elk via `setpriv` als root met no_new_privs, zodat
+     alleen de eigen controle van het script ze kan vangen: (a) naar 568 met de ambient capability CHOWN →
+     `--toon-rechten --na-wissel` rood met CapPrm én CapAmb in de melding; (b) naar 568 met groep 0 als hoofd- en
+     aanvullende groep (bounding set leeg) → `--toon-rechten --na-wissel-root` rood met Gid én Groups in de melding;
   4. "Custom User 568" (`--user 568:568`): `--toon-rechten` meldt Uid 568, CapEff/CapPrm/CapAmb 0, NoNewPrivs 1
      (CapBnd mag de Docker-standaardset zijn); met `--na-wissel` zonder echte wissel rood;
   5. met de stock-server als dienst (die zelf als root draait; alleen om /health te hebben): de healthcheck wordt
@@ -90,11 +94,24 @@ class Proef:
         detail = fields(proc.stdout) + ("; AFWIJKEND: " + "; ".join(problems[:6]) if problems else "")
         return self.add(label, not problems, detail)
 
-    def red(self, label: str, name: str, *args: str, user: str | None = None, expect: str) -> bool:
-        cmd = ["exec", *(["--user", user] if user else []), name, HEALTHCHECK, *args]
+    def red(
+        self,
+        label: str,
+        name: str,
+        *args: str,
+        user: str | None = None,
+        expect: str | tuple[str, ...],
+        via: tuple[str, ...] = (),
+    ) -> bool:
+        """Exitcode 1 en elke verwachte tekst in stderr. `via`: het script starten via dat commando (bv. setpriv)."""
+        script = ["/bin/sh", HEALTHCHECK] if via else [HEALTHCHECK]
+        cmd = ["exec", *(["--user", user] if user else []), name, *via, *script, *args]
         proc = docker(*cmd, check=False)
-        ok = proc.returncode == 1 and expect in proc.stderr
-        return self.add(label, ok, f"exitcode {proc.returncode}; {proc.stderr.strip()[:200]}")
+        expected = (expect,) if isinstance(expect, str) else expect
+        missing = [text for text in expected if text not in proc.stderr]
+        ok = proc.returncode == 1 and not missing
+        detail = f"exitcode {proc.returncode}; {proc.stderr.strip()[:300]}"
+        return self.add(label, ok, detail + (f"; ONTBREEKT in de melding: {', '.join(missing)}" if missing else ""))
 
     def run(self) -> bool:
         uid = f"{APP_UID}:{APP_UID}"
@@ -105,6 +122,15 @@ class Proef:
                     extra=("--na-wissel",))
         self.red("exec als 568 met --na-wissel-root zonder echte wissel: rood", root, "", "--na-wissel-root",
                  user=uid, expect="rechtenwissel niet in orde")
+        # Alleen de eigen controle na de wissel kan deze twee vangen (uid 568 en no_new_privs kloppen wel).
+        self.red("wissel naar 568 met ambient CHOWN: rood (CapPrm, CapAmb)", root, "--toon-rechten", "--na-wissel",
+                 expect=("rechtenwissel niet in orde", "CapPrm 0000000000000001", "CapAmb 0000000000000001"),
+                 via=("setpriv", f"--reuid={APP_UID}", f"--regid={APP_UID}", "--clear-groups", "--inh-caps=+chown",
+                      "--ambient-caps=+chown", "--no-new-privs", "--"))
+        self.red("wissel naar 568 met groep 0: rood (Gid, Groups)", root, "--toon-rechten", "--na-wissel-root",
+                 expect=("rechtenwissel niet in orde", "Gid 0 0 0 0 (verwacht 568)", "Groups 0"),
+                 via=("setpriv", f"--reuid={APP_UID}", "--regid=0", "--groups=0", "--inh-caps=-all",
+                      "--bounding-set=-all", "--no-new-privs", "--"))
 
         custom = self.start("custom-user", user=uid)
         self.rights("Custom User 568: rechten na de wissel (controlevlag)", custom, root_start=False)

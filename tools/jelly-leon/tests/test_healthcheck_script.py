@@ -1,11 +1,15 @@
 """deploy/allinone/healthcheck.sh (Docker-healthcheck, contract 1.3 §2.2, C1.3-JL-03): de rechtenwissel is de eerste
-handeling, daarna controleert het script zijn eigen rechten en pas dan /health; mislukt iets, dan exitcode 1.
+handeling, daarna controleert het script zijn eigen rechten en pas dan /health; mislukt een controle of /health, dan
+exitcode 1. Weigert setpriv de wissel, dan eindigt het script met de foutcode van setpriv (≠ 0; ADR-0014, aanvulling 1.3).
 
 Zonder Docker en zonder root: `setpriv`, `curl` en programma's die het script vóór de wissel nooit mag starten (`id`,
-`cat`, `grep`, `awk`, `sed`) zijn nepprogramma's in PATH die hun aanroep vastleggen. De nep-`setpriv` voert daarna de
-echte setpriv uit, zodat no_new_privs echt aan staat en de controle na de wissel echte rechten leest. Het pad als root
-(bounding set leeg, 568:568) kan hier niet zonder root; dat meten `tools/jelly-leon/e2e/healthcheck_proef.py` (script in
-de runtime-image) en `tools/jelly-leon/e2e/image_lifecycle.py` (de gebouwde image) in een echte container.
+`grep`, `awk`, `sed`, `stat`, `readlink`; zie FORBIDDEN_BEFORE_SWITCH) zijn nepprogramma's in PATH die hun aanroep
+vastleggen. `cat` is bewust geen nepprogramma: de controlevlag --toon-rechten heeft na de wissel de echte cat nodig. De
+nep-`setpriv` voert daarna de echte setpriv uit (of stopt met een foutcode, zie setpriv_exit), zodat no_new_privs echt
+aan staat en de controle na de wissel echte rechten leest. Het pad als root (bounding set leeg, 568:568) en een proces
+met capabilities kunnen hier niet zonder root; dat meten `tools/jelly-leon/e2e/healthcheck_proef.py` (script in de
+runtime-image, ook met de negatieve gevallen CapPrm/CapAmb en Gid/Groups) en `tools/jelly-leon/e2e/image_lifecycle.py`
+(de gebouwde image) in een echte container.
 """
 
 from __future__ import annotations
@@ -49,14 +53,24 @@ def write_tool(directory: Path, name: str, body: str) -> None:
 
 
 def run_healthcheck(
-    tmp_path: Path, *args: str, curl_exit: int = 0, env_extra: dict[str, str] | None = None
+    tmp_path: Path,
+    *args: str,
+    curl_exit: int = 0,
+    setpriv_exit: int | None = None,
+    env_extra: dict[str, str] | None = None,
 ) -> tuple[int, list[str], str, str]:
-    """Draait het script als gewone gebruiker zonder no_new_privs (zoals Custom User in het formulier)."""
+    """Draait het script als gewone gebruiker zonder no_new_privs (zoals Custom User in het formulier).
+
+    Met setpriv_exit weigert de nep-setpriv de wissel (zoals de echte bij een container met --cap-drop ALL)."""
     tools = tmp_path / "bin"
     tools.mkdir(exist_ok=True)
     log = tmp_path / "aanroepen.log"
-    # setpriv: argumenten vastleggen en daarna de echte setpriv met dezelfde argumenten (echte no_new_privs).
-    write_tool(tools, "setpriv", f'printf "setpriv %s\\n" "$*" >> "{log}"\nexec "{REAL_SETPRIV}" "$@"\n')
+    if setpriv_exit is None:
+        # setpriv: argumenten vastleggen en daarna de echte setpriv met dezelfde argumenten (echte no_new_privs).
+        setpriv_body = f'exec "{REAL_SETPRIV}" "$@"\n'
+    else:
+        setpriv_body = f'echo "setpriv: setresuid failed: Operation not permitted" >&2\nexit {setpriv_exit}\n'
+    write_tool(tools, "setpriv", f'printf "setpriv %s\\n" "$*" >> "{log}"\n' + setpriv_body)
     write_tool(tools, "curl", f'printf "curl %s\\n" "$*" >> "{log}"\nexit {curl_exit}\n')
     for name in FORBIDDEN_BEFORE_SWITCH:
         write_tool(tools, name, f'printf "{name} %s\\n" "$*" >> "{log}"\nexit 0\n')
@@ -118,9 +132,29 @@ def test_root_phase_after_a_switch_without_root_start_is_red(tmp_path):
         capture_output=True, text=True, check=False, env={"PATH": "/usr/bin:/bin"},
     )
     assert status.returncode == 1
-    assert "rechtenwissel niet in orde" in status.stderr and "(verwacht 568)" in status.stderr
+    assert "rechtenwissel niet in orde" in status.stderr
+    # Elke root-verwachting apart: het proces erft uid, gid en groepen van deze testgebruiker (geen 568, geen wissel).
+    own_uid = " ".join(_status_field("Uid").split())
+    own_gid = " ".join(_status_field("Gid").split())
+    own_groups = " ".join(_status_field("Groups").split())
+    assert f"Uid {own_uid} (verwacht 568)" in status.stderr
+    assert f"Gid {own_gid} (verwacht 568)" in status.stderr
     assert "CapBnd" in status.stderr
+    if own_groups:  # zonder aanvullende groepen in deze omgeving dekt healthcheck_proef.py de Groups-controle
+        assert f"Groups {own_groups}" in status.stderr
     assert "NoNewPrivs:" in status.stdout, "de controlevlag toont de rechten ook als ze niet in orde zijn"
+
+
+@pytest.mark.parametrize("args", [(), ("--toon-rechten",)])
+def test_refused_switch_ends_with_the_setpriv_error_and_never_checks_health(tmp_path, args):
+    """setpriv weigert de wissel (bv. een container met --cap-drop ALL): het script eindigt met de foutcode van setpriv
+    (≠ 0, voor Docker ongezond), zonder /health en zonder tweede poging (ADR-0014, aanvulling 1.3, punt 2)."""
+    rc, calls, out, err = run_healthcheck(tmp_path, *args, setpriv_exit=127)
+    assert rc == 127, err
+    assert len(calls) == 1 and calls[0].startswith("setpriv --no-new-privs --inh-caps=-all -- /bin/sh ")
+    assert not any(call.startswith("curl ") for call in calls)
+    assert "setresuid failed" in err
+    assert out == "", "zonder geslaagde wissel geen rechtenoverzicht"
 
 
 def test_form_environment_cannot_skip_the_switch(tmp_path):
