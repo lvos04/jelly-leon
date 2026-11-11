@@ -5,6 +5,7 @@ using Jellyfin.Plugin.JellyLeon.Core.Connector;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Hub;
 using Jellyfin.Plugin.JellyLeon.Core.Idempotency;
+using Jellyfin.Plugin.JellyLeon.Core.MediaGuard;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Outbox;
 using Jellyfin.Plugin.JellyLeon.Core.Privacy;
@@ -60,6 +61,12 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<ConnectorService>();
         serviceCollection.AddScoped<IEventConsumer<UserDeletedEventArgs>, UserDeletedConsumer>();
         serviceCollection.AddHostedService<DevicesListener>();
+
+        // De ene MediaGuard-viewerclient (B03-009, ADR-0034). Standaard is er geen weg naar MediaGuard: status onbekend.
+        serviceCollection.TryAddSingleton<IMediaGuardVervoer, GeenMediaGuardVervoer>();
+        serviceCollection.AddSingleton<MediaGuardClient>();
+        serviceCollection.AddSingleton<IHealthBron, MediaGuardHealthBron>();
+        serviceCollection.AddHostedService<MediaGuardPoller>();
 
         // Spike (ADR-0033): 1 MiB vóór routing en authenticatie; standaard uit, de controle per route blijft altijd staan.
         if (JlStartupFilterSpike.IsAan(Environment.GetEnvironmentVariable))

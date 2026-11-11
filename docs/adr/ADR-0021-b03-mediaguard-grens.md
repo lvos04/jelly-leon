@@ -20,6 +20,8 @@
    een andere rol is fail-closed (niet opslaan, niet gebruiken). Routewitte lijst (GET + het niet-muterende
    `POST /api/v1/audio/inspect`); veldenwitte lijst per route; ruwe antwoorden nooit loggen of bewaren; één poller per route.
 2. De sleutel wordt in Jelly Leon zelf ingevoerd (BG-04) en staat alleen in de geheimenmap.
+   *Vervallen op 2026-11-11:* de gebruiker besliste BG-04 anders (via de Hub, bij voorkeur zonder sleuteloverdracht);
+   zie ADR-0034. Er komt geen MediaGuard-sleutel in Jelly Leon.
 3. **Geen MediaGuard-mutaties vanuit B03.** Alle wensen (F3 `subtitles.search`, F4 `wanted.search`,
    `quarantine.release_check`, `file.reacquire`, `quality.report`) zijn gebundeld in **Δ-CONTRACT-MG** en staan op
    `Geblokkeerd (contract)`; `quarantine.restore` wordt R3 en wordt nooit door AI voorgesteld.

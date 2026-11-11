@@ -39,6 +39,7 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0031](ADR-0031-b03-017-hub-koppeling-jl4-en-connectorgrenzen.md) | B03-017: Hub-koppeling JL4 (plakken, vingerafdruk, pin in de geheimenmap), connectorgrenzen, health-regels, open contractpunten | Aanvaard (Unit-getest; echte Hub NIET GEVALIDEERD) |
 | [ADR-0032](ADR-0032-b03-017-analyzer-verboden-apis-en-generator-web-config.md) | B03-017: analyzer voor verboden API's (JL0001–JL0004, witte lijst per API en klasse, proefassembly die de build laat falen) en generator voor de web-`config.json` | Aanvaard (Unit-getest; echte build in CI) |
 | [ADR-0033](ADR-0033-b03-017-spike-istartupfilter-1-mib-voor-authenticatie.md) | B03-017: spike `IStartupFilter` — een laag uit de plugin vóór routing en authenticatie werkt op stock 12.4 (413 vóór 401 bij meer dan 1 MiB); blijft standaard uit tot het contract de volgorde wijzigt | Aanvaard (Sim-getest; echte NAS NIET GEVALIDEERD) |
+| [ADR-0034](ADR-0034-b03-009-mediaguard-viewerclient-via-de-hub.md) | B03-009: MediaGuard-viewerclient via de Hub zonder sleutel in Jelly Leon (BG-04); standaard geen vervoer en status `onbekend`; rolcontrole fail-closed, routes- en veldenwitte lijst; `IsKid` (B03-010, deel) | Aanvaard (Unit-getest; echte Hub en MediaGuard NIET GEVALIDEERD) |
 
 ## B03 2.0 — herkomst van de ADR's
 
@@ -59,7 +60,7 @@ voorstellen zijn platformbesluiten van ai-server-manager.
 | ADR-B03-06 | Hub-koppeling (JL4) en privacy | ADR-0031 | ai-server-manager ADR-0017 |
 | ADR-B03-07 | upstream-gedrag, patches en webhaken | ADR-0019 | webdeel in jelly-leon-web |
 | ADR-B03-08 | opslag en gegevensbescherming (HARDE EIS) | ADR-0020 | ai-server-manager ADR-0020 |
-| ADR-B03-09 | MediaGuard-grens (Δ-MG-AUTH per server, Δ-MG-DUAL) | ADR-0021 | ai-server-manager ADR-0018 (contractkant); media-guard-ultimate |
+| ADR-B03-09 | MediaGuard-grens (Δ-MG-AUTH per server, Δ-MG-DUAL) | ADR-0021, ADR-0034 (BG-04: via de Hub) | ai-server-manager ADR-0018 (contractkant); media-guard-ultimate |
 | ADR-B03-10 | post-credit-bescherming | ADR-0022 | — |
 | ADR-B03-11 | licenties | ADR-0023 | geldt voor alle B03-repos |
 | ADR-B03-12 | clientrollen | ADR-0024 | jelly-leon-web, jelly-leon-clients (verwijzing) |
