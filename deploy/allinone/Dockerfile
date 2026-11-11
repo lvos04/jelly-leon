@@ -60,6 +60,14 @@ RUN set -eu; \
       npm run build:production; \
     fi; \
     test -f dist/index.html; grep -q '<title>Jelly Leon</title>' dist/index.html
+# config.json van de webclient: één generator (B03-017, ADR-0019) maakt hem uit de upstream-items plus de eigen webplugins
+# van Jelly Leon en controleert daarna dat geen upstream-plugin ontbreekt. Zonder eigen plugins blijft hij byte-gelijk.
+COPY deploy/allinone/web-config.mjs deploy/allinone/web-config.jellyleon.json /gen/
+RUN set -eu; \
+    node /gen/web-config.mjs --upstream src/config.json --eigen /gen/web-config.jellyleon.json \
+      --plugins-map src/plugins --uit dist/config.json; \
+    node /gen/web-config.mjs --upstream src/config.json --eigen /gen/web-config.jellyleon.json \
+      --plugins-map src/plugins --uit dist/config.json --controleer
 
 # ---------------------------------------------------------------- runtime
 FROM ${RUNTIME_IMAGE}

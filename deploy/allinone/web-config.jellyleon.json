@@ -1,0 +1,4 @@
+{
+  "_toelichting": "Eigen webplugins van Jelly Leon voor de config.json van de image (generator: web-config.mjs, ADR-0019). Alleen namen van de vorm jellyLeon/<naam>/plugin, met bron onder src/plugins/jellyLeon/ in jelly-leon-web. Golf 1: nog geen enkele webplugin, dus de config.json van de image is byte-gelijk aan upstream.",
+  "plugins": []
+}
