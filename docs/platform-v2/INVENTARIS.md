@@ -57,7 +57,9 @@ De volledige upstream-API (315 paden) staat in `docs/openapi/jelly-leon.openapi.
 | Back-up | `POST /Backup/Create`, `POST /Backup/Restore`, `GET /Backup`, `GET /Backup/Manifest` (alleen beheerder, nieuw in 10.11) | Gebruiken voor B03-013 (DB-back-up vóór update), geen eigen DB-back-up bouwen. |
 | Systeem | `/System/Info/Public` (ProductName, Version, Id), `/System/Ping`, `/health` (ASP.NET health check, buiten OpenAPI) | `/health` is de healthcheck van de image; contract-`/healthz`/`/readyz` volgen later via de plugin (ADR-0008). |
 
-Fork-eigen routes staan apart in `docs/openapi/jelly-leon-plugin.openapi.json` (nu alleen `GET /media/v1/version`).
+Fork-eigen routes staan apart in `docs/openapi/jelly-leon-plugin.openapi.json`: `GET /media/v1/version`, de connector
+`/connector/v1/*` en de beheerroutes van de plugin (Hub-koppeling, modules, privacyregister, Devices, Quality). Het document
+wordt uit de routetabel van de plugin gegenereerd (ADR-0029) en door een drifttest bewaakt.
 De overige B03-routes (`/media/v1/search`, `/media/v1/scenes`, `/media/v1/mediaguard/request`,
 `/media/v1/transcode/capabilities`, `/media/v1/events/playback`) bestaan **nog niet** — ontwerpeisen voor latere fasen.
 
