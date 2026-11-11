@@ -1,0 +1,54 @@
+{
+  "soort": "Sim-getest (Docker op de bouwmachine; geen echte NAS, geen TrueNAS-formulier)",
+  "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "script": "deploy/allinone/healthcheck.sh",
+  "script_sha256": "f634c19b0ed57cefa257bc2895a576da34b3463e922154a4c6937df97c654582",
+  "gestart": "2026-11-11T05:47:41Z",
+  "klaar": "2026-11-11T05:47:45Z",
+  "geslaagd": true,
+  "stappen": [
+    {
+      "stap": "als root gestart: rechten na de wissel (controlevlag)",
+      "geslaagd": true,
+      "detail": "Uid=568 568 568 568, Gid=568 568 568 568, Groups=-, CapPrm=0000000000000000, CapEff=0000000000000000, CapAmb=0000000000000000, CapBnd=0000000000000000, NoNewPrivs=1",
+      "tijd": "2026-11-11T05:47:41Z"
+    },
+    {
+      "stap": "als root gestart, geen server: healthcheck rood",
+      "geslaagd": true,
+      "detail": "exitcode 1; curl: (7) Failed to connect to localhost port 8096 after 0 ms: Could not connect to server\njelly-leon-healthcheck: /health antwoordt niet met 200",
+      "tijd": "2026-11-11T05:47:41Z"
+    },
+    {
+      "stap": "als root met fase-argument --na-wissel: toch gewisseld",
+      "geslaagd": true,
+      "detail": "Uid=568 568 568 568, Gid=568 568 568 568, Groups=-, CapPrm=0000000000000000, CapEff=0000000000000000, CapAmb=0000000000000000, CapBnd=0000000000000000, NoNewPrivs=1",
+      "tijd": "2026-11-11T05:47:41Z"
+    },
+    {
+      "stap": "exec als 568 met --na-wissel-root zonder echte wissel: rood",
+      "geslaagd": true,
+      "detail": "exitcode 1; jelly-leon-healthcheck: rechtenwissel niet in orde: NoNewPrivs 0 na de wissel; /health niet gecontroleerd",
+      "tijd": "2026-11-11T05:47:41Z"
+    },
+    {
+      "stap": "Custom User 568: rechten na de wissel (controlevlag)",
+      "geslaagd": true,
+      "detail": "Uid=568 568 568 568, Gid=568 568 568 568, Groups=568, CapPrm=0000000000000000, CapEff=0000000000000000, CapAmb=0000000000000000, CapBnd=00000000a80425fb, NoNewPrivs=1",
+      "tijd": "2026-11-11T05:47:41Z"
+    },
+    {
+      "stap": "Custom User 568 met --na-wissel zonder echte wissel: rood",
+      "geslaagd": true,
+      "detail": "exitcode 1; jelly-leon-healthcheck: rechtenwissel niet in orde: NoNewPrivs 0 na de wissel; /health niet gecontroleerd",
+      "tijd": "2026-11-11T05:47:41Z"
+    },
+    {
+      "stap": "stock-server draait: healthcheck groen",
+      "geslaagd": true,
+      "detail": "exitcode 0 (GET /health = 200, curl als 568 met no_new_privs)",
+      "tijd": "2026-11-11T05:47:45Z"
+    }
+  ],
+  "opmerking": "lokaal, contract 1.3-ronde (C1.3-JL-03, C1.3-ALG-04): het script uit de checkout (sha256 in script_sha256) in de runtime-image, als root en als Custom User 568, met de negatieve gevallen"
+}
