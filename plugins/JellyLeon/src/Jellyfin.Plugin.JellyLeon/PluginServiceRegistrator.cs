@@ -16,6 +16,7 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Plugins;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -59,5 +60,11 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<ConnectorService>();
         serviceCollection.AddScoped<IEventConsumer<UserDeletedEventArgs>, UserDeletedConsumer>();
         serviceCollection.AddHostedService<DevicesListener>();
+
+        // Spike (ADR-0033): 1 MiB vóór routing en authenticatie; standaard uit, de controle per route blijft altijd staan.
+        if (JlStartupFilterSpike.IsAan(Environment.GetEnvironmentVariable))
+        {
+            serviceCollection.AddTransient<IStartupFilter, JlStartupFilterSpike>();
+        }
     }
 }

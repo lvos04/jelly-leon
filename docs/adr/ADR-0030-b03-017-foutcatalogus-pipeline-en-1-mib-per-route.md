@@ -53,6 +53,8 @@ plaatsen zonder een `IStartupFilter`; of dat op 12.x betrouwbaar werkt is een ap
 - Een nieuwe route bestaat pas als ze in de routetabel staat; de drifttest en de contracttest lopen dan vanzelf mee.
 - De 413 komt bij de pluginroutes na de 401. Slaagt de spike, dan verhuist alleen stap 4 naar vóór de authenticatie;
   codes en volgorde van de overige stappen blijven gelijk.
+- Uitkomst van de spike (ADR-0033): technisch geslaagd op stock 12.4, maar de laag blijft standaard uit tot contract
+  §2.3 regel 9 de volgorde wijzigt. Tot dan blijft de volgorde van dit ADR gelden.
 
 ## Verificatie
 
