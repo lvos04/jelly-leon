@@ -56,11 +56,13 @@ voor iedereen openstaan) of een **NFS/SMB-share** is (de SQLite-database van Jel
 | | Timezone | tijdzone van de NAS (uit de wizard) |
 | | Environment Variables | **leeg laten** (geen geheimen in het formulier; geen `JELLYFIN_*`-paden: datamappen buiten `/config`/`/cache` worden geweigerd) |
 | | Restart Policy | *Unless Stopped* |
+| | Disable Builtin Healthcheck | **uit** laten (de healthcheck van de image op `/health` wisselt als eerste handeling naar 568 zonder capabilities, ADR-0014; *Healthy* hieronder en de bewaking steunen erop) |
 | Security Context | Privileged | **uit** |
 | | Capabilities | geen toevoegen |
 | | Custom User | **uit** (aanbevolen: de container maakt zelf 568:568 eigenaar van `/config` en `/cache` en draait daarna als 568). Aan met User/Group `568` mag ook, maar alleen als beide datasets al van 568 zijn; anders stopt de container met een melding (zie *Problemen*). |
 | Network Configuration | Host Network | **uit** |
 | | Ports → Add | Container Port `8096`, Host Port `30460` (voorstel uit contract §2; de Hub controleert conflicten via de TrueNAS-API). Draait er al een stock-Jellyfin (D07), dan houdt die zijn eigen poort; kies nooit diens poort. Protocol TCP |
+| Portal Configuration | Add | Name `Jelly Leon`, Protocol *HTTP*, Use Node IP aan, Port gelijk aan de Host Port hierboven, Path `/` (uit `custom_app.portal` van het manifest) |
 | Storage Configuration | Add → Host Path | Mount Path `/config` → Host Path: jouw config-dataset |
 | | Add → Host Path | Mount Path `/cache` → Host Path: jouw cache-dataset |
 | | Add → Host Path | Mount Path `/media` → Host Path: jouw mediadataset, **Read Only aan** |

@@ -109,3 +109,32 @@ def test_ci_validates_strict_without_a_separate_exception_list():
     assert "--toegestaan" not in WORKFLOW
     assert "APPSTORE_COMMIT: bd33052cd0174be08fbf6324f1caf296257182d3" not in WORKFLOW  # validator van vóór 1.3
     assert 'test "$validator_rc" -eq 0' in job  # ook de exitcode van de validator telt
+
+
+def _form_row(document: str, field: str) -> str | None:
+    """De tabelregel van het formulier in deploy/truenas/CUSTOM_APP.md waarin dit veld staat (of None)."""
+    for line in document.splitlines():
+        if line.startswith("|") and field in line:
+            return line
+    return None
+
+
+def test_install_document_has_the_form_fields_that_the_translation_fills():
+    """CUSTOM_APP.md zegt "dezelfde velden" te beschrijven als de vertaling van het manifest naar het formulier
+    (appstore-en-fork, docs/TRUENAS_APP_VALUES.md: Portals uit custom_app.portal, Disable Builtin Healthcheck altijd
+    false). Wie het document handmatig volgt, mag geen van beide missen (review S-P2-800, R-MANIFEST-2)."""
+    document = (REPO / "deploy/truenas/CUSTOM_APP.md").read_text(encoding="utf-8")
+    healthcheck_row = _form_row(document, "Disable Builtin Healthcheck")
+    assert healthcheck_row is not None, "rij 'Disable Builtin Healthcheck' ontbreekt"
+    assert "**uit**" in healthcheck_row and "ADR-0014" in healthcheck_row
+
+    custom_app = check_fork_consistency.top_level_block(MANIFEST, "custom_app")
+    portal = custom_app[custom_app.index("\n  portal:\n") :] if custom_app else ""
+    name = check_fork_consistency._scalar(portal, "name", indent=4)
+    scheme = check_fork_consistency._scalar(portal, "scheme", indent=4)
+    path = check_fork_consistency._scalar(portal, "path", indent=4)
+    assert (name, scheme, path) == ("Jelly Leon", "http", "/"), "manifest custom_app.portal veranderd: document nalopen"
+    portal_row = _form_row(document, "Portal Configuration")
+    assert portal_row is not None, "rij 'Portal Configuration' ontbreekt"
+    assert f"Name `{name}`" in portal_row and f"Path `{path}`" in portal_row
+    assert f"Protocol *{scheme.upper()}*" in portal_row and "Host Port" in portal_row
