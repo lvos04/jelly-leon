@@ -130,7 +130,7 @@ def check_manifest(repo: Path, baseline: dict) -> list[str]:
         errors.append("manifest bevat een compose-veld (verboden, contract §9)")
     if not re.search(r"^\s+method:\s*custom_app\s*$", text, re.MULTILINE):
         errors.append("manifest install.method moet custom_app zijn")
-    return errors + check_manifest_1_2(text)
+    return errors + check_manifest_1_2(text) + check_manifest_1_3(text)
 
 
 def top_level_block(text: str, key: str) -> str | None:
@@ -204,6 +204,114 @@ def check_manifest_1_2(text: str) -> list[str]:
         reason = top_level_block(text, "privilege_reason")
         if not reason or reason.strip() in ("", "null", ">-", "|"):
             errors.append("manifest: privileges.gpu intel_render vereist een privilege_reason")
+    return errors
+
+
+# Vaste lijst van contract 1.3 §9: alleen deze waarschuwingen mag een manifest met reden accepteren.
+ACCEPTEERBARE_CODES = ("backup_db_export_none", "secret_in_form", "digest_pending_release")
+MONITOR_VELDEN = ("pad", "verwachte_status", "timeout_s", "interval_s")
+
+
+def _inline_map(value: str | None) -> dict[str, str] | None:
+    """`{a: 1, b: x}` op één regel (de vaste opmaak van ons manifest) als dict; anders None."""
+    match = re.fullmatch(r"\{(.*)\}", (value or "").strip())
+    if not match:
+        return None
+    out: dict[str, str] = {}
+    for part in match.group(1).split(","):
+        key, sep, val = part.partition(":")
+        if not sep or key.strip() in out:
+            return None
+        out[key.strip()] = val.strip().strip("\"'")
+    return out
+
+
+def check_manifest_1_3(text: str) -> list[str]:
+    """Wijzigingen van contract 1.3 §9 (C1.3-JL-04): geen `HUB_*`, monitorplan op /health, de open startwizard als
+    post_install_check en geaccepteerde waarschuwingen alleen met reden in het manifest.
+
+    Bewust eenvoudig, net als `check_manifest_1_2`; de volledige validatie (`--strict`) doet de validator van de
+    manifesteigenaar (appstore-en-fork) in de CI-job `manifest`.
+    """
+    errors: list[str] = []
+    kop = text.splitlines()[0] if text else ""
+    if "platformcontract 1.3 §9" not in kop:
+        errors.append("manifest: de kopregel moet 'platformcontract 1.3 §9' noemen")
+
+    # Gereserveerde namen (§3.2): HUB_* zet de vertaling zelf bij het koppelen, nooit het manifest.
+    for blok in ("parameters", "custom_app"):
+        namen = re.findall(
+            r"^\s*(?:-\s+)?name:\s*[\"']?(HUB_[A-Za-z0-9_]*)", top_level_block(text, blok) or "", re.MULTILINE | re.IGNORECASE
+        )
+        errors.extend(
+            f"manifest: {naam} in {blok} — HUB_* is gereserveerd (contract 1.3 §9, reserved_env)" for naam in namen
+        )
+
+    healthcheck = top_level_block(text, "healthcheck")
+    monitor = _inline_map(_scalar(healthcheck, "monitor"))
+    if monitor is None:
+        errors.append(
+            "manifest: healthcheck.monitor ontbreekt of staat niet als {pad, verwachte_status, timeout_s, interval_s} "
+            "op één regel (contract 1.3 §9, monitorplan)"
+        )
+    else:
+        if tuple(sorted(monitor)) != tuple(sorted(MONITOR_VELDEN)):
+            errors.append(f"manifest: healthcheck.monitor moet precies {', '.join(MONITOR_VELDEN)} hebben")
+        pad = _scalar(healthcheck, "path")
+        if monitor.get("pad") != "/health" or monitor.get("pad") != pad:
+            errors.append(
+                f"manifest: healthcheck.monitor.pad moet /health zijn, gelijk aan healthcheck.path ({pad!r}); "
+                f"gevonden {monitor.get('pad')!r}"
+            )
+        if monitor.get("verwachte_status") != "200":
+            errors.append("manifest: healthcheck.monitor.verwachte_status moet 200 zijn (/health van Jellyfin)")
+        for veld in ("timeout_s", "interval_s"):
+            if not re.fullmatch(r"[1-9][0-9]*", monitor.get(veld, "")):
+                errors.append(f"manifest: healthcheck.monitor.{veld} moet een positief geheel getal zijn")
+
+    # Open eerste-gebruik-venster: de startwizard van Jellyfin (wie hem opent, wordt beheerder).
+    checks = re.split(r"^\s*-\s+(?=id:)", top_level_block(text, "post_install_checks") or "", flags=re.MULTILINE)[1:]
+    ids: list[str] = []
+    for item in checks:
+        ident = item.splitlines()[0].partition(":")[2].strip().strip("\"'")
+        ids.append(ident)
+        soort = re.search(r"^\s+soort:\s*(\S+)\s*$", item, re.MULTILINE)
+        if not soort or soort.group(1) not in ("http", "handmatig"):
+            errors.append(f"manifest: post_install_checks {ident!r}: soort moet http of handmatig zijn")
+        if not re.search(r"^\s+beschrijving_nl:\s*\S", item, re.MULTILINE):
+            errors.append(f"manifest: post_install_checks {ident!r}: beschrijving_nl ontbreekt")
+    if "startwizard_afronden" not in ids:
+        errors.append(
+            "manifest: post_install_checks mist 'startwizard_afronden' (de open startwizard is een "
+            "eerste-gebruik-venster, contract 1.3 §9)"
+        )
+
+    accepted = re.split(r"^\s*-\s+(?=code:)", top_level_block(text, "accepted_findings") or "", flags=re.MULTILINE)[1:]
+    codes: list[str] = []
+    for item in accepted:
+        code = item.splitlines()[0].partition(":")[2].strip().strip("\"'")
+        codes.append(code)
+        if code not in ACCEPTEERBARE_CODES:
+            errors.append(
+                f"manifest: accepted_findings {code!r} staat niet in de vaste lijst van contract 1.3 §9 "
+                f"({', '.join(ACCEPTEERBARE_CODES)})"
+            )
+        if not re.search(r"^\s+reden_nl:\s*\S", item, re.MULTILINE):
+            errors.append(f"manifest: accepted_findings {code!r}: reden_nl ontbreekt")
+    if len(set(codes)) != len(codes):
+        errors.append("manifest: accepted_findings noemt een code dubbel")
+    digest = _scalar(top_level_block(text, "image"), "digest")
+    zonder_digest = digest in (None, "", "null", "~")
+    if zonder_digest and "digest_pending_release" not in codes:
+        errors.append(
+            "manifest: image.digest is nog leeg; digest_pending_release moet dan met reden in accepted_findings staan "
+            "(anders faalt --strict)"
+        )
+    if not zonder_digest and "digest_pending_release" in codes:
+        errors.append(
+            "manifest: image.digest is ingevuld; digest_pending_release moet uit accepted_findings "
+            "(een geaccepteerde code die niet meer optreedt faalt in --strict)"
+        )
     return errors
 
 

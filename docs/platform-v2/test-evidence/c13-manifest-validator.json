@@ -1,0 +1,74 @@
+{
+  "valid": true,
+  "app_id": "jelly-leon",
+  "version": "12.4.0-jl.0",
+  "install_method": "custom_app",
+  "manifest_sha256": "sha256:07aa649b699b00a82a849800dc5e91d37d6b7e6a27c311cb1f5eab1d8e92d34f",
+  "schema_sha256": "sha256:a86a65aa463a71f2694fb09f0a89072a5127db2976cfeccca096f3bf86c397d0",
+  "validator_version": "0.1.0",
+  "errors": 0,
+  "warnings": 1,
+  "accepted": 1,
+  "strict_valid": true,
+  "findings": [
+    {
+      "code": "digest_pending_release",
+      "severity": "warning",
+      "path": "image.digest",
+      "message": "Eigen image zonder digest: de release-CI vult die in; installeren vereist de digest.",
+      "accepted": true,
+      "accepted_reden_nl": "Eigen image vóór de eerste release: de release-CI vult de digest in (P4). Tot dan kan niemand Jelly Leon via het platform installeren (de vertaling weigert een image zonder digest met digest_not_pinned); de proeven draaien op lokaal gebouwde images."
+    }
+  ],
+  "file": "deploy/manifest/jelly-leon.manifest.yaml",
+  "strict": true,
+  "result": "geldig",
+  "validator": "lvos04/appstore-en-fork@7b3159d168b1e8b575e220068bb3df50ed0203ad (python -m appstore.manifest.cli validate --strict --format json; lokale checkout op die commit met de omgeving van de eigenaar; in de CI-job manifest: afhankelijkheden uit apps/api/requirements.lock met --require-hashes)",
+  "beoordeling": "tools/jelly-leon/manifest_rapport.py: conform in --strict; met reden geaccepteerd in het manifest: digest_pending_release (geen losse uitzonderingenlijst buiten het manifest)",
+  "negatieve_proeven": {
+    "custom_app.env met HUB_URL": {
+      "valid": false,
+      "strict_valid": false,
+      "result": "ongeldig",
+      "bevindingen": [
+        "error reserved_env (custom_app.env[0].name)",
+        "warning digest_pending_release (image.digest) geaccepteerd"
+      ]
+    },
+    "parameter met de naam HUB_URL": {
+      "valid": false,
+      "strict_valid": false,
+      "result": "ongeldig",
+      "bevindingen": [
+        "error invalid_format (parameters[0].name)"
+      ]
+    },
+    "healthcheck.monitor verwijderd": {
+      "valid": true,
+      "strict_valid": false,
+      "result": "ongeldig",
+      "bevindingen": [
+        "warning healthcheck_monitor_missing (healthcheck.monitor)",
+        "warning digest_pending_release (image.digest) geaccepteerd"
+      ]
+    },
+    "accepted_findings verwijderd (digest nog leeg)": {
+      "valid": true,
+      "strict_valid": false,
+      "result": "ongeldig",
+      "bevindingen": [
+        "warning digest_pending_release (image.digest)"
+      ]
+    },
+    "accepted_findings met een code buiten de vaste lijst (deprecated_field)": {
+      "valid": false,
+      "strict_valid": false,
+      "result": "ongeldig",
+      "bevindingen": [
+        "error invalid_value (accepted_findings[0].code)"
+      ]
+    }
+  },
+  "datum": "2026-11-11",
+  "soort": "Sim-getest (validator lokaal, geen NAS)"
+}

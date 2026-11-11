@@ -55,7 +55,8 @@ PLUGIN_PROPS = """<Project>
 </Project>
 """
 
-MANIFEST = """manifest_version: "1"
+MANIFEST = """# Manifest (manifeststandaard v1, platformcontract 1.3 §9) — testfixture.
+manifest_version: "1"
 app_id: jelly-leon
 version: "{fork}"
 install:
@@ -76,7 +77,19 @@ network:
 privileges:
   privileged: false
   gpu: none
+healthcheck:
+  type: http
+  path: /health
+  port: web
+  monitor: {{pad: /health, verwachte_status: 200, timeout_s: 10, interval_s: 60}}
 decisions_required: [D02]
+post_install_checks:
+  - id: startwizard_afronden
+    soort: handmatig
+    beschrijving_nl: Rond de startwizard af.
+accepted_findings:
+  - code: digest_pending_release
+    reden_nl: Nog geen release.
 """
 
 DOCKERFILE = """# syntax=docker/dockerfile:1.7

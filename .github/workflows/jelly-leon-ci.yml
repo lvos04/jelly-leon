@@ -81,16 +81,18 @@ jobs:
       - name: Workflows controleren (actionlint met shellcheck)
         run: actionlint .github/workflows/jelly-leon-ci.yml .github/workflows/upstream-sync.yml
 
-  # Contract 1.2 §9 (JL2): het manifest wordt gevalideerd door de validator van de manifesteigenaar (appstore-en-fork,
-  # B08-001) — niet gekopieerd, maar uit de publieke repo op een vastgezette commit (alleen lezen, geen token nodig).
-  # Alleen de waarschuwing digest_pending_release mag (nog geen release); vervallen velden tellen als fout.
+  # Contract 1.3 §9 (C1.3-JL-04): het manifest wordt gevalideerd door de validator van de manifesteigenaar
+  # (appstore-en-fork, B08-001) — niet gekopieerd, maar uit de publieke repo op een vastgezette commit (alleen lezen,
+  # geen token nodig), altijd met --strict. Er is geen losse lijst met toegestane waarschuwingen meer: wat mag, staat
+  # met reden in accepted_findings van het manifest (nu alleen digest_pending_release, nog geen release).
   manifest:
     name: Manifest §9 (validator van appstore-en-fork, vastgezette commit)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       APPSTORE_REPO: lvos04/appstore-en-fork
-      APPSTORE_COMMIT: bd33052cd0174be08fbf6324f1caf296257182d3
+      # Validator met contract 1.3 (accepted_findings, post_install_checks, healthcheck.monitor, reserved_env).
+      APPSTORE_COMMIT: 7b3159d168b1e8b575e220068bb3df50ed0203ad
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
@@ -112,16 +114,18 @@ jobs:
           python -m pip install --disable-pip-version-check --require-hashes --no-deps
           -r _extern/appstore-en-fork/apps/api/requirements.lock
 
-      - name: Manifest valideren en beoordelen
+      - name: Manifest valideren (--strict) en beoordelen
         env:
           PYTHONPATH: _extern/appstore-en-fork/apps/api/src
         run: |
           set +e
-          python -m appstore.manifest.cli validate deploy/manifest/jelly-leon.manifest.yaml --format json \
+          python -m appstore.manifest.cli validate --strict --format json deploy/manifest/jelly-leon.manifest.yaml \
             > "$RUNNER_TEMP/manifest-rapport.json"
-          echo "exitcode validator (zonder --strict): $?"
+          validator_rc=$?
           set -e
+          echo "exitcode validator (--strict): $validator_rc"
           python tools/jelly-leon/manifest_rapport.py --rapport "$RUNNER_TEMP/manifest-rapport.json" --github
+          test "$validator_rc" -eq 0
 
       - name: Rapport bewaren
         if: always()
