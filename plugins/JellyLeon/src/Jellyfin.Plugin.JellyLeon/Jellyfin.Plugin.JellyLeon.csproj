@@ -15,6 +15,12 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Jellyfin.Controller" ExcludeAssets="runtime" />
     <PackageReference Include="Jellyfin.Model" ExcludeAssets="runtime" />
+    <!-- De host levert Microsoft.Data.Sqlite en de native SQLite-bibliotheek zelf (ADR-0029): niets meeleveren. -->
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Configuration/configPage.html" />
   </ItemGroup>
 
   <ItemGroup>

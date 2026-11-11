@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <title>Jelly Leon</title>
+</head>
+<body>
+<div id="JellyLeonConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+    <div data-role="content">
+        <div class="content-primary">
+            <h2 class="sectionTitle">Jelly Leon</h2>
+            <p id="jlMelding" role="status" aria-live="polite" style="min-height:1.5em"></p>
+
+            <h3>Koppeling met de Hub</h3>
+            <p>Status: <strong id="jlHubStatus">onbekend</strong> <span id="jlHubVingerafdruk"></span></p>
+            <p class="fieldDescription">
+                Plak hier de sleutelset die de Hub toont op de koppelpagina van Jelly Leon. Jelly Leon berekent de
+                vingerafdruk; vergelijk die met de vingerafdruk in de Hub en tik hem daarna zelf over. Pas dan wordt
+                de sleutelset vastgelegd. Hier komt nooit een wachtwoord of geheime sleutel.
+            </p>
+            <div class="inputContainer">
+                <label class="inputLabel" for="jlKeyset">Sleutelset van de Hub (JSON)</label>
+                <textarea id="jlKeyset" rows="6" style="width:100%" spellcheck="false" autocomplete="off"></textarea>
+            </div>
+            <button is="emby-button" type="button" class="raised" id="jlBereken"><span>Vingerafdruk berekenen</span></button>
+            <p>Berekende vingerafdruk: <strong id="jlBerekend">–</strong></p>
+            <div class="inputContainer">
+                <label class="inputLabel inputLabelUnfocused" for="jlGetypt">Vingerafdruk overtikken (uit de Hub)</label>
+                <input is="emby-input" id="jlGetypt" type="text" autocomplete="off" maxlength="64">
+            </div>
+            <div class="inputContainer">
+                <label class="inputLabel inputLabelUnfocused" for="jlServiceId">Service-ID van Jelly Leon in de Hub</label>
+                <input is="emby-input" id="jlServiceId" type="text" autocomplete="off" maxlength="36">
+            </div>
+            <button is="emby-button" type="button" class="raised button-submit" id="jlKoppel"><span>Koppelen</span></button>
+            <button is="emby-button" type="button" class="raised" id="jlOntkoppel"><span>Koppeling verwijderen</span></button>
+
+            <h3>Modules</h3>
+            <p class="fieldDescription">Elke module staat standaard uit. Een module die uit staat heeft geen routes, items of events.</p>
+            <div id="jlModules"></div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        (function () {
+            var pagina = document.querySelector('#JellyLeonConfigPage');
+            var etag = null;
+
+            function uuid() {
+                var b = new Uint8Array(16);
+                window.crypto.getRandomValues(b);
+                b[6] = (b[6] & 0x0f) | 0x40;
+                b[8] = (b[8] & 0x3f) | 0x80;
+                var h = Array.prototype.map.call(b, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+                return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+            }
+
+            function meld(tekst) { pagina.querySelector('#jlMelding').textContent = tekst; }
+
+            function vraag(methode, pad, body, ifMatch) {
+                var headers = { 'Accept': 'application/json' };
+                if (methode === 'PUT' || methode === 'DELETE') { headers['Idempotency-Key'] = uuid(); }
+                if (ifMatch) { headers['If-Match'] = ifMatch; }
+                if (body) { headers['Content-Type'] = 'application/json'; }
+                return ApiClient.fetch({ type: methode, url: ApiClient.getUrl(pad), headers: headers, data: body ? JSON.stringify(body) : undefined, dataType: 'none' })
+                    .then(function (antwoord) {
+                        return antwoord.text().then(function (tekst) {
+                            return { etag: antwoord.headers.get('ETag'), json: tekst ? JSON.parse(tekst) : null };
+                        });
+                    }, function (fout) {
+                        if (fout && typeof fout.json === 'function') {
+                            return fout.json().then(function (j) { throw new Error(j.message || 'Het is niet gelukt.'); });
+                        }
+                        throw new Error('De server is niet bereikbaar.');
+                    });
+            }
+
+            function toonHub(j) {
+                pagina.querySelector('#jlHubStatus').textContent = j.status === 'linked' ? 'gekoppeld' : 'niet gekoppeld';
+                pagina.querySelector('#jlHubVingerafdruk').textContent = j.fingerprint ? '(vingerafdruk ' + j.fingerprint + ')' : '';
+            }
+
+            function toonModules(antwoord) {
+                etag = antwoord.etag;
+                var doel = pagina.querySelector('#jlModules');
+                doel.textContent = '';
+                antwoord.json.items.forEach(function (m) {
+                    var label = document.createElement('label');
+                    label.className = 'checkboxContainer';
+                    var vak = document.createElement('input');
+                    vak.type = 'checkbox';
+                    vak.setAttribute('is', 'emby-checkbox');
+                    vak.checked = m.enabled;
+                    vak.addEventListener('change', function () {
+                        vraag('PUT', 'media/v1/modules/' + m.slug, { enabled: vak.checked }, etag)
+                            .then(function (a) { toonModules(a); meld('Module ' + m.naam + (vak.checked ? ' staat aan.' : ' staat uit.')); })
+                            .catch(function (f) { meld(f.message); laad(); });
+                    });
+                    var tekst = document.createElement('span');
+                    tekst.textContent = m.naam;
+                    label.appendChild(vak);
+                    label.appendChild(tekst);
+                    doel.appendChild(label);
+                });
+            }
+
+            function laad() {
+                vraag('GET', 'media/v1/hub-link').then(function (a) { toonHub(a.json); }).catch(function (f) { meld(f.message); });
+                vraag('GET', 'media/v1/modules').then(toonModules).catch(function (f) { meld(f.message); });
+            }
+
+            function keyset() {
+                try { return JSON.parse(pagina.querySelector('#jlKeyset').value); } catch (e) { meld('De sleutelset is geen geldige JSON.'); return null; }
+            }
+
+            pagina.querySelector('#jlBereken').addEventListener('click', function () {
+                var k = keyset();
+                if (!k) { return; }
+                vraag('POST', 'media/v1/hub-link/verify', { keyset: k })
+                    .then(function (a) { pagina.querySelector('#jlBerekend').textContent = a.json.fingerprint; meld('Vergelijk de vingerafdruk met die in de Hub.'); })
+                    .catch(function (f) { meld(f.message); });
+            });
+            pagina.querySelector('#jlKoppel').addEventListener('click', function () {
+                var k = keyset();
+                if (!k) { return; }
+                vraag('PUT', 'media/v1/hub-link', { keyset: k, fingerprint: pagina.querySelector('#jlGetypt').value, service_id: pagina.querySelector('#jlServiceId').value.trim() })
+                    .then(function (a) { toonHub(a.json); meld('De Hub is gekoppeld.'); })
+                    .catch(function (f) { meld(f.message); });
+            });
+            pagina.querySelector('#jlOntkoppel').addEventListener('click', function () {
+                vraag('DELETE', 'media/v1/hub-link')
+                    .then(function (a) { toonHub(a.json); meld('De koppeling is verwijderd.'); })
+                    .catch(function (f) { meld(f.message); });
+            });
+            pagina.addEventListener('pageshow', laad);
+        })();
+    </script>
+</div>
+</body>
+</html>

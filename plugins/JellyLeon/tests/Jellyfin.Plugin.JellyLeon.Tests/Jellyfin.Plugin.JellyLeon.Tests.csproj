@@ -6,10 +6,11 @@
     <OutputType>Exe</OutputType>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- Testnamen met underscores (Methode_Situatie_Verwachting) zijn hier gewenst. -->
-    <NoWarn>$(NoWarn);CA1707</NoWarn>
+    <NoWarn>$(NoWarn);CA1707;CA1861;CA2007;CA1305;CA1307;CA1310;CA1859</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="xunit.v3" />
@@ -20,6 +21,8 @@
     <!-- Tests hebben de runtime-assemblies wél nodig (de plugin zelf niet). -->
     <PackageReference Include="Jellyfin.Controller" />
     <PackageReference Include="Jellyfin.Model" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="BouncyCastle.Cryptography" />
   </ItemGroup>
 
   <ItemGroup>

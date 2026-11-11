@@ -66,7 +66,9 @@ public class VersionControllerTests
             .OrderBy(r => r, StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(documented, routes);
+        // De overige paden horen bij de routetabel van de modules; die bewaakt OpenApiDriftTests.
+        Assert.NotEmpty(routes);
+        Assert.All(routes, r => Assert.Contains(r, documented));
     }
 
     [Fact]

@@ -1,16 +1,19 @@
 using System;
+using System.Collections.Generic;
 using Jellyfin.Plugin.JellyLeon.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
+using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 
 namespace Jellyfin.Plugin.JellyLeon;
 
 /// <summary>
-/// Jelly Leon-basisplugin: levert versie- en compatibiliteitsinformatie van de fork (B03-001).
-/// Wijzigt niets aan de technische identiteit van de server (ADR-0003).
+/// De ene Jelly Leon-plugin (ADR-0016): Core met modules die elk een eigen schakelaar hebben. Levert ook de versie-
+/// en compatibiliteitsinformatie van de fork (B03-001). Wijzigt niets aan de technische identiteit van de server
+/// (ADR-0003).
 /// </summary>
-public class Plugin : BasePlugin<PluginConfiguration>
+public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
     /// <summary>
     /// Vaste plugin-ID (nooit wijzigen: Jellyfin bewaart configuratie per ID).
@@ -25,7 +28,11 @@ public class Plugin : BasePlugin<PluginConfiguration>
     public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer)
         : base(applicationPaths, xmlSerializer)
     {
+        Instance = this;
     }
+
+    /// <summary>Gets de geladen plugin (één per server), of <c>null</c> zolang de server hem nog niet heeft gemaakt.</summary>
+    public static Plugin? Instance { get; private set; }
 
     /// <inheritdoc />
     public override string Name => "Jelly Leon";
@@ -36,4 +43,15 @@ public class Plugin : BasePlugin<PluginConfiguration>
     /// <inheritdoc />
     public override string Description =>
         "Jelly Leon-uitbreidingen op Jellyfin (GPL-2.0). Gebaseerd op Jellyfin; de technische identiteit blijft Jellyfin.";
+
+    /// <inheritdoc />
+    public IEnumerable<PluginPageInfo> GetPages()
+    {
+        yield return new PluginPageInfo
+        {
+            Name = "JellyLeon",
+            DisplayName = "Jelly Leon",
+            EmbeddedResourcePath = typeof(Plugin).Namespace + ".Configuration.configPage.html",
+        };
+    }
 }
