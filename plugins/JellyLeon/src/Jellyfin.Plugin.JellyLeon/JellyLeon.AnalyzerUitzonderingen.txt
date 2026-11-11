@@ -1,0 +1,11 @@
+# Witte lijst van de analyzer voor verboden API's (ADR-0032).
+#
+# Eén regel per uitzondering:  <regel-id> <Type.Methode> <volledige klassenaam>
+#   JL0001  schrijvende server-API (alleen de API's waarvoor het plan een uitzonderingsklasse noemt)
+#   JL0002  bestand schrijven of verwijderen buiten Core.Storage en Core.Secrets
+# Geen jokertekens, geen namespaces: precies één API in precies één klasse onder Jellyfin.Plugin.JellyLeon.Modules.
+# JL0003 (database van de server) en JL0004 (processen starten) kennen geen uitzonderingen, net als schrijven in de
+# bibliotheek (ILibraryManager, IItemRepository, BaseItem, afspeellijsten, collecties, gebruikers, apparaten).
+#
+# Elke regel hier hoort bij een taak uit het plan en een ADR; een regel die niet past is een bouwfout (JL0009).
+# Stand golf 1: geen enkele uitzondering.

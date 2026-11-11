@@ -23,15 +23,24 @@
     <PackageReference Include="Jellyfin.Model" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="BouncyCastle.Cryptography" />
+    <!-- De analyzertests compileren proefcode en draaien de analyzer erop. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj" />
+    <ProjectReference Include="../../analyzers/Jellyfin.Plugin.JellyLeon.Analyzers/Jellyfin.Plugin.JellyLeon.Analyzers.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="../../../../docs/openapi/jelly-leon-plugin.openapi.json" Link="jelly-leon-plugin.openapi.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Bron van waarheid van de forkbasis: de metadatatest vergelijkt daarmee (geen vaste versie in de test). -->
+    <!-- De echte witte lijst van de plugin: de analyzertest controleert dat hij geldig is en in golf 1 leeg. -->
+    <None Include="../../src/Jellyfin.Plugin.JellyLeon/JellyLeon.AnalyzerUitzonderingen.txt" Link="JellyLeon.AnalyzerUitzonderingen.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- De proefassembly met elke verboden aanroep: dezelfde bron die analyzer_proef.py echt laat bouwen. -->
+    <None Include="../../analyzers/Jellyfin.Plugin.JellyLeon.VerbodenProef/VerbodenAanroepen.cs" Link="VerbodenAanroepen.cs.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- De beoordeelde ledenlijst van de bewaakte servertypen (wacht bij een upstream-sync, ADR-0032). -->
+    <None Include="Analyzer/BewaakteLeden.txt" Link="BewaakteLeden.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../../tools/jelly-leon/baseline.json" Link="baseline.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

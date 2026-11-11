@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Analyzer voor verboden API's (B03-017, ADR-0032). Draait in de compiler bij elke build van de plugin en levert niets
+    mee in de plugin of de image. netstandard2.0 is de enige doelomgeving die de compiler voor analyzers aanvaardt.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Jellyfin.Plugin.JellyLeon.Analyzers</RootNamespace>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- RS2008: geen releaseboekhouding voor een interne analyzer; de regels staan in ADR-0032. -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jellyfin.Plugin.JellyLeon.Tests" />
+  </ItemGroup>
+
+</Project>

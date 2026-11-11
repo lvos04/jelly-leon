@@ -215,6 +215,12 @@ jobs:
       - name: Test plugins
         run: dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
 
+      # B03-017 / ADR-0032: de proefassembly bevat elke verboden aanroep en MOET de build laten falen, met precies de
+      # gemarkeerde bouwfouten (JL0001–JL0004) en om geen andere reden. De gewone build hierboven bewijst het omgekeerde:
+      # de plugin zelf bevat geen enkele verboden aanroep.
+      - name: Analyzer verboden API's (proefassembly moet de build laten falen)
+        run: python3 tools/jelly-leon/analyzer_proef.py --bouw
+
       - name: Plugin-DLL bewaren
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

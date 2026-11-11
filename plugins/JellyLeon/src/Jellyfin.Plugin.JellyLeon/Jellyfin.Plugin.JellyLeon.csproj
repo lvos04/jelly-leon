@@ -27,4 +27,15 @@
     <InternalsVisibleTo Include="Jellyfin.Plugin.JellyLeon.Tests" />
   </ItemGroup>
 
+  <!--
+    Analyzer voor verboden API's (ADR-0032): draait bij elke build van de plugin; een overtreding is een bouwfout.
+    Alleen een bouwhulp: de assembly wordt niet gerefereerd en hoort niet in de pluginmap; de image en de CI kopiëren
+    uitsluitend Jellyfin.Plugin.JellyLeon.dll.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../analyzers/Jellyfin.Plugin.JellyLeon.Analyzers/Jellyfin.Plugin.JellyLeon.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <AdditionalFiles Include="JellyLeon.AnalyzerUitzonderingen.txt" />
+  </ItemGroup>
+
 </Project>

@@ -11,6 +11,9 @@
          De plugin bouwt tegen .Core zonder runtime-assets; alleen de tests nemen de bundel met de native bibliotheek. -->
     <PackageVersion Include="Microsoft.Data.Sqlite.Core" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+    <!-- Alleen bij het bouwen: de compiler-API voor de analyzer van verboden API's (ADR-0032); niets hiervan gaat mee
+         in de plugin of de image. De tests gebruiken hetzelfde pakket om proefcode te compileren. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <!-- Testpakketten: dezelfde versies als upstream (Directory.Packages.props in de root; 12.4: xunit.v3). -->
     <!-- Alleen in de tests: een tweede, onafhankelijke Ed25519-implementatie om Hub-tokens te tekenen. -->
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />

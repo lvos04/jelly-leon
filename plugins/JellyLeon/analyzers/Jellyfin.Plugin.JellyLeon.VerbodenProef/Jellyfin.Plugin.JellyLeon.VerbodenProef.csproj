@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Proefassembly voor de analyzer (ADR-0032): bevat elke verboden aanroep en MOET daarom de build laten falen.
+    Hoort bewust niet in JellyLeon.Plugins.sln en wordt nooit geleverd; tools/jelly-leon/analyzer_proef.py bouwt dit
+    project en vergelijkt de bouwfouten regel voor regel met de markeringen "// VERWACHT: JLxxxx".
+  -->
+  <PropertyGroup>
+    <RootNamespace>Jellyfin.Plugin.JellyLeon.Modules.Proef</RootNamespace>
+    <!-- Alleen de eigen regels mogen de build laten falen: geen andere analyzers, geen waarschuwingen als fout. -->
+    <AnalysisMode>None</AnalysisMode>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Jellyfin.Controller" ExcludeAssets="runtime" />
+    <PackageReference Include="Jellyfin.Model" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Jellyfin.Plugin.JellyLeon.Analyzers/Jellyfin.Plugin.JellyLeon.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

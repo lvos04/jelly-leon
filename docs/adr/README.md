@@ -37,6 +37,7 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0029](ADR-0029-b03-017-prototype-een-dll-eigen-ed25519-host-sqlite.md) | B03-017: prototype met twee modules (Devices, Quality) — één DLL, Ed25519 alleen controleren in eigen C#, SQLite van de host, één routetabel | Aanvaard (Unit-getest; Sim-getest via JLT-68) |
 | [ADR-0030](ADR-0030-b03-017-foutcatalogus-pipeline-en-1-mib-per-route.md) | B03-017: één foutcatalogus, één verzoekpipeline, twee soorten bewijs, 1 MiB per route (na authenticatie), idempotentie en `jti` | Aanvaard (Unit-getest; Sim-getest via JLT-68) |
 | [ADR-0031](ADR-0031-b03-017-hub-koppeling-jl4-en-connectorgrenzen.md) | B03-017: Hub-koppeling JL4 (plakken, vingerafdruk, pin in de geheimenmap), connectorgrenzen, health-regels, open contractpunten | Aanvaard (Unit-getest; echte Hub NIET GEVALIDEERD) |
+| [ADR-0032](ADR-0032-b03-017-analyzer-verboden-apis-en-generator-web-config.md) | B03-017: analyzer voor verboden API's (JL0001–JL0004, witte lijst per API en klasse, proefassembly die de build laat falen) en generator voor de web-`config.json` | Aanvaard (Unit-getest; echte build in CI) |
 
 ## B03 2.0 — herkomst van de ADR's
 
