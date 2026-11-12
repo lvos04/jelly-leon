@@ -24,7 +24,7 @@ python3 -m venv ../jelly-leon/.venv          # of de bestaande venv van tools/je
 
 Regels (bouwplan §10.13–§10.15, analyse 5 §7):
 
-- Het corpus (`/home/transcode/truenas-v2/.lokaal/media-corpus`) wordt **alleen-lezen** gekoppeld; afgeleide sets komen in
+- Het corpus (`<WERKMAP>/.lokaal/media-corpus`) wordt **alleen-lezen** gekoppeld; afgeleide sets komen in
   `.lokaal/jelly-leon-b03-016/testsets/` en worden na gebruik opgeruimd (`corpus opruimen`); alleen recept en bevroren
   manifest blijven (BG-38).
 - Metingen alleen in het **exclusieve meetslot** (`stack.lock`); een run met loadavg(1 min) > 4, met andere processen > 4

@@ -2106,7 +2106,7 @@ F6-K2) — dat contract test JLT-02.
   401/403/429/onbereikbaar; een sleutel met rol operator → MG-functies uit).
 - Persistentie: herstart midden in een groep; schema-migratie vooruit op een kopie; back-up en terugzetten plugin-DB.
 
-#### F1.9.3 E2E met het echte corpus (`/home/transcode/truenas-v2/.lokaal/media-corpus`, media altijd read-only)
+#### F1.9.3 E2E met het echte corpus (`<WERKMAP>/.lokaal/media-corpus`, media altijd read-only)
 
 | Corpusitem | Waarom |
 |---|---|
@@ -3526,7 +3526,7 @@ permissietest). Bij een blokkade: niets forceren, `Geblokkeerd` + reden + eigena
 
 ---
 
-### F2.9 Automatische tests (unit, integratie, E2E met het ECHTE mediacorpus uit /home/transcode/truenas-v2/.lokaal/media-corpus en recepten, clientmatrix web Chromium/Firefox/WebKit + Android- en Android TV-emulator + desktop + stock-clients; prestatie; negatieve en veiligheidstests; gegevensbeschermingstests; wat NIET GEVALIDEERD blijft)
+### F2.9 Automatische tests (unit, integratie, E2E met het ECHTE mediacorpus uit <WERKMAP>/.lokaal/media-corpus en recepten, clientmatrix web Chromium/Firefox/WebKit + Android- en Android TV-emulator + desktop + stock-clients; prestatie; negatieve en veiligheidstests; gegevensbeschermingstests; wat NIET GEVALIDEERD blijft)
 
 **Statuslabels (contract §11).** Werkpakketten: `Bezig` met validatie `Sim-getest`/`Unit-getest`, of `Geblokkeerd` met
 `NIET GEVALIDEERD (echte NAS)`/`(hardware)`/`(Mac/Xcode)`, meerdere waarden gescheiden door `"; "`. Testrijen: validatie
@@ -4007,7 +4007,7 @@ dan B03-fase "F3 - Integraties en veiligheid". De subfasen van dit plandeel hete
 **Eerlijkheid.** Alles hieronder is gelezen (bestand:regel of URL met datum) of zelf gemeten. Gemeten is alleen op de
 ontwikkelmachine (Intel Core Ultra 9 185H, 22 CPU's, 14,5 GiB RAM), op 2026-11-09, met het lokale mediacorpus, in een
 host-venv (Python 3.12.16, host-ffmpeg), **niet** in de image. Ruwe uitvoer, scripts en logs staan in
-`/home/transcode/truenas-v2/.lokaal/b03-plan/features/f3-meting/` (de metingen van deze herziening in `herzien/`). Niets is
+`<WERKMAP>/.lokaal/b03-plan/features/f3-meting/` (de metingen van deze herziening in `herzien/`). Niets is
 op de NAS, de A310/UHD 770 of een echt clientapparaat getest. Waar dat nodig is, staat **NIET GEVALIDEERD**. D01–D18
 blijven onbekend. In de 11 repos is niets gewijzigd en niets gecommit.
 
@@ -5302,7 +5302,7 @@ Afhankelijkheden buiten F3:
 
 #### F3.9.1 Testomgeving en corpus
 
-- **Corpus:** `/home/transcode/truenas-v2/.lokaal/media-corpus` (CORPUS.md), altijd **alleen-lezen** gekoppeld. Voor elke
+- **Corpus:** `<WERKMAP>/.lokaal/media-corpus` (CORPUS.md), altijd **alleen-lezen** gekoppeld. Voor elke
   run volgt een sha256-controle met `SHA256SUMS.*.txt`, en na de run een vergelijking van de maplijst (mtime), zoals in
   `herzien/corpusmap.voor.txt`/`.na.txt`.
 - **Testbibliotheek:** een wegwerpmap met symlinks naar de bron, zodat de juiste naamgeving ontstaat (bijv.
@@ -5683,7 +5683,7 @@ JLT-26 is de Geblokkeerd-rij voor de echte NAS en echte apparaten; de opmaaktest
 Versie 1.0 (herzien na de jury) · peildatum 2026-11-09 · ID-reeks **B03-050…B03-059** en testen **JLT-30…JLT-39**,
 plus een gemarkeerde aanvulling op de bestaande rij **B03-009** (gedeeld met F3).
 Dit is een **bouwplan, geen productcode**. In de 11 repos is niets gewijzigd en niets gecommit. Ik heb alleen geschreven in
-`/home/transcode/truenas-v2/.lokaal/b03-plan/features/` (dit bestand, de `.json` en de meetmap `f4-meting/`).
+`<WERKMAP>/.lokaal/b03-plan/features/` (dit bestand, de `.json` en de meetmap `f4-meting/`).
 
 **Wat er na de jury veranderde, in het kort** (volledige verantwoording per bevinding: sectie *Verwerking jury* na §12):
 - F4 is geen eigen plugin meer, maar de **module `Quality`** in de ene serverplugin `Jellyfin.Plugin.JellyLeon` (§3.1).
@@ -6921,7 +6921,7 @@ back-up-/rollbackgate, een gebruikersreis op mobiel (Android-emulator, web-UI) e
   ProductName, Sessions en PlaybackInfo met `TV_PROFILE` blijven gelijk (A4 §3.5).
 - **Gemeenschappelijke toolkit:** `subtitle.inventory` en `subtitle.sync` in meetmodus, met F3-vertaling uit.
 
-#### F4.9.3 E2E met het echte corpus (`/home/transcode/truenas-v2/.lokaal/media-corpus`)
+#### F4.9.3 E2E met het echte corpus (`<WERKMAP>/.lokaal/media-corpus`)
 
 **Ontwikkelset R-QC-dev:** de 11 gevallen uit §1.3, met grondwaarheid uit `*.grondwaarheid.json`, plus de recepten
 hieronder. De verwachte waarden voor ondertitels staan in `ondertitels.grondwaarheid.json`.
@@ -8555,7 +8555,7 @@ en de Hub-JWT-pin. Geheugenregel: emulator, Gradle en zware transcodes nooit teg
 - Hub-JWT: zonder pin 401 `not_linked`; met pin en geldige JWT 200; hergebruikte `jti` op een mutatie 401 `token_replayed`
   (gemeenschappelijke laag; F5 test alleen zijn routes); rol `kind` 403; `group_by=device` met H → 403.
 
-#### F5.9.3 E2E met het echte corpus (`/home/transcode/truenas-v2/.lokaal/media-corpus`)
+#### F5.9.3 E2E met het echte corpus (`<WERKMAP>/.lokaal/media-corpus`)
 
 | Set | Bestanden | Waarvoor |
 |---|---|---|
@@ -9101,7 +9101,7 @@ Eerlijkheidsregels:
 
 Alle metingen draaiden met de jellyfin-ffmpeg 8.1.3 uit de officiële image `jellyfin/jellyfin@sha256:fea863d0…1771` in
 `docker run --rm --cpus 1|2 --memory 1g`, met het corpus read-only gekoppeld. Scripts en ruwe uitvoer:
-`/home/transcode/truenas-v2/.lokaal/b03-plan/features/meting-f6/` (`fp-alle.sh`, `align_probe.py`, `A-…`–`H-…`-logs). Het is
+`<WERKMAP>/.lokaal/b03-plan/features/meting-f6/` (`fp-alle.sh`, `align_probe.py`, `A-…`–`H-…`-logs). Het is
 een **proef op de devset**, geen gate, geen productcode en geen NAS-prestatie. De machine werd gedeeld met andere agents
 (geen exclusief slot), dus tijden zijn indicatief. GPU-cijfers komen van de Meteor Lake-iGPU, die volgens de specificaties
 ≈ 6× de EU-kracht van de UHD 770 en ≈ 1,5× die van de A310 heeft (J-H V12; geen meting): ze zijn **functioneel** en hooguit
@@ -9831,7 +9831,7 @@ de fork-apps krijgen alleen andere tekst en de Recap-standaard); B03-079 P2 (P5)
 
 #### F6.9.2 Testcorpus: devset, testset en recepten
 
-**Bestaand** (`/home/transcode/truenas-v2/.lokaal/media-corpus/`, sha256 in `SHA256SUMS.*.txt`): 8 afgeleide afleveringen met
+**Bestaand** (`<WERKMAP>/.lokaal/media-corpus/`, sha256 in `SHA256SUMS.*.txt`): 8 afgeleide afleveringen met
 grondwaarheid (Testserie S01E01–E03, S02E01–E02; Anime E01–E03) = **devset**; Pioneer One S01E01–E06 (echte recaps;
 ondertitels; CC BY-NC-SA, alleen lokaal); films Sintel, ToS, ED, BBB, Cosmos, Spring, Hero, Caminandes 1–3 (met eigen
 aftiteling); kwaliteitsset (beschadigd, afgekapt, stilte, zonder audio).
@@ -10545,7 +10545,7 @@ Ollama-pakket voor `multilingual-e5-small` bestaat.
 
 #### F2 · Bronnen (alle geraadpleegd of gemeten op 2026-11-09)
 
-- Eigen meting: `/home/transcode/truenas-v2/.lokaal/b03-plan/features/f2-meting/baseline-f2.json`, `f2_baseline_probe.py`,
+- Eigen meting: `<WERKMAP>/.lokaal/b03-plan/features/f2-meting/baseline-f2.json`, `f2_baseline_probe.py`,
   `server-tail.log`; image `jellyfin/jellyfin@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771`.
 - Upstream gelezen in `/tmp/jf-12.4` (commit `83d0d0e7f76e`):
   - `MediaBrowser.Controller/Library/{ISimilarItemsProvider,ILocalSimilarItemsProvider,IBatchLocalSimilarItemsProvider,ISimilarItemsManager,SimilarItemsQuery,IUserDataManager,UserDataSaveEventArgs,PlaybackStopEventArgs,ILibraryManager}.cs`;
@@ -10574,11 +10574,11 @@ Ollama-pakket voor `multilingual-e5-small` bestaat.
   `docs/platform-v2/PLATFORM_CONTRACTEN.md` (contracts 1.2: §1, §2, §2.3, §4.1-4.7, §5, §6, §7, §11, §13),
   `CONTRACT_1.2_CONFORMITEIT.md:253-258` (JL1-JL6), `01_ARCHITECTUUR/08_UI_EN_INTERACTIES.md`, `08_EXCEL/tasks.json`,
   `08_EXCEL/e2e_cases.json`, `06_TEMPLATES/PROMPTS_PER_APP/PROMPT_B03_UNIVERSELE_MEDIASERVER.md:27`.
-- Jury: `/home/transcode/truenas-v2/.lokaal/b03-plan/jury/{compat,bescherming,testbaarheid,haalbaarheid}.md`.
+- Jury: `<WERKMAP>/.lokaal/b03-plan/jury/{compat,bescherming,testbaarheid,haalbaarheid}.md`.
 - Ontwerptaal (concept, design-agent): `ai-server-manager/docs/platform-v2/ONTWERPTAAL.md` en `ai-server-manager/design/ontwerptaal/COMPONENTEN.md` (Peil 1.1.0, bron van waarheid volgens contract 1.2 §13; eerder concept in `.lokaal/ontwerptaal/`)
   (StatusBadge C-03, StatKaart C-05, LaatstBijgewerkt C-06, Validatielabel C-09, CapabilityUnavailable C-12, C-16…C-18,
   C-32, C-33, kinderschil S-021).
-- Analyses 1–5 in `/home/transcode/truenas-v2/.lokaal/b03-plan/analyse/` en `media-corpus/CORPUS.md`.
+- Analyses 1–5 in `<WERKMAP>/.lokaal/b03-plan/analyse/` en `media-corpus/CORPUS.md`.
 - https://files.grouplens.org/datasets/movielens/ml-latest-small-README.html (opgehaald 2026-11-09: kolommen
   `tags.csv` = `userId,movieId,tag,timestamp`, "Tags are user-generated metadata", periode 1996-03-29…2018-09-24,
   `links.csv` = `movieId,imdbId,tmdbId`, licentievoorwaarden).
@@ -10817,7 +10817,7 @@ erbij. Steeds is de **veiligste** interpretatie gekozen.
 
 #### F4 · Bijlage — meetbestanden van dit plandeel
 
-`/home/transcode/truenas-v2/.lokaal/b03-plan/features/f4-meting/`:
+`<WERKMAP>/.lokaal/b03-plan/features/f4-meting/`:
 - **Vóór de jury:**
   - scripts: `qc_meting.py`, `taal_sync_meting.py`, `dialoog_meting.py`;
   - logs: `logs/qc_meting.json`, `hw_decode_fouten.txt`, `budget_meting.txt`, `kosten_meting.txt`,

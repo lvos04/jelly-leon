@@ -30,7 +30,7 @@ ontwikkelmachine en in CI); JLT-74 blijft **Geblokkeerd — NIET GEVALIDEERD (ec
 | `tools/jelly-leon/.venv/bin/ruff check --config tools/emby-overname/ruff.toml tools/emby-overname` | geen meldingen |
 | `tools/jelly-leon/.venv/bin/python -m pytest -q tools/jelly-leon/tests` | **166 geslaagd** (incl. EVIDENCE-§11-test met JLT-rijen) |
 | `actionlint .github/workflows/jelly-leon-ci.yml` | geen meldingen |
-| `flock /home/transcode/truenas-v2/.lokaal/stack.lock nice -n 10 tools/jelly-leon/.venv/bin/python tools/emby-overname/e2e/proefrun.py --modus corpus --uitvoer …/corpus-3` | **57/57 geslaagd** (§3; echt mediacorpus, harde links, sha256 gecontroleerd) |
+| `flock <WERKMAP>/.lokaal/stack.lock nice -n 10 tools/jelly-leon/.venv/bin/python tools/emby-overname/e2e/proefrun.py --modus corpus --uitvoer …/corpus-3` | **57/57 geslaagd** (§3; echt mediacorpus, harde links, sha256 gecontroleerd) |
 | GitHub Actions *Jelly Leon CI*, job *emby-overname* (`--modus synthetisch --ffmpeg docker`) | **56/56 geslaagd**, run 42695702468 volledig groen (§4) |
 
 ## 3. Proefrun met het echte mediacorpus (lokaal)

@@ -19,7 +19,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-LOCK_DIR = Path(os.environ.get("B03_LOCK_DIR", "/home/transcode/truenas-v2/.lokaal"))
+# Standaard: <WERKMAP>/.lokaal, de map naast de repo (parents[4] = <WERKMAP>).
+LOCK_DIR = Path(os.environ.get("B03_LOCK_DIR", str(Path(__file__).resolve().parents[4] / ".lokaal")))
 STACK_LOCK = "stack.lock"
 ZWARE_SLOTEN = ("gradle.lock", "docker-build.lock")
 LASTGRENS = float(os.environ.get("B03_LASTGRENS", "4.0"))  # loadavg(1 min) en "andere CPU-kernen", plan: > 4 = ongeldig

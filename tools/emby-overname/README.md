@@ -86,6 +86,6 @@ Jellyfin/Jelly Leon (bijv. Emby) of dezelfde server als de bron.
 
 ```text
 python -m pytest -q tools/emby-overname/tests                         # unit + simulators (geen netwerk, geen Docker)
-flock /home/transcode/truenas-v2/.lokaal/stack.lock \
+flock <WERKMAP>/.lokaal/stack.lock \
   python tools/emby-overname/e2e/proefrun.py --modus corpus --uitvoer <map>   # echte Emby + stock Jellyfin 12.4 (JLT-70…73)
 ```

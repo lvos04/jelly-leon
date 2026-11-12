@@ -12,7 +12,7 @@ image-guard in CI controleert dat). Er is dus geen Custom App-formulier voor; de
 
 ## 1. Corpus en corpusgenerator (deel a)
 
-- **Bestaand corpus** (`/home/transcode/truenas-v2/.lokaal/media-corpus`, CORPUS.md): 34 bronbestanden, 75 ondertitels,
+- **Bestaand corpus** (`<WERKMAP>/.lokaal/media-corpus`, CORPUS.md): 34 bronbestanden, 75 ondertitels,
   31 afgeleide gevallen, sha256 per bestand en licentie per bron. Controle: `python -m b03h corpus bron-controle`
   (= `sha256sum -c` op `SHA256SUMS.bron.txt`, `SHA256SUMS.ondertitels.txt` en `SHA256SUMS.afgeleid.txt`).
 - **Eén generator, acht recepten** (`python -m b03h corpus lijst`):

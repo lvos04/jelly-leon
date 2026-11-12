@@ -15,7 +15,7 @@ Wat er gebeurt (alles in wegwerpcontainers; media altijd alleen-lezen gekoppeld;
     (stock-clientprotocol, simulator); kijkpauze op Emby én Jelly Leon; herimport uit het archief op een lege Jellyfin.
 Resultaat: één JSON-bewijsbestand (+ de rapporten). Exitcode 0 = alle controles geslaagd (Sim-geslaagd, geen echte NAS).
 
-Draaien onder het machinebrede slot: flock /home/transcode/truenas-v2/.lokaal/stack.lock python3 e2e/proefrun.py …
+Draaien onder het machinebrede slot: flock <WERKMAP>/.lokaal/stack.lock python3 e2e/proefrun.py …
 """
 
 from __future__ import annotations
@@ -50,7 +50,8 @@ EMBY_IMAGE = "docker.io/emby/embyserver:4.10.2.0@sha256:7082c63b10a2fcb3805a7eae
 JL_IMAGE = "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
 # Doel van de overname: standaard stock 12.4 (golf 0); in P4-0 de jelly-leon-image (--jellyfin-image, JLT-70…73 herhaald).
 DOEL_IMAGE = JL_IMAGE
-CORPUS = Path("/home/transcode/truenas-v2/.lokaal/media-corpus")
+# Standaard: <WERKMAP>/.lokaal/media-corpus, naast de repo (parents[4] = <WERKMAP>).
+CORPUS = Path(__file__).resolve().parents[4] / ".lokaal" / "media-corpus"
 EMBY_ROOT, JL_ROOT = "/mnt/emby/media", "/data/media"
 WACHTWOORD_BEHEER = "Proefrun-Beheer-2026!"
 EMBY_CLIENT = 'Emby Client="proefrun-harnas", Device="harnas", DeviceId="jl-b03015-harnas", Version="1.0"'

@@ -20,7 +20,8 @@ from .corpus import CORPUS
 from .jfapi import Jellyfin, wacht_klaar
 
 STOCK_IMAGE = "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
-WERK = Path(os.environ.get("B03_WERK", "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03-016"))
+# Standaard: <WERKMAP>/.lokaal/jelly-leon-b03-016, naast de repo (parents[4] = <WERKMAP>).
+WERK = Path(os.environ.get("B03_WERK", str(Path(__file__).resolve().parents[4] / ".lokaal" / "jelly-leon-b03-016")))
 PROFIELEN = Path(__file__).resolve().parents[1] / "profielen"
 GEBRUIKER, WACHTWOORD = "b03beheer", "B03-016-alleen-lokaal!"  # wegwerpaccount in een wegwerpcontainer op 127.0.0.1
 RENDER = "/dev/dri/renderD128"

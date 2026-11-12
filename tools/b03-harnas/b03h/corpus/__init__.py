@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-CORPUS = Path(os.environ.get("B03_CORPUS", "/home/transcode/truenas-v2/.lokaal/media-corpus"))
+# Standaard: <WERKMAP>/.lokaal, de map naast de repo (parents[5] = <WERKMAP>, parents[4] = de repo).
+_LOKAAL = Path(__file__).resolve().parents[5] / ".lokaal"
+CORPUS = Path(os.environ.get("B03_CORPUS", str(_LOKAAL / "media-corpus")))
 # Afgeleide testsets: buiten elke repo, naast het corpus (wordt na gebruik opgeruimd).
-UITVOER = Path(os.environ.get("B03_UITVOER", "/home/transcode/truenas-v2/.lokaal/jelly-leon-b03-016/testsets"))
+UITVOER = Path(os.environ.get("B03_UITVOER", str(_LOKAAL / "jelly-leon-b03-016" / "testsets")))
