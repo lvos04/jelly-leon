@@ -92,7 +92,7 @@ jobs:
     env:
       APPSTORE_REPO: lvos04/appstore-en-fork
       # Validator met contract 1.3 (accepted_findings, post_install_checks, healthcheck.monitor, reserved_env).
-      APPSTORE_COMMIT: 7b3159d168b1e8b575e220068bb3df50ed0203ad
+      APPSTORE_COMMIT: 77ea6296011aae7fcbe7c6a757b404ff762aebb2
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
