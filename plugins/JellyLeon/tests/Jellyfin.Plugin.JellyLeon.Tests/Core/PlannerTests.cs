@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -415,6 +416,59 @@ public sealed class PlannerTests : IDisposable
     }
 
     [Fact]
+    public void BatchPlanner_MislukteMeting_SeintPauzeEnNooitHervat()
+    {
+        // Fail-closed (R-TECH-1, R-VEILIG-1): een ronde die niet kan meten is "niet beslist". Ook een werker die klaar is,
+        // krijgt dan het pauzesein en nooit een hervat-sein.
+        var werker = new TelWerker { Klaar = true };
+        var sessies = new NepSessieBron { Fout = new IOException("meting mislukt") };
+        using var planner = Planner(werker, sessies);
+        planner.Tik();
+        _klok.Nu = _klok.Nu.AddSeconds(BatchPlanner.TikSeconden);
+        planner.Tik();
+
+        Assert.Equal(0, werker.Hervat);
+        Assert.Equal(2, werker.Pauzeer);
+
+        // Het moment van het eerste pauzeverzoek blijft staan; een volgende mislukte ronde verschuift het niet.
+        sessies.Fout = null;
+        Assert.Equal("2026-11-11T10:00:00.000Z", planner.Status()["pauze_gevraagd_op"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void BatchPlanner_ZonderMediamappen_IsDeMediamapOnbekend()
+    {
+        // Geen enkele mediamap is geen bewijs van "alleen lezen" (R-TECH-2): onbekend is nooit in orde.
+        Assert.Empty(_h.Media.Paden());
+        using var planner = Planner(new TelWerker { Klaar = true }, new NepSessieBron());
+        Assert.Equal(MountCheck.Uitkomst.Onbekend, planner.Meet().Media);
+        var status = planner.Status();
+        Assert.Equal("onbekend", status["media_mount"]!.GetValue<string>());
+        Assert.Contains("media_onbekend", status["redenen"]!.AsArray().Select(r => r!.GetValue<string>()));
+    }
+
+    [Theory]
+    [InlineData("\"reachable\":false,", false, false, true)]
+    [InlineData("", false, null, true)]
+    [InlineData("\"reachable\":true,", true, true, true)]
+    [InlineData("\"reachable\":true,", false, true, false)]
+    public async Task BatchPlanner_EncoderNietBereikbaarOfLaneGepauzeerd_TeltAlsGepauzeerd(string bereikbaar, bool lanePauze, bool? encoderBereikbaar, bool verwacht)
+    {
+        // R-TECH-2: MediaGuard is gemeten (ok), maar de encoder is niet aantoonbaar bereikbaar of een lane staat stil.
+        var app = "{\"encoder\":{" + bereikbaar + "\"lanes\":[{\"lane\":\"cpu\",\"running\":0,\"slots\":2,\"paused\":" + (lanePauze ? "true" : "false") + "}]}}";
+        using var mg = new MediaGuardClient(new VasteMediaGuard(app), _klok);
+        await mg.VerversAsync(Ct);
+        Assert.Equal((MgStatus.Ok, encoderBereikbaar), (mg.Beeld.Status, mg.Beeld.EncoderBereikbaar));
+        Assert.False(mg.Beeld.KijkpauzeActief);
+
+        using var planner = Planner(new TelWerker { Klaar = true }, new NepSessieBron(), mg);
+        Assert.Equal(verwacht, planner.Meet().MediaGuardGepauzeerd);
+        var status = planner.Status();
+        Assert.Equal("ok", status["mediaguard"]!.GetValue<string>());
+        Assert.Equal(verwacht, status["redenen"]!.AsArray().Select(r => r!.GetValue<string>()).Contains("mediaguard_gepauzeerd"));
+    }
+
+    [Fact]
     public async Task BatchPlanner_PauzeertMeteenBijElkeKijksessie()
     {
         var werker = new TelWerker();
@@ -473,10 +527,19 @@ public sealed class PlannerTests : IDisposable
         Assert.Equal("unauthorized", anoniem.Code);
         Assert.Empty(SchemaControle.Afwijkingen(_openapi, "Fout", anoniem.Json));
 
-        // Een Hub-token is geen beheerdersbewijs voor /media/v1.
-        Assert.Equal(401, (await _h.Roep("planner.status", kop: ["Authorization: Bearer " + _h.Hub.Token(_h.Klok.Nu, "admin")])).Status);
+        // Een Hub-token is geen beheerdersbewijs voor /media/v1 (R-VEILIG-2): de Hub is gekoppeld en het token is geldig
+        // (tegenproef op een Hub-route), toch geeft het zonder sessie 401 en met een gewone sessie 403.
+        _h.Koppel();
+        Assert.Equal(200, (await _h.RoepHub("connector.health", _h.Hub.Token(_h.Klok.Nu, "admin"))).Status);
+        var hubZonderSessie = await _h.Roep("planner.status", kop: ["Authorization: Bearer " + _h.Hub.Token(_h.Klok.Nu, "admin")]);
+        Assert.Equal((401, "unauthorized"), (hubZonderSessie.Status, hubZonderSessie.Code));
+        Assert.Empty(SchemaControle.Afwijkingen(_openapi, "Fout", hubZonderSessie.Json));
 
         _h.Sessies.Wie = new SessieIdentiteit(Guid.NewGuid(), false, false);
+        var hubMetGewoneSessie = await _h.Roep("planner.status", kop: ["Authorization: Bearer " + _h.Hub.Token(_h.Klok.Nu, "admin")]);
+        Assert.Equal((403, "forbidden", "admin_required"), (hubMetGewoneSessie.Status, hubMetGewoneSessie.Code, hubMetGewoneSessie.Reden));
+        Assert.DoesNotContain("zwaar_toegestaan", hubMetGewoneSessie.Json!.ToJsonString(), StringComparison.Ordinal);
+
         var gewoon = await _h.Roep("planner.status");
         Assert.Equal(403, gewoon.Status);
         Assert.Equal(("forbidden", "admin_required"), (gewoon.Code, gewoon.Reden));
@@ -489,9 +552,9 @@ public sealed class PlannerTests : IDisposable
         Assert.Equal("kid_profile", kind.Reden);
     }
 
-    private BatchPlanner Planner(IWerker werker, ISessieBron sessies) => new(
+    private BatchPlanner Planner(IWerker werker, ISessieBron sessies, MediaGuardClient? mediaGuard = null) => new(
         sessies,
-        _h.Dienst<MediaGuardClient>(),
+        mediaGuard ?? _h.Dienst<MediaGuardClient>(),
         _h.Media,
         werker,
         new LeesfoutBreker(),
@@ -528,18 +591,18 @@ public sealed class PlannerTests : IDisposable
         }
     }
 
-    /// <summary>Een werker die nooit klaar is en alleen telt welke seinen hij krijgt.</summary>
+    /// <summary>Een werker die alleen telt welke seinen hij krijgt; standaard niet klaar.</summary>
     private sealed class TelWerker : IWerker
     {
         public int Pauzeer { get; private set; }
 
         public int Hervat { get; private set; }
 
-        public bool Klaar => false;
+        public bool Klaar { get; init; }
 
-        public string Stand => "afwezig";
+        public string Stand => Klaar ? "klaar" : "afwezig";
 
-        public string Reden => "werker_niet_beschikbaar";
+        public string Reden => Klaar ? "geen" : "werker_niet_beschikbaar";
 
         public DateTimeOffset? PauzeBevestigdOp => null;
 
@@ -564,10 +627,31 @@ public sealed class PlannerTests : IDisposable
 
         public SessieBeeld Beeld { get; set; } = new(0, 0);
 
-        public SessieBeeld Lees() => Beeld;
+        /// <summary>Gets or sets een fout die <see cref="Lees"/> gooit (een mislukte meting).</summary>
+        public Exception? Fout { get; set; }
+
+        public SessieBeeld Lees() => Fout is null ? Beeld : throw Fout;
 
         public void Start() => Gestart?.Invoke(this, EventArgs.Empty);
 
         public void Stop() => Gestopt?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Een MediaGuard met rol viewer, zonder kijkpauze, en een vast antwoord op <c>/app/status</c>.</summary>
+    private sealed class VasteMediaGuard(string app) : IMediaGuardVervoer
+    {
+        public bool Beschikbaar => true;
+
+        public Task<MgAntwoord> VraagAsync(MgRoute route, CancellationToken annulering)
+        {
+            var body = route.Id switch
+            {
+                "auth.me" => "{\"role\":\"viewer\"}",
+                "mediaserver.status" => "{\"kind\":\"emby\",\"connected\":true,\"hold\":{\"active\":false}}",
+                "app.status" => app,
+                _ => throw new InvalidOperationException("onverwachte route in de test: " + route.Id),
+            };
+            return Task.FromResult(new MgAntwoord(200, Encoding.UTF8.GetBytes(body)));
+        }
     }
 }

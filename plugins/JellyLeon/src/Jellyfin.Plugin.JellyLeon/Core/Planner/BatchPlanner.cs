@@ -146,7 +146,18 @@ internal sealed class BatchPlanner : IHostedService, IDisposable
         catch (Exception fout)
 #pragma warning restore CA1031
         {
-            _log.LogWarning("Jelly Leon planner: controleronde mislukt ({Soort}).", fout.GetType().Name);
+            // Fail-closed: zonder meting geen besluit, dus de werker gaat stil en krijgt nooit een hervat-sein.
+            _log.LogWarning("Jelly Leon planner: controleronde mislukt ({Soort}); de werker krijgt het pauzesein.", fout.GetType().Name);
+            _ = StuurAsync(true);
+            lock (_slot)
+            {
+                if (!_stil)
+                {
+                    _pauzeGevraagdOp = _klok.GetUtcNow();
+                }
+
+                _stil = true;
+            }
         }
         finally
         {
