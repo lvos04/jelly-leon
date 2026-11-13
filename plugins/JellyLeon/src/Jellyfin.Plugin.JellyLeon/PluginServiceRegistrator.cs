@@ -1,6 +1,7 @@
 using System;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.JellyLeon.Core;
+using Jellyfin.Plugin.JellyLeon.Core.Budget;
 using Jellyfin.Plugin.JellyLeon.Core.Connector;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Hub;
@@ -8,9 +9,11 @@ using Jellyfin.Plugin.JellyLeon.Core.Idempotency;
 using Jellyfin.Plugin.JellyLeon.Core.MediaGuard;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Outbox;
+using Jellyfin.Plugin.JellyLeon.Core.Planner;
 using Jellyfin.Plugin.JellyLeon.Core.Privacy;
 using Jellyfin.Plugin.JellyLeon.Core.Secrets;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
+using Jellyfin.Plugin.JellyLeon.Core.Werker;
 using Jellyfin.Plugin.JellyLeon.Modules.Devices;
 using Jellyfin.Plugin.JellyLeon.Modules.Quality;
 using MediaBrowser.Common.Configuration;
@@ -67,6 +70,14 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<MediaGuardClient>();
         serviceCollection.AddSingleton<IHealthBron, MediaGuardHealthBron>();
         serviceCollection.AddHostedService<MediaGuardPoller>();
+
+        // De ene planner en de ene budgetbeslisser (B03-018, ADR-0035). Zonder werker draait er geen zwaar werk.
+        serviceCollection.TryAddSingleton<IWerker, GeenWerker>();
+        serviceCollection.AddSingleton<ISessieBron, ServerSessies>();
+        serviceCollection.AddSingleton<LeesfoutBreker>();
+        serviceCollection.AddSingleton<BudgetBeslisser>();
+        serviceCollection.AddSingleton<BatchPlanner>();
+        serviceCollection.AddHostedService(sp => sp.GetRequiredService<BatchPlanner>());
 
         // Spike (ADR-0033): 1 MiB vóór routing en authenticatie; standaard uit, de controle per route blijft altijd staan.
         if (JlStartupFilterSpike.IsAan(Environment.GetEnvironmentVariable))

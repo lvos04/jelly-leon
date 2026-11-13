@@ -5,6 +5,7 @@ using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Hub;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
+using Jellyfin.Plugin.JellyLeon.Core.Planner;
 using Jellyfin.Plugin.JellyLeon.Core.Privacy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,7 @@ public sealed class BeheerController : ControllerBase
     private readonly ModuleRegistry _modules;
     private readonly IModuleSwitches _schakelaars;
     private readonly PrivacyService _privacy;
+    private readonly BatchPlanner _planner;
     private readonly TimeProvider _klok;
     private readonly ILogger<BeheerController> _log;
 
@@ -34,6 +36,7 @@ public sealed class BeheerController : ControllerBase
         _modules = (ModuleRegistry)services.GetService(typeof(ModuleRegistry))!;
         _schakelaars = (IModuleSwitches)services.GetService(typeof(IModuleSwitches))!;
         _privacy = (PrivacyService)services.GetService(typeof(PrivacyService))!;
+        _planner = (BatchPlanner)services.GetService(typeof(BatchPlanner))!;
         _klok = (TimeProvider)services.GetService(typeof(TimeProvider))!;
         _log = log;
     }
@@ -147,6 +150,12 @@ public sealed class BeheerController : ControllerBase
         }).ToArray();
         return JlResult.Ok(new JsonObject { ["items"] = new JsonArray(regels) });
     }
+
+    /// <summary>De stand van de planner: mag er batchwerk draaien, en zo niet, waarom niet.</summary>
+    /// <returns>Aantallen, tijden en vaste woorden; geen titels, namen of paden.</returns>
+    [HttpGet("planner")]
+    [JlRoute("planner.status")]
+    public IActionResult Planner() => JlResult.Ok(_planner.Status());
 
     private JsonObject HubLinkJson()
     {

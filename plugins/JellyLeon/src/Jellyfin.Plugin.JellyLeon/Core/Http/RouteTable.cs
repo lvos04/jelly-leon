@@ -64,6 +64,7 @@ internal static class RouteTable
         new("modules.list", "GET", "/media/v1/modules", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Modules: lijst met schakelaars", "Modules"),
         new("modules.put", "PUT", "/media/v1/modules/{slug}", JlAuth.SessieBeheerder, null, JlIdem.Verplicht, "Modules: één module aan- of uitzetten", "Modules", "ModuleVerzoek", IfMatch: true),
         new("privacy.register", "GET", "/media/v1/privacy/register", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Register van persoonsgegevens per module", "PrivacyRegister"),
+        new("planner.status", "GET", "/media/v1/planner", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Planner: mag er batchwerk draaien en waarom niet (aantallen en vaste woorden)", "Planner"),
         new("devices.status", "GET", "/media/v1/devices/status", JlAuth.SessieBeheerder, "devices", JlIdem.Geen, "Devices: status (aantallen)", "ModuleStatus"),
         new("devices.settings.get", "GET", "/media/v1/devices/settings", JlAuth.SessieBeheerder, "devices", JlIdem.Geen, "Devices: instellingen van de module", "ModuleInstellingen"),
         new("devices.settings.put", "PUT", "/media/v1/devices/settings", JlAuth.SessieBeheerder, "devices", JlIdem.Verplicht, "Devices: instellingen wijzigen", "ModuleInstellingen", "ModuleInstellingenVerzoek", IfMatch: true),

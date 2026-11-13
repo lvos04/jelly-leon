@@ -1241,6 +1241,62 @@
         }
       }
     },
+    "/media/v1/planner": {
+      "get": {
+        "operationId": "JlPlannerStatus",
+        "summary": "Planner: mag er batchwerk draaien en waarom niet (aantallen en vaste woorden)",
+        "tags": [
+          "beheer"
+        ],
+        "security": [
+          {
+            "CustomAuthentication": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Planner: mag er batchwerk draaien en waarom niet (aantallen en vaste woorden)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Planner"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Niet aangemeld, niet gekoppeld (not_linked) of een ongeldig token; zie details.reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/media/v1/devices/status": {
       "get": {
         "operationId": "JlDevicesStatus",
@@ -2483,6 +2539,223 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PrivacyRegel"
+            }
+          }
+        }
+      },
+      "Planner": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Stand van de ene planner; alleen aantallen, tijden en vaste woorden",
+        "required": [
+          "observed_at",
+          "zwaar_toegestaan",
+          "licht_toegestaan",
+          "reden",
+          "redenen",
+          "sessies",
+          "software_transcodes",
+          "rust_sinds",
+          "mediaguard",
+          "media_mount",
+          "werker",
+          "werker_reden",
+          "leesfouten",
+          "nachtvenster",
+          "grenzen",
+          "budget"
+        ],
+        "properties": {
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "zwaar_toegestaan": {
+            "type": "boolean"
+          },
+          "licht_toegestaan": {
+            "type": "boolean"
+          },
+          "reden": {
+            "type": "string"
+          },
+          "redenen": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sessies": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "software_transcodes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rust_sinds": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "laatste_sessiestart": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "pauze_gevraagd_op": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "pauze_bevestigd_op": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "pauze_latentie_ms": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 0
+          },
+          "mediaguard": {
+            "type": "string",
+            "enum": [
+              "onbekend",
+              "ok",
+              "geweigerd",
+              "onbereikbaar"
+            ]
+          },
+          "media_mount": {
+            "type": "string",
+            "enum": [
+              "alleen_lezen",
+              "schrijfbaar",
+              "onbekend"
+            ]
+          },
+          "werker": {
+            "type": "string"
+          },
+          "werker_reden": {
+            "type": "string"
+          },
+          "leesfouten": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "open",
+              "bestanden",
+              "drempel",
+              "venster_minuten"
+            ],
+            "properties": {
+              "open": {
+                "type": "boolean"
+              },
+              "open_sinds": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time"
+              },
+              "bestanden": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "drempel": {
+                "type": "integer"
+              },
+              "venster_minuten": {
+                "type": "integer"
+              }
+            }
+          },
+          "nachtvenster": {
+            "type": "boolean"
+          },
+          "cgroup_marge_bytes": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 0
+          },
+          "grenzen": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "zware_taken",
+              "threads",
+              "batch_bytes",
+              "pauze_seconden",
+              "hervat_minuten",
+              "venster"
+            ],
+            "properties": {
+              "zware_taken": {
+                "type": "integer"
+              },
+              "threads": {
+                "type": "integer"
+              },
+              "batch_bytes": {
+                "type": "integer"
+              },
+              "pauze_seconden": {
+                "type": "integer"
+              },
+              "hervat_minuten": {
+                "type": "integer"
+              },
+              "venster": {
+                "type": "string"
+              }
+            }
+          },
+          "budget": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "topologie",
+              "batch_node",
+              "gpu_voor_batch",
+              "reden",
+              "reserveringen",
+              "hold_minuten"
+            ],
+            "properties": {
+              "topologie": {
+                "type": "string",
+                "enum": [
+                  "onbekend",
+                  "two_gpu",
+                  "a310_only",
+                  "uhd770_only",
+                  "single_other",
+                  "none"
+                ]
+              },
+              "batch_node": {
+                "type": "string",
+                "enum": [
+                  "cpu",
+                  "geen"
+                ]
+              },
+              "gpu_voor_batch": {
+                "type": "boolean"
+              },
+              "reden": {
+                "type": "string"
+              },
+              "reserveringen": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "hold_minuten": {
+                "type": "integer"
+              }
             }
           }
         }
