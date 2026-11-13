@@ -145,8 +145,8 @@ privileges:
 privilege_reason: >-
   Optioneel een Intel-render-GPU (/dev/dri) voor hardware-transcodering (QSV/VAAPI) via jellyfin-ffmpeg, alleen als
   de wizard een render-node heeft gemeten (D08) en de gebruiker hem kiest; standaard none. Nooit privileged, geen
-  extra capabilities, geen losse apparaten: de entrypoint voegt alleen de groep van de doorgegeven
-  /dev/dri/renderD*-node toe (nooit groep 0). De container start als root uitsluitend om /config en /cache aan
+  extra capabilities, geen losse apparaten: de entrypoint voegt alleen de groepen toe van de doorgegeven
+  /dev/dri/renderD*- en /dev/dri/card*-apparaten, en alleen als die in de container bestaan (nooit groep 0). De container start als root uitsluitend om /config en /cache aan
   568:568 te geven en draait daarna als 568 zonder capabilities, met een lege bounding set en no_new_privs (de image
   zet die zelf, ook omdat het formulier geen no-new-privileges zet). Restrisico: Docker start de healthcheck en elke
   docker exec als de containergebruiker (root); de healthcheck wisselt als eerste handeling naar 568 met no_new_privs

@@ -7,8 +7,9 @@
 #        nooit aangeraakt (die horen read-only gemount te zijn).
 #      - een datamap via JELLYFIN_DATA_DIR/JELLYFIN_CACHE_DIR buiten /config of /cache (of een symlink daarheen)
 #        wordt als root geweigerd: nooit `chown -R` op systeem- of mediamappen (fail-closed).
-#      - voor elk aanwezig /dev/dri/renderD*-apparaat (optionele GPU) wordt de groep ervan als aanvullende groep
-#        meegegeven, zodat QSV/VAAPI als 568 werkt zonder privileged-modus;
+#      - voor elk aanwezig /dev/dri/renderD*- én /dev/dri/card*-apparaat (optionele GPU) wordt de groep ervan als
+#        aanvullende groep meegegeven (alleen als het apparaat in de container bestaat; groep 0 nooit), zodat
+#        QSV/VAAPI als 568 werkt zonder privileged-modus;
 #      - daarna draait alles als 568:568 zonder capabilities (setpriv): dit script start zichzelf opnieuw als 568 en
 #        werkt pas dán de eigen pluginmap bij (geen schrijfacties als root in de datamap behalve chown).
 #  * Altijd (ook als niet-root): datamap en instellingenmap moeten op blijvende, lokale opslag uit het formulier

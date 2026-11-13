@@ -138,3 +138,23 @@ def test_install_document_has_the_form_fields_that_the_translation_fills():
     assert portal_row is not None, "rij 'Portal Configuration' ontbreekt"
     assert f"Name `{name}`" in portal_row and f"Path `{path}`" in portal_row
     assert f"Protocol *{scheme.upper()}*" in portal_row and "Host Port" in portal_row
+
+
+def test_gpu_texts_name_every_device_group_the_entrypoint_adds():
+    """De entrypoint voegt de groep toe van elk aanwezig /dev/dri-apparaat uit zijn lus (renderD* én card*). Het
+    manifest (privilege_reason), het installatiedocument (rij GPU Configuration) en de kop van de entrypoint zelf
+    moeten elk patroon noemen, zodat niemand denkt dat alleen de render-node rechten krijgt (S-P2-800, KLEIN-74)."""
+    entrypoint = (REPO / "deploy/allinone/entrypoint.sh").read_text(encoding="utf-8")
+    lus = next(line for line in entrypoint.splitlines() if line.startswith("for node in /dev/dri/"))
+    patronen = [woord.rstrip(";") for woord in lus.split() if woord.startswith("/dev/dri/")]
+    assert patronen == ["/dev/dri/renderD*", "/dev/dri/card*"], "lus veranderd: teksten nalopen"
+
+    reden = " ".join(check_fork_consistency.top_level_block(MANIFEST, "privilege_reason").split())
+    document = (REPO / "deploy/truenas/CUSTOM_APP.md").read_text(encoding="utf-8")
+    gpu_rij = _form_row(document, "GPU Configuration")
+    assert gpu_rij is not None, "rij 'GPU Configuration' ontbreekt"
+    kop = " ".join(line.lstrip("# ") for line in entrypoint.split("\nset ", 1)[0].splitlines())
+    for patroon in patronen:
+        assert patroon in reden, f"manifest privilege_reason noemt {patroon} niet"
+        assert patroon in gpu_rij, f"CUSTOM_APP.md (GPU Configuration) noemt {patroon} niet"
+        assert patroon in kop, f"kopcommentaar van entrypoint.sh noemt {patroon} niet"

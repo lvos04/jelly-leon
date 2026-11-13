@@ -67,7 +67,7 @@ voor iedereen openstaan) of een **NFS/SMB-share** is (de SQLite-database van Jel
 | | Add → Host Path | Mount Path `/cache` → Host Path: jouw cache-dataset |
 | | Add → Host Path | Mount Path `/media` → Host Path: jouw mediadataset, **Read Only aan** |
 | Resources Configuration | CPUs / Memory | voorstel 4 CPU / 4096 MiB (transcoderen deelt de NAS met MediaGuard) |
-| GPU Configuration | Intel-GPU doorgeven | **standaard uit** (manifestparameter `gpu`: `none`). Alleen aanzetten (*Passthrough available (non-NVIDIA) GPUs*) als de wizard via de TrueNAS-API een Intel-render-node heeft gemeten (D08) en jij `intel_render` kiest. Het formulier kan niet per GPU kiezen: de app krijgt dan **elke** niet-NVIDIA-render-GPU van de NAS (NIET GEVALIDEERD op een echte NAS). Geen privileged-modus: de container voegt zelf alleen de groep van `/dev/dri/renderD*` toe (nooit groep 0). |
+| GPU Configuration | Intel-GPU doorgeven | **standaard uit** (manifestparameter `gpu`: `none`). Alleen aanzetten (*Passthrough available (non-NVIDIA) GPUs*) als de wizard via de TrueNAS-API een Intel-render-node heeft gemeten (D08) en jij `intel_render` kiest. Het formulier kan niet per GPU kiezen: de app krijgt dan **elke** niet-NVIDIA-render-GPU van de NAS (NIET GEVALIDEERD op een echte NAS). Geen privileged-modus: de container voegt zelf alleen de groepen toe van de doorgegeven `/dev/dri/renderD*`- en `/dev/dri/card*`-apparaten, en alleen als die in de container bestaan (nooit groep 0). |
 
 **Install.** De eerste start duurt kort (database aanmaken). Daarna *Running* en na de healthcheck (`/health`)
 *Healthy*.
