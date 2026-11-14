@@ -7829,7 +7829,8 @@ Stall-detectie, uitkomsten en het label zitten in de webplugin, die zich abonnee
 
 **Identificatie (D08 blijft verplicht).** Contract 1.2 §9 vertaalt `intel_render` naar `resources.gpus.use_all_gpus: true`,
 dus de container ziet **alle** render-nodes die TrueNAS doorgeeft (NIET GEVALIDEERD (echte NAS)); de entrypoint voegt de
-groep van elk `/dev/dri/renderD*` toe (`JL:deploy/allinone/entrypoint.sh:161-182`). De module bepaalt per node: sysfs-PCI-
+groep van elk aanwezig `/dev/dri/renderD*`- én `/dev/dri/card*`-apparaat toe, nooit groep 0 (de lus over de
+`/dev/dri`-apparaten in `JL:deploy/allinone/entrypoint.sh`). De module bepaalt per node: sysfs-PCI-
 vendor/-device, PCI-slot en driver (`/sys/class/drm/renderD*/device/`), en capabilities via `vainfo` en korte ffmpeg-proeven
 (AV1-`EncSlice` ja/nee, low-power ja/nee). Of `/dev/dri/by-path/` in de container bestaat, is onzeker (udev draait op de
 host); de **identiteit** van een node is daarom het PCI-slot, het **pad** in `encoding.xml` en in de wrapper is het
