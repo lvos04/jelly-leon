@@ -21,7 +21,7 @@ internal abstract class ModuleBasis : IJellyLeonModule
     {
         Slug = slug;
         StandaardBewaarDagen = standaardBewaarDagen;
-        Db = new JlDatabase(paden.ModuleDb(slug), [InstellingenTabel, .. migraties]);
+        Db = new JlDatabase(paden, paden.ModuleDb(slug), [InstellingenTabel, .. migraties]);
     }
 
     public string Slug { get; }

@@ -128,15 +128,15 @@ public sealed class OpslagTests : IDisposable
             "CREATE TABLE c(x INTEGER);",
             "CREATE TABLE d(x INTEGER);",
         ];
-        new JlDatabase(pad, stappen[..1]).Met(v => JlDatabase.Voer(v, "INSERT INTO a VALUES(7)"));
+        new JlDatabase(_h.Dienst<JlPaths>(), pad, stappen[..1]).Met(v => JlDatabase.Voer(v, "INSERT INTO a VALUES(7)"));
         Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(pad)!, "*.bak"));
 
-        var tweede = new JlDatabase(pad, stappen[..2]);
+        var tweede = new JlDatabase(_h.Dienst<JlPaths>(), pad, stappen[..2]);
         Assert.Equal(3, tweede.Met(v => JlDatabase.Getal(v, "SELECT y FROM a WHERE x = 7")));
         var kopie = Assert.Single(Directory.GetFiles(Path.GetDirectoryName(pad)!, "proef.db.v1.*.bak"));
 
         // De kopie is de database van vóór de migratie: wel de rij, nog niet de nieuwe kolom.
-        var oud = new JlDatabase(kopie, stappen[..1]);
+        var oud = new JlDatabase(_h.Dienst<JlPaths>(), kopie, stappen[..1]);
         Assert.Equal(7, oud.Met(v => JlDatabase.Getal(v, "SELECT x FROM a")));
         Assert.Equal(1, oud.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM pragma_table_info('a')")));
         foreach (var bijvangst in Directory.GetFiles(Path.GetDirectoryName(pad)!, "*.bak-*"))
@@ -146,7 +146,7 @@ public sealed class OpslagTests : IDisposable
 
         for (var i = 3; i <= stappen.Length; i++)
         {
-            new JlDatabase(pad, stappen[..i]).Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM a"));
+            new JlDatabase(_h.Dienst<JlPaths>(), pad, stappen[..i]).Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM a"));
         }
 
         var kopieen = Directory.GetFiles(Path.GetDirectoryName(pad)!, "proef.db.v*.bak").Select(Path.GetFileName).Order(StringComparer.Ordinal).ToList();
@@ -156,7 +156,7 @@ public sealed class OpslagTests : IDisposable
         Assert.StartsWith("proef.db.v5.", kopieen[2]);
 
         // Zonder nieuwe migratie komt er geen kopie bij.
-        new JlDatabase(pad, stappen).Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM a"));
+        new JlDatabase(_h.Dienst<JlPaths>(), pad, stappen).Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM a"));
         Assert.Equal(3, Directory.GetFiles(Path.GetDirectoryName(pad)!, "proef.db.v*.bak").Length);
     }
 
@@ -164,15 +164,15 @@ public sealed class OpslagTests : IDisposable
     public void Database_KopieVanEenLangOngewijzigdeDatabaseBlijftStaan()
     {
         var pad = Path.Combine(_h.Map, "data", "jelly-leon", "oud", "oud.db");
-        new JlDatabase(pad, ["CREATE TABLE a(x INTEGER);"]).Met(v => JlDatabase.Voer(v, "INSERT INTO a VALUES(1)"));
+        new JlDatabase(_h.Dienst<JlPaths>(), pad, ["CREATE TABLE a(x INTEGER);"]).Met(v => JlDatabase.Voer(v, "INSERT INTO a VALUES(1)"));
         File.SetLastWriteTimeUtc(pad, DateTime.UtcNow.AddDays(-40));
-        new JlDatabase(pad, ["CREATE TABLE a(x INTEGER);", "CREATE TABLE b(x INTEGER);"]).Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM b"));
+        new JlDatabase(_h.Dienst<JlPaths>(), pad, ["CREATE TABLE a(x INTEGER);", "CREATE TABLE b(x INTEGER);"]).Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM b"));
         Assert.Single(Directory.GetFiles(Path.GetDirectoryName(pad)!, "oud.db.v1.*.bak"));
 
         // Een kopie met een stempel van meer dan dertig dagen geleden wordt bij de volgende migratie opgeruimd.
         var verlopen = pad + ".v0.20200101000000.bak";
         File.WriteAllText(verlopen, "x");
-        new JlDatabase(pad, ["CREATE TABLE a(x INTEGER);", "CREATE TABLE b(x INTEGER);", "CREATE TABLE c(x INTEGER);"]).Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM c"));
+        new JlDatabase(_h.Dienst<JlPaths>(), pad, ["CREATE TABLE a(x INTEGER);", "CREATE TABLE b(x INTEGER);", "CREATE TABLE c(x INTEGER);"]).Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM c"));
         Assert.False(File.Exists(verlopen));
         Assert.Single(Directory.GetFiles(Path.GetDirectoryName(pad)!, "oud.db.v1.*.bak"));
         Assert.Single(Directory.GetFiles(Path.GetDirectoryName(pad)!, "oud.db.v2.*.bak"));
@@ -181,13 +181,61 @@ public sealed class OpslagTests : IDisposable
     [Fact]
     public void Database_OnbereikbareOpslagWordtEenNetteFout()
     {
-        var bestand = Path.Combine(_h.Map, "geen-map");
+        var paden = _h.Dienst<JlPaths>();
+        Directory.CreateDirectory(paden.DataRoot);
+        var bestand = Path.Combine(paden.DataRoot, "geen-map");
         File.WriteAllText(bestand, "x");
-        var db = new JlDatabase(Path.Combine(bestand, "x", "x.db"), ["CREATE TABLE a(x INTEGER);"]);
+        var db = new JlDatabase(paden, Path.Combine(bestand, "x", "x.db"), ["CREATE TABLE a(x INTEGER);"]);
         var fout = Assert.Throws<JlException>(() => db.Met(v => JlDatabase.Getal(v, "SELECT 1")));
         Assert.Equal(503, fout.Status);
         Assert.Equal("storage_unavailable", fout.Code);
         Assert.Equal(30, fout.RetryAfterSeconds);
+    }
+
+    /// <summary>
+    /// HARDE EIS (R-HARDE-EIS-2, S-G1-17): JlDatabase opent nooit een bestand buiten de eigen mappen, ook niet de
+    /// database van de server. De weigering komt vóór het openen: jellyfin.db blijft byte-gelijk en er ontstaat geen
+    /// -wal, -shm of nieuw bestand.
+    /// </summary>
+    [Fact]
+    public void Database_BuitenDeEigenMappenWordtGeweigerdZonderTeOpenen()
+    {
+        var paden = _h.Dienst<JlPaths>();
+        var data = Path.GetDirectoryName(paden.DataRoot)!;
+        Directory.CreateDirectory(data);
+        var serverDb = Path.Combine(data, "jellyfin" + ".db");
+        using (var verbinding = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + serverDb + ";Pooling=False"))
+        {
+            verbinding.Open();
+            using var opdracht = verbinding.CreateCommand();
+            opdracht.CommandText = "CREATE TABLE UserData(UserId TEXT, Played INTEGER, PlaybackPositionTicks INTEGER); INSERT INTO UserData VALUES('u1', 1, 15000000);";
+            opdracht.ExecuteNonQuery();
+        }
+
+        var voor = File.ReadAllBytes(serverDb);
+        var bestandenVoor = Directory.GetFileSystemEntries(_h.Map, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal).ToList();
+        string[] buiten =
+        [
+            serverDb,
+            Path.Combine(data, "library" + ".db"),
+            Path.Combine(paden.DataRoot, "..", "jellyfin" + ".db"),
+            Path.Combine(paden.DataRoot, "core", "..", "..", "jellyfin" + ".db"),
+            paden.DataRoot + "-naast" + Path.DirectorySeparatorChar + "x.db",
+            Path.Combine(_h.Map, "media", "x.db"),
+        ];
+
+        foreach (var pad in buiten)
+        {
+            Assert.False(paden.MagSchrijven(pad), pad);
+            Assert.Throws<UnauthorizedAccessException>(() => new JlDatabase(paden, pad, ["CREATE TABLE jl_proef(a INTEGER);"]));
+        }
+
+        Assert.Equal(voor, File.ReadAllBytes(serverDb));
+        Assert.Equal(bestandenVoor, Directory.GetFileSystemEntries(_h.Map, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal).ToList());
+
+        // Tegenproef: binnen de eigen map werkt dezelfde aanroep wel.
+        var eigen = new JlDatabase(paden, Path.Combine(paden.DataRoot, "proef", "proef.db"), ["CREATE TABLE jl_proef(a INTEGER);"]);
+        Assert.Equal(0, eigen.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM jl_proef")));
     }
 
     [Fact]

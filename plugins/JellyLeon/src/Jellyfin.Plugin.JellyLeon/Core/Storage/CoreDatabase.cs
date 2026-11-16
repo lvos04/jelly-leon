@@ -21,7 +21,7 @@ internal sealed class CoreDatabase
 
     public CoreDatabase(JlPaths paden)
     {
-        Db = new JlDatabase(paden.CoreDb, _migraties);
+        Db = new JlDatabase(paden, paden.CoreDb, _migraties);
     }
 
     public JlDatabase Db { get; }

@@ -11,6 +11,8 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Storage;
 /// <summary>
 /// Eigen SQLite-bestand van Core of van één module (ADR-0016). Migraties via <c>user_version</c>; vóór elke
 /// migratie van een bestaand bestand een kopie na <c>PRAGMA integrity_check</c> (hooguit 3 kopieën, 30 dagen).
+/// Alleen een bestand binnen de eigen mappen (<see cref="JlPaths.MagSchrijven"/>): elk ander pad, zoals de database
+/// van de server, weigert de constructor voordat er iets geopend of aangemaakt is (HARDE EIS, ADR-0032).
 /// </summary>
 internal sealed class JlDatabase
 {
@@ -21,8 +23,14 @@ internal sealed class JlDatabase
     private readonly object _slot = new();
     private bool _klaar;
 
-    public JlDatabase(string pad, IReadOnlyList<string> migraties)
+    public JlDatabase(JlPaths paden, string pad, IReadOnlyList<string> migraties)
     {
+        ArgumentNullException.ThrowIfNull(paden);
+        if (!paden.MagSchrijven(pad))
+        {
+            throw new UnauthorizedAccessException("Een database buiten de eigen mappen van Jelly Leon openen is niet toegestaan.");
+        }
+
         Pad = pad;
         _migraties = migraties;
         _connectionString = new SqliteConnectionStringBuilder { DataSource = pad, Pooling = false }.ToString();
