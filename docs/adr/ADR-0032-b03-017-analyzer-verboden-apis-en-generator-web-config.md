@@ -1,6 +1,8 @@
 # ADR-0032 — B03-017: bouwwachters — analyzer voor verboden API's en generator voor de web-`config.json`
 
 - **Status:** Aanvaard (2026-11-11). Uitvoering van ADR-0016 (één plugin met modules) en ADR-0019 (haken en generator).
+  Bijgewerkt 2026-11-16 na de review van golf 1 (S-G1-17, bevindingen R-HARDE-EIS-1, -2 en -4): meer bewaakte
+  servertypen, JL0003 ook op samengestelde tekst, een padgrens in `JlDatabase` en de kop "Grenzen" gelijk aan de code.
 - **Werkpakket:** B03-017; raakt de HARDE EIS (kijkgeschiedenis, bibliotheek, metadata en gebruikersgegevens blijven
   behouden) en JLT-65.
 - **Bewijs:** `plugins/JellyLeon/tests/…/Analyzer/VerbodenApiAnalyzerTests.cs` (xunit), de proefassembly
@@ -28,14 +30,39 @@ configureerbaar (`NotConfigurable`): een `.editorconfig`, `NoWarn` of `#pragma` 
 
 | Regel | Verboden | Waar wel |
 |---|---|---|
-| **JL0001** | schrijvende server-API. Per interface geldt "alles verboden behalve lezen" (voorvoegsels `Get`, `Find`, `Query`, `Is`, `Has`, `Can`, `To`): `ILibraryManager`, `IItemRepository`, `IItemPersistenceService`, `IPlaylistManager`, `ICollectionManager` (ook `GetCollectionsFolder`, want die kan aanmaken), `IUserManager`, `IDeviceManager`, `IUserDataManager`, `IProviderManager`, `ISubtitleManager`, `IMediaSegmentManager`, `ISessionManager`, `IServerConfigurationManager`/`IConfigurationManager`; op `BaseItem` en afgeleiden de wijzigende methoden (`Update*`, `Delete*`, `Refresh*`, `Save*`, `Add*`, `Remove*`, `Set*`, `Swap*`, `Changed*`, `Mark*`, `Validate*`) | bibliotheek, opslag van items, afspeellijsten, collecties, gebruikers en apparaten: **nergens**. De overige alleen in één met naam genoemde klasse per API (witte lijst) |
+| **JL0001** | schrijvende server-API. Per interface geldt "alles verboden behalve lezen" (voorvoegsels `Get`, `Find`, `Query`, `Is`, `Has`, `Can`, `To`, alleen als heel woord: `CanRefresh` is lezen, `CancelTimer` niet): `ILibraryManager`, `IItemRepository`, `IItemPersistenceService`, `IPlaylistManager`, `ICollectionManager` (ook `GetCollectionsFolder`, want die kan aanmaken), `IUserManager`, `IDeviceManager`, `IUserDataManager`, `IProviderManager`, `ISubtitleManager`, `IMediaSegmentManager`, `ISessionManager`, `IServerConfigurationManager`/`IConfigurationManager`, plus de diensten uit "Wat JL0001 bewaakt" hieronder; op `BaseItem` en afgeleiden de wijzigende methoden (`Update*`, `Delete*`, `Refresh*`, `Save*`, `Add*`, `Remove*`, `Set*`, `Swap*`, `Changed*`, `Mark*`, `Validate*`). Ook het schrijven van een eigenschap (toewijzing, `++`, `--`) op een bewaakt type telt: `item.Name = …` op een `BaseItem` is JL0001 | bibliotheek, opslag van items, afspeellijsten, collecties, gebruikers, apparaten en alle diensten uit "Wat JL0001 bewaakt": **nergens**. De overige alleen in één met naam genoemde klasse per API (witte lijst) |
 | **JL0002** | bestanden schrijven, verplaatsen of verwijderen: `System.IO.File` en `Directory` (alles behalve lezen), wijzigende methoden en eigenschappen van `FileInfo`/`DirectoryInfo`, `new FileStream`, `new StreamWriter(pad)`, `new SqliteConnection`, wijzigende methoden van `IFileSystem` | alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API |
-| **JL0003** | de database van de server: elk gebruik van `JellyfinDbContext` en elke tekst met `jellyfin.db` of `library.db` | **nergens**, geen uitzondering mogelijk |
+| **JL0003** | de database van de server: elk gebruik van `JellyfinDbContext` en elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke constante (ook uit een andere assembly) en elke samenstelling met `+` of `$"…"`: de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
 | **JL0004** | processen starten (`Process.Start`, `new Process`, `new ProcessStartInfo`) | alleen in `Core.Werker` (de werkerbewaker van B03-018); geen uitzondering per klasse |
 | **JL0009** | een ongeldige regel in de witte lijst | — |
 
 Verboden is "aanroepen én ernaar verwijzen": een methodegroep (`Action<string> f = File.Delete`) telt als aanroep.
 Gegenereerde code wordt ook gecontroleerd.
+
+#### Wat JL0001 bewaakt
+
+Naast de typen hierboven bewaakt JL0001 elke dienst uit de plugin-ABI (`Jellyfin.Controller`, `Jellyfin.Model`) die in
+v12.4 zelf in `jellyfin.db` schrijft. Gevonden door in de serverbron van de fork te zoeken naar `SaveChanges`,
+`ExecuteDelete` en `ExecuteUpdate` en elke klasse met zo'n aanroep terug te leiden naar haar interface:
+`IDisplayPreferencesManager` (ook `GetDisplayPreferences` en `GetItemDisplayPreferences`: die maken de rij aan als die
+ontbreekt; `List…` is lezen), `IChapterRepository`, `IChapterManager` (`Supports` is lezen), `IMediaStreamRepository`,
+`IMediaAttachmentRepository`, `IPeopleRepository`, `IKeyframeRepository`, `IKeyframeManager`, `ITrickplayManager`,
+`ILinkedChildrenService`, `IExternalDataManager`, `IActivityManager`, `IAuthenticationManager` (API-sleutels) en
+`IBackupService` (terugzetten overschrijft de hele database; `Enumerate…` is lezen).
+
+Daarnaast de diensten die via een al bewaakte API de bibliotheek, metadata, gebruikers of instellingen wijzigen, of een
+servertaak of verversing starten (gevonden door te zoeken naar aanroepen van de verboden leden in de serverbron):
+`ITaskManager` (een taak als "kijkgegevens van ontbrekende items opruimen" starten), `ILibraryMonitor`,
+`IMetadataService`, `IMediaSourceManager` (`GetPlaybackMediaSources` ververst met `allowMediaProbe` de metadata),
+`ILyricManager` (`Search…` is lezen), `IChannelManager` (de `Get…`-leden die kanaalitems aanmaken of wissen staan met naam
+bij de verboden leden), `ILiveTvManager`, `IGuideManager`, `IRecordingsManager`, `IListingsManager`,
+`ITunerHostManager`, `IQuickConnect` (een aanmelding goedkeuren), `IAuthenticationProvider` en
+`IPasswordResetProvider` (wachtwoorden) en `IEventManager` (een serverevent publiceren laat de server zelf schrijven,
+bijvoorbeeld in het activiteitenlog). Voor geen van deze typen bestaat een uitzondering.
+
+Van de bewaakte serverdiensten gebruikt de plugin op 2026-11-16 alleen `ILibraryManager` (`GetVirtualFolders`) en
+`ISessionManager` (de events `PlaybackStart` en `PlaybackStopped` en de lijst `Sessions`); de plugin bouwt zonder
+één JL-fout.
 
 ### 2. Witte lijst: één API in één klasse
 
@@ -52,7 +79,7 @@ bij een taak uit het plan en een eigen ADR.
 ### 3. Drie soorten bewijs
 
 1. **De plugin bouwt** met de analyzer aan: er staat geen verboden aanroep in.
-2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 61 verboden aanroepen, elk gemarkeerd met
+2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 110 verboden aanroepen, elk gemarkeerd met
    `// VERWACHT: JLxxxx`, afgewisseld met toegestane leesaanroepen. `analyzer_proef.py` bouwt het project echt en eist
    dat precies de gemarkeerde regels die bouwfout geven, dat geen enkele andere regel een JL-fout geeft en dat de build
    om geen andere reden faalt. De proefassembly staat bewust niet in de solution.
@@ -78,18 +105,37 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
 ## Grenzen (eerlijk)
 
 - Een analyzer is **geen zandbak**. Reflectie, `dynamic`, eigen P/Invoke of een tweede assembly ziet hij niet. Daarom
-  blijven de andere lagen bestaan: de schrijfgrens in `Core.Storage` (weigert elk pad buiten de eigen mappen tijdens
-  het draaien), de alleen-lezen mediamount, en JLT-65 (stock en fork naast elkaar; de 12.x-tabellen mogen alleen op de
-  toegestane lijst afwijken).
-- Hij bewaakt **methoden**, niet het zetten van eigenschappen op serverobjecten (`item.Name = …`). Zo'n wijziging
-  bereikt de database pas via een opslagaanroep, en die is verboden.
+  blijven de andere lagen bestaan: de schrijfgrens in `Core.Storage` tijdens het draaien (`InternalWriteScope` voor
+  bestanden en de constructor van `JlDatabase` voor SQLite weigeren elk pad buiten `<DataPath>/jelly-leon/**`,
+  `/cache/jelly-leon/**` en `/run/jelly-leon/**` (`JlPaths.MagSchrijven`), voordat er iets geopend of aangemaakt is;
+  test `OpslagTests.Database_BuitenDeEigenMappenWordtGeweigerdZonderTeOpenen`), de alleen-lezen mediamount, en JLT-65
+  (stock en fork naast elkaar; de 12.x-tabellen mogen alleen op de toegestane lijst afwijken).
+- JL0003 ziet een naam die pas bij het draaien ontstaat niet: een variabele, `string.Concat`, `StringBuilder`, een
+  waarde uit de configuratie. Daarvoor is de padgrens van `JlDatabase` er; `jellyfin.db` en `library.db` liggen buiten
+  de eigen mappen.
+- Hij bewaakt methoden **en** het schrijven van eigenschappen op elk bewaakt type: `item.Name = …` op een `BaseItem` is
+  JL0001 (proefregels in `VerbodenAanroepen.cs`), omdat een `BaseItem` gedeeld is met de cache van de server en de
+  server het item later zelf kan opslaan. Eigenschappen van **entiteiten** die een server-API teruggeeft (`User`,
+  `UserItemData`, `DisplayPreferences`, de rijen in `BaseItem.UserData`) bewaakt hij niet. Een `User` uit
+  `GetUserById` maakt de server per aanroep nieuw; daar blijft een wijziging in het geheugen. `UserItemData` uit de
+  cache van `IUserDataManager` en de rijen in `BaseItem.UserData` zijn wel gedeeld met de server; of een wijziging
+  daarin via een latere opslag door de server zelf in `jellyfin.db` belandt, is niet gemeten. De plugin zet geen
+  eigenschap op zulke objecten (Kern, Devices, Quality); tot een besluit over een regel hiervoor vangt alleen JLT-65
+  het.
+- Niet bewaakt, met reden: diensten die bij gewoon lezen een map of item van de server zelf aanmaken als die ontbreekt
+  (`IDtoService`, `IUserViewManager`, `ITVSeriesManager`, `IMusicManager` en leesleden van `ILibraryManager` zoals
+  `GetVirtualFolders` en van `ILiveTvManager` roepen intern `GetUserRootFolder`, `GetNamedView` of `GetMusicGenre` aan). Dat doet de server bij
+  elke opvraging van een gewone client ook; kijkgegevens raakt het niet. De directe aanroep van die leden blijft
+  verboden. Ook `IAuthService` (de sessiecontrole van de plugin) werkt bij elk verzoek de apparaatregel bij, net als
+  bij elk ander verzoek aan de server; in JLT-65 valt die rij onder het ruismasker (kolommen die al tussen twee runs
+  zonder plugin verschillen).
 - "Lezen" is op naam bepaald, en dat is in upstream geen garantie: bij het nalopen van v12.4 bleken
   `ILibraryManager.GetGenre`/`GetStudio`/`GetArtist`/`GetYear`/`GetMusicGenre`/`GetOrCreatePerson`, `GetNamedView`,
   `GetShadowView` en `GetUserRootFolder` een item of map aan te maken als die ontbreekt,
   `ISessionManager.GetSessionByAuthenticationToken` sessieactiviteit vast te leggen en `BaseItem.ReattachUserDataAsync`
   kijkgegevens te verplaatsen. Die staan nu met naam bij de verboden leden, net als `GetCollectionsFolder` en
   `GetPlaylistsFolder`. Om dit bij een sync niet opnieuw te missen ligt de **hele ledenlijst** van de bewaakte
-  servertypen vast in `Analyzer/BewaakteLeden.txt` (363 leden met het oordeel `lezen` of `verboden`). Een nieuw,
+  servertypen vast in `Analyzer/BewaakteLeden.txt` (537 leden met het oordeel `lezen` of `verboden`). Een nieuw,
   verdwenen of anders beoordeeld lid laat de test falen tot iemand het oordeel heeft bekeken. Het oordeel zelf blijft
   mensenwerk op basis van de upstream-bron; een methode die via een omweg schrijft kan gemist zijn.
 - Aanroepen naar buiten (`IProviderManager.GetRemoteSearchResults`, `ISubtitleManager.SearchSubtitles`) schrijven niet
