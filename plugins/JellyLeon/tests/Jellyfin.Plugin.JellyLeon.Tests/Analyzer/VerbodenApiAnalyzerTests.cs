@@ -43,6 +43,96 @@ public class VerbodenApiAnalyzerTests
         Assert.True(verwacht.Count >= 50, "de proefbron hoort elke verboden aanroep te bevatten");
     }
 
+    /// <summary>
+    /// R-HARDE-EIS-1 (S-G1-17): officiële server-API's die zelf in jellyfin.db schrijven (voorkeuren, hoofdstukken,
+    /// sporen, personen) zijn verboden, ook een Get die de rij aanmaakt als die ontbreekt. Vóór het herstel gaf deze
+    /// bron geen enkele bevinding.
+    /// </summary>
+    [Fact]
+    public async Task VoorkeurenHoofdstukkenSporenEnPersonen_ElkeSchrijvendeAanroepIsJL0001()
+    {
+        var bron = AnalyzerHarnas.Klasse(Modules + ".Proef", "Schrijver", """
+            public async System.Threading.Tasks.Task M(
+                MediaBrowser.Controller.IDisplayPreferencesManager voorkeuren,
+                MediaBrowser.Controller.Persistence.IChapterRepository hoofdstukken,
+                MediaBrowser.Controller.Chapters.IChapterManager hoofdstukbeheer,
+                MediaBrowser.Controller.Persistence.IMediaStreamRepository sporen,
+                MediaBrowser.Controller.Persistence.IPeopleRepository mensen,
+                Guid gebruiker, Guid item)
+            {
+                var p = voorkeuren.GetDisplayPreferences(gebruiker, item, "web");
+                voorkeuren.UpdateDisplayPreferences(p);
+                await hoofdstukken.DeleteChaptersAsync(item, CancellationToken.None);
+                await hoofdstukbeheer.DeleteChapterDataAsync(item, CancellationToken.None);
+                sporen.SaveMediaStreams(item, Array.Empty<MediaBrowser.Model.Entities.MediaStream>(), CancellationToken.None);
+                mensen.UpdatePeople(item, Array.Empty<MediaBrowser.Controller.Entities.PersonInfo>());
+                _ = mensen.DeleteOrphanedCredits();
+                _ = voorkeuren.ListItemDisplayPreferences(gebruiker, "web");
+                _ = hoofdstukken.GetChapters(item);
+                _ = sporen.GetMediaStreamLanguages(MediaBrowser.Model.Entities.MediaStreamType.Audio);
+                _ = mensen.GetPeopleNames(new InternalPeopleQuery());
+            }
+            """);
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(7, gevonden.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
+        Assert.Equal(7, gevonden.Select(b => b.Regel).Distinct().Count());
+        foreach (var api in new[] { "GetDisplayPreferences", "UpdateDisplayPreferences", "DeleteChaptersAsync", "DeleteChapterDataAsync", "SaveMediaStreams", "UpdatePeople", "DeleteOrphanedCredits" })
+        {
+            Assert.Contains(gevonden, b => b.Tekst.Contains("." + api + "'", StringComparison.Ordinal));
+        }
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-2 (S-G1-17): JL0003 ziet de naam van de serverdatabase ook als die uit stukken bestaat; precies één
+    /// bevinding per uitdrukking, en geen bevinding als een onbekend stuk de naam onderbreekt.
+    /// </summary>
+    [Fact]
+    public async Task SamengesteldeNaamVanDeServerdatabase_IsJL0003()
+    {
+        var bron = AnalyzerHarnas.Klasse(Modules + ".Proef", "Schrijver", """
+            public void M(string data)
+            {
+                _ = Path.Combine(data, "jellyfin" + ".db"); // JL0003
+                const string Naam = "library";
+                _ = Path.Combine(data, Naam + ".db"); // JL0003
+                _ = $"{data}/jellyfin.d" + "b"; // JL0003
+                _ = $"{data}/{Naam}.DB"; // JL0003
+                _ = "Data Source=" + data + "/jellyfin.db"; // JL0003
+                _ = ("jelly" + "fin") + (data + "x") + ".db";
+                _ = "jellyfin" + data + ".db";
+                _ = $"{data}/jelly-leon/{Naam}-export.json";
+                _ = Naam + "/" + ".db";
+            }
+            """);
+        var verwacht = bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0003", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(5, verwacht.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.ServerDatabase, b.Id));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
+    }
+
+    /// <summary>Een leesvoorvoegsel geldt alleen als heel woord: <c>CancelTimer</c> begint met "Can" maar leest niet.</summary>
+    [Fact]
+    public void Leesvoorvoegsel_GeldtAlleenOpEenWoordgrens()
+    {
+        var regel = new TypeRegel(Regels.ServerSchrijf, "X", true, false, "Get", "Can", "To", "Is", "Supports");
+
+        foreach (var lid in new[] { "Cancel", "CancelTimer", "CancelIfRunningAndQueue", "Toggle", "Issue", "Getaway", "Supportsx" })
+        {
+            Assert.True(regel.IsVerboden(lid), lid);
+        }
+
+        foreach (var lid in new[] { "GetItem", "Get", "CanRefresh", "ToString", "IsEnabled", "Supports", "Get2" })
+        {
+            Assert.False(regel.IsVerboden(lid), lid);
+        }
+    }
+
     [Fact]
     public async Task Opslagnamespaces_MogenBestandenSchrijven_MaarGeenServerApiOfProces()
     {
@@ -166,6 +256,9 @@ public class VerbodenApiAnalyzerTests
     [InlineData("JL0001 MediaBrowser.Controller.Library.ILibraryManager.UpdateItemAsync " + Modules + ".Subtitles.X", "nergens toegestaan")]
     [InlineData("JL0001 MediaBrowser.Controller.Persistence.IItemPersistenceService.SaveItems " + Modules + ".Subtitles.X", "nergens toegestaan")]
     [InlineData("JL0001 MediaBrowser.Controller.Library.IUserManager.DeleteUserAsync " + Modules + ".Devices.X", "nergens toegestaan")]
+    [InlineData("JL0001 MediaBrowser.Controller.IDisplayPreferencesManager.UpdateDisplayPreferences " + Modules + ".Subtitles.X", "nergens toegestaan")]
+    [InlineData("JL0001 MediaBrowser.Model.Tasks.ITaskManager.QueueScheduledTask " + Modules + ".Subtitles.X", "nergens toegestaan")]
+    [InlineData("JL0001 MediaBrowser.Controller.Library.IMediaSourceManager.GetPlaybackMediaSources " + Modules + ".Quality.X", "nergens toegestaan")]
     [InlineData("JL0004 System.Diagnostics.Process.Start " + Modules + ".Quality.X", "nergens toegestaan")]
     [InlineData("JL0003 jellyfin.db " + Modules + ".Quality.X", "niet bewaakt")]
     [InlineData("JL0001 MediaBrowser.Controller.Library.IUserDataManager.GetUserData " + Modules + ".Quality.X", "niet bewaakt")]

@@ -38,9 +38,17 @@ internal sealed class TypeRegel
             return true;
         }
 
-        var raak = Voorvoegsels.Any(v => lid.StartsWith(v, StringComparison.Ordinal));
+        var raak = Voorvoegsels.Any(v => IsVoorvoegsel(v, lid));
         return AlleenLezenToegestaan ? !raak : raak;
     }
+
+    /// <summary>
+    /// Een voorvoegsel telt alleen als heel woord: "Can" past op <c>CanRefresh</c>, niet op <c>CancelTimer</c>; "To" niet
+    /// op <c>Toggle</c>; "Is" niet op <c>Issue</c>.
+    /// </summary>
+    private static bool IsVoorvoegsel(string voorvoegsel, string lid) =>
+        lid.StartsWith(voorvoegsel, StringComparison.Ordinal)
+        && (lid.Length == voorvoegsel.Length || !char.IsLower(lid[voorvoegsel.Length]));
 }
 
 /// <summary>De tabellen van de analyzer. Wijzigen kan alleen hier, in één bestand, en hoort in ADR-0032.</summary>
@@ -81,6 +89,52 @@ internal static class Regels
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Collections.ICollectionManager", true, false, _lezen) { OokVerboden = new[] { "GetCollectionsFolder" } },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Library.IUserManager", true, false, _lezen),
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Devices.IDeviceManager", true, false, _lezen),
+        // Alle overige diensten van de plugin-ABI die in v12.4 zelf in jellyfin.db schrijven (gevonden op SaveChanges,
+        // ExecuteDelete en ExecuteUpdate in de serverbron; ADR-0032, kop "Wat JL0001 bewaakt"): voorkeuren,
+        // hoofdstukken, sporen, bijlagen, personen, keyframes, trickplay, gekoppelde items, het activiteitenlog,
+        // API-sleutels en het terugzetten van een back-up. Nergens schrijven, ook niet met een uitzondering.
+        // GetDisplayPreferences en GetItemDisplayPreferences maken de rij aan als die ontbreekt.
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.IDisplayPreferencesManager", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "List")
+        {
+            OokVerboden = new[] { "GetDisplayPreferences", "GetItemDisplayPreferences" }
+        },
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Persistence.IChapterRepository", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Chapters.IChapterManager", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "Supports"),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Persistence.IMediaStreamRepository", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Persistence.IMediaAttachmentRepository", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Persistence.IPeopleRepository", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Persistence.IKeyframeRepository", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.IO.IKeyframeManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Trickplay.ITrickplayManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Persistence.ILinkedChildrenService", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.IO.IExternalDataManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Model.Activity.IActivityManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Security.IAuthenticationManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "Jellyfin.Server.Implementations.SystemBackupService.IBackupService", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "Enumerate"),
+        // Diensten die via een andere server-API de bibliotheek, metadata, gebruikers of instellingen wijzigen: een
+        // servertaak of een verversing starten (ook de taak die kijkgegevens van "ontbrekende" items opruimt),
+        // songteksten naast de media schrijven, kanaal- en gids-items aanmaken of wissen, opnames wissen,
+        // tv-instellingen opslaan, een aanmelding goedkeuren, een wachtwoord wijzigen of een serverevent publiceren.
+        // GetPlaybackMediaSources ververst met allowMediaProbe de metadata van het item; de Get-leden van
+        // IChannelManager maken kanaalitems aan of wissen ze.
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Model.Tasks.ITaskManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Library.ILibraryMonitor", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Providers.IMetadataService", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Library.IMediaSourceManager", true, false, _lezen) { OokVerboden = new[] { "GetPlaybackMediaSources" } },
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Lyrics.ILyricManager", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "Search"),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Channels.IChannelManager", true, false, _lezen)
+        {
+            OokVerboden = new[] { "GetChannelsInternalAsync", "GetChannelsAsync", "GetLatestChannelItems", "GetLatestChannelItemsInternal", "GetChannelItems", "GetChannelItemsInternal" }
+        },
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.ILiveTvManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.IGuideManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.IRecordingsManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.IListingsManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.ITunerHostManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.QuickConnect.IQuickConnect", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Authentication.IAuthenticationProvider", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Authentication.IPasswordResetProvider", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Events.IEventManager", true, false, _lezen),
         // Kijkgeschiedenis, verversen, ondertitels, segmenten, sessies en serverinstellingen: alleen in één met naam
         // genoemde klasse per uitzondering (bijvoorbeeld F3 SelectionGuard), nooit elders.
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Library.IUserDataManager", true, true, _lezen),

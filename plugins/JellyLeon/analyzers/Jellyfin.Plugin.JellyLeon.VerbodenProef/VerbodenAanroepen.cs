@@ -51,6 +51,10 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = lib.GetUserRootFolder(); // VERWACHT: JL0001
             await item.ReattachUserDataAsync(stop); // VERWACHT: JL0001
             _ = item.OnMetadataChanged(); // VERWACHT: JL0001
+            // Een eigenschap van een serverobject zetten is ook schrijven: het item is gedeeld met de cache van de server.
+            item.Name = "x"; // VERWACHT: JL0001
+            item.IsLocked = true; // VERWACHT: JL0001
+            _ = item.Name;
             _ = lib.GetPerson("x");
             _ = lib.GetGenreId("x");
             _ = repo.RetrieveItem(Guid.Empty);
@@ -95,6 +99,106 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = lijsten.GetPlaylists(Guid.Empty);
         }
 
+        // Overige diensten die zelf in jellyfin.db schrijven (R-HARDE-EIS-1, S-G1-17): nergens toegestaan.
+        public async Task Serverdatabase(
+            MediaBrowser.Controller.IDisplayPreferencesManager voorkeuren,
+            IChapterRepository hoofdstukken,
+            MediaBrowser.Controller.Chapters.IChapterManager hoofdstukbeheer,
+            IMediaStreamRepository sporen,
+            IMediaAttachmentRepository bijlagen,
+            IPeopleRepository mensen,
+            IKeyframeRepository keyframes,
+            MediaBrowser.Controller.IO.IKeyframeManager keyframebeheer,
+            MediaBrowser.Controller.Trickplay.ITrickplayManager trickplay,
+            ILinkedChildrenService koppelingen,
+            MediaBrowser.Controller.IO.IExternalDataManager extern_,
+            MediaBrowser.Model.Activity.IActivityManager activiteit,
+            MediaBrowser.Controller.Security.IAuthenticationManager sleutels,
+            Jellyfin.Server.Implementations.SystemBackupService.IBackupService backup,
+            BaseItem item,
+            CancellationToken stop)
+        {
+            var p = voorkeuren.GetDisplayPreferences(Guid.Empty, Guid.Empty, "web"); // VERWACHT: JL0001
+            _ = voorkeuren.GetItemDisplayPreferences(Guid.Empty, Guid.Empty, "web"); // VERWACHT: JL0001
+            voorkeuren.UpdateDisplayPreferences(p); // VERWACHT: JL0001
+            voorkeuren.SetCustomItemDisplayPreferences(Guid.Empty, Guid.Empty, "web", null); // VERWACHT: JL0001
+            _ = voorkeuren.ListItemDisplayPreferences(Guid.Empty, "web");
+            await hoofdstukken.DeleteChaptersAsync(Guid.Empty, stop); // VERWACHT: JL0001
+            hoofdstukken.SaveChapters(Guid.Empty, null); // VERWACHT: JL0001
+            _ = hoofdstukken.GetChapters(Guid.Empty);
+            await hoofdstukbeheer.DeleteChapterDataAsync(Guid.Empty, stop); // VERWACHT: JL0001
+            hoofdstukbeheer.SaveChapters(item, null); // VERWACHT: JL0001
+            _ = hoofdstukbeheer.Supports(item);
+            sporen.SaveMediaStreams(Guid.Empty, null, stop); // VERWACHT: JL0001
+            _ = sporen.GetMediaStreamLanguages(default);
+            bijlagen.SaveMediaAttachments(Guid.Empty, null, stop); // VERWACHT: JL0001
+            mensen.UpdatePeople(Guid.Empty, null); // VERWACHT: JL0001
+            _ = mensen.DeleteOrphanedCredits(); // VERWACHT: JL0001
+            _ = mensen.GetPeopleNames(null);
+            await keyframes.SaveKeyframeDataAsync(Guid.Empty, null, stop); // VERWACHT: JL0001
+            await keyframebeheer.DeleteKeyframeDataAsync(Guid.Empty, stop); // VERWACHT: JL0001
+            _ = keyframebeheer.GetKeyframeData(Guid.Empty);
+            await trickplay.DeleteTrickplayDataAsync(Guid.Empty, stop); // VERWACHT: JL0001
+            await trickplay.SaveTrickplayInfo(null); // VERWACHT: JL0001
+            _ = await trickplay.GetTrickplayResolutions(Guid.Empty);
+            koppelingen.UpsertLinkedChild(Guid.Empty, Guid.Empty, default); // VERWACHT: JL0001
+            _ = koppelingen.RerouteLinkedChildren(Guid.Empty, Guid.Empty); // VERWACHT: JL0001
+            _ = koppelingen.GetLinkedChildrenIds(Guid.Empty);
+            await extern_.DeleteExternalItemDataAsync(item, stop); // VERWACHT: JL0001
+            await activiteit.CreateAsync(null); // VERWACHT: JL0001
+            await activiteit.CleanAsync(DateTime.MinValue); // VERWACHT: JL0001
+            await sleutels.CreateApiKey("x"); // VERWACHT: JL0001
+            await sleutels.DeleteApiKey("x"); // VERWACHT: JL0001
+            _ = await sleutels.GetApiKeys();
+            await backup.RestoreBackupAsync("x"); // VERWACHT: JL0001
+            backup.ScheduleRestoreAndRestartServer("x"); // VERWACHT: JL0001
+            _ = await backup.EnumerateBackups();
+        }
+
+        // Diensten die via een andere server-API schrijven, verversen of een servertaak starten: nergens toegestaan.
+        public async Task Omwegen(
+            MediaBrowser.Model.Tasks.ITaskManager taken,
+            ILibraryMonitor bewaker,
+            IMetadataService metadata,
+            IMediaSourceManager bronnen,
+            MediaBrowser.Controller.Lyrics.ILyricManager songteksten,
+            MediaBrowser.Controller.Channels.IChannelManager kanalen,
+            MediaBrowser.Controller.LiveTv.ILiveTvManager livetv,
+            MediaBrowser.Controller.LiveTv.IGuideManager gids,
+            MediaBrowser.Controller.LiveTv.IRecordingsManager opnames,
+            MediaBrowser.Controller.LiveTv.IListingsManager aanbieders,
+            MediaBrowser.Controller.LiveTv.ITunerHostManager tuners,
+            MediaBrowser.Controller.QuickConnect.IQuickConnect snelkoppelen,
+            MediaBrowser.Controller.Authentication.IAuthenticationProvider aanmelden,
+            MediaBrowser.Controller.Authentication.IPasswordResetProvider herstel,
+            MediaBrowser.Controller.Events.IEventManager events,
+            BaseItem item,
+            User gebruiker,
+            MediaBrowser.Controller.Entities.Audio.Audio nummer,
+            CancellationToken stop)
+        {
+            taken.QueueScheduledTask(null, null); // VERWACHT: JL0001
+            bewaker.ReportFileSystemChanged("x"); // VERWACHT: JL0001
+            _ = await metadata.RefreshMetadata(item, null, stop); // VERWACHT: JL0001
+            _ = metadata.CanRefresh(item);
+            _ = await bronnen.GetPlaybackMediaSources(item, gebruiker, true, false, stop); // VERWACHT: JL0001
+            _ = bronnen.GetStaticMediaSources(item, false, null);
+            await songteksten.DeleteLyricsAsync(nummer); // VERWACHT: JL0001
+            _ = await songteksten.GetLyricsAsync(nummer, stop);
+            _ = await kanalen.GetChannelItemsInternal(null, null, stop); // VERWACHT: JL0001
+            await kanalen.DeleteItem(item); // VERWACHT: JL0001
+            _ = kanalen.GetChannel("x");
+            await livetv.CancelTimer("x"); // VERWACHT: JL0001
+            await gids.RefreshGuide(null, stop); // VERWACHT: JL0001
+            opnames.CancelRecording("x", null); // VERWACHT: JL0001
+            aanbieders.DeleteListingsProvider("x"); // VERWACHT: JL0001
+            tuners.DeleteTunerHost("x"); // VERWACHT: JL0001
+            _ = await snelkoppelen.AuthorizeRequest(Guid.Empty, "x"); // VERWACHT: JL0001
+            await aanmelden.ChangePassword(gebruiker, "x"); // VERWACHT: JL0001
+            _ = await herstel.RedeemPasswordResetPin("x"); // VERWACHT: JL0001
+            events.Publish(EventArgs.Empty); // VERWACHT: JL0001
+        }
+
         public void Bestanden(string pad, IFileSystem bestandssysteem)
         {
             File.WriteAllText(pad, "x"); // VERWACHT: JL0002
@@ -123,7 +227,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             using var g = new StreamWriter(Stream.Null);
         }
 
-        public void Database(JellyfinDbContext context) // VERWACHT: JL0003
+        public void Database(JellyfinDbContext context, string data) // VERWACHT: JL0003
         {
             var nieuw = "/config/data/jellyfin.db"; // VERWACHT: JL0003
             var oud = "Data Source=/config/data/LIBRARY.DB"; // VERWACHT: JL0003
@@ -131,6 +235,16 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = nieuw;
             _ = oud;
             _ = "/config/data/jelly-leon/quality/quality.db";
+            // Samengesteld, via een constante of geïnterpoleerd (R-HARDE-EIS-2, S-G1-17): ook verboden.
+            const string Naam = "library";
+            _ = Path.Combine(data, "jellyfin" + ".db"); // VERWACHT: JL0003
+            _ = Path.Combine(data, Naam + ".db"); // VERWACHT: JL0003
+            _ = $"{data}/jellyfin.d" + "b"; // VERWACHT: JL0003
+            _ = $"{data}/{Naam}.db"; // VERWACHT: JL0003
+            _ = data + "/jelly" + 'f' + "in.db"; // VERWACHT: JL0003
+            _ = "Data Source=" + data + "/jellyfin.db"; // VERWACHT: JL0003
+            _ = "jellyfin" + data + ".db";
+            _ = $"{data}/jelly-leon/{Naam}-export.json";
         }
 
         public void Processen()

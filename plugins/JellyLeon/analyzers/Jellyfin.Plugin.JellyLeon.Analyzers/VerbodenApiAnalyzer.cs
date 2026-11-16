@@ -87,7 +87,8 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         context.RegisterOperationAction(c => toestand.Methode(c, ((IMethodReferenceOperation)c.Operation).Method), OperationKind.MethodReference);
         context.RegisterOperationAction(toestand.Eigenschap, OperationKind.PropertyReference);
         context.RegisterOperationAction(toestand.Aanmaak, OperationKind.ObjectCreation);
-        context.RegisterOperationAction(toestand.Letterlijk, OperationKind.Literal);
+        context.RegisterOperationAction(toestand.Constante, OperationKind.Literal, OperationKind.FieldReference, OperationKind.LocalReference);
+        context.RegisterOperationAction(toestand.Samenstelling, OperationKind.Binary, OperationKind.InterpolatedString);
         context.RegisterSyntaxNodeAction(toestand.Naam, SyntaxKind.IdentifierName);
         context.RegisterCompilationEndAction(c =>
         {
@@ -223,18 +224,167 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        public void Letterlijk(OperationAnalysisContext context)
+        /// <summary>
+        /// JL0003 op één waarde: een letterlijke tekst of een constante (ook een constante uit een andere assembly) waarin
+        /// de naam van de serverdatabase staat.
+        /// </summary>
+        public void Constante(OperationAnalysisContext context)
         {
-            if (context.Operation.ConstantValue is { HasValue: true, Value: string tekst })
+            if (Waarde(context.Operation) is { } tekst && ServerDatabaseNaam(tekst) is { } naam)
             {
-                foreach (var naam in Regels.ServerDatabaseNamen)
+                context.ReportDiagnostic(Diagnostic.Create(_serverDatabase, context.Operation.Syntax.GetLocation(), naam));
+            }
+        }
+
+        /// <summary>
+        /// JL0003 op een samengestelde tekst (<c>"jellyfin" + ".db"</c>, <c>Naam + ".db"</c> met een constante,
+        /// <c>$"{map}/jellyfin.d" + "b"</c>): de bekende stukken die direct op elkaar volgen worden aaneengeschreven; een
+        /// onbekend stuk (een variabele) breekt de reeks. Alleen de buitenste samenstelling telt, en alleen een naam die
+        /// pas over de stukken heen ontstaat: een stuk dat de naam zelf al bevat, meldt <see cref="Constante"/>.
+        /// </summary>
+        public void Samenstelling(OperationAnalysisContext context)
+        {
+            var operatie = context.Operation;
+            if (operatie is IBinaryOperation plus && !IsTekstPlus(plus))
+            {
+                return;
+            }
+
+            if (IsDeelVanSamenstelling(operatie))
+            {
+                return;
+            }
+
+            var stukken = new List<string?>();
+            Plat(operatie, stukken);
+            if (stukken.Any(s => s is not null && ServerDatabaseNaam(s) is not null))
+            {
+                return;
+            }
+
+            foreach (var reeks in Aaneen(stukken))
+            {
+                if (ServerDatabaseNaam(reeks) is { } naam)
                 {
-                    if (tekst.IndexOf(naam, StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        context.ReportDiagnostic(Diagnostic.Create(_serverDatabase, context.Operation.Syntax.GetLocation(), naam));
-                        return;
-                    }
+                    context.ReportDiagnostic(Diagnostic.Create(_serverDatabase, operatie.Syntax.GetLocation(), naam));
+                    return;
                 }
+            }
+        }
+
+        private static string? ServerDatabaseNaam(string tekst) =>
+            Regels.ServerDatabaseNamen.FirstOrDefault(naam => tekst.IndexOf(naam, StringComparison.OrdinalIgnoreCase) >= 0);
+
+        /// <summary>De bekende tekst van een constante (tekst, teken of <c>null</c> als lege tekst); anders null.</summary>
+        private static string? Waarde(IOperation operatie)
+        {
+            if (!operatie.ConstantValue.HasValue)
+            {
+                return null;
+            }
+
+            return operatie.ConstantValue.Value switch
+            {
+                string tekst => tekst,
+                char teken => new string(teken, 1),
+                null => string.Empty,
+                _ => null,
+            };
+        }
+
+        private static bool IsTekstPlus(IBinaryOperation plus) =>
+            plus.OperatorKind == BinaryOperatorKind.Add && plus.Type?.SpecialType == SpecialType.System_String;
+
+        private static bool IsDeelVanSamenstelling(IOperation operatie)
+        {
+            var ouder = operatie.Parent;
+            while (ouder is IConversionOperation)
+            {
+                ouder = ouder.Parent;
+            }
+
+            return (ouder is IBinaryOperation plus && IsTekstPlus(plus))
+                || ouder is IInterpolationOperation
+                || ouder is IInterpolatedStringTextOperation
+                || ouder is IArgumentOperation { Parent: IInvocationOperation { Parent: IInterpolatedStringAppendOperation } };
+        }
+
+        /// <summary>Schrijft de stukken van een samenstelling op volgorde uit; null is een onbekend stuk.</summary>
+        private static void Plat(IOperation operatie, List<string?> stukken)
+        {
+            switch (operatie)
+            {
+                case IConversionOperation omzetting:
+                    Plat(omzetting.Operand, stukken);
+                    return;
+                case IBinaryOperation plus when IsTekstPlus(plus):
+                    Plat(plus.LeftOperand, stukken);
+                    Plat(plus.RightOperand, stukken);
+                    return;
+                case IInterpolatedStringHandlerCreationOperation maker:
+                    Plat(maker.Content, stukken);
+                    return;
+                case IInterpolatedStringOperation geinterpoleerd:
+                    foreach (var deel in geinterpoleerd.Parts)
+                    {
+                        switch (deel)
+                        {
+                            case IInterpolatedStringTextOperation tekst:
+                                Plat(tekst.Text, stukken);
+                                break;
+                            case IInterpolationOperation gat:
+                                // Een uitlijning vult met spaties aan: dan sluit het stuk niet direct aan op zijn buren.
+                                if (gat.Alignment is not null)
+                                {
+                                    stukken.Add(null);
+                                }
+
+                                Plat(gat.Expression, stukken);
+                                if (gat.Alignment is not null)
+                                {
+                                    stukken.Add(null);
+                                }
+
+                                break;
+                            case IInterpolatedStringAppendOperation toevoeging when toevoeging.AppendCall is IInvocationOperation { Arguments.Length: > 0 } aanroep:
+                                Plat(aanroep.Arguments[0].Value, stukken);
+                                break;
+                            default:
+                                stukken.Add(null);
+                                break;
+                        }
+                    }
+
+                    return;
+                default:
+                    stukken.Add(Waarde(operatie));
+                    return;
+            }
+        }
+
+        /// <summary>De reeksen van bekende stukken die direct op elkaar volgen, aaneengeschreven.</summary>
+        private static IEnumerable<string> Aaneen(IReadOnlyList<string?> stukken)
+        {
+            var reeks = new System.Text.StringBuilder();
+            foreach (var stuk in stukken)
+            {
+                if (stuk is null)
+                {
+                    if (reeks.Length > 0)
+                    {
+                        yield return reeks.ToString();
+                        reeks.Clear();
+                    }
+
+                    continue;
+                }
+
+                reeks.Append(stuk);
+            }
+
+            if (reeks.Length > 0)
+            {
+                yield return reeks.ToString();
             }
         }
 
