@@ -57,7 +57,9 @@ public sealed class RoutetabelTests
     public void ElkeRoute_BestaatPreciesEenKeer()
     {
         Assert.Equal(RouteTable.Alle.Count, RouteTable.Alle.Select(r => r.Id).Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal(RouteTable.Alle.Count, RouteTable.Alle.Select(r => r.Methode + " " + r.Pad).Distinct(StringComparer.Ordinal).Count());
+
+        // Zoals de server routes vergelijkt: hoofdletterongevoelig, padparameters zonder naam (R-TECH-5, S-G1-17).
+        Assert.Empty(RouteSleutel.Dubbel(RouteTable.Alle.Select(r => (r.Methode, r.Pad))));
         Assert.All(RouteTable.Alle, r => Assert.True(r.Pad.StartsWith("/connector/v1/", StringComparison.Ordinal) || r.Pad.StartsWith("/media/v1/", StringComparison.Ordinal)));
 
         // De connector hoort bij Core en bestaat dus één keer, ook met meerdere modules.
@@ -69,6 +71,20 @@ public sealed class RoutetabelTests
 
         // Moduleroutes liggen onder de eigen naam van de module.
         Assert.All(RouteTable.Alle.Where(r => r.Module is not null), r => Assert.StartsWith("/media/v1/" + r.Module + "/", r.Pad, StringComparison.Ordinal));
+    }
+
+    /// <summary>De uniekheidscontrole vangt een route die alleen in hoofdletters, parameternaam of slot-slash verschilt.</summary>
+    [Fact]
+    public void Uniekheidscontrole_VangtVariantenDieDeServerAlsDezelfdeRouteZiet()
+    {
+        Assert.Equal(new[] { "GET /MEDIA/V1/HUB-LINK" }, RouteSleutel.Dubbel([("GET", "/media/v1/hub-link"), ("GET", "/media/v1/Hub-link")]));
+        Assert.Single(RouteSleutel.Dubbel([("get", "/media/v1/hub-link"), ("GET", "/media/v1/hub-link")]));
+        Assert.Single(RouteSleutel.Dubbel([("PUT", "/media/v1/modules/{id}"), ("PUT", "/media/v1/modules/{naam}")]));
+        Assert.Single(RouteSleutel.Dubbel([("DELETE", "/media/v1/hub-link"), ("DELETE", "/media/v1/hub-link/")]));
+
+        // Wat de server wel als twee routes ziet, blijft twee.
+        Assert.Empty(RouteSleutel.Dubbel([("GET", "/media/v1/hub-link"), ("PUT", "/media/v1/hub-link")]));
+        Assert.Empty(RouteSleutel.Dubbel([("GET", "/media/v1/modules/{id}"), ("GET", "/media/v1/modules/{id}/status")]));
     }
 
     [Fact]

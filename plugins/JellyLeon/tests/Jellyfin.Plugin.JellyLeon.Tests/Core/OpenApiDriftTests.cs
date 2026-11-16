@@ -44,6 +44,9 @@ public sealed class OpenApiDriftTests
         var paden = OpenApiBouwer.Bouw()["paths"]!.AsObject();
         var operaties = paden.SelectMany(p => p.Value!.AsObject().Select(o => o.Key.ToUpperInvariant() + " " + p.Key)).ToList();
         Assert.Equal(operaties.Count, operaties.Distinct(StringComparer.Ordinal).Count());
+
+        // Zoals de server routes vergelijkt: hoofdletterongevoelig, padparameters zonder naam (R-TECH-5, S-G1-17).
+        Assert.Empty(RouteSleutel.Dubbel(paden.SelectMany(p => p.Value!.AsObject().Select(o => (o.Key, p.Key)))));
         Assert.Equal(
             RouteTable.Alle.Select(r => r.Methode + " " + r.Pad).Append("GET /media/v1/version").OrderBy(s => s, StringComparer.Ordinal),
             operaties.OrderBy(s => s, StringComparer.Ordinal));
