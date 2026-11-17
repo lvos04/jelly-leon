@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -17,8 +18,15 @@ internal sealed class JlPaths
 
     public JlPaths(string dataPath, string cachePath)
     {
-        DataRoot = Path.Combine(dataPath, "jelly-leon");
-        CacheRoot = Path.Combine(cachePath, "jelly-leon");
+        if (new[] { dataPath, cachePath }.Any(p => Path.GetFullPath(p).TrimEnd('/') is "" or "/tmp" or "/run"))
+        {
+            throw new UnauthorizedAccessException("Een systeemouder is geen eigen gegevensmap van Jelly Leon.");
+        }
+
+        DataRoot = Path.GetFullPath(Path.Combine(dataPath, "jelly-leon"));
+        CacheRoot = Path.GetFullPath(Path.Combine(cachePath, "jelly-leon"));
+        EisVeiligeMap(DataRoot, maak: false);
+        EisVeiligeMap(CacheRoot, maak: false);
     }
 
     public string DataRoot { get; }
@@ -123,6 +131,118 @@ internal sealed class JlPaths
         }
 
         return huidig;
+    }
+
+    /// <summary>Controleert elke bestaande ouder, ook boven de eigen wortel; nieuwe mappen zijn 0700.</summary>
+    internal static void EisVeiligeMap(string pad, bool maak)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("Veilige opslag van Jelly Leon vereist de gecontroleerde Linux-omgeving.");
+        }
+
+        // Zonder CAP_FOWNER mag uitsluitend de eigenaar chmod uitvoeren. Dezelfde modus terugzetten is een
+        // beheerde eigendomsproef; geen P/Invoke, geen rechtenreparatie. Zie ADR-0032, opslagdreigingen deel 1b.
+        var status = File.ReadAllLines("/proc/self/status");
+        var uid = status.First(l => l.StartsWith("Uid:", StringComparison.Ordinal)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var caps = status.First(l => l.StartsWith("CapEff:", StringComparison.Ordinal)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (uid.Length != 5 || uid[1] == "0" || uid.Skip(1).Any(u => u != uid[1]) || caps.Length != 2
+            || ulong.Parse(caps[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture) != 0)
+        {
+            throw new UnauthorizedAccessException("Jelly Leon-opslag vereist één niet-rootgebruiker zonder effectieve capabilities.");
+        }
+
+        ControleerMap(Path.GetFullPath(pad), maak);
+    }
+
+    private static void ControleerMap(string pad, bool maak)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("Veilige opslag vereist Linux.");
+        }
+
+        var ouder = Path.GetDirectoryName(pad);
+        if (ouder is not null)
+        {
+            ControleerMap(ouder, maak);
+        }
+
+        if (new FileInfo(pad).LinkTarget is not null)
+        {
+            throw new UnauthorizedAccessException("Een opslagmap of bovenliggende map van Jelly Leon mag geen symbolische koppeling zijn.");
+        }
+
+        if (!Directory.Exists(pad))
+        {
+            if (!maak)
+            {
+                return;
+            }
+
+            Directory.CreateDirectory(pad, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        var modus = File.GetUnixFileMode(pad);
+        // Alleen de vaste, sticky systeemmap /tmp is gedeeld: andere gebruikers kunnen de eigen ingang niet wisselen.
+        if ((modus & (UnixFileMode.GroupWrite | UnixFileMode.OtherWrite)) != 0
+            && !(pad == "/tmp" && (modus & UnixFileMode.StickyBit) != 0))
+        {
+            throw new UnauthorizedAccessException("Een opslagmap of bovenliggende map van Jelly Leon is voor groep of anderen beschrijfbaar; start geweigerd.");
+        }
+
+        // Vaste systeemouders uit de vertrouwde containerimage. Elke andere ouder moet van de procesgebruiker zijn.
+        if (pad is "/" or "/tmp" or "/run")
+        {
+            return;
+        }
+
+        try
+        {
+            File.SetUnixFileMode(pad, modus);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new UnauthorizedAccessException("Een opslagmap of bovenliggende map van Jelly Leon is niet van de eigen gebruiker; start geweigerd.");
+        }
+    }
+
+    /// <summary>Een schrijfnaam zonder koppelingen en met veilige ouders, ook bij elke latere bewerking.</summary>
+    internal void EisVeiligBestand(string pad)
+    {
+        if (!MagSchrijven(pad) || new FileInfo(pad).LinkTarget is not null)
+        {
+            throw new UnauthorizedAccessException("Opslag buiten de eigen mappen of via een koppeling is niet toegestaan.");
+        }
+
+        EisVeiligeMap(Path.GetDirectoryName(Path.GetFullPath(pad))!, maak: false);
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("Controle van opslagrechten vereist Linux.");
+        }
+
+        if (File.Exists(pad) && (File.GetUnixFileMode(pad) & (UnixFileMode.GroupWrite | UnixFileMode.OtherWrite)) != 0)
+        {
+            throw new UnauthorizedAccessException("Een opslagbestand van Jelly Leon is voor groep of anderen beschrijfbaar; bewerking geweigerd.");
+        }
+    }
+
+    /// <summary>Controleert de geopende bestandsnaam en modus vóór de eerste schrijf- of leeshandeling.</summary>
+    internal void EisGeopendBestand(FileStream stroom, string pad)
+    {
+        EisVeiligBestand(pad);
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("Controle van een geopend opslagbestand vereist Linux.");
+        }
+
+        var fd = stroom.SafeFileHandle.DangerousGetHandle().ToInt64().ToString(CultureInfo.InvariantCulture);
+        var geopend = File.ResolveLinkTarget("/proc/self/fd/" + fd, returnFinalTarget: true)?.FullName;
+        if (!string.Equals(geopend, Path.GetFullPath(pad), StringComparison.Ordinal)
+            || (File.GetUnixFileMode(stroom.SafeFileHandle) & (UnixFileMode.GroupWrite | UnixFileMode.OtherWrite)) != 0)
+        {
+            throw new UnauthorizedAccessException("Het geopende opslagbestand heeft een andere plek of onveilige rechten; bewerking geweigerd.");
+        }
     }
 
     /// <summary>Het echte pad van een eigen map; null als de eigen map zelf een koppeling is of niet te volgen is.</summary>

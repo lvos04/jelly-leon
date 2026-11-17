@@ -242,8 +242,7 @@ public sealed class OpslagTests : IDisposable
     /// HARDE EIS (R-HARDE-EIS-5, S-G1-17 herstelronde 2): de padgrens volgt symbolische koppelingen zoals het
     /// besturingssysteem dat doet (bestand, elke bovenliggende map, ook een relatieve koppeling of een keten). Een
     /// koppeling binnen de eigen map naar jellyfin.db, naar de servermap of naar het WAL-bestand van de server wordt
-    /// geweigerd vóór het openen; jellyfin.db blijft byte-gelijk en naast jellyfin.db ontstaat niets. Een koppeling die
-    /// binnen de eigen map blijft, en een eigen map die zelf onder een gekoppelde map ligt, werken gewoon.
+    /// geweigerd vóór het openen; jellyfin.db blijft byte-gelijk en naast jellyfin.db ontstaat niets. Ook een koppeling binnen de eigen map wordt sinds deel 1b geweigerd.
     /// </summary>
     [Fact]
     public void Database_SymbolischeKoppelingNaarBuitenWordtGeweigerdZonderTeOpenen()
@@ -284,21 +283,19 @@ public sealed class OpslagTests : IDisposable
         Assert.Equal(servermapVoor, Directory.GetFileSystemEntries(data).Order(StringComparer.Ordinal).ToList());
         Assert.False(Directory.Exists(Path.Combine(data, "nieuw")));
 
-        // Tegenproef: een koppeling die binnen de eigen map blijft, werkt gewoon.
+        // Aangescherpt in deel 1b: ook een koppeling binnen de eigen map wordt geweigerd.
         Directory.CreateDirectory(Path.Combine(paden.DataRoot, "echt"));
         Directory.CreateSymbolicLink(Path.Combine(paden.DataRoot, "binnen"), Path.Combine(paden.DataRoot, "echt"));
-        var binnen = new JlDatabase(paden, Path.Combine(paden.DataRoot, "binnen", "x.db"), ["CREATE TABLE jl_proef(a INTEGER);"]);
-        Assert.Equal(0, binnen.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM jl_proef")));
-        Assert.True(File.Exists(Path.Combine(paden.DataRoot, "echt", "x.db")));
+        Assert.Throws<UnauthorizedAccessException>(() => new JlDatabase(paden, Path.Combine(paden.DataRoot, "binnen", "x.db"), ["CREATE TABLE jl_proef(a INTEGER);"]));
+        Assert.False(File.Exists(Path.Combine(paden.DataRoot, "echt", "x.db")));
     }
 
     /// <summary>
     /// R-HARDE-EIS-5: is de eigen map zelf een koppeling (bijvoorbeeld &lt;data&gt;/jelly-leon -&gt; &lt;data&gt;), dan is niets
-    /// eronder een eigen plek. Ligt de datamap van de server onder een gekoppelde map (een gewone opzet van een
-    /// configuratiemap), dan blijft de eigen map wel bruikbaar.
+    /// eronder een eigen plek. Sinds deel 1b worden ook koppelingen boven de eigen map geweigerd.
     /// </summary>
     [Fact]
-    public void Database_EigenMapAlsKoppelingWordtGeweigerd_DatamapAchterEenKoppelingWerkt()
+    public void Database_EigenMapEnDatamapAlsKoppelingWordenGeweigerd()
     {
         var paden = _h.Dienst<JlPaths>();
         var data = Path.GetDirectoryName(paden.DataRoot)!;
@@ -308,8 +305,8 @@ public sealed class OpslagTests : IDisposable
         var gekoppeld = Path.Combine(_h.Map, "gekoppeld");
         Directory.CreateDirectory(gekoppeld);
         File.Copy(serverDb, Path.Combine(gekoppeld, "jellyfin" + ".db"));
-        Directory.CreateSymbolicLink(Path.Combine(gekoppeld, "jelly-leon"), gekoppeld);
         var lus = new JlPaths(gekoppeld, Path.Combine(_h.Map, "cache"));
+        Directory.CreateSymbolicLink(Path.Combine(gekoppeld, "jelly-leon"), gekoppeld);
         foreach (var pad in new[] { Path.Combine(lus.DataRoot, "jellyfin" + ".db"), lus.CoreDb, lus.ModuleDb("quality") })
         {
             Assert.False(lus.MagSchrijven(pad), pad);
@@ -317,12 +314,13 @@ public sealed class OpslagTests : IDisposable
         }
 
         var configLink = Path.Combine(_h.Map, "config-link");
-        Directory.CreateSymbolicLink(configLink, data);
         var viaLink = new JlPaths(configLink, Path.Combine(_h.Map, "cache"));
+        Directory.CreateSymbolicLink(configLink, data);
         Assert.True(viaLink.MagSchrijven(viaLink.CoreDb));
         Assert.False(viaLink.MagSchrijven(Path.Combine(configLink, "jellyfin" + ".db")));
         Assert.Throws<UnauthorizedAccessException>(() => new JlDatabase(viaLink, Path.Combine(configLink, "jellyfin" + ".db"), ["CREATE TABLE jl_proef(a INTEGER);"]));
-        var eigen = new JlDatabase(viaLink, viaLink.CoreDb, ["CREATE TABLE jl_proef(a INTEGER);"]);
+        Assert.Throws<UnauthorizedAccessException>(() => new JlDatabase(viaLink, viaLink.CoreDb, ["CREATE TABLE jl_proef(a INTEGER);"]));
+        var eigen = new JlDatabase(paden, paden.CoreDb, ["CREATE TABLE jl_proef(a INTEGER);"]);
         Assert.Equal(0, eigen.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM jl_proef")));
         Assert.True(File.Exists(Path.Combine(paden.DataRoot, "core", "core.db")));
         Assert.Equal(voor, File.ReadAllBytes(serverDb));
@@ -425,11 +423,12 @@ public sealed class OpslagTests : IDisposable
         Assert.Equal(voor, File.ReadAllBytes(serverDb));
         Assert.Equal(servermapVoor, Directory.GetFileSystemEntries(data).Order(StringComparer.Ordinal).ToList());
 
-        // Tegenproef: een koppeling binnen de eigen map zonder koppelingen ernaast werkt; SQLite schrijft naast b.db.
+        // Aangescherpt in deel 1b: ook zonder koppelingen ernaast blijft de gekoppelde database verboden.
         var goedEcht = Path.Combine(proef, "goed-b.db");
         var goed = Path.Combine(proef, "goed-a.db");
         File.CreateSymbolicLink(goed, goedEcht);
-        var db = new JlDatabase(paden, goed, ["CREATE TABLE jl_proef(a INTEGER);"]);
+        Assert.Throws<UnauthorizedAccessException>(() => new JlDatabase(paden, goed, ["CREATE TABLE jl_proef(a INTEGER);"]));
+        var db = new JlDatabase(paden, goedEcht, ["CREATE TABLE jl_proef(a INTEGER);"]);
         Assert.Equal(0, db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM jl_proef")));
         Assert.True(File.Exists(goedEcht));
     }

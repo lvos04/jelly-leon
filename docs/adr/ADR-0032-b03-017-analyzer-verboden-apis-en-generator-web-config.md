@@ -640,6 +640,101 @@ dat voor die gebruiker de kijkgegevens van de hele bibliotheek wist). De analyze
   3xx-status, en sinds herstelronde 10 weigert de wacht tegen doorsturen (`DoorstuurWacht`) elk antwoord met een 3xx of een kop
   Location op een eigen actie, ongeacht het type resultaat (met de spike aan op elk pluginpad).
 
+#### Opslagdreigingen, deel 1b (onderzoek 2026-11-17)
+
+Bronbasis: `b257c5403a6da940be7b157f32f82333bcd88797`. Dit is een aanvulling op het bestaande
+foutenmodel, geen veiligheidsuitzondering. Bronnen: `deploy/allinone/Dockerfile`, runtimefase;
+`deploy/allinone/entrypoint.sh`, `assert_owned_mount`, de gebruikerswissel en `record_datamap_version`;
+`PluginServiceRegistrator.RegisterServices`, `JlPaths`, `SecretStore` en `JlDatabase.Open`.
+
+- De plugin is één assembly in het serverproces, zonder eigen OS-gebruiker. Het entrypoint wisselt normaal naar
+  568:568, zonder capabilities en met `no_new_privs`; Custom User gebruikt de gekozen gebruiker. Een ander proces
+  met dezelfde effectieve gebruiker kan de serverdatabase rechtstreeks wijzigen. Dat is actor **(a)**:
+  de padcontrole vormt binnen die identiteit geen OS-beveiligingsgrens. Dat rechtvaardigt geen schrijfroute in de plugin.
+- De runtimebasis is zonder server en zonder netwerk geïnspecteerd: `/config` en `/cache` zijn daar root:root 0777;
+  `/` en `/run` root:root 0755, `/tmp` root:root 1777. De fork-Dockerfile geeft de twee opslagmappen aan 568:568,
+  maar verandert hun modus niet. Een mount heeft de eigenaar, modus en ACL van de aangeleverde opslag.
+  Het entrypoint geeft bij de eerste start eigenaarschap door, maar trekt groeps-/wereldschrijfrechten niet in.
+  Onderliggende nieuwe mappen hadden de proces-umask; `SecretStore` maakte alleen de geheimenmap expliciet 0700.
+- Actor **(b)** omvat een andere gebruiker/proces die door groepsrechten, wereldschrijfrechten of een ACL in een
+  opslagmap of haar vervangbare ouder kan schrijven. Een gegevensmap 0700 onder een niet-sticky gedeelde ouder
+  beschermt niet tegen het vervangen van die hele gegevensmap. Ook hostprocessen met toegangsrechten tot de
+  gemounte dataset tellen mee. Containerroot, hostroot en een proces met dezelfde UID zijn technisch machtiger,
+  maar een door hen teruggezet *onvertrouwd* bestand is niet vanzelf betrouwbare plugininvoer.
+- Een beheerder kan met de serverconfiguratie of omgevingsvariabelen DataPath/CachePath kiezen. De plugin voegt
+  zelf `jelly-leon` toe; er is geen plugineigen instelling die de opslagwortel verlegt. De image weigert
+  opdrachtregelopties voor andere paden; als root weigert zij echte paden buiten `/config` of `/cache`.
+  Custom User heeft die root-controle niet. Daarom moeten de opslagcontroles ook in de plugin gelden.
+- In `Core/Http/RouteTable.cs`, `Configuration` en `Core/Connector/ConnectorService.cs` is geen route gevonden
+  die een geüpload archief als bestanden uitpakt of een gekozen databasepad accepteert. Exports leveren modulegegevens;
+  import met `preview_hash` is nog vervolgwerk. Dat is geen bewijs voor een toekomstige import of een externe hersteller.
+  Een offline snapshot kan bestaande koppelingen behouden; een externe archiefhersteller kan ze aanmaken. Die aanvoer
+  moet afzonderlijk op betrouwbaarheid worden getoetst. Een ontbrekende aanvoercontrole mag niet als actor (a) worden afgedaan.
+
+**Beheerd herstel en eigendomsproef.** `JlPaths` weigert niet-Linux, root, verschillende echte/effectieve/saved/fs-UIDs
+of effectieve capabilities, met een Nederlandse melding. Iedere map wordt vanaf de wortel gecontroleerd op koppelingen
+en groeps-/wereldschrijfrechten. `File.SetUnixFileMode` zet uitsluitend de zojuist gelezen, veilige modus terug: zonder
+CAP_FOWNER kan alleen de eigenaar dat doen. Er worden geen onveilige rechten gerepareerd; ctime kan veranderen.
+Dit is een beheerde OS-autorisatieproef, geen uitlezen van een UID en geen eigen native aanroep. Een onleesbare of
+niet te controleren map faalt dicht. De vaste systeemouders `/`, `/run` en sticky `/tmp` komen uit de vertrouwde
+containerimage; zij mogen alleen ouder zijn, nooit de gekozen data- of cachemap. Elke andere ouder moet van de eigen
+gebruiker zijn. Een extra root-beheerde tussenmap wordt dus eveneens geweigerd, ook met 0755. Buiten deze gecontroleerde
+Linux-opzet is opslag niet beschikbaar. Bestaande koppelingen in een configuratiepad worden voortaan geweigerd.
+
+Bron voor de eigendomsproef: [Linux chmod(2)](https://man7.org/linux/man-pages/man2/chmod.2.html), DESCRIPTION.
+De normale image verliest haar capabilities vóór de server start; de plugin controleert dat opnieuw.
+`InternalWriteScope` gebruikt 128 willekeurige bits in een tijdelijke naam en `FileMode.CreateNew`. Dat weigert
+bestaande namen, ook symbolische/harde koppelingen. Bestanden ontstaan met 0600; mappen met 0700. Na openen worden
+naam en rechten via `/proc/self/fd/<fd>` en `File.GetUnixFileMode(SafeFileHandle)` gecontroleerd vóór de inhoud wordt
+gebruikt. Geheimen, migratiekopieën, mapaanmaak en verwijderen lopen langs dezelfde controles. Bestaande databases
+krijgen geen reparatie of kopie-omweg; WAL-herstel en migratiekopieën blijven behouden.
+
+De publieke [.NET 10 FileOptions](https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Private.CoreLib/src/System/IO/FileOptions.cs)
+bieden geen NOFOLLOW. De gebruikte [Microsoft.Data.Sqlite.Open](https://github.com/dotnet/efcore/blob/v10.0.0/src/Microsoft.Data.Sqlite.Core/SqliteConnectionInternal.cs)
+biedt evenmin een NOFOLLOW-optie, bestandsdescriptor of linkaantal in de beheerde verbindingsopties. Er is geen
+ongedocumenteerde vlag, reflectie of nieuwe SQLitePCL-aanroep toegevoegd. Exclusieve nieuwe aanmaak en hercontrole
+vóór de eerste databasebewerking zijn wel gebouwd. Bij een nieuwe database wordt eerst exclusief een bestand 0600 gemaakt.
+
+**Aanvoer van soort (b).** `Start_GedeeldeGegevensmapWordtGeweigerd`, `Start_VervangbareBovenliggendeMapWordtGeweigerd`,
+`Start_VreemdeEigenaarWordtGeweigerd`, de tests op koppelingen en onveilige bestandsrechten en de hercontrole bij elke
+bewerking dekken de huidige configuratie- en maproutes. Een synthetische containerproef met UID 65534 kan in de map
+van UID 1000 geen koppeling leggen of de map vervangen (beide Permission denied). POSIX-ACL-schrijfmaskers komen in
+de groepsmodus terecht; onbekende opslagsemantiek op de echte NAS is hiermee niet gevalideerd.
+
+De server heeft wél een beheerdersroute voor back-ups: `Jellyfin.Api/Controllers/BackupController.cs`,
+`StartRestoreBackup`, vereist `RequiresElevation` en kiest alleen een archief onder `BackupPath`.
+`Jellyfin.Server.Implementations/FullSystemBackup/BackupService.cs`, `RestoreBackupAsync`, herstelt ZIP-items
+met `ExtractToFile`, zonder harde of symbolische koppelingen uit archiefmetadata aan te maken.
+`OpslagGrensTests.Herstel_ZipKoppelingskenmerkMaaktGeenHardeOfSymbolischeKoppeling` bewaakt die aanname met een
+synthetische database: ook met het Unix-koppelingskenmerk ontstaat een gewoon bestand, waarvan migratie het origineel
+byte-gelijk laat. Dit is een proef van de gebruikte extractor, geen uitvoering van de hele serverhersteldienst.
+De gedocumenteerde NAS-terugval (`deploy/truenas/CUSTOM_APP.md`, "Updaten en terugdraaien") is de vooraf bewaarde
+config-snapshot met de vorige image. Die kan bestaande koppelingen behouden; hij introduceert niet uit zichzelf een
+nieuwe koppeling. Een willekeurige externe TAR-hersteller, een gedeelde dataset of een ander hostproces dat met de
+service-UID schrijft, is niet door deze ZIP-proef bewezen veilig. Herstel van onbetrouwbare bestandsstructuren mag
+daarom niet stilzwijgend als actor (a) worden geclassificeerd. De regisseur moet dit aanvoerbereik expliciet beoordelen.
+
+**Gemeten restgrens; besluit nodig, niet aanvaard.** Op de oude bron zijn alle vijf proeven rood. Na herstel blijven
+`hardlink-database` (buitenbestand gewijzigd) en `padwissel-bestand` (buitenbestand byte-gelijk, maar buitenmap heeft
+één leeg tijdelijk bestand erbij) rood. De twee haken voeren de wissel uit na de laatste voorafcontrole en vóór openen,
+uitsluitend in gegenereerde kopieën; de plugin bevat geen proefhaken. Beide resterende opzetten gebruiken dezelfde
+OS-gebruiker als de server en schrijven in vooraf particuliere, eigen mappen. Zij zijn daarmee in de uitgevoerde
+proeven actor (a): die gebruiker kan het buitenbestand al rechtstreeks schrijven. Voor de gecontroleerde huidige
+configuratie-, ZIP- en maproutes is geen bereikbare aanmaak door een minder bevoegde actor aangetoond. Dat is geen
+bewijs dat elke mogelijke externe hersteller betrouwbaar is.
+
+Een native `fstat` op de geopende database kan `st_nlink > 1` weigeren; een descriptor-gebonden open met bijvoorbeeld
+`openat2` en RESOLVE_BENEATH/NO_SYMLINKS kan het wisselen van ouders tijdens openen voorkomen. Alleen een linkaantal
+op een *pad* of alleen O_NOFOLLOW op het laatste deel sluit dat tweede gat niet. SQLite zou dezelfde gebonden
+bestandsidentiteit voor hoofdbestand én naastbestanden moeten blijven gebruiken. Daarvoor bestaat in de gebruikte
+beheerde provider geen volledige voorziening. Deze ADR geeft daarvoor geen uitzondering en verlaagt de HARDE EIS niet.
+De regisseur moet na R-TECH, R-VEILIG en R-HARDE-EIS beslissen of het aantoonbare actor-(a)-bereik formeel het
+foutenmodel afbakent, of een afzonderlijk opslagontwerp met een echte OS-grens nodig is. Zolang het vertrouwen in
+vooraf bestaande en extern teruggezette opslag niet is vastgesteld, is deel 1b **NIET KLAAR**. Een aangetoonde route
+van soort (b) blijft blokkerend en vraagt herstel, nooit alleen een tekstuele uitzondering.
+
+De echte NAS, Emby en accounts zijn niet benaderd.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:
@@ -705,27 +800,21 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   `GetService(Type)` met een type uit een tekst, `dynamic`), is sinds herstelronde 6 JL0002 (omweg); de padgrens van
   `JlDatabase` helpt daar niet, want de server opent zijn eigen database. Test:
   `VerbodenApiAnalyzerTests.DatabasedienstVanDeServer_ElkGebruikVanDeTypenaamIsJL0003` (de vorm van proef H12).
-- De padgrens kijkt naar het pad zoals het er staat én naar het echte pad: elke symbolische koppeling (het bestand zelf
-  en elke bovenliggende map, relatief of in een keten) wordt gevolgd zoals het besturingssysteem dat doet, en `..` geldt
-  na het volgen. Een eigen map die zelf een koppeling is (bijvoorbeeld `<data>/jelly-leon` -> `<data>`) telt niet als
-  eigen plek; een datamap van de server achter een gekoppelde map blijft wel bruikbaar. `JlDatabase` eist dit ook voor
-  `-wal`, `-shm` en `-journal` (die schrijft SQLite ernaast), naast de opgegeven naam én naast het echte pad (SQLite zet
-  ze naast het echte bestand: bij een koppeling `a.db` -> `b.db` naast `b.db`), en controleert het bij elke opening
-  opnieuw (dan 503 `storage_unavailable`); `InternalWriteScope` ook voor het tijdelijke bestand `<doel>.tmp`. SQLite
-  opent zelf geen naastbestand dat een symbolische koppeling is (fout 14); `OpslagTests.Sqlite_OpentGeenKoppelingAlsNaastbestand`
-  bewaakt die aanname bij een upgrade van SQLite. Tests:
-  `OpslagTests.Database_BuitenDeEigenMappenWordtGeweigerdZonderTeOpenen`,
-  `.Database_SymbolischeKoppelingNaarBuitenWordtGeweigerdZonderTeOpenen`,
-  `.Database_EigenMapAlsKoppelingWordtGeweigerd_DatamapAchterEenKoppelingWerkt`,
-  `.Database_KoppelingNaHetAanmakenWordtBijHetOpenenGeweigerd`, `.Database_NaastbestandenNaastHetEchtePadWordenGecontroleerd`
-  en `.Schrijfbereik_SymbolischeKoppelingNaarBuitenWordtGeweigerd`
-  (jellyfin.db blijft byte-gelijk). Wat de padgrens niet ziet: een koppeling die precies tussen de controle en het
-  openen ontstaat, en een harde koppeling (zelfde bestand onder twee namen). S-G1-16 heeft beide nu met synthetische
-  bestanden gereproduceerd: een harde koppeling op `<doel>.tmp` of het databasebestand, en een wissel na de laatste
-  controle maar vóór de bestands- of databaseopening veranderen een bestand buiten de eigen map. Dit zijn aantoonbare,
-  **nog niet herstelde fouten in de bestaande opslaggrens**, geen aanvaarde veiligheidsuitzonderingen. De reproduceerbare
-  proef en de beperkingen staan in `docs/platform-v2/test-evidence/s-g1-16-deel1-grensonderzoek.md`.
-  De plugin maakt zelf geen koppelingen en de entrypoint alleen mappen; dat is geen bewijs dat deze grens dicht is.
+- De opslaggrens controleert het tekstuele en echte pad en weigert sinds S-G1-16 deel 1b bovendien **alle symbolische
+  koppelingen** in een opslagbestand of oudermap, ook een koppeling die binnen de eigen map blijft. Bij de start en
+  elke bewerking worden eigenaar en groeps-/wereldschrijfrechten van de mappen gecontroleerd; nieuwe mappen zijn 0700.
+  `JlDatabase` controleert hoofdbestand, WAL, SHM en journal vóór én na openen, voordat een PRAGMA of migratie wordt uitgevoerd.
+  Bestaande opslagbestanden met groeps-/wereldschrijfrechten worden geweigerd; nieuwe bestanden zijn 0600.
+  `InternalWriteScope` gebruikt een cryptografisch willekeurige tijdelijke naam en `CreateNew`; een bestaand bestand
+  wordt nooit als tijdelijk bestand hergebruikt. De geopende stream krijgt een controle via de bestandsdescriptor.
+  De oude weigering van een onveilig `<doel>.tmp` blijft bestaan, hoewel die naam niet meer gebruikt wordt.
+  Bestaande negatieve opslagtests blijven bestaan. Eerdere positieve gevallen voor koppelingen zijn aangescherpt naar
+  weigeren, met een gewone database als positieve tegenproef; geen weigertest is versoepeld.
+  **Dit sluit niet elke alias of race:** een vooraf gelegde harde databasekoppeling verandert nog het buitenbestand,
+  en een eigen UID kan tijdens openen een map wisselen zodat een leeg tijdelijk bestand buiten de eigen map ontstaat.
+  De zelfstandige regressieproef blijft hiervoor rood; zie "Opslagdreigingen, deel 1b" en
+  `docs/platform-v2/test-evidence/s-g1-16-deel1b-opslaggrens.md`. Er is geen native aanroep, analyzerverruiming of
+  aanvaarde veiligheidsuitzondering toegevoegd. De absolute HARDE EIS is hiermee niet als volledig bewezen gemeld.
 - JL0003 ziet een naam die pas bij het draaien ontstaat niet: een variabele, `string.Concat`, `StringBuilder`, een
   waarde uit de configuratie. Daarvoor is de padgrens van `JlDatabase` en `InternalWriteScope` er; `jellyfin.db` en
   `library.db` liggen buiten de eigen mappen. Dat houdt alleen omdat elke verbinding via `JlDatabase` loopt en elk

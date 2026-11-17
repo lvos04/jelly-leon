@@ -24,6 +24,7 @@ internal sealed class JlDatabase
     private static readonly TimeSpan _bewaartermijn = TimeSpan.FromDays(30);
     private static readonly string[] _naastBestanden = ["", "-wal", "-shm", "-journal"];
     private readonly JlPaths _paden;
+    private readonly InternalWriteScope _bestanden;
     private readonly string _connectionString;
     private readonly IReadOnlyList<string> _migraties;
     private readonly object _slot = new();
@@ -34,6 +35,7 @@ internal sealed class JlDatabase
         ArgumentNullException.ThrowIfNull(paden);
         EisEigenPlek(paden, pad);
         _paden = paden;
+        _bestanden = new InternalWriteScope(paden);
         Pad = pad;
         _migraties = migraties;
         _connectionString = new SqliteConnectionStringBuilder { DataSource = pad, Pooling = false }.ToString();
@@ -134,6 +136,11 @@ internal sealed class JlDatabase
     /// </summary>
     private static void EisEigenPlek(JlPaths paden, string pad)
     {
+        foreach (var suffix in _naastBestanden)
+        {
+            paden.EisVeiligBestand(pad + suffix);
+        }
+
         var echt = JlPaths.EchtPad(Path.IsPathRooted(pad) ? pad : Path.Combine(Directory.GetCurrentDirectory(), pad));
         if (echt is null || _naastBestanden.Any(achtervoegsel => !paden.MagSchrijven(pad + achtervoegsel) || !paden.EchtInEigenMap(echt + achtervoegsel)))
         {
@@ -147,13 +154,22 @@ internal sealed class JlDatabase
         EisEigenPlek(_paden, Pad);
         if (!_klaar)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(Pad)!);
+            _bestanden.MaakMap(Path.GetDirectoryName(Pad)!);
+            if (!File.Exists(Pad))
+            {
+                // Exclusieve aanmaak weigert een inmiddels verschenen bestand of koppeling; nieuwe DB is 0600.
+                _bestanden.SchrijfEenmalig(Pad, []);
+            }
         }
 
         var verbinding = new SqliteConnection(_connectionString);
         verbinding.Open();
         try
         {
+            // Microsoft.Data.Sqlite biedt geen NOFOLLOW-optie of beheerde bestandsidentiteit. Daarom opnieuw
+            // controleren vóór de eerste PRAGMA of migratie; dit sluit de gereproduceerde padwissel vóór openen.
+            EisEigenPlek(_paden, Pad);
+            EisEigenPlek(_paden, verbinding.DataSource);
             SluitKoppelenUit(verbinding);
             Voer(verbinding, "PRAGMA busy_timeout=5000;");
 
@@ -226,7 +242,7 @@ internal sealed class JlDatabase
         Voer(verbinding, "PRAGMA wal_checkpoint(TRUNCATE);");
         var stempel = DateTime.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
         var kopie = Pad + ".v" + versie.ToString(CultureInfo.InvariantCulture) + "." + stempel + ".bak";
-        File.Copy(Pad, kopie, overwrite: false);
+        _bestanden.KopieerNieuw(Pad, kopie);
 
         // Opruimen op de stempel in de naam (niet op de bestandstijd: een kopie erft de tijd van het origineel).
         // De kopie van zojuist blijft altijd staan.
@@ -248,7 +264,7 @@ internal sealed class JlDatabase
                 && nu - gemaakt > _bewaartermijn;
             if (i >= MaxKopieen || teOud)
             {
-                bestand.Delete();
+                _bestanden.Verwijder(bestand.FullName);
             }
         }
     }

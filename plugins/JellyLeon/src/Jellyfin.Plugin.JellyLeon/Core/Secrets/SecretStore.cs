@@ -12,21 +12,21 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Secrets;
 /// </summary>
 internal sealed class SecretStore
 {
-    private const UnixFileMode MapModus = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
-    private const UnixFileMode BestandModus = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private readonly string _map;
+    private readonly InternalWriteScope _bestanden;
     private readonly object _slot = new();
     private byte[]? _zout;
 
     public SecretStore(JlPaths paden)
     {
         _map = paden.SecretsDir;
+        _bestanden = new InternalWriteScope(paden);
     }
 
     public byte[]? Lees(string naam)
     {
         var pad = Pad(naam);
-        return File.Exists(pad) ? File.ReadAllBytes(pad) : null;
+        return _bestanden.Lees(pad);
     }
 
     /// <summary>Schrijft een door de beheerder ingevoerde waarde (atomisch, 0600).</summary>
@@ -36,9 +36,7 @@ internal sealed class SecretStore
         {
             ZorgVoorMap();
             var pad = Pad(naam);
-            var tijdelijk = pad + ".tmp";
-            SchrijfNieuw(tijdelijk, inhoud, FileMode.Create);
-            File.Move(tijdelijk, pad, overwrite: true);
+            _bestanden.SchrijfAtomisch(pad, inhoud);
         }
     }
 
@@ -46,7 +44,7 @@ internal sealed class SecretStore
     {
         lock (_slot)
         {
-            File.Delete(Pad(naam));
+            _bestanden.Verwijder(Pad(naam));
         }
     }
 
@@ -63,7 +61,7 @@ internal sealed class SecretStore
 
             ZorgVoorMap();
             var nieuw = RandomNumberGenerator.GetBytes(lengte);
-            SchrijfNieuw(Pad(naam), nieuw, FileMode.CreateNew);
+            _bestanden.SchrijfEenmalig(Pad(naam), nieuw);
             return nieuw;
         }
     }
@@ -76,19 +74,6 @@ internal sealed class SecretStore
         return Convert.ToHexStringLower(mac.AsSpan(0, 16));
     }
 
-    private static void SchrijfNieuw(string pad, byte[] inhoud, FileMode modus)
-    {
-        var opties = new FileStreamOptions { Mode = modus, Access = FileAccess.Write, Share = FileShare.None };
-        if (!OperatingSystem.IsWindows())
-        {
-            opties.UnixCreateMode = BestandModus;
-        }
-
-        using var stroom = new FileStream(pad, opties);
-        stroom.Write(inhoud);
-        stroom.Flush(true);
-    }
-
     private string Pad(string naam)
     {
         if (naam.Length == 0 || naam.AsSpan().IndexOfAny('/', '\\') >= 0 || naam.StartsWith('.'))
@@ -99,21 +84,5 @@ internal sealed class SecretStore
         return Path.Combine(_map, naam);
     }
 
-    private void ZorgVoorMap()
-    {
-        if (Directory.Exists(_map))
-        {
-            return;
-        }
-
-        if (OperatingSystem.IsWindows())
-        {
-            Directory.CreateDirectory(_map);
-        }
-        else
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(_map)!);
-            Directory.CreateDirectory(_map, MapModus);
-        }
-    }
+    private void ZorgVoorMap() => _bestanden.MaakMap(_map);
 }
