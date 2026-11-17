@@ -84,6 +84,22 @@ zodat de vervolgstappen erop kunnen bouwen zonder iets te raden.
   - De kosten van de controletik op de NAS zijn niet gemeten: elke 2 s `ILibraryManager.GetVirtualFolders` en het
     lezen van `/proc/self/mountinfo` per bibliotheekpad (S-G1-36).
 
+## Grens: een kindproces schrijft buiten de analyzer om
+
+Aangevuld 2026-11-17 in S-G1-17 herstelronde 7 (herreview 6, nieuwe grens 2; ADR-0032, kop "Grenzen"). JL0004 staat een
+processtart alleen in `Core.Werker` toe. Een kindproces valt buiten de analyzer: niet onder de bestandsregel (JL0002) en niet
+onder de padgrens van `Core.Storage` (`JlPaths.MagSchrijven`). Het schrijft waar zijn programma en argumenten zeggen,
+bijvoorbeeld ffmpeg met `-y <pad>`, en dat kan ook `jellyfin.db` of de mediamap zijn als niets het tegenhoudt. Nu start
+`Core.Werker` niets (alleen `GeenWerker`; de typen in die namespace liggen vast in
+`PluginGrensTests.VrijgesteldeNamespaces_BevattenPreciesDeOpslaglaagEnDeWerkerinterface`), dus de grens is latent. De
+werkerbewaker van B03-018 (S-G1-32) moet hem bij het draaien dragen, elk punt met een test die zonder de controle faalt:
+
+- alleen vaste programma's uit een eigen lijst: geen shell, geen `sh -c` en geen programma uit configuratie of invoer;
+- elk uitvoerpad en de werkmap van het kindproces eerst via `JlPaths.MagSchrijven` (ook na het volgen van koppelingen), en
+  geen invoerpad buiten de mediamap en de eigen mappen;
+- de argumenten als lijst (`ProcessStartInfo.ArgumentList`), nooit als één tekst;
+- de alleen-lezen mediamount en de schrijfgrens van de container blijven de laatste laag.
+
 ## Gevolgen
 
 - De verwijzing "ADR-0035" in `PluginServiceRegistrator` wijst naar deze ADR.
