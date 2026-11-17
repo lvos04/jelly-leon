@@ -3,6 +3,9 @@
 - **Status:** Aanvaard (2026-11-11). Uitvoering van ADR-0016 (één plugin met modules) en ADR-0019 (haken en generator).
   Bijgewerkt 2026-11-16 na de review van golf 1 (S-G1-17, bevindingen R-HARDE-EIS-1, -2 en -4): meer bewaakte
   servertypen, JL0003 ook op samengestelde tekst, een padgrens in `JlDatabase` en de kop "Grenzen" gelijk aan de code.
+  Bijgewerkt 2026-11-17 na de herreview (S-G1-17 herstelronde 2, R-HARDE-EIS-1 rest, -5, -6 en -7): het taakobject van
+  een servertaak, leesleden die kanaalitems verversen of wissen, JL0003 op omzettingen, UTF-8-tekst en uitlijning, en een
+  padgrens die symbolische koppelingen volgt.
 - **Werkpakket:** B03-017; raakt de HARDE EIS (kijkgeschiedenis, bibliotheek, metadata en gebruikersgegevens blijven
   behouden) en JLT-65.
 - **Bewijs:** `plugins/JellyLeon/tests/…/Analyzer/VerbodenApiAnalyzerTests.cs` (xunit), de proefassembly
@@ -32,7 +35,7 @@ configureerbaar (`NotConfigurable`): een `.editorconfig`, `NoWarn` of `#pragma` 
 |---|---|---|
 | **JL0001** | schrijvende server-API. Per interface geldt "alles verboden behalve lezen" (voorvoegsels `Get`, `Find`, `Query`, `Is`, `Has`, `Can`, `To`, alleen als heel woord: `CanRefresh` is lezen, `CancelTimer` niet): `ILibraryManager`, `IItemRepository`, `IItemPersistenceService`, `IPlaylistManager`, `ICollectionManager` (ook `GetCollectionsFolder`, want die kan aanmaken), `IUserManager`, `IDeviceManager`, `IUserDataManager`, `IProviderManager`, `ISubtitleManager`, `IMediaSegmentManager`, `ISessionManager`, `IServerConfigurationManager`/`IConfigurationManager`, plus de diensten uit "Wat JL0001 bewaakt" hieronder; op `BaseItem` en afgeleiden de wijzigende methoden (`Update*`, `Delete*`, `Refresh*`, `Save*`, `Add*`, `Remove*`, `Set*`, `Swap*`, `Changed*`, `Mark*`, `Validate*`). Ook het schrijven van een eigenschap (toewijzing, `++`, `--`) op een bewaakt type telt: `item.Name = …` op een `BaseItem` is JL0001 | bibliotheek, opslag van items, afspeellijsten, collecties, gebruikers, apparaten en alle diensten uit "Wat JL0001 bewaakt": **nergens**. De overige alleen in één met naam genoemde klasse per API (witte lijst) |
 | **JL0002** | bestanden schrijven, verplaatsen of verwijderen: `System.IO.File` en `Directory` (alles behalve lezen), wijzigende methoden en eigenschappen van `FileInfo`/`DirectoryInfo`, `new FileStream`, `new StreamWriter(pad)`, `new SqliteConnection`, wijzigende methoden van `IFileSystem` | alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API |
-| **JL0003** | de database van de server: elk gebruik van `JellyfinDbContext` en elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke constante (ook uit een andere assembly) en elke samenstelling met `+` of `$"…"`: de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
+| **JL0003** | de database van de server: elk gebruik van `JellyfinDbContext` en elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke UTF-8-tekst (`"…"u8`), elke constante (ook uit een andere assembly, en de constante waarde van een omzetting: `(char)46` en `(char)0x2E` zijn een punt, `(int)'.'` is geen tekst) en elke samenstelling met `+` of `$"…"`: de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een uitlijning `{x,n}` met een bekend stuk vult met spaties aan tot \|n\| tekens (n positief ervoor, negatief erna; een kortere n vult niets aan, dus `$"jellyfin{".db",3}"` is JL0003); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
 | **JL0004** | processen starten (`Process.Start`, `new Process`, `new ProcessStartInfo`) | alleen in `Core.Werker` (de werkerbewaker van B03-018); geen uitzondering per klasse |
 | **JL0009** | een ongeldige regel in de witte lijst | — |
 
@@ -60,6 +63,24 @@ bij de verboden leden), `ILiveTvManager`, `IGuideManager`, `IRecordingsManager`,
 `IPasswordResetProvider` (wachtwoorden) en `IEventManager` (een serverevent publiceren laat de server zelf schrijven,
 bijvoorbeeld in het activiteitenlog). Voor geen van deze typen bestaat een uitzondering.
 
+Een servertaak start ook via het taakobject zelf, niet alleen via `ITaskManager`: `ITaskManager.ScheduledTasks` en
+`IApplicationHost.GetExports<IScheduledTask>()` geven dat object. Daarom zijn ook `IScheduledTask` (`ExecuteAsync`;
+`GetDefaultTriggers` is lezen) en `IScheduledTaskWorker` (`ReloadTriggerEvents` en het zetten van `Triggers`, dat de
+planning op schijf wijzigt) bewaakt, zonder uitzondering. Voorbeeld van wat dit tegenhoudt: `CleanupUserDataTask` wist
+losgekoppelde kijkgegevens ouder dan 90 dagen en draait alleen als iemand hem start.
+
+Kanaalitems: de `Get…`-leden van `IChannelManager` die kanaalitems aanmaken, verversen of de verdwenen items wissen
+(waarbij de server de kijkgegevens van zo'n item verplaatst), zijn verboden. Hetzelfde geldt voor elk lid dat dat via
+`IChannelManager` doet (in v12.4 nagelopen vanaf elke aanroep van `GetChannelItemsInternal`, `GetLatestChannelItemsInternal`
+en `GetChannelsInternalAsync` in de serverbron): `ILiveTvManager.GetRecordingsAsync` (ververst de kanalen met het kenmerk
+"Recordings") en `GetRecordingFoldersAsync` (maakt een ontbrekend kanaalitem aan), `IUserViewManager.GetLatestItems`
+(ververst een kanaal als bovenliggend item) en op de items van de server zelf: `Folder.GetItems`, `GetItemList`,
+`GetChildCount` en `GetRecursiveChildCount`, `Season.GetEpisodes` en `GetChildren`, `Series.GetSeasonEpisodes`,
+`UserView.GetChildren` en `GetRecursiveChildren` en `Playlist.GetChildren`, `GetRecursiveChildren` en
+`GetPlaylistItems`. Op naam: ook een override in een afgeleid type is verboden, ook als die zelf geen kanaal raakt (bijvoorbeeld
+`Series.GetChildCount`). De bibliotheek lezen kan via `ILibraryManager.GetItemList`/`GetItemsResult` (die vragen de
+database rechtstreeks); `Folder.GetChildren` en `GetRecursiveChildren` van een gewone map blijven lezen.
+
 Van de bewaakte serverdiensten gebruikt de plugin op 2026-11-16 alleen `ILibraryManager` (`GetVirtualFolders`) en
 `ISessionManager` (de events `PlaybackStart` en `PlaybackStopped` en de lijst `Sessions`); de plugin bouwt zonder
 één JL-fout.
@@ -79,7 +100,7 @@ bij een taak uit het plan en een eigen ADR.
 ### 3. Drie soorten bewijs
 
 1. **De plugin bouwt** met de analyzer aan: er staat geen verboden aanroep in.
-2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 110 verboden aanroepen, elk gemarkeerd met
+2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 131 verboden aanroepen, elk gemarkeerd met
    `// VERWACHT: JLxxxx`, afgewisseld met toegestane leesaanroepen. `analyzer_proef.py` bouwt het project echt en eist
    dat precies de gemarkeerde regels die bouwfout geven, dat geen enkele andere regel een JL-fout geeft en dat de build
    om geen andere reden faalt. De proefassembly staat bewust niet in de solution.
@@ -106,10 +127,22 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
 
 - Een analyzer is **geen zandbak**. Reflectie, `dynamic`, eigen P/Invoke of een tweede assembly ziet hij niet. Daarom
   blijven de andere lagen bestaan: de schrijfgrens in `Core.Storage` tijdens het draaien (`InternalWriteScope` voor
-  bestanden en de constructor van `JlDatabase` voor SQLite weigeren elk pad buiten `<DataPath>/jelly-leon/**`,
-  `/cache/jelly-leon/**` en `/run/jelly-leon/**` (`JlPaths.MagSchrijven`), voordat er iets geopend of aangemaakt is;
-  test `OpslagTests.Database_BuitenDeEigenMappenWordtGeweigerdZonderTeOpenen`), de alleen-lezen mediamount, en JLT-65
-  (stock en fork naast elkaar; de 12.x-tabellen mogen alleen op de toegestane lijst afwijken).
+  bestanden en `JlDatabase` voor SQLite weigeren elk pad buiten `<DataPath>/jelly-leon/**`, `/cache/jelly-leon/**` en
+  `/run/jelly-leon/**` (`JlPaths.MagSchrijven`), voordat er iets geopend of aangemaakt is), de alleen-lezen mediamount,
+  en JLT-65 (stock en fork naast elkaar; de 12.x-tabellen mogen alleen op de toegestane lijst afwijken).
+- De padgrens kijkt naar het pad zoals het er staat én naar het echte pad: elke symbolische koppeling (het bestand zelf
+  en elke bovenliggende map, relatief of in een keten) wordt gevolgd zoals het besturingssysteem dat doet, en `..` geldt
+  na het volgen. Een eigen map die zelf een koppeling is (bijvoorbeeld `<data>/jelly-leon` -> `<data>`) telt niet als
+  eigen plek; een datamap van de server achter een gekoppelde map blijft wel bruikbaar. `JlDatabase` eist dit ook voor
+  `-wal`, `-shm` en `-journal` (die schrijft SQLite ernaast) en controleert het bij elke opening opnieuw (dan 503
+  `storage_unavailable`); `InternalWriteScope` ook voor het tijdelijke bestand `<doel>.tmp`. Tests:
+  `OpslagTests.Database_BuitenDeEigenMappenWordtGeweigerdZonderTeOpenen`,
+  `.Database_SymbolischeKoppelingNaarBuitenWordtGeweigerdZonderTeOpenen`,
+  `.Database_EigenMapAlsKoppelingWordtGeweigerd_DatamapAchterEenKoppelingWerkt`,
+  `.Database_KoppelingNaHetAanmakenWordtBijHetOpenenGeweigerd` en `.Schrijfbereik_SymbolischeKoppelingNaarBuitenWordtGeweigerd`
+  (jellyfin.db blijft byte-gelijk). Wat de padgrens niet ziet: een koppeling die precies tussen de controle en het
+  openen ontstaat, en een harde koppeling (zelfde bestand onder twee namen). De plugin maakt zelf geen koppelingen en
+  de entrypoint alleen mappen.
 - JL0003 ziet een naam die pas bij het draaien ontstaat niet: een variabele, `string.Concat`, `StringBuilder`, een
   waarde uit de configuratie. Daarvoor is de padgrens van `JlDatabase` er; `jellyfin.db` en `library.db` liggen buiten
   de eigen mappen.
@@ -123,19 +156,27 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   eigenschap op zulke objecten (Kern, Devices, Quality); tot een besluit over een regel hiervoor vangt alleen JLT-65
   het.
 - Niet bewaakt, met reden: diensten die bij gewoon lezen een map of item van de server zelf aanmaken als die ontbreekt
-  (`IDtoService`, `IUserViewManager`, `ITVSeriesManager`, `IMusicManager` en leesleden van `ILibraryManager` zoals
-  `GetVirtualFolders` en van `ILiveTvManager` roepen intern `GetUserRootFolder`, `GetNamedView` of `GetMusicGenre` aan). Dat doet de server bij
-  elke opvraging van een gewone client ook; kijkgegevens raakt het niet. De directe aanroep van die leden blijft
-  verboden. Ook `IAuthService` (de sessiecontrole van de plugin) werkt bij elk verzoek de apparaatregel bij, net als
-  bij elk ander verzoek aan de server; in JLT-65 valt die rij onder het ruismasker (kolommen die al tussen twee runs
-  zonder plugin verschillen).
+  (`IDtoService`, `IUserViewManager.GetUserViews` en `GetUserSubView`, `ITVSeriesManager`, `IMusicManager` en leesleden
+  van `ILibraryManager` zoals `GetVirtualFolders` en van `ILiveTvManager` zoals `GetInternalLiveTvFolder` roepen intern
+  `GetUserRootFolder`, `GetNamedView` of `GetMusicGenre` aan; `GetUserViews` met externe inhoud maakt ook een ontbrekend
+  kanaalitem aan, zonder de kanaalitems te verversen). Dat doet de server bij elke opvraging van een gewone client ook;
+  kijkgegevens raakt het niet. De directe aanroep van die leden blijft verboden. Verversen of wissen van kanaalitems is
+  wel verboden (zie "Wat JL0001 bewaakt"). Ook `IAuthService` (de sessiecontrole van de plugin) werkt bij elk verzoek
+  de apparaatregel bij, net als bij elk ander verzoek aan de server; in JLT-65 valt die rij onder het ruismasker
+  (kolommen die al tussen twee runs zonder plugin verschillen).
+- De kanaalregel werkt op naam en op het type waarop de code het lid aanroept. Wat de analyzer niet ziet: een aanroep via
+  een variabele van een basistype die bij het draaien een `Season`, `UserView` of `Playlist` is (`Folder f = seizoen;
+  f.GetChildren(…)`), en servercode buiten de bewaakte typen die deze leden aanroept (bijvoorbeeld
+  `UserViewBuilder.GetUserItems`). De server doet hetzelfde bij elke opvraging van een gewone client; de plugin gebruikt
+  geen van deze typen (alleen `ILibraryManager.GetVirtualFolders`).
 - "Lezen" is op naam bepaald, en dat is in upstream geen garantie: bij het nalopen van v12.4 bleken
   `ILibraryManager.GetGenre`/`GetStudio`/`GetArtist`/`GetYear`/`GetMusicGenre`/`GetOrCreatePerson`, `GetNamedView`,
   `GetShadowView` en `GetUserRootFolder` een item of map aan te maken als die ontbreekt,
   `ISessionManager.GetSessionByAuthenticationToken` sessieactiviteit vast te leggen en `BaseItem.ReattachUserDataAsync`
   kijkgegevens te verplaatsen. Die staan nu met naam bij de verboden leden, net als `GetCollectionsFolder` en
-  `GetPlaylistsFolder`. Om dit bij een sync niet opnieuw te missen ligt de **hele ledenlijst** van de bewaakte
-  servertypen vast in `Analyzer/BewaakteLeden.txt` (537 leden met het oordeel `lezen` of `verboden`). Een nieuw,
+  `GetPlaylistsFolder`, en sinds herstelronde 2 de leden die kanaalitems verversen of wissen. Om dit bij een sync niet
+  opnieuw te missen ligt de **hele ledenlijst** van de bewaakte servertypen vast in `Analyzer/BewaakteLeden.txt` (614
+  leden met het oordeel `lezen` of `verboden`; een afgeleid type erft de verboden leden van zijn basistype). Een nieuw,
   verdwenen of anders beoordeeld lid laat de test falen tot iemand het oordeel heeft bekeken. Het oordeel zelf blijft
   mensenwerk op basis van de upstream-bron; een methode die via een omweg schrijft kan gemist zijn.
 - Aanroepen naar buiten (`IProviderManager.GetRemoteSearchResults`, `ISubtitleManager.SearchSubtitles`) schrijven niet
