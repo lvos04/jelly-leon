@@ -144,7 +144,7 @@ public sealed class ConnectorTests : IDisposable
         var devices = _h.Dienst<DevicesModule>();
         devices.RegistreerStart([gebruiker], "TV Woonkamer", "sessie-1", "transcode", true, _h.Klok.Nu);
         devices.RegistreerStart([gebruiker], "Telefoon van Leon", "sessie-2", "direct_play", false, _h.Klok.Nu);
-        devices.RegistreerStart([gebruiker], "192.168.1.10", "sessie-3", "direct_stream", false, _h.Klok.Nu);
+        devices.RegistreerStart([gebruiker], "192.0.2.10", "sessie-3", "direct_stream", false, _h.Klok.Nu);
         var quality = _h.Dienst<QualityModule>();
         quality.MeldBevinding(item, "audio_clipping", "waarschuwing", _h.Klok.Nu);
         quality.Onderdruk(item, "audio_clipping", gebruiker, _h.Klok.Nu);
@@ -162,7 +162,7 @@ public sealed class ConnectorTests : IDisposable
 
         foreach (var tekst in teksten)
         {
-            foreach (var verboden in new[] { "TV Woonkamer", "Leon", "192.168.1.10", "sessie-1", gebruiker.ToString("N"), gebruiker.ToString("D"), item.ToString("N"), item.ToString("D"), _h.Map })
+            foreach (var verboden in new[] { "TV Woonkamer", "Leon", "192.0.2.10", "sessie-1", gebruiker.ToString("N"), gebruiker.ToString("D"), item.ToString("N"), item.ToString("D"), _h.Map })
             {
                 Assert.DoesNotContain(verboden, tekst, StringComparison.OrdinalIgnoreCase);
             }

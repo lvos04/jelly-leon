@@ -121,7 +121,7 @@ def test_boom_en_ruwe_treffers(tmp_path: Path) -> None:
     assert pl.ruwe_treffers(tmp_path, vormen) == {"N": ["sub/a.db"], "D": ["geheim/c"]}
     assert pl.ruwe_treffers(tmp_path, vormen, overslaan=("geheim/",)) == {"N": ["sub/a.db"]}
     assert pl.ruwe_treffers(tmp_path / "bestaat-niet", vormen) == {}
-    assert pl.IPV4.search("adres 192.168.1.20 hier") and not pl.IPV4.search("2026-11-11T10:00:00.123Z 12.4.0-jl.0")
+    assert pl.IPV4.search("adres 192.0.2.20 hier") and not pl.IPV4.search("2026-11-11T10:00:00.123Z 12.4.0-jl.0")
 
 
 def test_log_handtekeningen() -> None:
