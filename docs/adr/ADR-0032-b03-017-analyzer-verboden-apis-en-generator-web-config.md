@@ -13,6 +13,11 @@
   Bijgewerkt 2026-11-17 na herreview 3 (S-G1-17 herstelronde 4, R-HARDE-EIS-10 en -11): JL0003 ook op de databasedienst
   van de server (`IJellyfinDatabaseProvider`) en de twee typen die een context gebruiken, ook als typeargument of via
   `var`; onder de interfaceregel telt ook een override van de implementatie.
+  Bijgewerkt 2026-11-17 na herreview 4 (S-G1-17 herstelronde 5, R-HARDE-EIS-12): databasetoegang is nu generiek geregeld.
+  Buiten `Core.Storage` is elke operatie die een databaseverbinding of -bron oplevert of gebruikt JL0002 (ook in
+  `Core.Secrets`), de niet-generieke `DbContextOptions` van de server resolven of injecteren is JL0003, en een verbinding
+  van `JlDatabase` kan geen tweede database koppelen. De volledige lijst van gevonden wegen en de grenzen staan onder
+  "Databasetoegang (JL0002)".
 - **Werkpakket:** B03-017; raakt de HARDE EIS (kijkgeschiedenis, bibliotheek, metadata en gebruikersgegevens blijven
   behouden) en JLT-65.
 - **Bewijs:** `plugins/JellyLeon/tests/…/Analyzer/VerbodenApiAnalyzerTests.cs` (xunit), de proefassembly
@@ -41,8 +46,8 @@ configureerbaar (`NotConfigurable`): een `.editorconfig`, `NoWarn` of `#pragma` 
 | Regel | Verboden | Waar wel |
 |---|---|---|
 | **JL0001** | schrijvende server-API. Per interface geldt "alles verboden behalve lezen" (voorvoegsels `Get`, `Find`, `Query`, `Is`, `Has`, `Can`, `To`, alleen als heel woord: `CanRefresh` is lezen, `CancelTimer` niet): `ILibraryManager`, `IItemRepository`, `IItemPersistenceService`, `IPlaylistManager`, `ICollectionManager` (ook `GetCollectionsFolder`, want die kan aanmaken), `IUserManager`, `IDeviceManager`, `IUserDataManager`, `IProviderManager`, `ISubtitleManager`, `IMediaSegmentManager`, `ISessionManager`, `IServerConfigurationManager`/`IConfigurationManager`, plus de diensten uit "Wat JL0001 bewaakt" hieronder; op `BaseItem` en afgeleiden de wijzigende methoden (`Update*`, `Delete*`, `Refresh*`, `Save*`, `Add*`, `Remove*`, `Set*`, `Swap*`, `Changed*`, `Mark*`, `Validate*`). Ook het schrijven van een eigenschap (toewijzing, `++`, `--`) op een bewaakt type telt: `item.Name = …` op een `BaseItem` is JL0001. Bij een bewaakte interface tellen van een eigen klasse die de interface implementeert alleen de leden die een lid van die interface implementeren (zie "Wat JL0001 bewaakt") | bibliotheek, opslag van items, afspeellijsten, collecties, gebruikers, apparaten en alle diensten uit "Wat JL0001 bewaakt": **nergens**. De overige alleen in één met naam genoemde klasse per API (witte lijst) |
-| **JL0002** | bestanden schrijven, verplaatsen of verwijderen: `System.IO.File` en `Directory` (alles behalve lezen), wijzigende methoden en eigenschappen van `FileInfo`/`DirectoryInfo`, `new FileStream`, `new StreamWriter(pad)`, `new SqliteConnection`, wijzigende methoden van `IFileSystem` | alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API |
-| **JL0003** | de database van de server: elk gebruik van de typenaam `JellyfinDbContext`, `IJellyfinDatabaseProvider` (een dienst in de container van de server: `DbContextFactory` geeft een context, `PurgeDatabase` wist elke tabel en `RestoreBackupFast` overschrijft `jellyfin.db`), `IEntityFrameworkCoreLockingBehavior` of `IItemQueryHelpers` (die twee nemen een context als argument), en van een type dat er een implementeert of ervan afleidt. Elk gebruik is: een parameter, een veld, een lokale variabele, `GetService<T>`, `typeof`, een alias, een typeargument (`IDbContextFactory<JellyfinDbContext>`), een elementtype en `var` dat naar zo'n type verwijst (`var f = provider.DbContextFactory`). Zonder die naam krijgt plugincode de dienst niet: de container geeft hem alleen op type, en volgens een scan van de plugin-ABI is `IJellyfinDatabaseProvider.DbContextFactory` het enige publieke lid dat een context of een fabriek ervan teruggeeft. Verder elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke UTF-8-tekst (`"…"u8`), elke constante (ook uit een andere assembly, en de constante waarde van een omzetting: `(char)46` en `(char)0x2E` zijn een punt, `(int)'.'` is geen tekst) en elke samenstelling met `+` of `$"…"`, ook een optelling van UTF-8-teksten (`"jellyfin"u8 + ".db"u8`): de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een uitlijning `{x,n}` met een bekend stuk vult met spaties aan tot \|n\| tekens (n positief ervoor, negatief erna; een kortere n vult niets aan, dus `$"jellyfin{".db",3}"` is JL0003); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
+| **JL0002** | bestanden schrijven, verplaatsen of verwijderen: `System.IO.File` en `Directory` (alles behalve lezen), wijzigende methoden en eigenschappen van `FileInfo`/`DirectoryInfo`, `new FileStream`, `new StreamWriter(pad)`, wijzigende methoden van `IFileSystem`. Daarnaast **databasetoegang**: elke operatie die een databaseverbinding of -bron oplevert of gebruikt (`new SqliteConnection`, `SqliteFactory`, `DbProviderFactory`/`DbProviderFactories`, `DbDataSource`, `IDbConnection`, SQLitePCL en de bouwers van Entity Framework Core; zie "Databasetoegang (JL0002)") | bestanden: alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API. Databasetoegang: **alleen in `Core.Storage`** (`JlDatabase`), geen uitzondering mogelijk |
+| **JL0003** | de database van de server: elk gebruik van de typenaam `JellyfinDbContext`, `IJellyfinDatabaseProvider` (een dienst in de container van de server: `DbContextFactory` geeft een context, `PurgeDatabase` wist elke tabel en `RestoreBackupFast` overschrijft `jellyfin.db`), `IEntityFrameworkCoreLockingBehavior` of `IItemQueryHelpers` (die twee nemen een context als argument), en van een type dat er een implementeert of ervan afleidt. Elk gebruik is: een parameter, een veld, een lokale variabele, `GetService<T>`, `typeof`, een alias, een typeargument (`IDbContextFactory<JellyfinDbContext>`), een elementtype en `var` dat naar zo'n type verwijst (`var f = provider.DbContextFactory`). Ook de niet-generieke `Microsoft.EntityFrameworkCore.DbContextOptions` (precies dat type, niet een afgeleid type) is JL0003 bij elk gebruik van de naam: na `AddPooledDbContextFactory<JellyfinDbContext>` staat hij in de container van de server en draagt hij de verbindingstekst van `jellyfin.db` (resolven met `GetRequiredService<DbContextOptions>()`, injecteren als parameter, `typeof`). Zonder die naam krijgt plugincode de dienst niet: de container geeft hem alleen op type, en volgens een scan van de plugin-ABI is `IJellyfinDatabaseProvider.DbContextFactory` het enige publieke lid dat een context of een fabriek ervan teruggeeft (herhaald in herstelronde 5 met een scan over alle compile-assets: zie "Databasetoegang (JL0002)"). Verder elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke UTF-8-tekst (`"…"u8`), elke constante (ook uit een andere assembly, en de constante waarde van een omzetting: `(char)46` en `(char)0x2E` zijn een punt, `(int)'.'` is geen tekst) en elke samenstelling met `+` of `$"…"`, ook een optelling van UTF-8-teksten (`"jellyfin"u8 + ".db"u8`): de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een uitlijning `{x,n}` met een bekend stuk vult met spaties aan tot \|n\| tekens (n positief ervoor, negatief erna; een kortere n vult niets aan, dus `$"jellyfin{".db",3}"` is JL0003); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
 | **JL0004** | processen starten (`Process.Start`, `new Process`, `new ProcessStartInfo`) | alleen in `Core.Werker` (de werkerbewaker van B03-018); geen uitzondering per klasse |
 | **JL0009** | een ongeldige regel in de witte lijst | — |
 
@@ -107,6 +112,62 @@ Van de bewaakte serverdiensten gebruikt de plugin op 2026-11-16 alleen `ILibrary
 `ISessionManager` (de events `PlaybackStart` en `PlaybackStopped` en de lijst `Sessions`); de plugin bouwt zonder
 één JL-fout.
 
+#### Databasetoegang (JL0002)
+
+Elke verbinding met een SQLite-bestand loopt via `JlDatabase` in `Core.Storage`: alleen daar gelden de padgrens
+(`JlPaths.MagSchrijven`, ook na het volgen van koppelingen) en het verbod op koppelen. Buiten `Core.Storage` (dus ook in
+`Core.Secrets`, Core en de modules) is daarom **elke operatie die een databaseverbinding of -bron oplevert of gebruikt**
+JL0002, zonder uitzondering. Geen lijst van routes maar een regel op het type, zodat een nieuwe route er vanzelf onder valt:
+
+- **Databasetype** = een verbinding of bron (`System.Data.Common.DbConnection`, `System.Data.IDbConnection`,
+  `DbDataSource`, `DbProviderFactory`, `DbProviderFactories`, en elk type dat ervan afleidt of ze implementeert) en elk
+  type uit de assemblies Microsoft.Data.Sqlite, SQLitePCLRaw.* en Microsoft.EntityFrameworkCore* (ook als basistype,
+  interface of beperking van een typeparameter).
+- **Verboden operatie**: een lid van een databasetype aanroepen, lezen, zetten of als methodegroep nemen (ook statisch,
+  zoals `SqliteFactory.Instance`, en een extensiemethode uit die assemblies, zoals `GetDbConnection` of `AddDbContext`);
+  een aanroep of een lid van buiten de plugin waarvan het resultaat een databasetype is of bevat (ook `Task<…>`, een
+  typeargument, een `out`-parameter of de terugkeer van een gedelegeerde: `GetService<DbProviderFactory>()`,
+  `Activator.CreateInstance<SqliteConnection>()`, `DbCommand.Connection`); een databasetype aanmaken (`new`); `typeof`; en
+  een omzetting, `as`, `is` of patroon naar een databasetype (vanuit `object` of een ander type, ook een expliciete
+  omzetting tussen twee databasetypen).
+- **Toegestaan**: een verbinding die als parameter binnenkomt doorgeven (`JlDatabase.Met(v => JlDatabase.Voer(v, …))`, een
+  eigen methode met een parameter `SqliteConnection`), een databasetype als parameter- of veldtype, en een impliciete
+  omzetting tussen twee databasetypen. Een verbinding uit de terugroep halen (`Met(v => v)`) is wel JL0002: het resultaat
+  van de aanroep is dan een verbinding.
+- Per keten één melding: is de ontvanger zelf al een melding (`SqliteFactory.Instance.CreateConnection()`), dan volgt er
+  geen tweede. Wat de naam van de serverdatabase noemt of draagt, meldt JL0003 (zie hieronder); daarvoor geeft deze regel
+  geen tweede melding.
+
+De regel kwam uit een zoektocht naar alle wegen om vanuit plugincode een verbinding met een SQLite-bestand of de
+serverdatabase te krijgen. Bron: de compile-assets van de plugin (`project.assets.json`: Jellyfin.Controller, .Model,
+.Common, .Data, .Database.Implementations, .Extensions, .Naming, .MediaEncoding.Keyframes, Microsoft.Data.Sqlite 10.0.14,
+SQLitePCLRaw.core 2.1.13, Microsoft.EntityFrameworkCore, .Relational en .Abstractions 10.0.14, Polly, ICU4N, J2N, NEbml,
+Diacritics) plus de gedeelde frameworks Microsoft.NETCore.App en Microsoft.AspNetCore.App: 333 assemblies, 11081 publieke
+typen, gescand op elk lid dat een databasetype noemt (terugkeer, eigenschap, veld, parameter, `out`, typeargument,
+gedelegeerde) en op namen met sqlite, connection, database, dbcontext, datasource of sql. Gevonden wegen en wat ze dekt:
+
+| Weg | Voorbeeld | Gedekt door |
+|---|---|---|
+| Microsoft.Data.Sqlite | `new SqliteConnection(cs)`, `SqliteFactory.Instance.CreateConnection()` / `CreateDataSource(cs)` | JL0002 |
+| System.Data.Common | `DbProviderFactories.GetFactory(…)` / `RegisterFactory`, `DbProviderFactory.CreateConnection`, `DbDataSource.CreateConnection` / `OpenConnectionAsync`, `DbCommand`/`DbBatch`/`DbTransaction`/`IDbCommand.Connection` | JL0002 |
+| Een gekregen verbinding ombuigen | `ConnectionString` zetten, `Open`, `ChangeDatabase`, `BackupDatabase` (kopie naar een andere verbinding), `Handle`, `EnableExtensions`/`LoadExtension` (`Clone` bestaat niet in Microsoft.Data.Sqlite 10.0) | JL0002 |
+| SQL op de eigen verbinding | `ATTACH DATABASE '<pad>'`, `VACUUM INTO '<pad>'`, `load_extension(…)`, met een pad dat pas bij het draaien ontstaat | `JlDatabase` zet `SQLITE_LIMIT_ATTACHED` op 0 via SQLitePCLRaw.core (2.1.13, dezelfde versie als in de stock-image 12.4, nagelezen in `jellyfin.deps.json`; ook `VACUUM INTO` koppelt intern) en leest de grens terug; `load_extension` geeft in SQLite al `not authorized` (gemeten). Test `OpslagTests.Database_EigenVerbindingKoppeltGeenAnderDatabasebestand` |
+| SQLitePCLRaw.core | `raw.sqlite3_open(pad, out db)`, `sqlite3_open_v2`, `sqlite3_backup_init`, `sqlite3_limit` | JL0002 |
+| Entity Framework Core | `new DbContextOptionsBuilder()`, `new DbContextOptions<T>(…)`, `opties.Extensions` / `FindExtension`, `RelationalOptionsExtension.Extract(opties).ConnectionString` / `.Connection`, `new DbContext(opties)`, `ctx.Database.GetDbConnection()`, `ExecuteSqlRaw`, `AddDbContext`/`AddPooledDbContextFactory`, een `DbConnectionInterceptor` registreren (die krijgt de verbinding van de server); `UseSqlite` (Microsoft.EntityFrameworkCore.Sqlite staat in de server, maar is geen compile-asset; komt hij erbij, dan valt hij onder dezelfde assemblyregel) | JL0002 |
+| De opties van de server | `GetRequiredService<DbContextOptions>()`, een parameter `DbContextOptions`, `typeof(DbContextOptions)`; `IDbContextOptions` | JL0003; `IDbContextOptions` JL0002 |
+| De databasedienst van de server | `JellyfinDbContext`, `IJellyfinDatabaseProvider` (`DbContextFactory`, `PurgeDatabase`, `RestoreBackupFast`), `IEntityFrameworkCoreLockingBehavior`, `IItemQueryHelpers`, `DescendantQueryHelper` en `JellyfinQueryHelperExtensions` (vragen een context) | JL0003 op de naam |
+| Generiek ophalen | `GetService<T>`, `GetRequiredService<T>`, `IApplicationHost.Resolve<T>`/`GetExports<T>`, `ActivatorUtilities.CreateInstance<T>`, `Activator.CreateInstance<T>` met een databasetype | JL0002 (of JL0003 bij een servertype) |
+| Als object ophalen | `GetService(typeof(…))`, `ServiceDescriptor.ImplementationInstance`, `Activator.CreateInstance(Type)` | `typeof` en de omzetting naar een databasetype zijn JL0002; zonder die twee blijft het een object |
+| Bestanden van de server | `jellyfin.db` kopiëren, verplaatsen of overschrijven | JL0002 (bestanden), JL0003 (de naam) |
+| Teksten uit de configuratie | `IConfiguration.GetConnectionString`, `CustomDatabaseOptions.ConnectionString` | geen verbinding zonder een van de wegen hierboven |
+
+Buiten de databasetypen noemt alleen Jellyfin.Database.Implementations/MediaBrowser.Controller (de typen van JL0003) en
+System.Data.Common (`…Connection` van een opdracht of transactie) een databasetype; geen enkel lid van de plugin-ABI of van
+ASP.NET Core geeft een verbinding terug of geeft er een aan een terugroep. Tests:
+`VerbodenApiAnalyzerTests.DatabaseverbindingBuitenDeOpslag_ProevenH15EnH16_IsJL0002OfJL0003` (de vormen van proef H15 en
+H16 van herreview 4), `.Databasetoegang_ElkeWegIsBuitenCoreStorageJL0002` (elke weg hierboven; dezelfde bron in
+`Core.Storage` geeft niets, in `Core.Secrets` hetzelfde als in een module) en de proefregels in `VerbodenAanroepen.cs`.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:
@@ -122,7 +183,7 @@ bij een taak uit het plan en een eigen ADR.
 ### 3. Drie soorten bewijs
 
 1. **De plugin bouwt** met de analyzer aan: er staat geen verboden aanroep in.
-2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 141 verboden aanroepen, elk gemarkeerd met
+2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 176 verboden aanroepen, elk gemarkeerd met
    `// VERWACHT: JLxxxx`, afgewisseld met toegestane leesaanroepen. `analyzer_proef.py` bouwt het project echt en eist
    dat precies de gemarkeerde regels die bouwfout geven, dat geen enkele andere regel een JL-fout geeft en dat de build
    om geen andere reden faalt. De proefassembly staat bewust niet in de solution.
@@ -147,14 +208,20 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
 
 ## Grenzen (eerlijk)
 
-- Een analyzer is **geen zandbak**. Reflectie, `dynamic`, eigen P/Invoke of een tweede assembly ziet hij niet. Daarom
+- Een analyzer is **geen zandbak**. Reflectie, `dynamic`, eigen P/Invoke of een tweede assembly ziet hij niet. Voor
+  databasetoegang betekent dat: een type uit een tekst (`Type.GetType("…SqliteConnection, …")`) met `Activator` of
+  `GetService(Type)` geeft alleen een object; dat als verbinding gebruiken kan dan alleen via reflectie of `dynamic`, of
+  eigen P/Invoke naar de SQLite-bibliotheek (`DllImport`, `NativeLibrary` met functiewijzers). Dat valt buiten de
+  analyzer. Daarom
   blijven de andere lagen bestaan: de schrijfgrens in `Core.Storage` tijdens het draaien (`InternalWriteScope` voor
   bestanden en `JlDatabase` voor SQLite weigeren elk pad buiten `<DataPath>/jelly-leon/**`, `/cache/jelly-leon/**` en
   `/run/jelly-leon/**` (`JlPaths.MagSchrijven`), voordat er iets geopend of aangemaakt is), de alleen-lezen mediamount,
   en JLT-65 (stock en fork naast elkaar; de 12.x-tabellen mogen alleen op de toegestane lijst afwijken).
 - JL0003 op de databasedienst van de server werkt op de typenaam: de grens ligt waar de dienst de klasse binnenkomt
   (veld, parameter, `GetService<T>`). Regels die daarna een eenmaal gekregen object gebruiken zonder de naam te noemen
-  (`_db.PurgeDatabase(…)`), geven zelf geen tweede melding. Wie de dienst zonder de naam ophaalt (reflectie,
+  (`_db.PurgeDatabase(…)`), geven zelf geen tweede melding. Gebruiken ze daarbij een lid van Entity Framework Core
+  (`….CreateDbContext().Database.ExecuteSqlRaw(…)`, `SaveChanges`), dan is die regel sinds herstelronde 5 wel JL0002
+  (databasetoegang). Wie de dienst zonder de naam ophaalt (reflectie,
   `GetService(Type)` met een type uit een tekst, `dynamic`), valt onder de eerste grens hierboven; de padgrens van
   `JlDatabase` helpt daar niet, want de server opent zijn eigen database. Test:
   `VerbodenApiAnalyzerTests.DatabasedienstVanDeServer_ElkGebruikVanDeTypenaamIsJL0003` (de vorm van proef H12).
@@ -177,7 +244,10 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   de entrypoint alleen mappen.
 - JL0003 ziet een naam die pas bij het draaien ontstaat niet: een variabele, `string.Concat`, `StringBuilder`, een
   waarde uit de configuratie. Daarvoor is de padgrens van `JlDatabase` er; `jellyfin.db` en `library.db` liggen buiten
-  de eigen mappen.
+  de eigen mappen. Dat houdt alleen omdat elke verbinding via `JlDatabase` loopt: elke andere weg naar een verbinding is
+  buiten `Core.Storage` JL0002 (zie "Databasetoegang (JL0002)"), en de verbinding van `JlDatabase` kan met SQL geen
+  tweede database koppelen (`ATTACH`, `VACUUM INTO`). Code in `Core.Storage` zelf valt niet onder JL0002 en hoort daarom
+  alleen `JlDatabase` en `InternalWriteScope` te bevatten.
 - Hij bewaakt methoden **en** het schrijven van eigenschappen op elk bewaakt type: `item.Name = …` op een `BaseItem` is
   JL0001 (proefregels in `VerbodenAanroepen.cs`), omdat een `BaseItem` gedeeld is met de cache van de server en de
   server het item later zelf kan opslaan. Eigenschappen van **entiteiten** die een server-API teruggeeft (`User`,
