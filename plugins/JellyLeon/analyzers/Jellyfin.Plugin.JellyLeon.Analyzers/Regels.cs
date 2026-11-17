@@ -96,8 +96,12 @@ internal static class Regels
         // Folder.GetItemsInternal, Season.GetItemsInternal, Series.GetSeasonEpisodes, UserViewBuilder en
         // Playlist.GetPlaylistItems GetChannelItemsInternal aan). Op naam, dus ook in elke override; een afgeleid type
         // erft de verboden leden van zijn basistype, zodat BewaakteLeden.txt het echte oordeel toont. Lees de bibliotheek
-        // via ILibraryManager.
-        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.Folder", false, false, _itemSchrijf) { OokVerboden = _mapInhoud },
+        // via ILibraryManager. GetChildren en GetRecursiveChildren zijn ook op Folder zelf verboden: een variabele van
+        // het basistype (Folder f = seizoen) kan bij het draaien een Season, UserView of Playlist zijn.
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.Folder", false, false, _itemSchrijf)
+        {
+            OokVerboden = _mapInhoud.Concat(new[] { "GetChildren", "GetRecursiveChildren" }).ToArray()
+        },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.TV.Season", false, false, _itemSchrijf) { OokVerboden = _mapInhoud.Concat(new[] { "GetEpisodes", "GetChildren" }).ToArray() },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.TV.Series", false, false, _itemSchrijf) { OokVerboden = _mapInhoud.Concat(new[] { "GetSeasonEpisodes" }).ToArray() },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.UserView", false, false, _itemSchrijf) { OokVerboden = _mapInhoud.Concat(new[] { "GetChildren", "GetRecursiveChildren" }).ToArray() },

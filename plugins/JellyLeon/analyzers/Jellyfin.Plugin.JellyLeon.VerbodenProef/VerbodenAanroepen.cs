@@ -226,7 +226,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = lijst.GetChildren(gebruiker, true, null); // VERWACHT: JL0001
             _ = Playlist.GetPlaylistItems(null, gebruiker, opties); // VERWACHT: JL0001
             _ = livetv.IsEnabledForUser(gebruiker);
-            _ = map.GetChildren(gebruiker, true);
+            _ = map.GetChildren(gebruiker, true); // VERWACHT: JL0001
             _ = serie.GetEpisodes(gebruiker, opties, false);
         }
 
@@ -280,6 +280,9 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = System.Text.Encoding.UTF8.GetString("library.db"u8); // VERWACHT: JL0003
             _ = $"jellyfin{".db",0}"; // VERWACHT: JL0003
             _ = $"jellyfin{".db",3}"; // VERWACHT: JL0003
+            // Een optelling van UTF-8-teksten is ook een samenstelling (R-HARDE-EIS-8, S-G1-17 herstelronde 3).
+            _ = System.Text.Encoding.UTF8.GetString("jellyfin"u8 + ".db"u8); // VERWACHT: JL0003
+            _ = System.Text.Encoding.UTF8.GetString("library.d"u8 + "b"u8); // VERWACHT: JL0003
             _ = $"jellyfin{".db",6}";
             _ = "jellyfin" + (int)'.' + "db";
             _ = "jellyfin" + data + ".db";

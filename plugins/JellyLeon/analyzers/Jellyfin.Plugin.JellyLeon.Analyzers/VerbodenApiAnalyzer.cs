@@ -147,12 +147,12 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             var doel = methode.ReducedFrom ?? methode;
             foreach (var (type, regel) in _typen)
             {
-                if (!regel.IsVerboden(doel.Name) || !HoortBij(doel.ContainingType, type))
+                if (LidVan(doel, type) is not { } lid || !regel.IsVerboden(lid))
                 {
                     continue;
                 }
 
-                var api = regel.Type + "." + doel.Name;
+                var api = regel.Type + "." + lid;
                 if (!Toegestaan(context.ContainingSymbol, regel.RegelId, api))
                 {
                     context.ReportDiagnostic(Diagnostic.Create(Descriptor(regel.RegelId), context.Operation.Syntax.GetLocation(), api));
@@ -179,12 +179,12 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
             foreach (var (type, regel) in _typen)
             {
-                if (!HoortBij(verwijzing.Property.ContainingType, type))
+                if (LidVan(verwijzing.Property, type) is not { } lid)
                 {
                     continue;
                 }
 
-                var api = regel.Type + "." + verwijzing.Property.Name;
+                var api = regel.Type + "." + lid;
                 if (!Toegestaan(context.ContainingSymbol, regel.RegelId, api))
                 {
                     context.ReportDiagnostic(Diagnostic.Create(Descriptor(regel.RegelId), verwijzing.Syntax.GetLocation(), api));
@@ -300,8 +300,19 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             };
         }
 
+        /// <summary>
+        /// Een optelling van tekst: van gewone tekst, of van UTF-8-tekst (<c>"jellyfin"u8 + ".db"u8</c>, type
+        /// <c>ReadOnlySpan&lt;byte&gt;</c>; de compiler voegt die stukken samen).
+        /// </summary>
         private static bool IsTekstPlus(IBinaryOperation plus) =>
-            plus.OperatorKind == BinaryOperatorKind.Add && plus.Type?.SpecialType == SpecialType.System_String;
+            plus.OperatorKind == BinaryOperatorKind.Add
+            && (plus.Type?.SpecialType == SpecialType.System_String || IsUtf8Samenstelling(plus));
+
+        private static bool IsUtf8Samenstelling(IBinaryOperation plus) =>
+            plus.Type is INamedTypeSymbol { Name: "ReadOnlySpan", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true }, TypeArguments.Length: 1 } span
+            && span.TypeArguments[0].SpecialType == SpecialType.System_Byte
+            && plus.LeftOperand is IUtf8StringOperation or IBinaryOperation
+            && plus.RightOperand is IUtf8StringOperation or IBinaryOperation;
 
         private static bool IsDeelVanSamenstelling(IOperation operatie)
         {
@@ -444,6 +455,49 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                     return;
                 }
             }
+        }
+
+        /// <summary>
+        /// De naam waaronder <paramref name="lid"/> onder de regel van <paramref name="bewaakt"/> valt, of null als het lid
+        /// er niet onder valt. Een lid van het bewaakte type, een afgeleid type of (bij een interface) een afgeleide
+        /// interface valt er met zijn eigen naam onder. Bij een bewaakte interface valt van een klasse of struct die de
+        /// interface implementeert alleen het lid onder de regel dat een lid van die interface implementeert
+        /// (<c>FindImplementationForInterfaceMember</c>), met de naam van het interfacelid: de eigen
+        /// <c>ExecuteAsync</c> van een taak aanroepen is JL0001 als <c>IScheduledTask.ExecuteAsync</c>, een eigen
+        /// hulpmethode of eigenschap van die taak niet.
+        /// </summary>
+        private static string? LidVan(ISymbol lid, INamedTypeSymbol bewaakt)
+        {
+            var eigenaar = lid.ContainingType;
+            if (eigenaar is null || !HoortBij(eigenaar, bewaakt))
+            {
+                return null;
+            }
+
+            if (bewaakt.TypeKind != TypeKind.Interface || eigenaar.TypeKind == TypeKind.Interface)
+            {
+                return lid.Name;
+            }
+
+            var origineel = lid.OriginalDefinition;
+            foreach (var koppelvlak in eigenaar.AllInterfaces)
+            {
+                if (!HoortBij(koppelvlak, bewaakt))
+                {
+                    continue;
+                }
+
+                foreach (var interfacelid in koppelvlak.GetMembers())
+                {
+                    if (eigenaar.FindImplementationForInterfaceMember(interfacelid) is { } uitvoering
+                        && SymbolEqualityComparer.Default.Equals(uitvoering.OriginalDefinition, origineel))
+                    {
+                        return interfacelid.Name;
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static bool HoortBij(INamedTypeSymbol? kandidaat, INamedTypeSymbol bewaakt)

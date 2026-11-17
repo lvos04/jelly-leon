@@ -134,13 +134,13 @@ MediaBrowser.Controller.Entities.Folder.CanDelete lezen
 MediaBrowser.Controller.Entities.Folder.ContainsLinkedChildByItemId lezen
 MediaBrowser.Controller.Entities.Folder.FillUserDataDtoValues lezen
 MediaBrowser.Controller.Entities.Folder.GetChildCount verboden
-MediaBrowser.Controller.Entities.Folder.GetChildren lezen
+MediaBrowser.Controller.Entities.Folder.GetChildren verboden
 MediaBrowser.Controller.Entities.Folder.GetItemList verboden
 MediaBrowser.Controller.Entities.Folder.GetItems verboden
 MediaBrowser.Controller.Entities.Folder.GetLinkedChildren lezen
 MediaBrowser.Controller.Entities.Folder.GetLinkedChildrenInfos lezen
 MediaBrowser.Controller.Entities.Folder.GetRecursiveChildCount verboden
-MediaBrowser.Controller.Entities.Folder.GetRecursiveChildren lezen
+MediaBrowser.Controller.Entities.Folder.GetRecursiveChildren verboden
 MediaBrowser.Controller.Entities.Folder.GetRefreshProgress lezen
 MediaBrowser.Controller.Entities.Folder.IsPlayed lezen
 MediaBrowser.Controller.Entities.Folder.IsUnplayed lezen

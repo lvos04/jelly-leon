@@ -120,7 +120,8 @@ public class VerbodenApiAnalyzerTests
     /// R-HARDE-EIS-6 (S-G1-17, herstelronde 2): JL0003 leest ook de constante waarde van een omzetting (<c>(char)46</c>,
     /// <c>(char)0x2E</c>), een UTF-8-tekst (<c>"…"u8</c>) en een uitlijning in <c>$"…"</c>: een uitlijning die niet
     /// langer is dan het stuk vult niets aan, een langere vult met spaties aan de goede kant. Vóór het herstel gaven de
-    /// eerste vijf gemarkeerde regels geen bevinding.
+    /// eerste vijf gemarkeerde regels geen bevinding. R-HARDE-EIS-8 (herstelronde 3): een optelling van UTF-8-teksten
+    /// (<c>"jellyfin"u8 + ".db"u8</c>) is ook een samenstelling; vóór dat herstel gaven die drie regels geen bevinding.
     /// </summary>
     [Fact]
     public async Task ConstanteTekensUtf8EnUitlijning_IsJL0003()
@@ -142,6 +143,10 @@ public class VerbodenApiAnalyzerTests
                 _ = $"jellyfin{'.',1}db"; // JL0003
                 _ = sb.Append($"{data}/jellyfin{".db",3}"); // JL0003
                 _ = (string)("jelly" + "fin.db") + data; // JL0003
+                _ = System.Text.Encoding.UTF8.GetString("jellyfin"u8 + ".db"u8); // JL0003
+                _ = System.Text.Encoding.UTF8.GetString("jellyfin.d"u8 + "b"u8); // JL0003
+                _ = System.Text.Encoding.UTF8.GetString("jelly"u8 + "fin"u8 + ".db"u8); // JL0003
+                _ = System.Text.Encoding.UTF8.GetString("jelly-leon"u8 + ".db"u8);
                 _ = $"jellyfin{".db",6}";
                 _ = $"{"jellyfin",-9}.db";
                 _ = sb.Append($"{data}/jellyfin{".db",6}");
@@ -153,7 +158,7 @@ public class VerbodenApiAnalyzerTests
 
         var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
 
-        Assert.Equal(13, verwacht.Count);
+        Assert.Equal(16, verwacht.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.ServerDatabase, b.Id));
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
     }
@@ -204,6 +209,9 @@ public class VerbodenApiAnalyzerTests
     /// R-HARDE-EIS-7 (S-G1-17, herstelronde 2): leden die via IChannelManager kanaalitems aanmaken, verversen of wissen
     /// (en daarbij de UserData van verdwenen kanaalitems verplaatsen) zijn JL0001, net als die leden van IChannelManager
     /// zelf. De bibliotheek lezen kan via ILibraryManager.GetItemList. Vóór het herstel gaf deze bron geen bevinding.
+    /// Herstelronde 3 (basistype-grens): GetChildren en GetRecursiveChildren zijn ook op Folder verboden, zodat een
+    /// variabele van het basistype (<c>Folder f1 = seizoen</c>) de regel niet omzeilt; vóór dat herstel gaven die vijf
+    /// regels geen bevinding.
     /// </summary>
     [Fact]
     public async Task KanaalitemsVerversenOfWissenViaEenLeeslid_IsJL0001()
@@ -235,10 +243,15 @@ public class VerbodenApiAnalyzerTests
                 _ = MediaBrowser.Controller.Playlists.Playlist.GetPlaylistItems(Array.Empty<BaseItem>(), gebruiker, opties); // JL0001
                 _ = weergave.GetChildren(gebruiker, true, null); // JL0001
                 _ = lijst.GetRecursiveChildren(gebruiker, null, out _); // JL0001
+                _ = map.GetChildren(gebruiker, true); // JL0001
+                _ = map.GetRecursiveChildren(gebruiker, null, out _); // JL0001
+                Folder f1 = seizoen; _ = f1.GetChildren(gebruiker, true); // JL0001
+                Folder f2 = weergave; _ = f2.GetRecursiveChildren(gebruiker, null, out _); // JL0001
+                Folder f3 = lijst; _ = f3.GetRecursiveChildren(); // JL0001
                 _ = live.IsEnabledForUser(gebruiker);
                 _ = weergaven.GetUserViews(new MediaBrowser.Model.Library.UserViewQuery { User = gebruiker });
                 _ = lib.GetItemList(new InternalItemsQuery(gebruiker) { Parent = map });
-                _ = map.GetChildren(gebruiker, true);
+                _ = lib.GetItemsResult(new InternalItemsQuery(gebruiker) { Parent = map });
                 _ = serie.GetEpisodes(gebruiker, opties, false);
                 _ = seizoen.Name;
             }
@@ -247,10 +260,136 @@ public class VerbodenApiAnalyzerTests
 
         var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
 
-        Assert.Equal(14, verwacht.Count);
+        Assert.Equal(19, verwacht.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
         Assert.Contains(gevonden, b => b.Tekst.Contains("ILiveTvManager.GetRecordingsAsync'", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-9 (S-G1-17, herstelronde 3; besluit van de regisseur): bij een bewaakte interface tellen van een eigen
+    /// klasse die de interface implementeert alleen de leden die een lid van die interface implementeren. Een eigen
+    /// servertaak mag dus eigen hulpmethoden en eigenschappen hebben (de vorm van proef H11); de eigen ExecuteAsync
+    /// aanroepen, ook via een verwijzing of via de interface, en de planning van een eigen werker wijzigen blijft JL0001,
+    /// met de naam van het interfacelid in de melding. Vóór het herstel gaven de drie regels in ExecuteAsync JL0001 met
+    /// een misleidende naam (<c>IScheduledTask.VerwerkAsync</c>), net als de eigen eigenschap van de werker.
+    /// </summary>
+    [Fact]
+    public async Task EigenServertaak_AlleenDeLedenVanDeInterfaceTellen()
+    {
+        const string Bron = """
+            using System;
+            using System.Collections.Generic;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Jellyfin.Data.Events;
+            using MediaBrowser.Model.Tasks;
+
+            namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+            {
+                public class Taak : IScheduledTask
+                {
+                    public string Name => Naam();
+                    public string Key => "JellyLeonProef";
+                    public string Description => "Proef";
+                    public string Category => "Jelly Leon";
+                    public int Teller { get; set; }
+
+                    public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+                    {
+                        await VerwerkAsync(cancellationToken);
+                        Teller = 1;
+                        _ = Naam();
+                        progress.Report(100);
+                        _ = GetDefaultTriggers();
+                        Teller++;
+                    }
+
+                    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Array.Empty<TaskTriggerInfo>();
+
+                    private static string Naam() => "Proef";
+
+                    private Task VerwerkAsync(CancellationToken stop) => Task.CompletedTask;
+
+                    public async Task Opnieuw()
+                    {
+                        await ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001 ExecuteAsync
+                        Func<IProgress<double>, CancellationToken, Task> later = ExecuteAsync; // JL0001 ExecuteAsync
+                        await ((IScheduledTask)this).ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001 ExecuteAsync
+                        _ = later;
+                    }
+                }
+
+                public sealed class AfgeleideTaak : Taak
+                {
+                    public Task Start() => ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001 ExecuteAsync
+                }
+
+                public sealed class Uitdrukkelijk : IScheduledTask
+                {
+                    public string Name => "U";
+                    public string Key => "U";
+                    public string Description => "U";
+                    public string Category => "U";
+
+                    Task IScheduledTask.ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken) => Hulp();
+
+                    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Array.Empty<TaskTriggerInfo>();
+
+                    public Task Hulp() => Task.CompletedTask;
+
+                    public Task Start() => ((IScheduledTask)this).ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001 ExecuteAsync
+                }
+
+                public sealed class Werker : IScheduledTaskWorker
+                {
+                    public event EventHandler<GenericEventArgs<double>> TaskProgress { add { } remove { } }
+                    public IScheduledTask ScheduledTask => new Taak();
+                    public TaskResult LastExecutionResult => new TaskResult();
+                    public string Name => "W";
+                    public string Description => "W";
+                    public string Category => "W";
+                    public TaskState State => TaskState.Idle;
+                    public double? CurrentProgress => null;
+                    public IReadOnlyList<TaskTriggerInfo> Triggers { get => Array.Empty<TaskTriggerInfo>(); set { } }
+                    public string Id => "W";
+                    public int Stand { get; set; }
+                    public void ReloadTriggerEvents() { }
+                    public void Eigen() { }
+                    public void Dispose() { }
+                }
+
+                public static class Gebruiker
+                {
+                    public static void M(Werker werker, Uitdrukkelijk taak)
+                    {
+                        werker.Triggers = werker.Triggers; // JL0001 Triggers
+                        werker.ReloadTriggerEvents(); // JL0001 ReloadTriggerEvents
+                        werker.Stand = 2;
+                        werker.Eigen();
+                        _ = werker.Name + werker.State + werker.Id;
+                        _ = taak.Hulp();
+                        _ = taak.GetDefaultTriggers();
+                    }
+                }
+            }
+            """;
+        var verwacht = Bron.Split('\n')
+            .Select((tekst, index) => (Regel: index + 1, Raak: Regex.Match(tekst, @"// JL0001 (\w+)$")))
+            .Where(r => r.Raak.Success)
+            .Select(r => (r.Regel, Lid: r.Raak.Groups[1].Value))
+            .ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(7, verwacht.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
+        Assert.Equal(verwacht.Select(v => v.Regel), gevonden.Select(b => b.Regel));
+        foreach (var (v, b) in verwacht.Zip(gevonden))
+        {
+            var type = v.Lid == "ExecuteAsync" ? "IScheduledTask" : "IScheduledTaskWorker";
+            Assert.Contains("'MediaBrowser.Model.Tasks." + type + "." + v.Lid + "'", b.Tekst, StringComparison.Ordinal);
+        }
     }
 
     /// <summary>Een leesvoorvoegsel geldt alleen als heel woord: <c>CancelTimer</c> begint met "Can" maar leest niet.</summary>
