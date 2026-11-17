@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Database.Implementations;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Database.Implementations.Locking;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Configuration;
@@ -22,6 +23,7 @@ using MediaBrowser.Controller.Session;
 using MediaBrowser.Controller.Subtitles;
 using MediaBrowser.Model.IO;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
 {
@@ -297,5 +299,25 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = b;
             _ = Process.GetCurrentProcess().Id;
         }
+    }
+
+    // De databasedienst van de server (R-HARDE-EIS-10, S-G1-17 herstelronde 4): elk gebruik van de typenaam is JL0003.
+    public class DatabaseDienst
+    {
+        private readonly IJellyfinDatabaseProvider _db; // VERWACHT: JL0003
+
+        public DatabaseDienst(IJellyfinDatabaseProvider db, IServiceProvider diensten) // VERWACHT: JL0003
+        {
+            _db = db;
+            _ = diensten.GetService<IJellyfinDatabaseProvider>(); // VERWACHT: JL0003
+            _ = typeof(IJellyfinDatabaseProvider); // VERWACHT: JL0003
+            var fabriek = _db.DbContextFactory; // VERWACHT: JL0003
+            _ = fabriek;
+            _ = diensten.GetService<IServiceProvider>();
+        }
+
+        public void Slot(IEntityFrameworkCoreLockingBehavior slot) => _ = slot; // VERWACHT: JL0003
+
+        public void Query(IItemQueryHelpers query) => _ = query; // VERWACHT: JL0003
     }
 }

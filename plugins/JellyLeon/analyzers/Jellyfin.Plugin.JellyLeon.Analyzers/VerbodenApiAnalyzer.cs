@@ -440,20 +440,53 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             }
         }
 
+        /// <summary>
+        /// JL0003 op elke naam die naar een databasetype van de server verwijst, ook als typeargument of elementtype: zo
+        /// geeft <c>var f = provider.DbContextFactory</c> (type <c>IDbContextFactory&lt;JellyfinDbContext&gt;</c>) of een
+        /// alias ervoor ook JL0003.
+        /// </summary>
         public void Naam(SyntaxNodeAnalysisContext context)
         {
-            if (_databaseTypen.Count == 0 || context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol is not INamedTypeSymbol type)
+            if (_databaseTypen.Count == 0 || context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol is not ITypeSymbol type)
             {
                 return;
             }
 
-            foreach (var verboden in _databaseTypen)
+            if (DatabaseType(type) is { } verboden)
             {
-                if (HoortBij(type, verboden))
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(_serverDatabase, context.Node.GetLocation(), verboden.ToDisplayString()));
-                    return;
-                }
+                context.ReportDiagnostic(Diagnostic.Create(_serverDatabase, context.Node.GetLocation(), verboden.ToDisplayString()));
+            }
+        }
+
+        /// <summary>Het databasetype van de server in <paramref name="type"/>: het type zelf, een elementtype of een typeargument.</summary>
+        private INamedTypeSymbol? DatabaseType(ITypeSymbol type)
+        {
+            switch (type)
+            {
+                case IArrayTypeSymbol rij:
+                    return DatabaseType(rij.ElementType);
+                case IPointerTypeSymbol wijzer:
+                    return DatabaseType(wijzer.PointedAtType);
+                case INamedTypeSymbol benoemd:
+                    foreach (var verboden in _databaseTypen)
+                    {
+                        if (HoortBij(benoemd, verboden))
+                        {
+                            return verboden;
+                        }
+                    }
+
+                    foreach (var argument in benoemd.TypeArguments)
+                    {
+                        if (DatabaseType(argument) is { } binnen)
+                        {
+                            return binnen;
+                        }
+                    }
+
+                    return benoemd.ContainingType is { } buiten ? DatabaseType(buiten) : null;
+                default:
+                    return null;
             }
         }
 
@@ -490,7 +523,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 foreach (var interfacelid in koppelvlak.GetMembers())
                 {
                     if (eigenaar.FindImplementationForInterfaceMember(interfacelid) is { } uitvoering
-                        && SymbolEqualityComparer.Default.Equals(uitvoering.OriginalDefinition, origineel))
+                        && IsOfOverschrijft(origineel, uitvoering.OriginalDefinition))
                     {
                         return interfacelid.Name;
                     }
@@ -499,6 +532,32 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
             return null;
         }
+
+        /// <summary>
+        /// Waar als <paramref name="lid"/> de implementatie zelf is, of (herhaald, via <c>override</c>) een lid dat die
+        /// implementatie overschrijft: <c>FindImplementationForInterfaceMember</c> geeft bij een afgeleide klasse het
+        /// virtuele lid van de basisklasse, niet de override (R-HARDE-EIS-11). Geldt voor methoden, eigenschappen en events.
+        /// </summary>
+        private static bool IsOfOverschrijft(ISymbol lid, ISymbol uitvoering)
+        {
+            for (var kandidaat = lid; kandidaat is not null; kandidaat = Overschreven(kandidaat))
+            {
+                if (SymbolEqualityComparer.Default.Equals(kandidaat.OriginalDefinition, uitvoering))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static ISymbol? Overschreven(ISymbol lid) => lid switch
+        {
+            IMethodSymbol methode => methode.OverriddenMethod,
+            IPropertySymbol eigenschap => eigenschap.OverriddenProperty,
+            IEventSymbol gebeurtenis => gebeurtenis.OverriddenEvent,
+            _ => null,
+        };
 
         private static bool HoortBij(INamedTypeSymbol? kandidaat, INamedTypeSymbol bewaakt)
         {

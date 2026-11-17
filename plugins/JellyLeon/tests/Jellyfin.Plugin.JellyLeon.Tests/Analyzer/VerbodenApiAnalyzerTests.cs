@@ -273,6 +273,8 @@ public class VerbodenApiAnalyzerTests
     /// aanroepen, ook via een verwijzing of via de interface, en de planning van een eigen werker wijzigen blijft JL0001,
     /// met de naam van het interfacelid in de melding. Vóór het herstel gaven de drie regels in ExecuteAsync JL0001 met
     /// een misleidende naam (<c>IScheduledTask.VerwerkAsync</c>), net als de eigen eigenschap van de werker.
+    /// R-HARDE-EIS-11 (herstelronde 4): ook een override van de implementatie telt (<c>Overschreven.Start</c>, en bij de
+    /// werker een overschreven <c>Triggers</c> en <c>ReloadTriggerEvents</c>); vóór dat herstel gaven die drie regels geen bevinding.
     /// </summary>
     [Fact]
     public async Task EigenServertaak_AlleenDeLedenVanDeInterfaceTellen()
@@ -295,7 +297,7 @@ public class VerbodenApiAnalyzerTests
                     public string Category => "Jelly Leon";
                     public int Teller { get; set; }
 
-                    public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+                    public virtual async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
                     {
                         await VerwerkAsync(cancellationToken);
                         Teller = 1;
@@ -325,6 +327,13 @@ public class VerbodenApiAnalyzerTests
                     public Task Start() => ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001 ExecuteAsync
                 }
 
+                public sealed class Overschreven : Taak
+                {
+                    public override Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken) => base.ExecuteAsync(progress, cancellationToken); // JL0001 ExecuteAsync
+
+                    public Task Start() => ExecuteAsync(null!, default); // JL0001 ExecuteAsync
+                }
+
                 public sealed class Uitdrukkelijk : IScheduledTask
                 {
                     public string Name => "U";
@@ -341,7 +350,7 @@ public class VerbodenApiAnalyzerTests
                     public Task Start() => ((IScheduledTask)this).ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001 ExecuteAsync
                 }
 
-                public sealed class Werker : IScheduledTaskWorker
+                public class Werker : IScheduledTaskWorker
                 {
                     public event EventHandler<GenericEventArgs<double>> TaskProgress { add { } remove { } }
                     public IScheduledTask ScheduledTask => new Taak();
@@ -351,20 +360,28 @@ public class VerbodenApiAnalyzerTests
                     public string Category => "W";
                     public TaskState State => TaskState.Idle;
                     public double? CurrentProgress => null;
-                    public IReadOnlyList<TaskTriggerInfo> Triggers { get => Array.Empty<TaskTriggerInfo>(); set { } }
+                    public virtual IReadOnlyList<TaskTriggerInfo> Triggers { get => Array.Empty<TaskTriggerInfo>(); set { } }
                     public string Id => "W";
                     public int Stand { get; set; }
-                    public void ReloadTriggerEvents() { }
+                    public virtual void ReloadTriggerEvents() { }
                     public void Eigen() { }
                     public void Dispose() { }
                 }
 
+                public sealed class OverschrevenWerker : Werker
+                {
+                    public override IReadOnlyList<TaskTriggerInfo> Triggers { get => Array.Empty<TaskTriggerInfo>(); set { } }
+                    public override void ReloadTriggerEvents() { }
+                }
+
                 public static class Gebruiker
                 {
-                    public static void M(Werker werker, Uitdrukkelijk taak)
+                    public static void M(Werker werker, Uitdrukkelijk taak, OverschrevenWerker ander)
                     {
                         werker.Triggers = werker.Triggers; // JL0001 Triggers
                         werker.ReloadTriggerEvents(); // JL0001 ReloadTriggerEvents
+                        ander.Triggers = ander.Triggers; // JL0001 Triggers
+                        ander.ReloadTriggerEvents(); // JL0001 ReloadTriggerEvents
                         werker.Stand = 2;
                         werker.Eigen();
                         _ = werker.Name + werker.State + werker.Id;
@@ -382,7 +399,7 @@ public class VerbodenApiAnalyzerTests
 
         var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
 
-        Assert.Equal(7, verwacht.Count);
+        Assert.Equal(11, verwacht.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
         Assert.Equal(verwacht.Select(v => v.Regel), gevonden.Select(b => b.Regel));
         foreach (var (v, b) in verwacht.Zip(gevonden))
@@ -390,6 +407,105 @@ public class VerbodenApiAnalyzerTests
             var type = v.Lid == "ExecuteAsync" ? "IScheduledTask" : "IScheduledTaskWorker";
             Assert.Contains("'MediaBrowser.Model.Tasks." + type + "." + v.Lid + "'", b.Tekst, StringComparison.Ordinal);
         }
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-10 (S-G1-17, herstelronde 4; de vorm van proef H12): de dienst <c>IJellyfinDatabaseProvider</c> zit in
+    /// de container van de server en geeft via <c>DbContextFactory</c> een <c>JellyfinDbContext</c>; <c>PurgeDatabase</c>
+    /// en <c>RestoreBackupFast</c> wissen of overschrijven jellyfin.db. Elk gebruik van die typenaam is JL0003, ook als
+    /// typeargument, via <c>var</c> of een alias, en ook van de twee typen die een context gebruiken
+    /// (<c>IEntityFrameworkCoreLockingBehavior</c>, <c>IItemQueryHelpers</c>). De grens ligt bij de naam: zonder het veld
+    /// en de constructorparameter kan de klasse de dienst niet krijgen; de regels in de romp die de naam niet noemen,
+    /// geven daarom zelf geen tweede melding. Vóór het herstel gaven alleen de regels met <c>JellyfinDbContext</c> (de
+    /// tegenproeven) een bevinding.
+    /// </summary>
+    [Fact]
+    public async Task DatabasedienstVanDeServer_ElkGebruikVanDeTypenaamIsJL0003()
+    {
+        const string Bron = """
+            using System;
+            using System.Collections.Generic;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Jellyfin.Database.Implementations;
+            using Jellyfin.Database.Implementations.Locking;
+            using MediaBrowser.Controller.Persistence;
+            using MediaBrowser.Model.Tasks;
+            using Microsoft.EntityFrameworkCore;
+            using Microsoft.Extensions.DependencyInjection;
+            using Fabriek = Microsoft.EntityFrameworkCore.IDbContextFactory<Jellyfin.Database.Implementations.JellyfinDbContext>; // JL0003
+            using Provider = Jellyfin.Database.Implementations.IJellyfinDatabaseProvider; // JL0003
+
+            namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+            {
+                public class DbTaak : IScheduledTask
+                {
+                    private readonly IJellyfinDatabaseProvider _db; // JL0003
+
+                    public DbTaak(IJellyfinDatabaseProvider db) // JL0003
+                    {
+                        _db = db;
+                    }
+
+                    public string Name => "Db";
+                    public string Key => "Db";
+                    public string Description => "Db";
+                    public string Category => "Db";
+
+                    public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+                    {
+                        _db.DbContextFactory!.CreateDbContext().Database.ExecuteSqlRaw("DELETE FROM UserData");
+                        await _db.DbContextFactory!.CreateDbContext().UserData.ExecuteDeleteAsync(cancellationToken);
+                        DbContext c = _db.DbContextFactory!.CreateDbContext();
+                        c.SaveChanges();
+                        await _db.PurgeDatabase(_db.DbContextFactory!.CreateDbContext(), null);
+                        await _db.RestoreBackupFast("sleutel", cancellationToken);
+                        await _db.RunScheduledOptimisation(cancellationToken);
+                        await _db.RefreshStatistics(cancellationToken);
+                        var v = _db.DbContextFactory!.CreateDbContext(); // JL0003
+                        JellyfinDbContext n = v; // JL0003
+                        var f = _db.DbContextFactory; // JL0003
+                        _ = n;
+                        _ = f;
+                    }
+
+                    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Array.Empty<TaskTriggerInfo>();
+                }
+
+                public static class Omwegen
+                {
+                    public static void Diensten(IServiceProvider diensten)
+                    {
+                        _ = diensten.GetService<IJellyfinDatabaseProvider>(); // JL0003
+                        _ = diensten.GetRequiredService<IDbContextFactory<JellyfinDbContext>>(); // JL0003
+                        _ = typeof(IJellyfinDatabaseProvider); // JL0003
+                        var rij = new IJellyfinDatabaseProvider[0]; // JL0003
+                        _ = rij;
+                        _ = diensten.GetService<IServiceProvider>();
+                    }
+
+                    public static void Via(Fabriek fabriek, Provider provider) // JL0003
+                    {
+                        _ = fabriek;
+                        _ = provider;
+                    }
+
+                    public static void Slot(IEntityFrameworkCoreLockingBehavior slot) => _ = slot; // JL0003
+
+                    public static void Query(IItemQueryHelpers query) => _ = query; // JL0003
+                }
+            }
+            """;
+        var verwacht = Bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0003", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(14, verwacht.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.ServerDatabase, b.Id));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel).Distinct());
+        Assert.Contains(gevonden, b => b.Tekst.Contains("'Jellyfin.Database.Implementations.IJellyfinDatabaseProvider'", StringComparison.Ordinal));
+        Assert.Contains(gevonden, b => b.Tekst.Contains("'Jellyfin.Database.Implementations.Locking.IEntityFrameworkCoreLockingBehavior'", StringComparison.Ordinal));
+        Assert.Contains(gevonden, b => b.Tekst.Contains("'MediaBrowser.Controller.Persistence.IItemQueryHelpers'", StringComparison.Ordinal));
     }
 
     /// <summary>Een leesvoorvoegsel geldt alleen als heel woord: <c>CancelTimer</c> begint met "Can" maar leest niet.</summary>

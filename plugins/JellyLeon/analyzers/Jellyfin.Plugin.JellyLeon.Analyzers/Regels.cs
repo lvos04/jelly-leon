@@ -197,9 +197,19 @@ internal static class Regels
         (ProcesStart, "System.Diagnostics.Process", false),
         (ProcesStart, "System.Diagnostics.ProcessStartInfo", false));
 
-    /// <summary>De database van de server zelf: nergens, in geen enkele vorm.</summary>
+    /// <summary>
+    /// De database van de server zelf: nergens, in geen enkele vorm. Elk gebruik van de typenaam is JL0003 (parameter,
+    /// veld, <c>GetService&lt;T&gt;</c>, <c>typeof</c>, ook als typeargument zoals <c>IDbContextFactory&lt;JellyfinDbContext&gt;</c>
+    /// en via <c>var</c>). Naast de context zelf: <c>IJellyfinDatabaseProvider</c> (een dienst in de container van de
+    /// server; <c>DbContextFactory</c> geeft een context, <c>PurgeDatabase</c> en <c>RestoreBackupFast</c> wissen of
+    /// overschrijven jellyfin.db; R-HARDE-EIS-10) en de twee typen die een context als argument gebruiken
+    /// (<c>IEntityFrameworkCoreLockingBehavior</c>, <c>IItemQueryHelpers</c>).
+    /// </summary>
     public static readonly ImmutableArray<string> ServerDatabaseTypen = ImmutableArray.Create(
-        "Jellyfin.Database.Implementations.JellyfinDbContext");
+        "Jellyfin.Database.Implementations.JellyfinDbContext",
+        "Jellyfin.Database.Implementations.IJellyfinDatabaseProvider",
+        "Jellyfin.Database.Implementations.Locking.IEntityFrameworkCoreLockingBehavior",
+        "MediaBrowser.Controller.Persistence.IItemQueryHelpers");
 
     public static readonly ImmutableArray<string> ServerDatabaseNamen = ImmutableArray.Create("jellyfin.db", "library.db");
 }
