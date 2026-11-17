@@ -10,6 +10,9 @@
   een optelling van UTF-8-teksten, bij een bewaakte interface alleen de leden die de interface implementeren,
   `Folder.GetChildren` en `GetRecursiveChildren` verboden (de grens "basistype" is weg) en de bestanden naast een
   database ook naast het echte pad gecontroleerd.
+  Bijgewerkt 2026-11-17 na herreview 3 (S-G1-17 herstelronde 4, R-HARDE-EIS-10 en -11): JL0003 ook op de databasedienst
+  van de server (`IJellyfinDatabaseProvider`) en de twee typen die een context gebruiken, ook als typeargument of via
+  `var`; onder de interfaceregel telt ook een override van de implementatie.
 - **Werkpakket:** B03-017; raakt de HARDE EIS (kijkgeschiedenis, bibliotheek, metadata en gebruikersgegevens blijven
   behouden) en JLT-65.
 - **Bewijs:** `plugins/JellyLeon/tests/…/Analyzer/VerbodenApiAnalyzerTests.cs` (xunit), de proefassembly
@@ -39,7 +42,7 @@ configureerbaar (`NotConfigurable`): een `.editorconfig`, `NoWarn` of `#pragma` 
 |---|---|---|
 | **JL0001** | schrijvende server-API. Per interface geldt "alles verboden behalve lezen" (voorvoegsels `Get`, `Find`, `Query`, `Is`, `Has`, `Can`, `To`, alleen als heel woord: `CanRefresh` is lezen, `CancelTimer` niet): `ILibraryManager`, `IItemRepository`, `IItemPersistenceService`, `IPlaylistManager`, `ICollectionManager` (ook `GetCollectionsFolder`, want die kan aanmaken), `IUserManager`, `IDeviceManager`, `IUserDataManager`, `IProviderManager`, `ISubtitleManager`, `IMediaSegmentManager`, `ISessionManager`, `IServerConfigurationManager`/`IConfigurationManager`, plus de diensten uit "Wat JL0001 bewaakt" hieronder; op `BaseItem` en afgeleiden de wijzigende methoden (`Update*`, `Delete*`, `Refresh*`, `Save*`, `Add*`, `Remove*`, `Set*`, `Swap*`, `Changed*`, `Mark*`, `Validate*`). Ook het schrijven van een eigenschap (toewijzing, `++`, `--`) op een bewaakt type telt: `item.Name = …` op een `BaseItem` is JL0001. Bij een bewaakte interface tellen van een eigen klasse die de interface implementeert alleen de leden die een lid van die interface implementeren (zie "Wat JL0001 bewaakt") | bibliotheek, opslag van items, afspeellijsten, collecties, gebruikers, apparaten en alle diensten uit "Wat JL0001 bewaakt": **nergens**. De overige alleen in één met naam genoemde klasse per API (witte lijst) |
 | **JL0002** | bestanden schrijven, verplaatsen of verwijderen: `System.IO.File` en `Directory` (alles behalve lezen), wijzigende methoden en eigenschappen van `FileInfo`/`DirectoryInfo`, `new FileStream`, `new StreamWriter(pad)`, `new SqliteConnection`, wijzigende methoden van `IFileSystem` | alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API |
-| **JL0003** | de database van de server: elk gebruik van `JellyfinDbContext` en elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke UTF-8-tekst (`"…"u8`), elke constante (ook uit een andere assembly, en de constante waarde van een omzetting: `(char)46` en `(char)0x2E` zijn een punt, `(int)'.'` is geen tekst) en elke samenstelling met `+` of `$"…"`, ook een optelling van UTF-8-teksten (`"jellyfin"u8 + ".db"u8`): de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een uitlijning `{x,n}` met een bekend stuk vult met spaties aan tot \|n\| tekens (n positief ervoor, negatief erna; een kortere n vult niets aan, dus `$"jellyfin{".db",3}"` is JL0003); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
+| **JL0003** | de database van de server: elk gebruik van de typenaam `JellyfinDbContext`, `IJellyfinDatabaseProvider` (een dienst in de container van de server: `DbContextFactory` geeft een context, `PurgeDatabase` wist elke tabel en `RestoreBackupFast` overschrijft `jellyfin.db`), `IEntityFrameworkCoreLockingBehavior` of `IItemQueryHelpers` (die twee nemen een context als argument), en van een type dat er een implementeert of ervan afleidt. Elk gebruik is: een parameter, een veld, een lokale variabele, `GetService<T>`, `typeof`, een alias, een typeargument (`IDbContextFactory<JellyfinDbContext>`), een elementtype en `var` dat naar zo'n type verwijst (`var f = provider.DbContextFactory`). Zonder die naam krijgt plugincode de dienst niet: de container geeft hem alleen op type, en volgens een scan van de plugin-ABI is `IJellyfinDatabaseProvider.DbContextFactory` het enige publieke lid dat een context of een fabriek ervan teruggeeft. Verder elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke UTF-8-tekst (`"…"u8`), elke constante (ook uit een andere assembly, en de constante waarde van een omzetting: `(char)46` en `(char)0x2E` zijn een punt, `(int)'.'` is geen tekst) en elke samenstelling met `+` of `$"…"`, ook een optelling van UTF-8-teksten (`"jellyfin"u8 + ".db"u8`): de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een uitlijning `{x,n}` met een bekend stuk vult met spaties aan tot \|n\| tekens (n positief ervoor, negatief erna; een kortere n vult niets aan, dus `$"jellyfin{".db",3}"` is JL0003); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
 | **JL0004** | processen starten (`Process.Start`, `new Process`, `new ProcessStartInfo`) | alleen in `Core.Werker` (de werkerbewaker van B03-018); geen uitzondering per klasse |
 | **JL0009** | een ongeldige regel in de witte lijst | — |
 
@@ -79,7 +82,10 @@ lid van die interface (of van een interface die ervan afgeleid is) implementeren
 B03-plan wil een taak als ingang naar de batchplanner) mag dus eigen hulpmethoden en eigenschappen hebben; de eigen
 `ExecuteAsync` aanroepen, ook via een methodeverwijzing, een afgeleide klasse of de interface, blijft JL0001 en de
 melding noemt `IScheduledTask.ExecuteAsync`. Hetzelfde geldt voor de planning van een eigen werker (`Triggers` zetten,
-`ReloadTriggerEvents`). Een aanroep via de interface zelf of een afgeleide interface telt zoals altijd. Voor de regels op
+`ReloadTriggerEvents`). Ook een lid dat die implementatie (herhaald) overschrijft, telt mee: `FindImplementationForInterfaceMember`
+geeft bij een afgeleide klasse het virtuele lid van de basisklasse, en een `override ExecuteAsync` in een afgeleide klasse
+aanroepen is daarom ook JL0001 (methoden, eigenschappen en events). Een met `new` verborgen lid overschrijft niets en telt
+niet. Een aanroep via de interface zelf of een afgeleide interface telt zoals altijd. Voor de regels op
 klassen (`BaseItem`, `Folder` en afgeleiden) verandert niets. Test:
 `VerbodenApiAnalyzerTests.EigenServertaak_AlleenDeLedenVanDeInterfaceTellen`.
 
@@ -116,7 +122,7 @@ bij een taak uit het plan en een eigen ADR.
 ### 3. Drie soorten bewijs
 
 1. **De plugin bouwt** met de analyzer aan: er staat geen verboden aanroep in.
-2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 134 verboden aanroepen, elk gemarkeerd met
+2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 141 verboden aanroepen, elk gemarkeerd met
    `// VERWACHT: JLxxxx`, afgewisseld met toegestane leesaanroepen. `analyzer_proef.py` bouwt het project echt en eist
    dat precies de gemarkeerde regels die bouwfout geven, dat geen enkele andere regel een JL-fout geeft en dat de build
    om geen andere reden faalt. De proefassembly staat bewust niet in de solution.
@@ -146,6 +152,12 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   bestanden en `JlDatabase` voor SQLite weigeren elk pad buiten `<DataPath>/jelly-leon/**`, `/cache/jelly-leon/**` en
   `/run/jelly-leon/**` (`JlPaths.MagSchrijven`), voordat er iets geopend of aangemaakt is), de alleen-lezen mediamount,
   en JLT-65 (stock en fork naast elkaar; de 12.x-tabellen mogen alleen op de toegestane lijst afwijken).
+- JL0003 op de databasedienst van de server werkt op de typenaam: de grens ligt waar de dienst de klasse binnenkomt
+  (veld, parameter, `GetService<T>`). Regels die daarna een eenmaal gekregen object gebruiken zonder de naam te noemen
+  (`_db.PurgeDatabase(…)`), geven zelf geen tweede melding. Wie de dienst zonder de naam ophaalt (reflectie,
+  `GetService(Type)` met een type uit een tekst, `dynamic`), valt onder de eerste grens hierboven; de padgrens van
+  `JlDatabase` helpt daar niet, want de server opent zijn eigen database. Test:
+  `VerbodenApiAnalyzerTests.DatabasedienstVanDeServer_ElkGebruikVanDeTypenaamIsJL0003` (de vorm van proef H12).
 - De padgrens kijkt naar het pad zoals het er staat én naar het echte pad: elke symbolische koppeling (het bestand zelf
   en elke bovenliggende map, relatief of in een keten) wordt gevolgd zoals het besturingssysteem dat doet, en `..` geldt
   na het volgen. Een eigen map die zelf een koppeling is (bijvoorbeeld `<data>/jelly-leon` -> `<data>`) telt niet als
