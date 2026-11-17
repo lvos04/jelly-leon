@@ -54,7 +54,11 @@ internal sealed class Uitzonderingen
         var type = punt > 0 ? api.Substring(0, punt) : string.Empty;
         var lid = punt > 0 ? api.Substring(punt + 1) : string.Empty;
         var typeRegel = Regels.Typen.FirstOrDefault(t => t.RegelId == regelId && t.Type == type);
-        if (typeRegel is null || !typeRegel.IsVerboden(lid))
+        if (regelId == Regels.BestandSchrijf && Regels.IsDatabaseTypenaam(type))
+        {
+            Fouten.Add((regel, "voor deze API bestaat geen uitzondering (nergens toegestaan): databasetoegang hoort alleen in Core.Storage"));
+        }
+        else if (typeRegel is null || !typeRegel.IsVerboden(lid))
         {
             Fouten.Add((regel, "deze API wordt door deze regel niet bewaakt"));
         }

@@ -321,3 +321,94 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
         public void Query(IItemQueryHelpers query) => _ = query; // VERWACHT: JL0003
     }
 }
+
+// Databasetoegang buiten Core.Storage (R-HARDE-EIS-12, S-G1-17 herstelronde 5): elke weg naar een databaseverbinding of -bron
+// is JL0002; de opties van de serverdatabase resolven of injecteren is JL0003. Een gekregen verbinding doorgeven mag.
+namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+{
+    using System.Data;
+    using System.Data.Common;
+    using Microsoft.EntityFrameworkCore;
+    using Microsoft.EntityFrameworkCore.Diagnostics;
+    using Microsoft.EntityFrameworkCore.Infrastructure;
+
+    public class Databasetoegang
+    {
+        public Databasetoegang(DbContextOptions serveropties) // VERWACHT: JL0003
+        {
+            _ = serveropties.Extensions; // VERWACHT: JL0002
+        }
+
+        public async Task Verbinding(MediaBrowser.Common.Configuration.IApplicationPaths paden, IServiceProvider diensten, SqliteConnection gekregen, DbCommand opdracht, object iets, CancellationToken stop)
+        {
+            var pad = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
+            using var a = SqliteFactory.Instance.CreateConnection(); // VERWACHT: JL0002
+            a.ConnectionString = "Data Source=" + pad; // VERWACHT: JL0002
+            a.Open(); // VERWACHT: JL0002
+            using var b = SqliteFactory.Instance.CreateDataSource("Data Source=" + pad); // VERWACHT: JL0002
+            using var c = b.CreateConnection(); // VERWACHT: JL0002
+            await using var d = await b.OpenConnectionAsync(stop); // VERWACHT: JL0002
+            var fabriek = DbProviderFactories.GetFactory("Microsoft.Data.Sqlite"); // VERWACHT: JL0002
+            _ = diensten.GetService<DbProviderFactory>(); // VERWACHT: JL0002
+            _ = diensten.GetService(typeof(SqliteFactory)); // VERWACHT: JL0002
+            _ = Activator.CreateInstance<SqliteConnection>(); // VERWACHT: JL0002
+            gekregen.BackupDatabase(gekregen, "main", "main"); // VERWACHT: JL0002
+            gekregen.ConnectionString = "Data Source=" + pad; // VERWACHT: JL0002
+            _ = gekregen.Handle; // VERWACHT: JL0002
+            _ = opdracht.Connection; // VERWACHT: JL0002
+            _ = (DbConnection)iets; // VERWACHT: JL0002
+            _ = iets as IDbConnection; // VERWACHT: JL0002
+            _ = iets is SqliteConnection; // VERWACHT: JL0002
+            if (iets is DbConnection f) // VERWACHT: JL0002
+            {
+                _ = f;
+            }
+
+            Func<DbConnection> later = SqliteFactory.Instance.CreateConnection; // VERWACHT: JL0002
+            _ = SQLitePCL.raw.sqlite3_open(pad, out var g); // VERWACHT: JL0002
+            _ = Met(v => v); // VERWACHT: JL0002
+            _ = later;
+            _ = g;
+            _ = fabriek;
+            // Toegestaan: een gekregen verbinding doorgeven (zoals JlDatabase.Met die geeft) en een databasetype als parametertype.
+            _ = Met(v => Doorgeven(v));
+            DbConnection h = gekregen;
+            _ = h;
+            _ = Doorgeven(gekregen);
+        }
+
+        public void Ef(IServiceProvider diensten, IServiceCollection services, DbContextOptions<DbContext> opties)
+        {
+            _ = diensten.GetRequiredService<DbContextOptions>(); // VERWACHT: JL0003
+            _ = diensten.GetService(typeof(DbContextOptions)); // VERWACHT: JL0003
+            _ = diensten.GetService<IDbContextOptions>(); // VERWACHT: JL0002
+            _ = new DbContextOptionsBuilder(); // VERWACHT: JL0002
+            _ = new DbContextOptionsBuilder<DbContext>(opties); // VERWACHT: JL0002
+            _ = RelationalOptionsExtension.Extract(opties).ConnectionString; // VERWACHT: JL0002
+            _ = opties.FindExtension<RelationalOptionsExtension>(); // VERWACHT: JL0002
+            using var ctx = new DbContext(opties); // VERWACHT: JL0002
+            _ = ctx.Database.GetDbConnection(); // VERWACHT: JL0002
+            services.AddDbContext<DbContext>(o => { }); // VERWACHT: JL0002
+            services.AddSingleton<IInterceptor, Onderschepper>(); // VERWACHT: JL0002
+        }
+
+        private static int Doorgeven(SqliteConnection verbinding)
+        {
+            _ = verbinding;
+            return 0;
+        }
+
+        private static T Met<T>(Func<SqliteConnection, T> werk) => werk(null);
+    }
+
+    // Een onderschepper krijgt de verbinding van de server zelf: die gebruiken is JL0002.
+    public class Onderschepper : DbConnectionInterceptor
+    {
+        public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
+        {
+            using var opdracht = connection.CreateCommand(); // VERWACHT: JL0002
+            opdracht.CommandText = "DELETE FROM UserData";
+            _ = opdracht.ExecuteNonQuery();
+        }
+    }
+}

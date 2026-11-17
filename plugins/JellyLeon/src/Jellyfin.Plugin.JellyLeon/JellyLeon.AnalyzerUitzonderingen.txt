@@ -3,6 +3,7 @@
 # Eén regel per uitzondering:  <regel-id> <Type.Methode> <volledige klassenaam>
 #   JL0001  schrijvende server-API (alleen de API's waarvoor het plan een uitzonderingsklasse noemt)
 #   JL0002  bestand schrijven of verwijderen buiten Core.Storage en Core.Secrets
+#           (databasetoegang, JL0002 op een verbinding of bron, kent geen uitzondering: alleen Core.Storage)
 # Geen jokertekens, geen namespaces: precies één API in precies één klasse onder Jellyfin.Plugin.JellyLeon.Modules.
 # JL0003 (database van de server) en JL0004 (processen starten) kennen geen uitzonderingen, net als schrijven in de
 # bibliotheek (ILibraryManager, IItemRepository, BaseItem, afspeellijsten, collecties, gebruikers, apparaten).

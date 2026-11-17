@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
@@ -38,6 +39,15 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         true,
         customTags: WellKnownDiagnosticTags.NotConfigurable);
 
+    private static readonly DiagnosticDescriptor _databaseToegang = new(
+        Regels.BestandSchrijf,
+        "Databaseverbindingen alleen via de opslaglaag",
+        "'{0}' geeft of gebruikt een databaseverbinding of -bron buiten Core.Storage; gebruik JlDatabase",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
     private static readonly DiagnosticDescriptor _serverDatabase = new(
         Regels.ServerDatabase,
         "De database van de server is verboden terrein",
@@ -67,7 +77,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(_serverSchrijf, _bestandSchrijf, _serverDatabase, _procesStart, _ongeldigeUitzondering);
+        ImmutableArray.Create(_serverSchrijf, _bestandSchrijf, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -90,6 +100,21 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         context.RegisterOperationAction(toestand.Constante, OperationKind.Literal, OperationKind.FieldReference, OperationKind.LocalReference, OperationKind.Utf8String);
         context.RegisterOperationAction(toestand.Samenstelling, OperationKind.Binary, OperationKind.InterpolatedString);
         context.RegisterSyntaxNodeAction(toestand.Naam, SyntaxKind.IdentifierName);
+        context.RegisterOperationAction(
+            toestand.Databasetoegang,
+            OperationKind.Invocation,
+            OperationKind.MethodReference,
+            OperationKind.PropertyReference,
+            OperationKind.FieldReference,
+            OperationKind.EventReference,
+            OperationKind.ObjectCreation,
+            OperationKind.TypeParameterObjectCreation,
+            OperationKind.TypeOf,
+            OperationKind.Conversion,
+            OperationKind.IsType,
+            OperationKind.DeclarationPattern,
+            OperationKind.TypePattern,
+            OperationKind.RecursivePattern);
         context.RegisterCompilationEndAction(c =>
         {
             foreach (var (regel, reden) in uitzonderingen.Fouten)
@@ -112,11 +137,15 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         private readonly List<(INamedTypeSymbol Type, TypeRegel Regel)> _typen = new();
         private readonly List<(INamedTypeSymbol Type, string RegelId, bool AlleenMetPad)> _aanmaak = new();
         private readonly List<INamedTypeSymbol> _databaseTypen = new();
+        private readonly List<INamedTypeSymbol> _databaseTypenExact = new();
+        private readonly List<INamedTypeSymbol> _verbindingTypen = new();
+        private readonly IAssemblySymbol _eigen;
         private readonly Uitzonderingen _uitzonderingen;
 
         public Toestand(Compilation compilatie, Uitzonderingen uitzonderingen)
         {
             _uitzonderingen = uitzonderingen;
+            _eigen = compilatie.Assembly;
             foreach (var regel in Regels.Typen)
             {
                 if (compilatie.GetTypeByMetadataName(regel.Type) is { } type)
@@ -138,6 +167,22 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 if (compilatie.GetTypeByMetadataName(naam) is { } type)
                 {
                     _databaseTypen.Add(type);
+                }
+            }
+
+            foreach (var naam in Regels.ServerDatabaseTypenExact)
+            {
+                if (compilatie.GetTypeByMetadataName(naam) is { } type)
+                {
+                    _databaseTypenExact.Add(type);
+                }
+            }
+
+            foreach (var naam in Regels.DatabaseVerbindingTypen)
+            {
+                if (compilatie.GetTypeByMetadataName(naam) is { } type)
+                {
+                    _verbindingTypen.Add(type);
                 }
             }
         }
@@ -447,7 +492,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         /// </summary>
         public void Naam(SyntaxNodeAnalysisContext context)
         {
-            if (_databaseTypen.Count == 0 || context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol is not ITypeSymbol type)
+            if (_databaseTypen.Count + _databaseTypenExact.Count == 0 || context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol is not ITypeSymbol type)
             {
                 return;
             }
@@ -458,15 +503,222 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             }
         }
 
+        /// <summary>
+        /// JL0002 databasetoegang (R-HARDE-EIS-12): buiten Core.Storage is elke operatie verboden die een databaseverbinding
+        /// of -bron oplevert of gebruikt. "Databasetype" is een verbinding of bron (<c>DbConnection</c>, <c>IDbConnection</c>,
+        /// <c>DbDataSource</c>, <c>DbProviderFactory</c>, <c>DbProviderFactories</c> en alles wat ervan afleidt) en elk type
+        /// uit Microsoft.Data.Sqlite, SQLitePCLRaw en Entity Framework Core. Verboden is: een lid van zo'n type aanroepen,
+        /// lezen of zetten (ook statisch, zoals <c>SqliteFactory.Instance</c>, en een methodeverwijzing); een aanroep of
+        /// extern lid waarvan het resultaat er een is of bevat (<c>Task&lt;DbConnection&gt;</c>, een typeargument, een
+        /// <c>out</c>-parameter, de terugkeer van een gedelegeerde); er een aanmaken; <c>typeof</c>; en een omzetting of
+        /// patroon naar zo'n type. Wat de naam van de serverdatabase draagt (JL0003, <see cref="DatabaseType"/>) laat deze
+        /// regel aan <see cref="Naam"/>. Een verbinding die als parameter binnenkomt (<c>JlDatabase.Met(v =&gt; …)</c>) mag
+        /// alleen worden doorgegeven: een parameter, lokale variabele of eigen veld lezen is geen operatie van deze regel.
+        /// Per keten één melding: is de ontvanger zelf al een melding, dan niet nog een.
+        /// </summary>
+        public void Databasetoegang(OperationAnalysisContext context)
+        {
+            if (Databasetype(context.Operation) is not { } type || Databasetype(Ontvanger(context.Operation)) is not null
+                || InNamespace(context.ContainingSymbol, Regels.DatabaseNamespaces) || NoemtServerdatabase(context.Operation))
+            {
+                return;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(_databaseToegang, context.Operation.Syntax.GetLocation(), Beschrijf(context.Operation, type)));
+        }
+
+        /// <summary>Het databasetype dat <paramref name="operatie"/> oplevert of gebruikt; null als er geen is of als JL0003 erover gaat.</summary>
+        private ITypeSymbol? Databasetype(IOperation? operatie)
+        {
+            var gebruikt = new List<ITypeSymbol?>();
+            var resultaat = new List<ITypeSymbol?>();
+            void Lid(IMethodSymbol methode)
+            {
+                gebruikt.Add(methode.ContainingType);
+                resultaat.Add(methode.ReturnType);
+                resultaat.AddRange(methode.Parameters.Where(p => p.RefKind is RefKind.Out or RefKind.Ref).Select(p => p.Type));
+                resultaat.AddRange(methode.TypeArguments);
+            }
+
+            switch (operatie)
+            {
+                case IInvocationOperation aanroep:
+                    Lid(aanroep.TargetMethod.ReducedFrom ?? aanroep.TargetMethod);
+                    break;
+                case IMethodReferenceOperation verwijzing:
+                    Lid(verwijzing.Method.ReducedFrom ?? verwijzing.Method);
+                    break;
+                case IPropertyReferenceOperation eigenschap:
+                    gebruikt.Add(eigenschap.Property.ContainingType);
+                    resultaat.Add(IsEigen(eigenschap.Property) ? null : eigenschap.Property.Type);
+                    break;
+                case IFieldReferenceOperation veld:
+                    gebruikt.Add(veld.Field.ContainingType);
+                    resultaat.Add(IsEigen(veld.Field) ? null : veld.Field.Type);
+                    break;
+                case IEventReferenceOperation gebeurtenis:
+                    gebruikt.Add(gebeurtenis.Event.ContainingType);
+                    break;
+                case IObjectCreationOperation aanmaak:
+                    resultaat.Add(aanmaak.Type);
+                    break;
+                case ITypeParameterObjectCreationOperation aanmaak:
+                    resultaat.Add(aanmaak.Type);
+                    break;
+                case ITypeOfOperation soort:
+                    resultaat.Add(soort.TypeOperand);
+                    break;
+                case IConversionOperation omzetting when !IsLeeg(omzetting.Operand) && (!omzetting.IsImplicit || Bevat(omzetting.Operand.Type) is null):
+                    resultaat.Add(omzetting.Type);
+                    break;
+                case IIsTypeOperation isType:
+                    resultaat.Add(isType.TypeOperand);
+                    break;
+                case IDeclarationPatternOperation patroon:
+                    resultaat.Add(patroon.MatchedType);
+                    break;
+                case ITypePatternOperation patroon:
+                    resultaat.Add(patroon.MatchedType);
+                    break;
+                case IRecursivePatternOperation patroon:
+                    resultaat.Add(patroon.MatchedType);
+                    break;
+                default:
+                    return null;
+            }
+
+            if (gebruikt.Concat(resultaat).Any(t => t is not null && DatabaseType(t, metExact: false) is not null))
+            {
+                return null;
+            }
+
+            return gebruikt.FirstOrDefault(IsDatabasetype) ?? resultaat.Select(Bevat).FirstOrDefault(t => t is not null);
+        }
+
+        /// <summary>
+        /// Waar als de operatie zelf de naam van een databasetype van de server noemt (bijvoorbeeld
+        /// <c>GetRequiredService&lt;DbContextOptions&gt;()</c> of <c>typeof(DbContextOptions)</c>): dan meldt <see cref="Naam"/>
+        /// al JL0003 en volgt er geen tweede melding.
+        /// </summary>
+        private bool NoemtServerdatabase(IOperation operatie) =>
+            operatie.SemanticModel is { } model
+            && operatie.Syntax.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>().Any(n => model.GetSymbolInfo(n).Symbol is ITypeSymbol t && DatabaseType(t) is not null);
+
+        /// <summary>De ontvanger van een lid (ook het eerste argument van een extensiemethode) of wat omgezet wordt.</summary>
+        private IOperation? Ontvanger(IOperation operatie)
+        {
+            var ontvanger = operatie switch
+            {
+                IInvocationOperation aanroep => aanroep.Instance ?? (aanroep.TargetMethod.IsExtensionMethod && aanroep.Arguments.Length > 0 ? aanroep.Arguments[0].Value : null),
+                IMethodReferenceOperation verwijzing => verwijzing.Instance,
+                IPropertyReferenceOperation eigenschap => eigenschap.Instance,
+                IFieldReferenceOperation veld => veld.Instance,
+                IEventReferenceOperation gebeurtenis => gebeurtenis.Instance,
+                IConversionOperation omzetting => omzetting.Operand,
+                IIsTypeOperation isType => isType.ValueOperand,
+                _ => null,
+            };
+            while (ontvanger is IConversionOperation { IsImplicit: true } stil && Bevat(stil.Operand.Type) is not null)
+            {
+                ontvanger = stil.Operand;
+            }
+
+            return ontvanger;
+        }
+
+        private static bool IsLeeg(IOperation operand) =>
+            operand is IDefaultValueOperation || (operand.Type is null && operand.ConstantValue is { HasValue: true, Value: null });
+
+        private bool IsEigen(ISymbol lid) => SymbolEqualityComparer.Default.Equals(lid.ContainingAssembly, _eigen);
+
+        /// <summary>Een verbinding of bron, of een type uit een databaseassembly (ook als basistype, interface of beperking).</summary>
+        private bool IsDatabasetype(ITypeSymbol? type)
+        {
+            switch (type)
+            {
+                case ITypeParameterSymbol parameter:
+                    return parameter.ConstraintTypes.Any(IsDatabasetype);
+                case INamedTypeSymbol benoemd:
+                    for (var t = benoemd; t is not null; t = t.BaseType)
+                    {
+                        if (IsVerbindingOfAssembly(t))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return benoemd.AllInterfaces.Any(IsVerbindingOfAssembly);
+                default:
+                    return false;
+            }
+        }
+
+        private bool IsVerbindingOfAssembly(INamedTypeSymbol type) =>
+            Regels.IsDatabaseAssembly(type.ContainingAssembly?.Identity.Name)
+            || _verbindingTypen.Any(v => SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, v));
+
+        /// <summary>
+        /// Het databasetype dat een resultaat is of bevat: het type zelf, een elementtype, een typeargument of de terugkeer van
+        /// een gedelegeerde (de parameters van een gedelegeerde niet: <c>Func&lt;SqliteConnection, T&gt;</c> geeft geen
+        /// verbinding, die krijgt er een).
+        /// </summary>
+        private ITypeSymbol? Bevat(ITypeSymbol? type)
+        {
+            if (type is null)
+            {
+                return null;
+            }
+
+            if (IsDatabasetype(type))
+            {
+                return type;
+            }
+
+            switch (type)
+            {
+                case IArrayTypeSymbol rij:
+                    return Bevat(rij.ElementType);
+                case IPointerTypeSymbol wijzer:
+                    return Bevat(wijzer.PointedAtType);
+                case INamedTypeSymbol { TypeKind: TypeKind.Delegate, DelegateInvokeMethod: { } aanroep }:
+                    return Bevat(aanroep.ReturnType);
+                case INamedTypeSymbol benoemd:
+                    return benoemd.TypeArguments.Select(Bevat).FirstOrDefault(t => t is not null);
+                default:
+                    return null;
+            }
+        }
+
+        private static string Beschrijf(IOperation operatie, ITypeSymbol type) => operatie switch
+        {
+            IInvocationOperation aanroep => Lidnaam(aanroep.TargetMethod.ReducedFrom ?? aanroep.TargetMethod),
+            IMethodReferenceOperation verwijzing => Lidnaam(verwijzing.Method.ReducedFrom ?? verwijzing.Method),
+            IPropertyReferenceOperation eigenschap => Lidnaam(eigenschap.Property),
+            IFieldReferenceOperation veld => Lidnaam(veld.Field),
+            IEventReferenceOperation gebeurtenis => Lidnaam(gebeurtenis.Event),
+            IObjectCreationOperation or ITypeParameterObjectCreationOperation => "new " + type.ToDisplayString(),
+            ITypeOfOperation => "typeof(" + type.ToDisplayString() + ")",
+            IConversionOperation => "(" + type.ToDisplayString() + ")",
+            _ => "is " + type.ToDisplayString(),
+        };
+
+        private static string Lidnaam(ISymbol lid) => lid.ContainingType.OriginalDefinition.ToDisplayString() + "." + lid.Name;
+
+        private static bool InNamespace(ISymbol? plek, ImmutableArray<string> namespaces)
+        {
+            var ruimte = BuitensteType(plek)?.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+            return namespaces.Any(n => ruimte == n || ruimte.StartsWith(n + ".", StringComparison.Ordinal));
+        }
+
         /// <summary>Het databasetype van de server in <paramref name="type"/>: het type zelf, een elementtype of een typeargument.</summary>
-        private INamedTypeSymbol? DatabaseType(ITypeSymbol type)
+        private INamedTypeSymbol? DatabaseType(ITypeSymbol type, bool metExact = true)
         {
             switch (type)
             {
                 case IArrayTypeSymbol rij:
-                    return DatabaseType(rij.ElementType);
+                    return DatabaseType(rij.ElementType, metExact);
                 case IPointerTypeSymbol wijzer:
-                    return DatabaseType(wijzer.PointedAtType);
+                    return DatabaseType(wijzer.PointedAtType, metExact);
                 case INamedTypeSymbol benoemd:
                     foreach (var verboden in _databaseTypen)
                     {
@@ -476,15 +728,23 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                         }
                     }
 
+                    foreach (var exact in metExact ? _databaseTypenExact : Enumerable.Empty<INamedTypeSymbol>())
+                    {
+                        if (SymbolEqualityComparer.Default.Equals(benoemd.OriginalDefinition, exact))
+                        {
+                            return exact;
+                        }
+                    }
+
                     foreach (var argument in benoemd.TypeArguments)
                     {
-                        if (DatabaseType(argument) is { } binnen)
+                        if (DatabaseType(argument, metExact) is { } binnen)
                         {
                             return binnen;
                         }
                     }
 
-                    return benoemd.ContainingType is { } buiten ? DatabaseType(buiten) : null;
+                    return benoemd.ContainingType is { } buiten ? DatabaseType(buiten, metExact) : null;
                 default:
                     return null;
             }

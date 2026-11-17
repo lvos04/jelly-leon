@@ -417,7 +417,10 @@ public class VerbodenApiAnalyzerTests
     /// (<c>IEntityFrameworkCoreLockingBehavior</c>, <c>IItemQueryHelpers</c>). De grens ligt bij de naam: zonder het veld
     /// en de constructorparameter kan de klasse de dienst niet krijgen; de regels in de romp die de naam niet noemen,
     /// geven daarom zelf geen tweede melding. Vóór het herstel gaven alleen de regels met <c>JellyfinDbContext</c> (de
-    /// tegenproeven) een bevinding.
+    /// tegenproeven) een bevinding. Sinds herstelronde 5 (R-HARDE-EIS-12) geven de drie regels die met de context een
+    /// Entity Framework-lid gebruiken (<c>Database</c>, <c>ExecuteDeleteAsync</c>, <c>SaveChanges</c>) daarnaast JL0002:
+    /// dat is databasetoegang buiten Core.Storage. De regels met alleen leden van de dienst zelf (<c>PurgeDatabase</c>,
+    /// <c>RestoreBackupFast</c>) blijven zonder tweede melding.
     /// </summary>
     [Fact]
     public async Task DatabasedienstVanDeServer_ElkGebruikVanDeTypenaamIsJL0003()
@@ -454,10 +457,10 @@ public class VerbodenApiAnalyzerTests
 
                     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
                     {
-                        _db.DbContextFactory!.CreateDbContext().Database.ExecuteSqlRaw("DELETE FROM UserData");
-                        await _db.DbContextFactory!.CreateDbContext().UserData.ExecuteDeleteAsync(cancellationToken);
+                        _db.DbContextFactory!.CreateDbContext().Database.ExecuteSqlRaw("DELETE FROM UserData"); // JL0002
+                        await _db.DbContextFactory!.CreateDbContext().UserData.ExecuteDeleteAsync(cancellationToken); // JL0002
                         DbContext c = _db.DbContextFactory!.CreateDbContext();
-                        c.SaveChanges();
+                        c.SaveChanges(); // JL0002
                         await _db.PurgeDatabase(_db.DbContextFactory!.CreateDbContext(), null);
                         await _db.RestoreBackupFast("sleutel", cancellationToken);
                         await _db.RunScheduledOptimisation(cancellationToken);
@@ -497,15 +500,196 @@ public class VerbodenApiAnalyzerTests
             }
             """;
         var verwacht = Bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0003", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+        var verwachtEf = Bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0002", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
 
-        var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+        var alles = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+        var gevonden = alles.Where(b => b.Id == Regels.ServerDatabase).ToList();
 
         Assert.Equal(14, verwacht.Count);
-        Assert.All(gevonden, b => Assert.Equal(Regels.ServerDatabase, b.Id));
+        Assert.Equal(3, verwachtEf.Count);
+        Assert.All(alles, b => Assert.Contains(b.Id, new[] { Regels.ServerDatabase, Regels.BestandSchrijf }));
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel).Distinct());
+        Assert.Equal(verwachtEf, alles.Where(b => b.Id == Regels.BestandSchrijf).Select(b => b.Regel));
         Assert.Contains(gevonden, b => b.Tekst.Contains("'Jellyfin.Database.Implementations.IJellyfinDatabaseProvider'", StringComparison.Ordinal));
         Assert.Contains(gevonden, b => b.Tekst.Contains("'Jellyfin.Database.Implementations.Locking.IEntityFrameworkCoreLockingBehavior'", StringComparison.Ordinal));
         Assert.Contains(gevonden, b => b.Tekst.Contains("'MediaBrowser.Controller.Persistence.IItemQueryHelpers'", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-12 (S-G1-17, herstelronde 5; de vormen van proef H15 en H16): buiten Core.Storage een verbinding met een
+    /// SQLite-bestand krijgen via <c>SqliteFactory.Instance</c> (de verbinding of een <c>DbDataSource</c>) met een pad dat pas
+    /// bij het draaien ontstaat, is JL0002; de niet-generieke <c>DbContextOptions</c> van de server resolven is JL0003 en de
+    /// verbindingstekst eruit halen (<c>RelationalOptionsExtension.Extract</c>) is JL0002. Vóór het herstel gaf alleen de
+    /// tegenproef <c>new SqliteConnection</c> een melding. Wat zonder typenaam alleen een object oplevert (een type uit een
+    /// tekst) blijft de grens "geen zandbak": daarmee is zonder reflectie of dynamic geen verbinding te gebruiken.
+    /// </summary>
+    [Fact]
+    public async Task DatabaseverbindingBuitenDeOpslag_ProevenH15EnH16_IsJL0002OfJL0003()
+    {
+        const string Bron = """
+            using System;
+            using System.IO;
+            using MediaBrowser.Common.Configuration;
+            using Microsoft.Data.Sqlite;
+            using Microsoft.EntityFrameworkCore;
+            using Microsoft.EntityFrameworkCore.Infrastructure;
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+            {
+                public class H15
+                {
+                    public void Sqlitefabriek(IApplicationPaths paden)
+                    {
+                        var pad = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
+                        using var c = SqliteFactory.Instance.CreateConnection(); c.ConnectionString = "Data Source=" + pad; c.Open(); // JL0002
+                        using var cmd = c.CreateCommand(); cmd.CommandText = "DELETE FROM UserData"; cmd.ExecuteNonQuery(); // JL0002
+                        using var bron = SqliteFactory.Instance.CreateDataSource("Data Source=" + pad); // JL0002
+                        using var tegen = new SqliteConnection("Data Source=" + pad); // JL0002
+                    }
+
+                    public string? Opties(IServiceProvider sp)
+                    {
+                        var opties = sp.GetRequiredService<DbContextOptions>(); // JL0003
+                        _ = sp.GetService(Type.GetType("Microsoft.EntityFrameworkCore.DbContextOptions, Microsoft.EntityFrameworkCore")!);
+                        return RelationalOptionsExtension.Extract(opties).ConnectionString; // JL0002
+                    }
+                }
+
+                public static class H16
+                {
+                    public static int Wis(string data)
+                    {
+                        using var c = SqliteFactory.Instance.CreateConnection(); // JL0002
+                        c.ConnectionString = "Data Source=" + Path.Combine(data, string.Concat("jellyfin", ".db")); // JL0002
+                        c.Open(); // JL0002
+                        using var cmd = c.CreateCommand(); // JL0002
+                        cmd.CommandText = "DELETE FROM UserData";
+                        return cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            """;
+        var verwacht = Bron.Split('\n').Select((tekst, index) => (Regel: index + 1, Raak: Regex.Match(tekst, @"// (JL\d{4})$")))
+            .Where(r => r.Raak.Success).Select(r => (r.Regel, Id: r.Raak.Groups[1].Value)).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(10, verwacht.Count);
+        Assert.Equal(verwacht, gevonden.Select(b => (b.Regel, b.Id)).Distinct());
+        Assert.Contains(gevonden, b => b.Tekst.Contains("'Microsoft.Data.Sqlite.SqliteFactory.Instance'", StringComparison.Ordinal));
+        Assert.Contains(gevonden, b => b.Tekst.Contains("'Microsoft.EntityFrameworkCore.DbContextOptions'", StringComparison.Ordinal));
+        Assert.Contains(gevonden, b => b.Tekst.Contains("'Microsoft.EntityFrameworkCore.Infrastructure.RelationalOptionsExtension.Extract'", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-12 (S-G1-17, herstelronde 5): de regel is generiek. Elke gevonden weg naar een verbinding of bron (uit de
+    /// zoektocht over de compile-assets van de plugin en de plugin-ABI, ADR-0032 kop "Databasetoegang") is buiten Core.Storage
+    /// JL0002: Microsoft.Data.Sqlite, System.Data.Common (fabrieken, bronnen, <c>BackupDatabase</c>, <c>ConnectionString</c>, <c>DbCommand.Connection</c>,
+    /// omzettingen en patronen), SQLitePCL (<c>raw.sqlite3_open</c>, <c>Handle</c>), Entity Framework Core (bouwers, opties, context,
+    /// <c>GetDbConnection</c>, registratie in de container en een onderschepper die de verbinding van de server krijgt) en een
+    /// verbinding uit een eigen terugroep halen. In Core.Storage geeft dezelfde bron geen enkele JL0002, en een gekregen
+    /// verbinding doorgeven of een databasetype als parametertype blijft overal toegestaan.
+    /// </summary>
+    [Fact]
+    public async Task Databasetoegang_ElkeWegIsBuitenCoreStorageJL0002()
+    {
+        static string Bron(string ruimte) => $$"""
+            using System;
+            using System.Data;
+            using System.Data.Common;
+            using System.IO;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Microsoft.Data.Sqlite;
+            using Microsoft.EntityFrameworkCore;
+            using Microsoft.EntityFrameworkCore.Diagnostics;
+            using Microsoft.EntityFrameworkCore.Infrastructure;
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace {{ruimte}}
+            {
+                public class Toegang
+                {
+                    public async Task Verbinding(string pad, IServiceProvider diensten, SqliteConnection gekregen, DbCommand opdracht, object iets, CancellationToken stop)
+                    {
+                        using var a = SqliteFactory.Instance.CreateConnection(); // JL0002
+                        a.ConnectionString = "Data Source=" + pad; // JL0002
+                        a.Open(); // JL0002
+                        using var b = SqliteFactory.Instance.CreateDataSource("Data Source=" + pad); // JL0002
+                        using var c = b.CreateConnection(); // JL0002
+                        await using var d = await b.OpenConnectionAsync(stop); // JL0002
+                        var fabriek = DbProviderFactories.GetFactory("Microsoft.Data.Sqlite"); // JL0002
+                        _ = diensten.GetService<DbProviderFactory>(); // JL0002
+                        _ = diensten.GetService(typeof(SqliteFactory)); // JL0002
+                        _ = Activator.CreateInstance<SqliteConnection>(); // JL0002
+                        gekregen.BackupDatabase(gekregen, "main", "main"); // JL0002
+                        gekregen.ConnectionString = "Data Source=" + pad; // JL0002
+                        _ = gekregen.Handle; // JL0002
+                        _ = opdracht.Connection; // JL0002
+                        _ = (DbConnection)iets; // JL0002
+                        _ = iets as IDbConnection; // JL0002
+                        _ = iets is SqliteConnection; // JL0002
+                        if (iets is DbConnection f) // JL0002
+                        {
+                            _ = f;
+                        }
+
+                        Func<DbConnection> later = SqliteFactory.Instance.CreateConnection; // JL0002
+                        _ = SQLitePCL.raw.sqlite3_open(pad, out var g); // JL0002
+                        _ = Met(v => v); // JL0002
+                        _ = later;
+                        _ = g;
+                        _ = fabriek;
+                        _ = Met(v => Doorgeven(v));
+                        DbConnection h = gekregen;
+                        _ = h;
+                        _ = Doorgeven(gekregen);
+                    }
+
+                    public void Ef(IServiceCollection services, DbContextOptions<DbContext> opties)
+                    {
+                        _ = new DbContextOptionsBuilder(); // JL0002
+                        _ = new DbContextOptionsBuilder<DbContext>(opties); // JL0002
+                        _ = opties.FindExtension<RelationalOptionsExtension>(); // JL0002
+                        using var ctx = new DbContext(opties); // JL0002
+                        _ = ctx.Database.GetDbConnection(); // JL0002
+                        services.AddDbContext<DbContext>(o => { }); // JL0002
+                        services.AddSingleton<IInterceptor, Onderschepper>(); // JL0002
+                    }
+
+                    private static int Doorgeven(SqliteConnection verbinding)
+                    {
+                        _ = verbinding;
+                        return 0;
+                    }
+
+                    private static T Met<T>(Func<SqliteConnection, T> werk) => werk(null!);
+                }
+
+                public class Onderschepper : DbConnectionInterceptor
+                {
+                    public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
+                    {
+                        using var opdracht = connection.CreateCommand(); // JL0002
+                        opdracht.CommandText = "DELETE FROM UserData";
+                        _ = opdracht.ExecuteNonQuery();
+                    }
+                }
+            }
+            """;
+        var buiten = Bron(Modules + ".Proef");
+        var verwacht = buiten.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0002", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
+        var inOpslag = await AnalyzerHarnas.AnalyseerAsync(Bron("Jellyfin.Plugin.JellyLeon.Core.Storage.Proef"), null, TestContext.Current.CancellationToken);
+        var inGeheimen = await AnalyzerHarnas.AnalyseerAsync(Bron("Jellyfin.Plugin.JellyLeon.Core.Secrets"), null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(29, verwacht.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.BestandSchrijf, b.Id));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
+        Assert.Empty(inOpslag);
+        Assert.Equal(verwacht, inGeheimen.Select(b => b.Regel));
     }
 
     /// <summary>Een leesvoorvoegsel geldt alleen als heel woord: <c>CancelTimer</c> begint met "Can" maar leest niet.</summary>
@@ -525,10 +709,18 @@ public class VerbodenApiAnalyzerTests
         }
     }
 
+    /// <summary>
+    /// Core.Storage en Core.Secrets mogen bestanden schrijven; een databaseverbinding maken mag sinds herstelronde 5
+    /// (R-HARDE-EIS-12) alleen Core.Storage: in Core.Secrets is <c>new SqliteConnection</c> JL0002.
+    /// </summary>
     [Fact]
     public async Task Opslagnamespaces_MogenBestandenSchrijven_MaarGeenServerApiOfProces()
     {
-        foreach (var ruimte in new[] { "Jellyfin.Plugin.JellyLeon.Core.Storage", "Jellyfin.Plugin.JellyLeon.Core.Secrets" })
+        foreach (var (ruimte, verwacht) in new[]
+        {
+            ("Jellyfin.Plugin.JellyLeon.Core.Storage", new[] { Regels.ServerSchrijf, Regels.ProcesStart, Regels.ServerDatabase }),
+            ("Jellyfin.Plugin.JellyLeon.Core.Secrets", new[] { Regels.BestandSchrijf, Regels.ServerSchrijf, Regels.ProcesStart, Regels.ServerDatabase }),
+        })
         {
             var bron = AnalyzerHarnas.Klasse(ruimte, "Proefopslag", """
                 public void M(string pad, ILibraryManager lib, BaseItem item)
@@ -546,7 +738,7 @@ public class VerbodenApiAnalyzerTests
 
             var gevonden = (await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken)).Select(b => b.Id).ToList();
 
-            Assert.Equal(new[] { Regels.ServerSchrijf, Regels.ProcesStart, Regels.ServerDatabase }, gevonden);
+            Assert.Equal(verwacht, gevonden);
         }
     }
 
@@ -652,6 +844,8 @@ public class VerbodenApiAnalyzerTests
     [InlineData("JL0001 MediaBrowser.Model.Tasks.ITaskManager.QueueScheduledTask " + Modules + ".Subtitles.X", "nergens toegestaan")]
     [InlineData("JL0001 MediaBrowser.Controller.Library.IMediaSourceManager.GetPlaybackMediaSources " + Modules + ".Quality.X", "nergens toegestaan")]
     [InlineData("JL0004 System.Diagnostics.Process.Start " + Modules + ".Quality.X", "nergens toegestaan")]
+    [InlineData("JL0002 Microsoft.Data.Sqlite.SqliteFactory.CreateConnection " + Modules + ".Quality.X", "nergens toegestaan")]
+    [InlineData("JL0002 System.Data.Common.DbProviderFactories.GetFactory " + Modules + ".Quality.X", "nergens toegestaan")]
     [InlineData("JL0003 jellyfin.db " + Modules + ".Quality.X", "niet bewaakt")]
     [InlineData("JL0001 MediaBrowser.Controller.Library.IUserDataManager.GetUserData " + Modules + ".Quality.X", "niet bewaakt")]
     [InlineData("JL0002 MediaBrowser.Controller.Library.IUserDataManager.SaveUserData " + Modules + ".Quality.X", "niet bewaakt")]
@@ -693,11 +887,17 @@ public class VerbodenApiAnalyzerTests
         var namen = Regels.Typen.Select(t => t.Type)
             .Concat(Regels.Aanmaak.Select(a => a.Type))
             .Concat(Regels.ServerDatabaseTypen)
+            .Concat(Regels.ServerDatabaseTypenExact)
+            .Concat(Regels.DatabaseVerbindingTypen)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
         Assert.True(namen.Count >= 20);
         Assert.All(namen, naam => Assert.True(compilatie.GetTypeByMetadataName(naam) is not null, "onbekend type in de regeltabel: " + naam));
+
+        // De databaseassemblies (JL0002, databasetoegang) moeten er ook zijn, anders telt de regel stil niets.
+        var assemblies = compilatie.References.Select(r => (compilatie.GetAssemblyOrModuleSymbol(r) as IAssemblySymbol)?.Identity.Name).ToList();
+        Assert.All(Regels.DatabaseAssemblies, a => Assert.Contains(assemblies, n => Regels.IsDatabaseAssembly(n) && (n == a || n!.StartsWith(a + ".", StringComparison.Ordinal))));
     }
 
     [Fact]

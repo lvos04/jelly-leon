@@ -193,9 +193,58 @@ internal static class Regels
     public static readonly ImmutableArray<(string RegelId, string Type, bool AlleenMetPad)> Aanmaak = ImmutableArray.Create(
         (BestandSchrijf, "System.IO.FileStream", false),
         (BestandSchrijf, "System.IO.StreamWriter", true),
-        (BestandSchrijf, "Microsoft.Data.Sqlite.SqliteConnection", false),
         (ProcesStart, "System.Diagnostics.Process", false),
         (ProcesStart, "System.Diagnostics.ProcessStartInfo", false));
+
+    /// <summary>
+    /// Databasetoegang (JL0002, R-HARDE-EIS-12): de enige namespace waar een databaseverbinding of -bron mag ontstaan of
+    /// gebruikt worden. <c>JlDatabase</c> controleert daar het pad (de padgrens) en zet koppelen uit; buiten deze namespace
+    /// mag code een verbinding die <c>JlDatabase.Met</c> geeft alleen doorgeven, niet zelf gebruiken.
+    /// </summary>
+    public static readonly ImmutableArray<string> DatabaseNamespaces = ImmutableArray.Create(PluginNamespace + ".Core.Storage");
+
+    /// <summary>
+    /// Typen die een databaseverbinding of een bron ervan zijn (ook elk type dat ervan afleidt of ze implementeert, zoals
+    /// <c>SqliteConnection</c> en <c>SqliteFactory</c>).
+    /// </summary>
+    public static readonly ImmutableArray<string> DatabaseVerbindingTypen = ImmutableArray.Create(
+        "System.Data.Common.DbConnection",
+        "System.Data.IDbConnection",
+        "System.Data.Common.DbDataSource",
+        "System.Data.Common.DbProviderFactory",
+        "System.Data.Common.DbProviderFactories");
+
+    /// <summary>
+    /// Assemblies die niets anders doen dan een database openen of bedienen: elk type eruit telt als databasetype
+    /// (Microsoft.Data.Sqlite, de SQLite-laag SQLitePCLRaw met <c>raw.sqlite3_open</c>, en Entity Framework Core met de
+    /// bouwers van een verbinding: <c>DbContextOptions</c>, <c>DbContextOptionsBuilder</c>, <c>RelationalOptionsExtension</c>,
+    /// <c>DbContext</c> en <c>Database.GetDbConnection</c>). Een naam telt als hij gelijk is of erop volgt met een punt.
+    /// </summary>
+    public static readonly ImmutableArray<string> DatabaseAssemblies = ImmutableArray.Create(
+        "Microsoft.Data.Sqlite",
+        "SQLitePCLRaw",
+        "Microsoft.EntityFrameworkCore");
+
+    /// <summary>
+    /// Typen van de serverdatabase die alleen precies zo (niet als afgeleid type) JL0003 zijn: de niet-generieke
+    /// <c>DbContextOptions</c> staat in de container van de server (<c>AddPooledDbContextFactory&lt;JellyfinDbContext&gt;</c>)
+    /// en draagt de verbindingstekst van jellyfin.db. Resolven of injecteren is JL0003.
+    /// </summary>
+    public static readonly ImmutableArray<string> ServerDatabaseTypenExact = ImmutableArray.Create("Microsoft.EntityFrameworkCore.DbContextOptions");
+
+    /// <summary>Waar als <paramref name="assembly"/> een van de <see cref="DatabaseAssemblies"/> is.</summary>
+    public static bool IsDatabaseAssembly(string? assembly) =>
+        assembly is not null && DatabaseAssemblies.Any(a => assembly == a || assembly.StartsWith(a + ".", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Waar als een typenaam uit de witte lijst bij de databasetoegang hoort (op naam: de witte lijst kent geen symbolen).
+    /// Daarvoor bestaat nooit een uitzondering.
+    /// </summary>
+    public static bool IsDatabaseTypenaam(string type) =>
+        DatabaseVerbindingTypen.Contains(type)
+        || type.StartsWith("Microsoft.Data.Sqlite.", StringComparison.Ordinal)
+        || type.StartsWith("SQLitePCL.", StringComparison.Ordinal)
+        || type.StartsWith("Microsoft.EntityFrameworkCore.", StringComparison.Ordinal);
 
     /// <summary>
     /// De database van de server zelf: nergens, in geen enkele vorm. Elk gebruik van de typenaam is JL0003 (parameter,
