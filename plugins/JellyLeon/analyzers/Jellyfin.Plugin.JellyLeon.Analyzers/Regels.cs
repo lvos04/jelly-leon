@@ -65,6 +65,12 @@ internal static class Regels
 
     private static readonly string[] _lezen = { "Get", "Find", "Query", "Is", "Has", "Can", "To" };
 
+    /// <summary>De wijzigende methoden van een item van de server (<c>BaseItem</c> en elke afgeleide).</summary>
+    private static readonly string[] _itemSchrijf = { "Update", "Delete", "Refresh", "Save", "Add", "Remove", "Set", "Swap", "Changed", "Mark", "Validate", "Reattach", "OnMetadata", "BeforeMetadata", "AfterMetadata" };
+
+    /// <summary>Leesleden van een map die bij inhoud van een kanaal de kanaalitems laten verversen of wissen.</summary>
+    private static readonly string[] _mapInhoud = { "GetItems", "GetItemList", "GetChildCount", "GetRecursiveChildCount" };
+
     /// <summary>Namespaces die zelf de schrijfgrens bewaken (<c>JlPaths.MagSchrijven</c>) en dus bestanden mogen schrijven.</summary>
     public static readonly ImmutableArray<string> OpslagNamespaces = ImmutableArray.Create(
         PluginNamespace + ".Core.Storage",
@@ -84,7 +90,21 @@ internal static class Regels
         },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Persistence.IItemRepository", true, false, "Get", "Retrieve", "ItemExists"),
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Persistence.IItemPersistenceService", true, false),
-        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.BaseItem", false, false, "Update", "Delete", "Refresh", "Save", "Add", "Remove", "Set", "Swap", "Changed", "Mark", "Validate", "Reattach", "OnMetadata", "BeforeMetadata", "AfterMetadata"),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.BaseItem", false, false, _itemSchrijf),
+        // Inhoud lezen via het item zelf: bij een map, seizoen of afspeellijst met inhoud van een kanaal laat de server
+        // dan via IChannelManager de kanaalitems aanmaken, verversen en de verdwenen items wissen (in v12.4 roepen
+        // Folder.GetItemsInternal, Season.GetItemsInternal, Series.GetSeasonEpisodes, UserViewBuilder en
+        // Playlist.GetPlaylistItems GetChannelItemsInternal aan). Op naam, dus ook in elke override; een afgeleid type
+        // erft de verboden leden van zijn basistype, zodat BewaakteLeden.txt het echte oordeel toont. Lees de bibliotheek
+        // via ILibraryManager.
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.Folder", false, false, _itemSchrijf) { OokVerboden = _mapInhoud },
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.TV.Season", false, false, _itemSchrijf) { OokVerboden = _mapInhoud.Concat(new[] { "GetEpisodes", "GetChildren" }).ToArray() },
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.TV.Series", false, false, _itemSchrijf) { OokVerboden = _mapInhoud.Concat(new[] { "GetSeasonEpisodes" }).ToArray() },
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.UserView", false, false, _itemSchrijf) { OokVerboden = _mapInhoud.Concat(new[] { "GetChildren", "GetRecursiveChildren" }).ToArray() },
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Playlists.Playlist", false, false, _itemSchrijf)
+        {
+            OokVerboden = _mapInhoud.Concat(new[] { "GetChildren", "GetRecursiveChildren", "GetPlaylistItems" }).ToArray()
+        },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Playlists.IPlaylistManager", true, false, _lezen) { OokVerboden = new[] { "GetPlaylistsFolder" } },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Collections.ICollectionManager", true, false, _lezen) { OokVerboden = new[] { "GetCollectionsFolder" } },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Library.IUserManager", true, false, _lezen),
@@ -116,8 +136,15 @@ internal static class Regels
         // songteksten naast de media schrijven, kanaal- en gids-items aanmaken of wissen, opnames wissen,
         // tv-instellingen opslaan, een aanmelding goedkeuren, een wachtwoord wijzigen of een serverevent publiceren.
         // GetPlaybackMediaSources ververst met allowMediaProbe de metadata van het item; de Get-leden van
-        // IChannelManager maken kanaalitems aan of wissen ze.
+        // IChannelManager maken kanaalitems aan of wissen ze, en ILiveTvManager.GetRecordingsAsync en
+        // GetRecordingFoldersAsync en IUserViewManager.GetLatestItems doen dat via IChannelManager.
+        // Een servertaak kan ook via het taakobject zelf starten (ITaskManager.ScheduledTasks of
+        // IApplicationHost.GetExports): IScheduledTask.ExecuteAsync, en IScheduledTaskWorker wijzigt de planning
+        // (Triggers zetten, ReloadTriggerEvents).
         new TypeRegel(ServerSchrijf, "MediaBrowser.Model.Tasks.ITaskManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Model.Tasks.IScheduledTask", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Model.Tasks.IScheduledTaskWorker", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Library.IUserViewManager", true, false, _lezen) { OokVerboden = new[] { "GetLatestItems" } },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Library.ILibraryMonitor", true, false, _lezen),
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Providers.IMetadataService", true, false, _lezen),
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Library.IMediaSourceManager", true, false, _lezen) { OokVerboden = new[] { "GetPlaybackMediaSources" } },
@@ -126,7 +153,10 @@ internal static class Regels
         {
             OokVerboden = new[] { "GetChannelsInternalAsync", "GetChannelsAsync", "GetLatestChannelItems", "GetLatestChannelItemsInternal", "GetChannelItems", "GetChannelItemsInternal" }
         },
-        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.ILiveTvManager", true, false, _lezen),
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.ILiveTvManager", true, false, _lezen)
+        {
+            OokVerboden = new[] { "GetRecordingsAsync", "GetRecordingFoldersAsync" }
+        },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.IGuideManager", true, false, _lezen),
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.IRecordingsManager", true, false, _lezen),
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.LiveTv.IListingsManager", true, false, _lezen),

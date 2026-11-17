@@ -116,6 +116,143 @@ public class VerbodenApiAnalyzerTests
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
     }
 
+    /// <summary>
+    /// R-HARDE-EIS-6 (S-G1-17, herstelronde 2): JL0003 leest ook de constante waarde van een omzetting (<c>(char)46</c>,
+    /// <c>(char)0x2E</c>), een UTF-8-tekst (<c>"…"u8</c>) en een uitlijning in <c>$"…"</c>: een uitlijning die niet
+    /// langer is dan het stuk vult niets aan, een langere vult met spaties aan de goede kant. Vóór het herstel gaven de
+    /// eerste vijf gemarkeerde regels geen bevinding.
+    /// </summary>
+    [Fact]
+    public async Task ConstanteTekensUtf8EnUitlijning_IsJL0003()
+    {
+        var bron = AnalyzerHarnas.Klasse(Modules + ".Proef", "Schrijver", """
+            public void M(string data, System.Text.StringBuilder sb)
+            {
+                const int Breed = 0;
+                _ = "jellyfin" + (char)46 + "db"; // JL0003
+                _ = "jellyfin" + (char)0x2E + "db"; // JL0003
+                _ = System.Text.Encoding.UTF8.GetString("jellyfin.db"u8); // JL0003
+                _ = $"jellyfin{".db",0}"; // JL0003
+                _ = $"jellyfin{".db",3}"; // JL0003
+                _ = $"jellyfin{".db",-6}"; // JL0003
+                _ = $"{"jellyfin",9}.db"; // JL0003
+                _ = $"{"jellyfin",-8}.db"; // JL0003
+                _ = $"jellyfin{".db",Breed}"; // JL0003
+                _ = $"jellyfin{(char)46}db"; // JL0003
+                _ = $"jellyfin{'.',1}db"; // JL0003
+                _ = sb.Append($"{data}/jellyfin{".db",3}"); // JL0003
+                _ = (string)("jelly" + "fin.db") + data; // JL0003
+                _ = $"jellyfin{".db",6}";
+                _ = $"{"jellyfin",-9}.db";
+                _ = sb.Append($"{data}/jellyfin{".db",6}");
+                _ = "jellyfin" + (int)'.' + "db";
+                _ = System.Text.Encoding.UTF8.GetString("jelly-leon.db"u8);
+            }
+            """);
+        var verwacht = bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0003", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(13, verwacht.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.ServerDatabase, b.Id));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-1 (S-G1-17, herstelronde 2): een servertaak starten of de planning ervan wijzigen kan ook via het
+    /// taakobject zelf (<c>ITaskManager.ScheduledTasks</c> of <c>IApplicationHost.GetExports</c>). Dat is net zo goed
+    /// JL0001; lezen (naam, staat, standaardplanning) blijft toegestaan. Vóór het herstel gaf deze bron geen bevinding.
+    /// </summary>
+    [Fact]
+    public async Task ServertaakViaHetTaakobject_IsJL0001()
+    {
+        var bron = AnalyzerHarnas.Klasse(Modules + ".Proef", "Schrijver", """
+            public async System.Threading.Tasks.Task M(
+                MediaBrowser.Model.Tasks.ITaskManager taken,
+                MediaBrowser.Model.Tasks.IScheduledTask taak,
+                MediaBrowser.Model.Tasks.IScheduledTaskWorker werker,
+                MediaBrowser.Common.IApplicationHost host)
+            {
+                await taken.ScheduledTasks[0].ScheduledTask.ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001
+                taken.ScheduledTasks[0].Triggers = Array.Empty<MediaBrowser.Model.Tasks.TaskTriggerInfo>(); // JL0001
+                taken.ScheduledTasks[0].ReloadTriggerEvents(); // JL0001
+                await taak.ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001
+                Func<IProgress<double>, CancellationToken, System.Threading.Tasks.Task> later = taak.ExecuteAsync; // JL0001
+                werker.Triggers = werker.Triggers; // JL0001
+                foreach (var t in host.GetExports<MediaBrowser.Model.Tasks.IScheduledTask>(false)) { await t.ExecuteAsync(new Progress<double>(), CancellationToken.None); } // JL0001
+                _ = later;
+                _ = taak.GetDefaultTriggers();
+                _ = taak.Name + taak.Key + taak.Category;
+                _ = werker.Name + werker.State + werker.Id;
+                _ = werker.Triggers.Count;
+                _ = taken.ScheduledTasks.Count;
+            }
+            """);
+        var verwacht = bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0001", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(7, verwacht.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
+        Assert.Contains(gevonden, b => b.Tekst.Contains("IScheduledTask.ExecuteAsync'", StringComparison.Ordinal));
+        Assert.Contains(gevonden, b => b.Tekst.Contains("IScheduledTaskWorker.Triggers'", StringComparison.Ordinal));
+        Assert.Contains(gevonden, b => b.Tekst.Contains("IScheduledTaskWorker.ReloadTriggerEvents'", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-7 (S-G1-17, herstelronde 2): leden die via IChannelManager kanaalitems aanmaken, verversen of wissen
+    /// (en daarbij de UserData van verdwenen kanaalitems verplaatsen) zijn JL0001, net als die leden van IChannelManager
+    /// zelf. De bibliotheek lezen kan via ILibraryManager.GetItemList. Vóór het herstel gaf deze bron geen bevinding.
+    /// </summary>
+    [Fact]
+    public async Task KanaalitemsVerversenOfWissenViaEenLeeslid_IsJL0001()
+    {
+        var bron = AnalyzerHarnas.Klasse(Modules + ".Proef", "Lezer", """
+            public async System.Threading.Tasks.Task M(
+                MediaBrowser.Controller.LiveTv.ILiveTvManager live,
+                IUserViewManager weergaven,
+                ILibraryManager lib,
+                Folder map,
+                UserView weergave,
+                MediaBrowser.Controller.Playlists.Playlist lijst,
+                MediaBrowser.Controller.Entities.TV.Season seizoen,
+                MediaBrowser.Controller.Entities.TV.Series serie,
+                User gebruiker)
+            {
+                var opties = new MediaBrowser.Controller.Dto.DtoOptions();
+                _ = await live.GetRecordingsAsync(new MediaBrowser.Model.LiveTv.RecordingQuery(), opties); // JL0001
+                _ = await live.GetRecordingFoldersAsync(gebruiker); // JL0001
+                _ = weergaven.GetLatestItems(new MediaBrowser.Model.Querying.LatestItemsQuery(), opties); // JL0001
+                _ = map.GetItems(new InternalItemsQuery(gebruiker)); // JL0001
+                _ = map.GetItemList(new InternalItemsQuery(gebruiker)); // JL0001
+                _ = map.GetChildCount(gebruiker); // JL0001
+                _ = map.GetRecursiveChildCount(gebruiker); // JL0001
+                _ = seizoen.GetEpisodes(); // JL0001
+                _ = seizoen.GetChildren(gebruiker, true, null); // JL0001
+                _ = weergave.GetChildCount(gebruiker); // JL0001
+                _ = serie.GetSeasonEpisodes(seizoen, gebruiker, opties, false); // JL0001
+                _ = MediaBrowser.Controller.Playlists.Playlist.GetPlaylistItems(Array.Empty<BaseItem>(), gebruiker, opties); // JL0001
+                _ = weergave.GetChildren(gebruiker, true, null); // JL0001
+                _ = lijst.GetRecursiveChildren(gebruiker, null, out _); // JL0001
+                _ = live.IsEnabledForUser(gebruiker);
+                _ = weergaven.GetUserViews(new MediaBrowser.Model.Library.UserViewQuery { User = gebruiker });
+                _ = lib.GetItemList(new InternalItemsQuery(gebruiker) { Parent = map });
+                _ = map.GetChildren(gebruiker, true);
+                _ = serie.GetEpisodes(gebruiker, opties, false);
+                _ = seizoen.Name;
+            }
+            """);
+        var verwacht = bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0001", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(14, verwacht.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
+        Assert.Contains(gevonden, b => b.Tekst.Contains("ILiveTvManager.GetRecordingsAsync'", StringComparison.Ordinal));
+    }
+
     /// <summary>Een leesvoorvoegsel geldt alleen als heel woord: <c>CancelTimer</c> begint met "Can" maar leest niet.</summary>
     [Fact]
     public void Leesvoorvoegsel_GeldtAlleenOpEenWoordgrens()

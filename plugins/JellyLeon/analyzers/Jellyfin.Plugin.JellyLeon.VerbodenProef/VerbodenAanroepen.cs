@@ -175,6 +175,13 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             BaseItem item,
             User gebruiker,
             MediaBrowser.Controller.Entities.Audio.Audio nummer,
+            MediaBrowser.Model.Tasks.IScheduledTask taak,
+            IUserViewManager weergaven,
+            Folder map,
+            MediaBrowser.Controller.Entities.TV.Season seizoen,
+            MediaBrowser.Controller.Entities.TV.Series serie,
+            UserView weergave,
+            Playlist lijst,
             CancellationToken stop)
         {
             taken.QueueScheduledTask(null, null); // VERWACHT: JL0001
@@ -197,6 +204,30 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             await aanmelden.ChangePassword(gebruiker, "x"); // VERWACHT: JL0001
             _ = await herstel.RedeemPasswordResetPin("x"); // VERWACHT: JL0001
             events.Publish(EventArgs.Empty); // VERWACHT: JL0001
+            // Een servertaak via het taakobject zelf starten of de planning ervan wijzigen (S-G1-17, herstelronde 2).
+            await taak.ExecuteAsync(null, stop); // VERWACHT: JL0001
+            taken.ScheduledTasks[0].Triggers = null; // VERWACHT: JL0001
+            taken.ScheduledTasks[0].ReloadTriggerEvents(); // VERWACHT: JL0001
+            _ = taak.GetDefaultTriggers();
+            _ = taken.ScheduledTasks[0].Triggers;
+            // Leesleden die via IChannelManager kanaalitems aanmaken, verversen of wissen.
+            var opties = new MediaBrowser.Controller.Dto.DtoOptions();
+            _ = await livetv.GetRecordingsAsync(null, opties); // VERWACHT: JL0001
+            _ = await livetv.GetRecordingFoldersAsync(gebruiker); // VERWACHT: JL0001
+            _ = weergaven.GetLatestItems(null, opties); // VERWACHT: JL0001
+            _ = map.GetItems(null); // VERWACHT: JL0001
+            _ = map.GetItemList(null); // VERWACHT: JL0001
+            _ = map.GetChildCount(gebruiker); // VERWACHT: JL0001
+            _ = map.GetRecursiveChildCount(gebruiker); // VERWACHT: JL0001
+            _ = seizoen.GetEpisodes(); // VERWACHT: JL0001
+            _ = seizoen.GetChildren(gebruiker, true, null); // VERWACHT: JL0001
+            _ = serie.GetSeasonEpisodes(seizoen, gebruiker, opties, false); // VERWACHT: JL0001
+            _ = weergave.GetRecursiveChildren(gebruiker, null, out _); // VERWACHT: JL0001
+            _ = lijst.GetChildren(gebruiker, true, null); // VERWACHT: JL0001
+            _ = Playlist.GetPlaylistItems(null, gebruiker, opties); // VERWACHT: JL0001
+            _ = livetv.IsEnabledForUser(gebruiker);
+            _ = map.GetChildren(gebruiker, true);
+            _ = serie.GetEpisodes(gebruiker, opties, false);
         }
 
         public void Bestanden(string pad, IFileSystem bestandssysteem)
@@ -243,6 +274,14 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = $"{data}/{Naam}.db"; // VERWACHT: JL0003
             _ = data + "/jelly" + 'f' + "in.db"; // VERWACHT: JL0003
             _ = "Data Source=" + data + "/jellyfin.db"; // VERWACHT: JL0003
+            // Een getal dat een teken wordt, UTF-8-tekst en een uitlijning die niets aanvult (S-G1-17, herstelronde 2).
+            _ = "jellyfin" + (char)46 + "db"; // VERWACHT: JL0003
+            _ = "jellyfin" + (char)0x2E + "db"; // VERWACHT: JL0003
+            _ = System.Text.Encoding.UTF8.GetString("library.db"u8); // VERWACHT: JL0003
+            _ = $"jellyfin{".db",0}"; // VERWACHT: JL0003
+            _ = $"jellyfin{".db",3}"; // VERWACHT: JL0003
+            _ = $"jellyfin{".db",6}";
+            _ = "jellyfin" + (int)'.' + "db";
             _ = "jellyfin" + data + ".db";
             _ = $"{data}/jelly-leon/{Naam}-export.json";
         }

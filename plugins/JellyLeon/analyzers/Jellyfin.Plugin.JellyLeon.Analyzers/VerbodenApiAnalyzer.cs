@@ -87,7 +87,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         context.RegisterOperationAction(c => toestand.Methode(c, ((IMethodReferenceOperation)c.Operation).Method), OperationKind.MethodReference);
         context.RegisterOperationAction(toestand.Eigenschap, OperationKind.PropertyReference);
         context.RegisterOperationAction(toestand.Aanmaak, OperationKind.ObjectCreation);
-        context.RegisterOperationAction(toestand.Constante, OperationKind.Literal, OperationKind.FieldReference, OperationKind.LocalReference);
+        context.RegisterOperationAction(toestand.Constante, OperationKind.Literal, OperationKind.FieldReference, OperationKind.LocalReference, OperationKind.Utf8String);
         context.RegisterOperationAction(toestand.Samenstelling, OperationKind.Binary, OperationKind.InterpolatedString);
         context.RegisterSyntaxNodeAction(toestand.Naam, SyntaxKind.IdentifierName);
         context.RegisterCompilationEndAction(c =>
@@ -225,8 +225,8 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         }
 
         /// <summary>
-        /// JL0003 op één waarde: een letterlijke tekst of een constante (ook een constante uit een andere assembly) waarin
-        /// de naam van de serverdatabase staat.
+        /// JL0003 op één waarde: een letterlijke tekst, een UTF-8-tekst (<c>"…"u8</c>) of een constante (ook een constante
+        /// uit een andere assembly) waarin de naam van de serverdatabase staat.
         /// </summary>
         public void Constante(OperationAnalysisContext context)
         {
@@ -275,9 +275,17 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         private static string? ServerDatabaseNaam(string tekst) =>
             Regels.ServerDatabaseNamen.FirstOrDefault(naam => tekst.IndexOf(naam, StringComparison.OrdinalIgnoreCase) >= 0);
 
-        /// <summary>De bekende tekst van een constante (tekst, teken of <c>null</c> als lege tekst); anders null.</summary>
+        /// <summary>
+        /// De bekende tekst van een constante (tekst, teken of <c>null</c> als lege tekst) of van een UTF-8-tekst; anders
+        /// null.
+        /// </summary>
         private static string? Waarde(IOperation operatie)
         {
+            if (operatie is IUtf8StringOperation utf8)
+            {
+                return utf8.Value;
+            }
+
             if (!operatie.ConstantValue.HasValue)
             {
                 return null;
@@ -315,8 +323,24 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             switch (operatie)
             {
                 case IConversionOperation omzetting:
-                    Plat(omzetting.Operand, stukken);
-                    return;
+                    {
+                        // Heeft de omzetting zelf een constante waarde, dan telt die: een getal dat een teken wordt
+                        // ((char)46, (char)0x2E) is dat teken, een teken dat een getal wordt ((int)'.') is geen tekst meer.
+                        // Zonder constante waarde (bijvoorbeeld (object)".db") telt wat omgezet wordt.
+                        var binnen = new List<string?>();
+                        Plat(omzetting.Operand, binnen);
+                        if (!omzetting.ConstantValue.HasValue || (Waarde(omzetting) is { } tekst && !binnen.Contains(null) && string.Concat(binnen) == tekst))
+                        {
+                            stukken.AddRange(binnen);
+                        }
+                        else
+                        {
+                            stukken.Add(Waarde(omzetting));
+                        }
+
+                        return;
+                    }
+
                 case IBinaryOperation plus when IsTekstPlus(plus):
                     Plat(plus.LeftOperand, stukken);
                     Plat(plus.RightOperand, stukken);
@@ -333,21 +357,10 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                                 Plat(tekst.Text, stukken);
                                 break;
                             case IInterpolationOperation gat:
-                                // Een uitlijning vult met spaties aan: dan sluit het stuk niet direct aan op zijn buren.
-                                if (gat.Alignment is not null)
-                                {
-                                    stukken.Add(null);
-                                }
-
-                                Plat(gat.Expression, stukken);
-                                if (gat.Alignment is not null)
-                                {
-                                    stukken.Add(null);
-                                }
-
+                                Uitgelijnd(gat.Expression, gat.Alignment, stukken);
                                 break;
                             case IInterpolatedStringAppendOperation toevoeging when toevoeging.AppendCall is IInvocationOperation { Arguments.Length: > 0 } aanroep:
-                                Plat(aanroep.Arguments[0].Value, stukken);
+                                Uitgelijnd(aanroep.Arguments[0].Value, aanroep.Arguments.Skip(1).FirstOrDefault(a => a.Parameter?.Name == "alignment")?.Value, stukken);
                                 break;
                             default:
                                 stukken.Add(null);
@@ -360,6 +373,34 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                     stukken.Add(Waarde(operatie));
                     return;
             }
+        }
+
+        /// <summary>
+        /// Een stuk met een uitlijning (<c>{x,n}</c>). Bij een bekende tekst en een constante n is de uitkomst ook bekend:
+        /// de tekst, aangevuld met spaties tot |n| tekens (n positief: ervoor, n negatief: erna; een kortere n vult niets
+        /// aan). Is de tekst niet helemaal bekend, dan sluit het stuk niet aan op zijn buren.
+        /// </summary>
+        private static void Uitgelijnd(IOperation waarde, IOperation? uitlijning, List<string?> stukken)
+        {
+            if (uitlijning is null)
+            {
+                Plat(waarde, stukken);
+                return;
+            }
+
+            var binnen = new List<string?>();
+            Plat(waarde, binnen);
+            if (binnen.Contains(null) || uitlijning.ConstantValue is not { HasValue: true, Value: int breedte })
+            {
+                stukken.Add(null);
+                stukken.AddRange(binnen);
+                stukken.Add(null);
+                return;
+            }
+
+            var tekst = string.Concat(binnen);
+            var vulling = new string(' ', Math.Max(0, Math.Abs(breedte) - tekst.Length));
+            stukken.Add(breedte >= 0 ? vulling + tekst : tekst + vulling);
         }
 
         /// <summary>De reeksen van bekende stukken die direct op elkaar volgen, aaneengeschreven.</summary>
