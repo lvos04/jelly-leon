@@ -33,7 +33,25 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor _bestandSchrijf = new(
         Regels.BestandSchrijf,
         "Bestanden schrijven mag alleen via de opslaglaag",
-        "'{0}' schrijft of verwijdert een bestand buiten Core.Storage en Core.Secrets; gebruik InternalWriteScope of JlDatabase",
+        "'{0}' schrijft, verwijdert of opent een bestand buiten Core.Storage en Core.Secrets (buiten de opslaglaag mag alleen lezen en padbewerking); gebruik InternalWriteScope of JlDatabase",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    private static readonly DiagnosticDescriptor _serverBestand = new(
+        Regels.BestandSchrijf,
+        "Server-API die zelf bestanden schrijft of processen start is verboden",
+        "'{0}' laat de server een bestand schrijven, wissen of verplaatsen of een proces starten, langs de padgrens van Core.Storage heen; dat mag nergens in plugincode",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    private static readonly DiagnosticDescriptor _omweg = new(
+        Regels.BestandSchrijf,
+        "Omwegen langs de bouwgrens zijn verboden",
+        "'{0}' omzeilt de bouwgrens (native code, unsafe, reflectie, dynamic of code laden); dat mag nergens in plugincode",
         Categorie,
         DiagnosticSeverity.Error,
         true,
@@ -77,7 +95,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(_serverSchrijf, _bestandSchrijf, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
+        ImmutableArray.Create(_serverSchrijf, _bestandSchrijf, _serverBestand, _omweg, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -115,6 +133,44 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             OperationKind.DeclarationPattern,
             OperationKind.TypePattern,
             OperationKind.RecursivePattern);
+        context.RegisterOperationAction(
+            toestand.Bestandstoegang,
+            OperationKind.Invocation,
+            OperationKind.MethodReference,
+            OperationKind.PropertyReference,
+            OperationKind.FieldReference,
+            OperationKind.EventReference,
+            OperationKind.ObjectCreation);
+        context.RegisterOperationAction(toestand.XmlSchrijven, OperationKind.Invocation, OperationKind.MethodReference, OperationKind.ObjectCreation);
+        context.RegisterOperationAction(toestand.NativeAanroep, OperationKind.Invocation, OperationKind.MethodReference);
+        context.RegisterOperationAction(
+            toestand.Dynamisch,
+            OperationKind.DynamicInvocation,
+            OperationKind.DynamicMemberReference,
+            OperationKind.DynamicIndexerAccess,
+            OperationKind.DynamicObjectCreation);
+        context.RegisterSymbolAction(toestand.NativeDeclaratie, SymbolKind.Method);
+        context.RegisterSyntaxNodeAction(
+            toestand.Onveilig,
+            SyntaxKind.UnsafeStatement,
+            SyntaxKind.ClassDeclaration,
+            SyntaxKind.StructDeclaration,
+            SyntaxKind.RecordDeclaration,
+            SyntaxKind.RecordStructDeclaration,
+            SyntaxKind.InterfaceDeclaration,
+            SyntaxKind.MethodDeclaration,
+            SyntaxKind.ConstructorDeclaration,
+            SyntaxKind.DestructorDeclaration,
+            SyntaxKind.OperatorDeclaration,
+            SyntaxKind.ConversionOperatorDeclaration,
+            SyntaxKind.PropertyDeclaration,
+            SyntaxKind.IndexerDeclaration,
+            SyntaxKind.EventDeclaration,
+            SyntaxKind.FieldDeclaration,
+            SyntaxKind.EventFieldDeclaration,
+            SyntaxKind.DelegateDeclaration,
+            SyntaxKind.LocalFunctionStatement,
+            SyntaxKind.UsingDirective);
         context.RegisterCompilationEndAction(c =>
         {
             foreach (var (regel, reden) in uitzonderingen.Fouten)
@@ -132,10 +188,18 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         _ => _serverDatabase,
     };
 
+    private static DiagnosticDescriptor Descriptor(TypeRegel regel) =>
+        regel.Omweg ? _omweg : regel.Nergens && regel.RegelId == Regels.BestandSchrijf ? _serverBestand : Descriptor(regel.RegelId);
+
     private sealed class Toestand
     {
         private readonly List<(INamedTypeSymbol Type, TypeRegel Regel)> _typen = new();
-        private readonly List<(INamedTypeSymbol Type, string RegelId, bool AlleenMetPad)> _aanmaak = new();
+        private readonly List<(INamedTypeSymbol Type, string RegelId, bool AlleenMetPad, bool Nergens)> _aanmaak = new();
+        private readonly List<(INamedTypeSymbol Type, BestandWit Wit)> _wit = new();
+        private readonly INamedTypeSymbol? _uitzondering;
+        private readonly INamedTypeSymbol? _stroom;
+        private readonly INamedTypeSymbol? _xmlSchrijver;
+        private readonly INamedTypeSymbol? _libraryImport;
         private readonly List<INamedTypeSymbol> _databaseTypen = new();
         private readonly List<INamedTypeSymbol> _databaseTypenExact = new();
         private readonly List<INamedTypeSymbol> _verbindingTypen = new();
@@ -154,13 +218,26 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 }
             }
 
-            foreach (var (regelId, naam, alleenMetPad) in Regels.Aanmaak)
+            foreach (var (regelId, naam, alleenMetPad, nergens) in Regels.Aanmaak)
             {
                 if (compilatie.GetTypeByMetadataName(naam) is { } type)
                 {
-                    _aanmaak.Add((type, regelId, alleenMetPad));
+                    _aanmaak.Add((type, regelId, alleenMetPad, nergens));
                 }
             }
+
+            foreach (var wit in Regels.BestandWitteLijst)
+            {
+                if (compilatie.GetTypeByMetadataName(wit.Type) is { } type)
+                {
+                    _wit.Add((type, wit));
+                }
+            }
+
+            _uitzondering = compilatie.GetTypeByMetadataName("System.Exception");
+            _stroom = compilatie.GetTypeByMetadataName("System.IO.Stream");
+            _xmlSchrijver = compilatie.GetTypeByMetadataName("System.Xml.XmlWriter");
+            _libraryImport = compilatie.GetTypeByMetadataName("System.Runtime.InteropServices.LibraryImportAttribute");
 
             foreach (var naam in Regels.ServerDatabaseTypen)
             {
@@ -198,9 +275,10 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 }
 
                 var api = regel.Type + "." + lid;
-                if (!Toegestaan(context.ContainingSymbol, regel.RegelId, api))
+                if (!Toegestaan(context.ContainingSymbol, regel, api)
+                    && !(regel.RegelId == Regels.BestandSchrijf && MeldtDatabasetoegang(context, out _)))
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(Descriptor(regel.RegelId), context.Operation.Syntax.GetLocation(), api));
+                    context.ReportDiagnostic(Diagnostic.Create(Descriptor(regel), context.Operation.Syntax.GetLocation(), api));
                 }
 
                 return;
@@ -230,9 +308,9 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 }
 
                 var api = regel.Type + "." + lid;
-                if (!Toegestaan(context.ContainingSymbol, regel.RegelId, api))
+                if (!Toegestaan(context.ContainingSymbol, regel, api))
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(Descriptor(regel.RegelId), verwijzing.Syntax.GetLocation(), api));
+                    context.ReportDiagnostic(Diagnostic.Create(Descriptor(regel), verwijzing.Syntax.GetLocation(), api));
                 }
 
                 return;
@@ -247,7 +325,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            foreach (var (type, regelId, alleenMetPad) in _aanmaak)
+            foreach (var (type, regelId, alleenMetPad, nergens) in _aanmaak)
             {
                 if (!HoortBij(gemaakt, type))
                 {
@@ -260,13 +338,278 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                     return;
                 }
 
-                if (!Toegestaan(context.ContainingSymbol, regelId, null))
+                if (nergens || !Toegestaan(context.ContainingSymbol, regelId, null))
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(Descriptor(regelId), aanmaak.Syntax.GetLocation(), "new " + type.ToDisplayString()));
+                    var descriptor = nergens && regelId == Regels.BestandSchrijf ? _serverBestand : Descriptor(regelId);
+                    context.ReportDiagnostic(Diagnostic.Create(descriptor, aanmaak.Syntax.GetLocation(), "new " + type.ToDisplayString()));
                 }
 
                 return;
             }
+        }
+
+        /// <summary>
+        /// JL0002 bestanden (R-HARDE-EIS-13): buiten de opslagnamespaces is elk lid van een type uit de bestandsnamespaces
+        /// (System.IO met de subnamespaces, System.Formats.Tar, Microsoft.VisualBasic.FileIO) en elk aanmaken ervan verboden,
+        /// behalve wat op de witte lijst staat (<see cref="Regels.BestandWitteLijst"/>). Ook een eigen type dat van zo'n type
+        /// afleidt telt bij aanmaken als dat type, en een aanroep van de basisconstructor (<c>: base(pad)</c>) ook. File,
+        /// Directory en FileSystemInfo houden hun eigen leesvoorvoegsels (<see cref="Methode"/>, <see cref="Eigenschap"/>).
+        /// Een type uit System.Reflection.Emit (code maken) is nergens toegestaan.
+        /// </summary>
+        public void Bestandstoegang(OperationAnalysisContext context)
+        {
+            ISymbol? lid;
+            INamedTypeSymbol? type;
+            IMethodSymbol? constructor = null;
+            var geschreven = false;
+            switch (context.Operation)
+            {
+                case IInvocationOperation { TargetMethod.MethodKind: MethodKind.Constructor } basis:
+                    constructor = basis.TargetMethod;
+                    lid = constructor;
+                    type = constructor.ContainingType;
+                    break;
+                case IInvocationOperation aanroep:
+                    lid = aanroep.TargetMethod.ReducedFrom ?? aanroep.TargetMethod;
+                    type = lid.ContainingType;
+                    break;
+                case IMethodReferenceOperation verwijzing:
+                    lid = verwijzing.Method.ReducedFrom ?? verwijzing.Method;
+                    type = lid.ContainingType;
+                    break;
+                case IPropertyReferenceOperation eigenschap:
+                    lid = eigenschap.Property;
+                    type = lid.ContainingType;
+                    geschreven = eigenschap.Parent switch
+                    {
+                        IAssignmentOperation toewijzing => ReferenceEquals(toewijzing.Target, eigenschap),
+                        IIncrementOrDecrementOperation => true,
+                        _ => false,
+                    };
+                    break;
+                case IFieldReferenceOperation veld:
+                    lid = veld.Field;
+                    type = lid.ContainingType;
+                    break;
+                case IEventReferenceOperation gebeurtenis:
+                    lid = gebeurtenis.Event;
+                    type = lid.ContainingType;
+                    break;
+                case IObjectCreationOperation aanmaak:
+                    constructor = aanmaak.Constructor;
+                    lid = constructor;
+                    type = aanmaak.Type as INamedTypeSymbol;
+                    break;
+                default:
+                    return;
+            }
+
+            if (lid is null || type is null)
+            {
+                return;
+            }
+
+            // Bij aanmaken telt het eerste type in de keten dat in een bestandsnamespace ligt (een eigen of upstream-type
+            // dat van StreamWriter afleidt, zoals Jellyfin.Extensions.FormattingStreamWriter, telt als StreamWriter).
+            var bestand = constructor is null ? (IsType(type, Regels.BestandNamespaces, Regels.BestandTypen) ? type : null) : EersteBestandstype(type);
+            if (bestand is null)
+            {
+                if ((constructor is null ? type : EersteType(type, Regels.OmwegNamespaces)) is { TypeKind: not TypeKind.Enum } omweg && IsType(omweg, Regels.OmwegNamespaces, ImmutableArray<string>.Empty))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(_omweg, context.Operation.Syntax.GetLocation(), Naam(omweg, lid, constructor)));
+                }
+
+                return;
+            }
+
+            if (InNamespace(context.ContainingSymbol, Regels.OpslagNamespaces))
+            {
+                return;
+            }
+
+            // File, Directory, FileInfo/DirectoryInfo: methoden en het zetten van een eigenschap bepaalt hun eigen regel.
+            var eigenRegel = _typen.Any(t => t.Regel.RegelId == Regels.BestandSchrijf && HoortBij(bestand, t.Type));
+            if (eigenRegel && constructor is null && (lid is IMethodSymbol || geschreven))
+            {
+                return;
+            }
+
+            if (!BestandToegestaan(bestand, lid, constructor, geschreven))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_bestandSchrijf, context.Operation.Syntax.GetLocation(), Naam(bestand, lid, constructor)));
+            }
+        }
+
+        private bool BestandToegestaan(INamedTypeSymbol type, ISymbol lid, IMethodSymbol? constructor, bool geschreven)
+        {
+            if (type.TypeKind == TypeKind.Enum || (_uitzondering is not null && HoortBij(type, _uitzondering)))
+            {
+                return true;
+            }
+
+            foreach (var (witType, wit) in _wit)
+            {
+                if (constructor is not null)
+                {
+                    if (!SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, witType))
+                    {
+                        continue;
+                    }
+
+                    if (wit.Aanmaak == BestandWit.Aanmaken.Ja
+                        || (wit.Aanmaak == BestandWit.Aanmaken.ZonderTekst && !constructor.Parameters.Any(p => p.Type.SpecialType == SpecialType.System_String)))
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                var past = SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, witType) || (wit.MetAfgeleiden && HoortBij(type, witType));
+                if (past && (wit.StaatToe(lid.Name) || (wit.EigenschappenLezen && lid is IPropertySymbol && !geschreven)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Het type zelf of het eerste basistype dat in de bestandsnamespaces ligt.</summary>
+        private static INamedTypeSymbol? EersteBestandstype(INamedTypeSymbol type)
+        {
+            for (var t = type; t is not null; t = t.BaseType)
+            {
+                if (IsType(t, Regels.BestandNamespaces, Regels.BestandTypen))
+                {
+                    return t;
+                }
+            }
+
+            return null;
+        }
+
+        private static INamedTypeSymbol? EersteType(INamedTypeSymbol type, ImmutableArray<string> namespaces)
+        {
+            for (var t = type; t is not null; t = t.BaseType)
+            {
+                if (IsType(t, namespaces, ImmutableArray<string>.Empty))
+                {
+                    return t;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool IsType(INamedTypeSymbol type, ImmutableArray<string> namespaces, ImmutableArray<string> typen) =>
+            Regels.InNamespace(type.ContainingNamespace?.ToDisplayString() ?? string.Empty, namespaces)
+            || typen.Contains(type.OriginalDefinition.ToDisplayString());
+
+        private static string Naam(INamedTypeSymbol type, ISymbol lid, IMethodSymbol? constructor) =>
+            constructor is not null ? "new " + type.OriginalDefinition.ToDisplayString() : type.OriginalDefinition.ToDisplayString() + "." + lid.Name;
+
+        /// <summary>
+        /// JL0002 het schrijvende deel van System.Xml en System.Xml.Linq (R-HARDE-EIS-13): <c>Save</c>, <c>WriteTo</c>,
+        /// <c>WriteContentTo</c>, <c>Transform</c> en <c>Serialize</c> met een pad of een stroom als parameter, en een
+        /// XmlWriter maken met een pad of stroom (<c>XmlWriter.Create(pad)</c>, <c>new XmlTextWriter(pad, …)</c>). Met een
+        /// TextWriter of XmlWriter mag het: die naar een bestand krijgen is zelf al JL0002.
+        /// </summary>
+        public void XmlSchrijven(OperationAnalysisContext context)
+        {
+            var methode = context.Operation switch
+            {
+                IInvocationOperation aanroep => aanroep.TargetMethod.ReducedFrom ?? aanroep.TargetMethod,
+                IMethodReferenceOperation verwijzing => verwijzing.Method.ReducedFrom ?? verwijzing.Method,
+                IObjectCreationOperation aanmaak => aanmaak.Constructor,
+                _ => null,
+            };
+            if (methode?.ContainingType is not { } type || !Regels.InNamespace(type.ContainingNamespace?.ToDisplayString() ?? string.Empty, Regels.XmlNamespaces))
+            {
+                return;
+            }
+
+            var schrijver = _xmlSchrijver is not null && HoortBij(type, _xmlSchrijver);
+            var schrijft = methode.MethodKind == MethodKind.Constructor
+                ? schrijver
+                : Regels.XmlSchrijfLeden.Any(v => TypeRegel.IsVoorvoegsel(v, methode.Name)) || (schrijver && TypeRegel.IsVoorvoegsel("Create", methode.Name));
+            if (!schrijft || !methode.Parameters.Any(p => p.Type.SpecialType == SpecialType.System_String || (_stroom is not null && p.Type is INamedTypeSymbol t && HoortBij(t, _stroom)))
+                || InNamespace(context.ContainingSymbol, Regels.OpslagNamespaces))
+            {
+                return;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(_bestandSchrijf, context.Operation.Syntax.GetLocation(), methode.MethodKind == MethodKind.Constructor ? "new " + type.ToDisplayString() : type.ToDisplayString() + "." + methode.Name));
+        }
+
+        /// <summary>
+        /// JL0002 omweg: een eigen P/Invoke-methode (<c>[DllImport]</c>, <c>[LibraryImport]</c>, <c>extern</c>) aanroepen of
+        /// ernaar verwijzen. Nergens toegestaan. (Een functiewijzer kan alleen in een <c>unsafe</c>-context bestaan; die meldt
+        /// <see cref="Onveilig"/> al.)
+        /// </summary>
+        public void NativeAanroep(OperationAnalysisContext context)
+        {
+            var methode = context.Operation switch
+            {
+                IInvocationOperation aanroep => aanroep.TargetMethod,
+                IMethodReferenceOperation verwijzing => verwijzing.Method,
+                _ => null,
+            };
+            if (methode is not null && SymbolEqualityComparer.Default.Equals(methode.ContainingAssembly, _eigen) && IsNatief(methode))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_omweg, context.Operation.Syntax.GetLocation(), methode.ContainingType.ToDisplayString() + "." + methode.Name));
+            }
+        }
+
+        /// <summary>JL0002 omweg: een P/Invoke-declaratie (<c>[DllImport]</c>, <c>[LibraryImport]</c>, <c>extern</c>) in plugincode.</summary>
+        public void NativeDeclaratie(SymbolAnalysisContext context)
+        {
+            var methode = (IMethodSymbol)context.Symbol;
+            if (IsNatief(methode) && methode.Locations.FirstOrDefault(l => l.IsInSource) is { } plek)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_omweg, plek, "[DllImport]/extern " + methode.ContainingType.ToDisplayString() + "." + methode.Name));
+            }
+        }
+
+        private bool IsNatief(IMethodSymbol methode) =>
+            methode.IsExtern
+            || methode.GetDllImportData() is not null
+            || (_libraryImport is not null && methode.GetAttributes().Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, _libraryImport)));
+
+        /// <summary>
+        /// JL0002 omweg: <c>dynamic</c> (een lid, aanroep, index of aanmaak die pas bij het draaien wordt gebonden). Eén melding
+        /// per plek: het lid dat zelf wordt aangeroepen (<c>x.Delete(pad)</c>) meldt de aanroep.
+        /// </summary>
+        public void Dynamisch(OperationAnalysisContext context)
+        {
+            if (context.Operation is IDynamicMemberReferenceOperation && context.Operation.Parent is IDynamicInvocationOperation aanroep && ReferenceEquals(aanroep.Operation, context.Operation))
+            {
+                return;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(_omweg, context.Operation.Syntax.GetLocation(), "dynamic"));
+        }
+
+        /// <summary>
+        /// JL0002 omweg: <c>unsafe</c> (op een type, lid, lokale functie, blok of using-alias). Nergens toegestaan. Pointers,
+        /// <c>fixed</c> en functiewijzers (<c>delegate*</c>) kunnen alleen in zo'n context bestaan; de compiler eist dat.
+        /// </summary>
+        public void Onveilig(SyntaxNodeAnalysisContext context)
+        {
+            var sleutel = context.Node switch
+            {
+                UnsafeStatementSyntax blok => blok.UnsafeKeyword,
+                MemberDeclarationSyntax lid => lid.Modifiers.FirstOrDefault(m => m.IsKind(SyntaxKind.UnsafeKeyword)),
+                LocalFunctionStatementSyntax functie => functie.Modifiers.FirstOrDefault(m => m.IsKind(SyntaxKind.UnsafeKeyword)),
+                UsingDirectiveSyntax alias => alias.UnsafeKeyword,
+                _ => default,
+            };
+            if (sleutel.IsKind(SyntaxKind.None))
+            {
+                return;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(_omweg, sleutel.GetLocation(), "unsafe"));
         }
 
         /// <summary>
@@ -518,13 +861,23 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         /// </summary>
         public void Databasetoegang(OperationAnalysisContext context)
         {
-            if (Databasetype(context.Operation) is not { } type || Databasetype(Ontvanger(context.Operation)) is not null
-                || InNamespace(context.ContainingSymbol, Regels.DatabaseNamespaces) || NoemtServerdatabase(context.Operation))
+            if (!MeldtDatabasetoegang(context, out var type))
             {
                 return;
             }
 
             context.ReportDiagnostic(Diagnostic.Create(_databaseToegang, context.Operation.Syntax.GetLocation(), Beschrijf(context.Operation, type)));
+        }
+
+        /// <summary>
+        /// Waar als <see cref="Databasetoegang"/> deze operatie meldt. Dan geeft een andere JL0002-regel op dezelfde plek
+        /// (bijvoorbeeld de omweg <c>Activator.CreateInstance&lt;SqliteConnection&gt;()</c>) geen tweede melding.
+        /// </summary>
+        private bool MeldtDatabasetoegang(OperationAnalysisContext context, out ITypeSymbol type)
+        {
+            type = Databasetype(context.Operation)!;
+            return type is not null && Databasetype(Ontvanger(context.Operation)) is null
+                && !InNamespace(context.ContainingSymbol, Regels.DatabaseNamespaces) && !NoemtServerdatabase(context.Operation);
         }
 
         /// <summary>Het databasetype dat <paramref name="operatie"/> oplevert of gebruikt; null als er geen is of als JL0003 erover gaat.</summary>
@@ -831,6 +1184,9 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
             return kandidaat is not null && kandidaat.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, bewaakt));
         }
+
+        /// <summary>Een regel met <c>Nergens</c> (server-ABI die zelf schrijft, omwegen) staat ook de vaste namespaces niet toe.</summary>
+        private bool Toegestaan(ISymbol? plek, TypeRegel regel, string api) => !regel.Nergens && Toegestaan(plek, regel.RegelId, api);
 
         private bool Toegestaan(ISymbol? plek, string regelId, string? api)
         {

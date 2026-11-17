@@ -30,7 +30,8 @@ internal static class AnalyzerHarnas
             "JellyLeonAnalyzerProef",
             new[] { CSharpSyntaxTree.ParseText(bron, new CSharpParseOptions(LanguageVersion.Latest), "Proef.cs") },
             _referenties.Value,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            // unsafe mag compileren, zodat de proef kan laten zien dat de analyzer het weigert (JL0002, omweg).
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
 
         // Een proef die niet compileert bewijst niets: dan vindt de analyzer vanzelf niets.
         var fouten = compilatie.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.ToString()).ToList();

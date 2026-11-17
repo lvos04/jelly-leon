@@ -31,6 +31,16 @@ internal sealed class TypeRegel
     /// <summary>Leden die ondanks een leesvoorvoegsel toch schrijven (bijvoorbeeld "haal op, en maak aan als hij ontbreekt").</summary>
     public IReadOnlyList<string> OokVerboden { get; set; } = Array.Empty<string>();
 
+    /// <summary>
+    /// Waar: ook de vaste namespaces (Core.Storage, Core.Secrets, Core.Werker) mogen dit niet. Voor de server-ABI die zelf
+    /// een bestand schrijft, wist of verplaatst of een proces start (die loopt langs de padgrens van Core.Storage heen) en
+    /// voor de omwegen (native code, reflectie, code laden).
+    /// </summary>
+    public bool Nergens { get; set; }
+
+    /// <summary>Waar: een omweg langs de bouwgrens (native code, reflectie, code laden); eigen melding.</summary>
+    public bool Omweg { get; set; }
+
     public bool IsVerboden(string lid)
     {
         if (OokVerboden.Contains(lid))
@@ -46,9 +56,59 @@ internal sealed class TypeRegel
     /// Een voorvoegsel telt alleen als heel woord: "Can" past op <c>CanRefresh</c>, niet op <c>CancelTimer</c>; "To" niet
     /// op <c>Toggle</c>; "Is" niet op <c>Issue</c>.
     /// </summary>
-    private static bool IsVoorvoegsel(string voorvoegsel, string lid) =>
+    public static bool IsVoorvoegsel(string voorvoegsel, string lid) =>
         lid.StartsWith(voorvoegsel, StringComparison.Ordinal)
         && (lid.Length == voorvoegsel.Length || !char.IsLower(lid[voorvoegsel.Length]));
+}
+
+/// <summary>
+/// Eén regel van de witte lijst van de bestandsnamespaces (ADR-0032, kop "Bestanden (JL0002)"): welke leden van een type
+/// buiten de opslagnamespaces mogen, en of het type daar aangemaakt mag worden.
+/// </summary>
+internal sealed class BestandWit
+{
+    public BestandWit(string type, bool metAfgeleiden, Aanmaken aanmaak, params string[] leden)
+    {
+        Type = type;
+        MetAfgeleiden = metAfgeleiden;
+        Aanmaak = aanmaak;
+        Leden = leden;
+    }
+
+    public enum Aanmaken
+    {
+        /// <summary>Aanmaken is JL0002.</summary>
+        Nee,
+
+        /// <summary>Elke constructor mag.</summary>
+        Ja,
+
+        /// <summary>Alleen een constructor zonder tekst (een pad) als parameter: <c>new StreamWriter(stroom)</c> wel, <c>new StreamWriter(pad)</c> niet.</summary>
+        ZonderTekst,
+    }
+
+    public string Type { get; }
+
+    /// <summary>Waar: de leden gelden ook voor een type dat ervan afleidt (bijvoorbeeld elke stroom).</summary>
+    public bool MetAfgeleiden { get; }
+
+    /// <summary>
+    /// Of precies dit type aangemaakt mag worden; een type dat ervan afleidt (en zelf niet in een bestandsnamespace ligt)
+    /// telt als dit type.
+    /// </summary>
+    public Aanmaken Aanmaak { get; }
+
+    /// <summary>Toegestane leden: "*" is alle, anders voorvoegsels als heel woord (zoals bij <see cref="TypeRegel"/>).</summary>
+    public IReadOnlyList<string> Leden { get; }
+
+    /// <summary>Leden die ondanks "*" verboden blijven.</summary>
+    public IReadOnlyList<string> Behalve { get; set; } = Array.Empty<string>();
+
+    /// <summary>Waar: een eigenschap lezen mag (zetten niet).</summary>
+    public bool EigenschappenLezen { get; set; }
+
+    public bool StaatToe(string lid) =>
+        !Behalve.Contains(lid) && Leden.Any(v => v == "*" || TypeRegel.IsVoorvoegsel(v, lid));
 }
 
 /// <summary>De tabellen van de analyzer. Wijzigen kan alleen hier, in één bestand, en hoort in ADR-0032.</summary>
@@ -64,6 +124,13 @@ internal static class Regels
     public const string UitzonderingenBestand = "JellyLeon.AnalyzerUitzonderingen.txt";
 
     private static readonly string[] _lezen = { "Get", "Find", "Query", "Is", "Has", "Can", "To" };
+
+    /// <summary>
+    /// Wat een metadata- of afbeeldingsleverancier van de server alleen bekijkt. "Get…" hoort er niet bij: GetMetadata,
+    /// GetImages en GetImage halen op, schrijven de cache of een afbeelding (AudioDb, Omdb, AudioImageProvider) en FetchAsync
+    /// wijzigt het item.
+    /// </summary>
+    private static readonly string[] _provider = { "Supports", "GetSupported", "Is", "Has", "Can", "To" };
 
     /// <summary>De wijzigende methoden van een item van de server (<c>BaseItem</c> en elke afgeleide).</summary>
     private static readonly string[] _itemSchrijf = { "Update", "Delete", "Refresh", "Save", "Add", "Remove", "Set", "Swap", "Changed", "Mark", "Validate", "Reattach", "OnMetadata", "BeforeMetadata", "AfterMetadata" };
@@ -179,22 +246,150 @@ internal static class Regels
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Session.ISessionManager", true, true, _lezen) { OokVerboden = new[] { "GetSessionByAuthenticationToken" } },
         new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Configuration.IServerConfigurationManager", true, true, _lezen),
         new TypeRegel(ServerSchrijf, "MediaBrowser.Common.Configuration.IConfigurationManager", true, true, _lezen),
-        // Bestanden: alleen de opslagnamespaces; verwijderen elders alleen in één met naam genoemde klasse.
+        // Een item van de server wijzigen via de extensiemethoden (SetImagePath, DeepCopy naar een bestaand item): net als
+        // de Set-leden van BaseItem zelf (R-HARDE-EIS-13, gevonden met de padscan van herstelronde 6).
+        new TypeRegel(ServerSchrijf, "MediaBrowser.Controller.Entities.BaseItemExtensions", true, false, _lezen),
+        // Bestanden (System.IO): alleen de opslagnamespaces; verwijderen elders alleen in één met naam genoemde klasse.
+        // Deze vier typen houden hun eigen leesvoorvoegsels (en de witte lijst per klasse); elk ander type uit de
+        // bestandsnamespaces valt onder de regel op de namespace met de witte lijst hieronder (BestandWitteLijst).
         new TypeRegel(BestandSchrijf, "System.IO.File", true, true, "Exists", "Read", "OpenRead", "OpenText", "Get"),
         new TypeRegel(BestandSchrijf, "System.IO.Directory", true, true, "Exists", "Get", "Enumerate"),
         new TypeRegel(BestandSchrijf, "System.IO.FileSystemInfo", true, true, "OpenRead", "OpenText", "Get", "Enumerate", "Refresh", "ToString"),
         new TypeRegel(BestandSchrijf, "MediaBrowser.Model.IO.IFileSystem", false, true, "Delete", "Move", "Create", "Swap", "Set"),
-        new TypeRegel(ProcesStart, "System.Diagnostics.Process", false, false, "Start"));
+        // Bestanden schrijven buiten System.IO (BCL): de schrijvende delen van System.Data, een download naar een bestand en
+        // een JIT-profiel met een zelfgekozen naam. Buiten de opslagnamespaces JL0002, zonder uitzondering.
+        new TypeRegel(BestandSchrijf, "System.Data.DataSet", false, false, "WriteXml"),
+        new TypeRegel(BestandSchrijf, "System.Data.DataTable", false, false, "WriteXml"),
+        new TypeRegel(BestandSchrijf, "System.Net.WebClient", false, false, "DownloadFile"),
+        new TypeRegel(BestandSchrijf, "System.Runtime.ProfileOptimization", true, false),
+        // De server-ABI die zelf een bestand schrijft, wist of verplaatst of een proces start (R-HARDE-EIS-13; ADR-0032,
+        // kop "Bestanden (JL0002)"): nergens, ook niet in Core.Storage, want de server doet het langs de padgrens heen.
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Common.Plugins.IPluginManager", true, false, _lezen) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Common.Updates.IInstallationManager", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "Filter") { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Common.Configuration.IApplicationPaths", true, false, _lezen) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Model.Serialization.IXmlSerializer", true, false, "Deserialize") { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Model.IO.AsyncFile", true, false, "OpenRead") { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Model.IO.IShortcutHandler", true, false, "Resolve") { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.IO.FileSystemHelper", true, false, "Get", "Resolve") { Nergens = true },
+        new TypeRegel(BestandSchrijf, "Jellyfin.Extensions.FileHelper", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.Providers.IDirectoryService", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "Invalidate") { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.Library.IMetadataSaver", true, false, _lezen) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.Providers.IMetadataProvider", true, false, _provider) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.Providers.IImageProvider", true, false, _provider) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.ITranscodeManager", true, false, _lezen) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.TranscodingJob", true, false, _lezen) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.TranscodingSegmentCleaner", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.IMediaEncoder", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "Supports", "Escape")
+        {
+            Nergens = true,
+            OokVerboden = new[] { "GetMediaInfo" }
+        },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.ISubtitleEncoder", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.IAttachmentExtractor", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.EncodingHelper", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.Drawing.IImageProcessor", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "Supports") { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.Drawing.IImageEncoder", true, false, "Get", "Find", "Query", "Is", "Has", "Can", "To", "Supports") { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.ClientEvent.IClientEventLogger", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "Jellyfin.MediaEncoding.Keyframes.FfProbe.FfProbeKeyframeExtractor", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "Jellyfin.MediaEncoding.Keyframes.FfTool.FfToolKeyframeExtractor", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.LiveTv.IListingsProvider", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.LiveTv.ITunerHost", true, false) { Nergens = true },
+        new TypeRegel(BestandSchrijf, "MediaBrowser.Controller.Library.ILiveStream", true, false, _lezen) { Nergens = true },
+        // Omwegen langs de bouwgrens (ADR-0032, kop "Dreigingsmodel"): reflectie die een lid aanroept of een type uit een
+        // tekst haalt, code laden, een object van een willekeurig type aanmaken en native code. Nergens, zonder uitzondering.
+        new TypeRegel(BestandSchrijf, "System.Reflection.MethodBase", false, false, "Invoke", "CreateDelegate") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Reflection.PropertyInfo", false, false, "SetValue", "GetValue") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Reflection.FieldInfo", false, false, "SetValue", "GetValue") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Reflection.EventInfo", false, false, "AddEventHandler", "RemoveEventHandler") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Type", false, false, "InvokeMember", "GetType") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Reflection.Assembly", false, false, "Load", "UnsafeLoadFrom", "ReflectionOnlyLoad", "CreateInstance", "GetType") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Runtime.Loader.AssemblyLoadContext", true, false) { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.AppDomain", false, false, "Load", "ExecuteAssembly", "CreateInstance") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Activator", true, false) { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "Microsoft.Extensions.DependencyInjection.ActivatorUtilities", true, false) { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Delegate", false, false, "DynamicInvoke", "CreateDelegate") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Linq.Expressions.LambdaExpression", false, false, "Compile") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Runtime.InteropServices.NativeLibrary", true, false) { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Runtime.InteropServices.Marshal", true, false) { Nergens = true, Omweg = true },
+        new TypeRegel(ProcesStart, "System.Diagnostics.Process", false, false, "Start"),
+        new TypeRegel(ProcesStart, "Microsoft.VisualBasic.Interaction", false, false, "Shell"));
 
     /// <summary>
     /// Typen waarvan het aanmaken al een schrijfactie of een processtart is. Hiervoor bestaat geen uitzondering per
-    /// klasse: alleen de vaste namespaces mogen dit.
+    /// klasse: alleen de vaste namespaces mogen dit, en bij <c>Nergens</c> ook die niet. <c>AlleenMetPad</c>: alleen een
+    /// constructor met een tekst (een pad) als eerste parameter. FileStream en StreamWriter vallen onder de regel op de
+    /// bestandsnamespaces (zie <see cref="BestandWitteLijst"/>).
     /// </summary>
-    public static readonly ImmutableArray<(string RegelId, string Type, bool AlleenMetPad)> Aanmaak = ImmutableArray.Create(
-        (BestandSchrijf, "System.IO.FileStream", false),
-        (BestandSchrijf, "System.IO.StreamWriter", true),
-        (ProcesStart, "System.Diagnostics.Process", false),
-        (ProcesStart, "System.Diagnostics.ProcessStartInfo", false));
+    public static readonly ImmutableArray<(string RegelId, string Type, bool AlleenMetPad, bool Nergens)> Aanmaak = ImmutableArray.Create(
+        (BestandSchrijf, "System.Diagnostics.TextWriterTraceListener", true, false),
+        (BestandSchrijf, "System.Resources.ResourceWriter", true, false),
+        (BestandSchrijf, "MediaBrowser.Common.Plugins.LocalPlugin", false, true),
+        (BestandSchrijf, "MediaBrowser.Controller.Streaming.ProgressiveFileStream", false, true),
+        (BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.TranscodingJob", false, true),
+        (BestandSchrijf, "MediaBrowser.Controller.MediaEncoding.TranscodingSegmentCleaner", false, true),
+        (ProcesStart, "System.Diagnostics.Process", false, false),
+        (ProcesStart, "System.Diagnostics.ProcessStartInfo", false, false));
+
+    /// <summary>
+    /// Bestanden (JL0002, R-HARDE-EIS-13): buiten de opslagnamespaces is elk gebruik van een type uit deze namespaces
+    /// (ook de subnamespaces, zoals System.IO.Compression, System.IO.MemoryMappedFiles, System.IO.Pipes en
+    /// System.IO.IsolatedStorage) JL0002, behalve wat op <see cref="BestandWitteLijst"/> staat. Microsoft.VisualBasic.FileIO
+    /// is de bestandslaag van Visual Basic (FileSystem.DeleteFile, WriteAllText).
+    /// </summary>
+    public static readonly ImmutableArray<string> BestandNamespaces = ImmutableArray.Create(
+        "System.IO",
+        "System.Formats.Tar",
+        "Microsoft.VisualBasic.FileIO");
+
+    /// <summary>Losse bestandstypen buiten die namespaces (de bestandsfuncties van Visual Basic: Kill, FileOpen, FileCopy).</summary>
+    public static readonly ImmutableArray<string> BestandTypen = ImmutableArray.Create("Microsoft.VisualBasic.FileSystem");
+
+    /// <summary>Namespaces die alleen code maken of laden (omweg): nergens, zonder uitzondering.</summary>
+    public static readonly ImmutableArray<string> OmwegNamespaces = ImmutableArray.Create("System.Reflection.Emit");
+
+    /// <summary>
+    /// De kleine witte lijst van de bestandsnamespaces: pure padbewerking, lezen, en lezen of schrijven op een stroom of
+    /// lezer/schrijver die de code al heeft (zo'n stroom naar een bestand krijgen is zelf JL0002: <c>File.Open…</c>,
+    /// <c>new FileStream</c>, <c>new StreamWriter(pad)</c>, <c>AsyncFile.Create</c>). Elk ander lid is JL0002. Altijd
+    /// toegestaan: de waarden van een enum (<c>FileMode.Create</c>) en een uitzondering (<c>new IOException</c>, ook vangen).
+    /// File, Directory en FileInfo/DirectoryInfo houden hun leesvoorvoegsels uit <see cref="Typen"/>.
+    /// </summary>
+    public static readonly ImmutableArray<BestandWit> BestandWitteLijst = ImmutableArray.Create(
+        // Pure padbewerking; GetTempFileName maakt een leeg bestand aan en hoort er dus niet bij.
+        new BestandWit("System.IO.Path", false, BestandWit.Aanmaken.Nee, "*") { Behalve = new[] { "GetTempFileName" } },
+        // Bestaande bestanden en mappen bekijken (de methoden bepaalt de regel in Typen): een eigenschap lezen en het object maken.
+        new BestandWit("System.IO.FileSystemInfo", true, BestandWit.Aanmaken.Nee) { EigenschappenLezen = true },
+        new BestandWit("System.IO.FileInfo", false, BestandWit.Aanmaken.Ja),
+        new BestandWit("System.IO.DirectoryInfo", false, BestandWit.Aanmaken.Ja),
+        // Lezen en schrijven op een stroom die de code al heeft; zelf maken alleen in het geheugen.
+        new BestandWit("System.IO.Stream", true, BestandWit.Aanmaken.Nee, "*"),
+        new BestandWit("System.IO.MemoryStream", false, BestandWit.Aanmaken.Ja, "*"),
+        new BestandWit("System.IO.BufferedStream", false, BestandWit.Aanmaken.Ja, "*"),
+        new BestandWit("System.IO.TextReader", true, BestandWit.Aanmaken.Nee, "*"),
+        new BestandWit("System.IO.StreamReader", false, BestandWit.Aanmaken.Ja, "*"),
+        new BestandWit("System.IO.StringReader", false, BestandWit.Aanmaken.Ja, "*"),
+        new BestandWit("System.IO.TextWriter", true, BestandWit.Aanmaken.Nee, "*"),
+        new BestandWit("System.IO.StringWriter", false, BestandWit.Aanmaken.Ja, "*"),
+        new BestandWit("System.IO.StreamWriter", false, BestandWit.Aanmaken.ZonderTekst, "*"),
+        new BestandWit("System.IO.BinaryReader", true, BestandWit.Aanmaken.Ja, "*"),
+        new BestandWit("System.IO.BinaryWriter", true, BestandWit.Aanmaken.Ja, "*"));
+
+    /// <summary>
+    /// Het schrijvende deel van System.Xml en System.Xml.Linq: een lid met een van deze namen (als heel woord) op een type
+    /// uit die namespaces, met een pad (tekst) of een stroom als parameter, en het aanmaken van een XmlWriter met een pad
+    /// of stroom (<c>XmlWriter.Create</c>, <c>new XmlTextWriter(pad, …)</c>). JL0002 buiten de opslagnamespaces.
+    /// </summary>
+    public static readonly ImmutableArray<string> XmlSchrijfLeden = ImmutableArray.Create("Save", "WriteTo", "WriteContentTo", "Transform", "Serialize");
+
+    public static readonly ImmutableArray<string> XmlNamespaces = ImmutableArray.Create("System.Xml");
+
+    /// <summary>Waar als de typenaam bij de bestandsnamespaces hoort (op naam: de witte lijst van uitzonderingen kent geen symbolen).</summary>
+    public static bool IsBestandTypenaam(string type) =>
+        BestandTypen.Contains(type) || BestandNamespaces.Any(n => type.StartsWith(n + ".", StringComparison.Ordinal));
+
+    /// <summary>Waar als <paramref name="ruimte"/> een van <paramref name="namespaces"/> is of eronder ligt.</summary>
+    public static bool InNamespace(string ruimte, ImmutableArray<string> namespaces) =>
+        namespaces.Any(n => ruimte == n || ruimte.StartsWith(n + ".", StringComparison.Ordinal));
 
     /// <summary>
     /// Databasetoegang (JL0002, R-HARDE-EIS-12): de enige namespace waar een databaseverbinding of -bron mag ontstaan of

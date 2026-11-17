@@ -520,8 +520,8 @@ public class VerbodenApiAnalyzerTests
     /// SQLite-bestand krijgen via <c>SqliteFactory.Instance</c> (de verbinding of een <c>DbDataSource</c>) met een pad dat pas
     /// bij het draaien ontstaat, is JL0002; de niet-generieke <c>DbContextOptions</c> van de server resolven is JL0003 en de
     /// verbindingstekst eruit halen (<c>RelationalOptionsExtension.Extract</c>) is JL0002. Vóór het herstel gaf alleen de
-    /// tegenproef <c>new SqliteConnection</c> een melding. Wat zonder typenaam alleen een object oplevert (een type uit een
-    /// tekst) blijft de grens "geen zandbak": daarmee is zonder reflectie of dynamic geen verbinding te gebruiken.
+    /// tegenproef <c>new SqliteConnection</c> een melding. Een type uit een tekst halen (<c>Type.GetType("…")</c>) is sinds
+    /// herstelronde 6 zelf JL0002 (omweg, R-HARDE-EIS-13); daarmee is zonder reflectie of dynamic geen verbinding te gebruiken.
     /// </summary>
     [Fact]
     public async Task DatabaseverbindingBuitenDeOpslag_ProevenH15EnH16_IsJL0002OfJL0003()
@@ -551,7 +551,7 @@ public class VerbodenApiAnalyzerTests
                     public string? Opties(IServiceProvider sp)
                     {
                         var opties = sp.GetRequiredService<DbContextOptions>(); // JL0003
-                        _ = sp.GetService(Type.GetType("Microsoft.EntityFrameworkCore.DbContextOptions, Microsoft.EntityFrameworkCore")!);
+                        _ = sp.GetService(Type.GetType("Microsoft.EntityFrameworkCore.DbContextOptions, Microsoft.EntityFrameworkCore")!); // JL0002
                         return RelationalOptionsExtension.Extract(opties).ConnectionString; // JL0002
                     }
                 }
@@ -575,7 +575,7 @@ public class VerbodenApiAnalyzerTests
 
         var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
 
-        Assert.Equal(10, verwacht.Count);
+        Assert.Equal(11, verwacht.Count);
         Assert.Equal(verwacht, gevonden.Select(b => (b.Regel, b.Id)).Distinct());
         Assert.Contains(gevonden, b => b.Tekst.Contains("'Microsoft.Data.Sqlite.SqliteFactory.Instance'", StringComparison.Ordinal));
         Assert.Contains(gevonden, b => b.Tekst.Contains("'Microsoft.EntityFrameworkCore.DbContextOptions'", StringComparison.Ordinal));
@@ -588,8 +588,9 @@ public class VerbodenApiAnalyzerTests
     /// JL0002: Microsoft.Data.Sqlite, System.Data.Common (fabrieken, bronnen, <c>BackupDatabase</c>, <c>ConnectionString</c>, <c>DbCommand.Connection</c>,
     /// omzettingen en patronen), SQLitePCL (<c>raw.sqlite3_open</c>, <c>Handle</c>), Entity Framework Core (bouwers, opties, context,
     /// <c>GetDbConnection</c>, registratie in de container en een onderschepper die de verbinding van de server krijgt) en een
-    /// verbinding uit een eigen terugroep halen. In Core.Storage geeft dezelfde bron geen enkele JL0002, en een gekregen
-    /// verbinding doorgeven of een databasetype als parametertype blijft overal toegestaan.
+    /// verbinding uit een eigen terugroep halen. In Core.Storage geeft dezelfde bron geen databasemelding, en een gekregen
+    /// verbinding doorgeven of een databasetype als parametertype blijft overal toegestaan. Alleen <c>Activator.CreateInstance</c>
+    /// is sinds herstelronde 6 ook in Core.Storage JL0002, als omweg (R-HARDE-EIS-13); buiten Core.Storage blijft het één melding.
     /// </summary>
     [Fact]
     public async Task Databasetoegang_ElkeWegIsBuitenCoreStorageJL0002()
@@ -688,8 +689,379 @@ public class VerbodenApiAnalyzerTests
         Assert.Equal(29, verwacht.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.BestandSchrijf, b.Id));
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
-        Assert.Empty(inOpslag);
+        var omweg = Assert.Single(inOpslag);
+        Assert.Equal(Regels.BestandSchrijf, omweg.Id);
+        Assert.Contains("'System.Activator.CreateInstance' omzeilt de bouwgrens", omweg.Tekst, StringComparison.Ordinal);
+        Assert.Contains(omweg.Regel, verwacht);
         Assert.Equal(verwacht, inGeheimen.Select(b => b.Regel));
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-13 (S-G1-17 herstelronde 6), de proef SlippendeRoutes van herreview 5: tien routes waarlangs plugincode
+    /// buiten de opslagnamespaces jellyfin.db als bestand kon overschrijven of wissen (de naam ontstaat met
+    /// <c>string.Concat</c>, dus JL0003 ziet hem niet). Elke route is nu JL0002: de BCL-routes via de regel op de
+    /// namespaces System.IO, System.IO.Compression, System.IO.MemoryMappedFiles en System.Formats.Tar en de schrijvende delen
+    /// van System.Xml en System.Data, de server-ABI (IPluginManager, LocalPlugin, IXmlSerializer, ITranscodeManager) en
+    /// P/Invoke. Tegenproef: File.Delete en new FileStream geven op dezelfde plek JL0002. In Core.Storage mogen de
+    /// BCL-routes (die laag bewaakt de padgrens zelf), maar de server-ABI en P/Invoke nergens.
+    /// </summary>
+    [Fact]
+    public async Task SlippendeBestandsroutes_ProefHerreview5_ElkeRegelIsJL0002()
+    {
+        static string Bron(string ruimte) => $$"""
+            using System;
+            using System.Data;
+            using System.Formats.Tar;
+            using System.IO;
+            using System.IO.Compression;
+            using System.IO.MemoryMappedFiles;
+            using System.Runtime.InteropServices;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using System.Xml;
+            using System.Xml.Linq;
+            using MediaBrowser.Common.Configuration;
+            using MediaBrowser.Common.Plugins;
+            using MediaBrowser.Controller.MediaEncoding;
+            using MediaBrowser.Controller.Streaming;
+            using MediaBrowser.Model.Serialization;
+
+            namespace {{ruimte}}
+            {
+                public class Routes
+                {
+                    [DllImport("libc")] private static extern int unlink(string pad); // BCL-NEE JL0002
+
+                    public async Task Slip(IApplicationPaths paden, IPluginManager plugins, IXmlSerializer xml, ITranscodeManager transcode, StreamState staat, string bron)
+                    {
+                        var db = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
+                        _ = plugins.RemovePlugin(new LocalPlugin(paden.DataPath, true, new PluginManifest())); // BCL-NEE JL0002
+                        xml.SerializeToFile(new object(), db); // BCL-NEE JL0002
+                        ZipFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // BCL JL0002
+                        TarFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // BCL JL0002
+                        using (var w = XmlWriter.Create(db)) { } // BCL JL0002
+                        new XDocument().Save(db); // BCL JL0002
+                        new DataSet().WriteXml(db); // BCL JL0002
+                        using var mm = MemoryMappedFile.CreateFromFile(db, FileMode.Open); // BCL JL0002
+                        mm.CreateViewAccessor().Write(0, (byte)0); // BCL JL0002
+                        _ = await transcode.StartFfMpeg(staat, db, "-y " + db, Guid.Empty, TranscodingJobType.Progressive, new CancellationTokenSource()); // BCL-NEE JL0002
+                        _ = unlink(db); // BCL-NEE JL0002
+                    }
+
+                    public void Tegenproef(string db)
+                    {
+                        File.Delete(db); // BCL JL0002
+                        using var a = new FileStream(db, FileMode.Create); // BCL JL0002
+                    }
+                }
+            }
+            """;
+        static int[] Gemarkeerd(string bron, string merk) => bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst))
+            .Where(r => r.tekst.Contains(merk, StringComparison.Ordinal)).Select(r => r.Regel).ToArray();
+
+        var buiten = Bron(Modules + ".Proef");
+        var verwacht = Gemarkeerd(buiten, " JL0002");
+        var nergens = Gemarkeerd(buiten, "// BCL-NEE JL0002");
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
+        var inOpslag = await AnalyzerHarnas.AnalyseerAsync(Bron("Jellyfin.Plugin.JellyLeon.Core.Storage"), null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(14, verwacht.Length);
+        Assert.Equal(5, nergens.Length);
+        Assert.All(gevonden, b => Assert.Equal(Regels.BestandSchrijf, b.Id));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel).Distinct());
+        Assert.All(inOpslag, b => Assert.Equal(Regels.BestandSchrijf, b.Id));
+        Assert.Equal(nergens, inOpslag.Select(b => b.Regel).Distinct());
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-13 (S-G1-17 herstelronde 6): de regel op de bestandsnamespaces. Buiten de opslagnamespaces is elk gebruik
+    /// van een type uit System.IO (met de subnamespaces), System.Formats.Tar en de bestandslaag van Visual Basic JL0002,
+    /// behalve de kleine witte lijst (padbewerking, lezen, en een stroom of lezer/schrijver die de code al heeft). Ook een
+    /// eigen of upstream-type dat van StreamWriter afleidt en een pad meekrijgt, en de schrijvende delen van System.Xml,
+    /// System.Data en een paar BCL-schrijvers buiten System.IO. Tegenproef: de toegestane regels geven niets, en in
+    /// Core.Storage geeft dezelfde bron niets (die laag bewaakt de padgrens zelf).
+    /// </summary>
+    [Fact]
+    public async Task Bestandsnamespaces_ElkGebruikBuitenDeWitteLijstIsJL0002()
+    {
+        static string Bron(string ruimte) => $$"""
+            using System;
+            using System.Data;
+            using System.Diagnostics;
+            using System.IO;
+            using System.IO.Compression;
+            using System.IO.IsolatedStorage;
+            using System.IO.Pipes;
+            using System.Net;
+            using System.Resources;
+            using System.Runtime;
+            using System.Text;
+            using System.Threading.Tasks;
+            using System.Xml;
+            using System.Xml.Linq;
+            using System.Xml.Serialization;
+            using System.Xml.Xsl;
+            using Jellyfin.Extensions;
+
+            namespace {{ruimte}}
+            {
+                public class EigenSchrijver : StreamWriter
+                {
+                    public EigenSchrijver(string pad) : base(pad) // JL0002
+                    {
+                    }
+                }
+
+                public class EigenStroom : MemoryStream
+                {
+                }
+
+                public class Bestanden
+                {
+                    public async Task M(string pad, Stream stroom, byte[] inhoud)
+                    {
+                        _ = Path.GetTempFileName(); // JL0002
+                        using var a = File.OpenHandle(pad, FileMode.Open, FileAccess.ReadWrite); // JL0002
+                        RandomAccess.Write(a, inhoud, 0); // JL0002
+                        using var b = new FileSystemWatcher(pad); // JL0002
+                        using var c = IsolatedStorageFile.GetUserStoreForApplication(); // JL0002
+                        using var d = new NamedPipeServerStream(pad); // JL0002
+                        using var e = new GZipStream(stroom, CompressionLevel.Fastest); // JL0002
+                        using var f = new FormattingStreamWriter(pad, System.Globalization.CultureInfo.InvariantCulture); // JL0002
+                        using var g = new EigenSchrijver(pad); // JL0002
+                        _ = new FileStreamOptions(); // JL0002
+                        Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(pad); // JL0002
+                        Microsoft.VisualBasic.FileSystem.Kill(pad); // JL0002
+                        new WebClient().DownloadFile("http://127.0.0.1/x", pad); // JL0002
+                        using var h = new TextWriterTraceListener(pad); // JL0002
+                        using var i = new ResourceWriter(pad); // JL0002
+                        ProfileOptimization.StartProfile(pad); // JL0002
+                        using var j = new XmlTextWriter(pad, Encoding.UTF8); // JL0002
+                        new XmlDocument().Save(stroom); // JL0002
+                        new XElement("x").Save(pad); // JL0002
+                        new XslCompiledTransform().Transform(pad, pad); // JL0002
+                        new XmlSerializer(typeof(string)).Serialize(stroom, "x"); // JL0002
+                        new DataTable().WriteXml(pad); // JL0002
+                        new DataSet().WriteXmlSchema(stroom); // JL0002
+                        _ = Path.Combine(pad, "x.json");
+                        _ = File.Exists(pad) ? File.ReadAllText(pad) : string.Empty;
+                        using var k = new StreamReader(pad);
+                        _ = await k.ReadToEndAsync();
+                        _ = new FileInfo(pad).Length;
+                        _ = Directory.Exists(pad);
+                        using var l = new MemoryStream();
+                        await l.WriteAsync(inhoud);
+                        await stroom.WriteAsync(inhoud);
+                        await stroom.CopyToAsync(l);
+                        using var m = new StreamWriter(stroom, Encoding.UTF8, 1024, leaveOpen: true);
+                        await m.WriteAsync("x");
+                        using var n = new BinaryWriter(l);
+                        n.Write(1);
+                        using var o = new EigenStroom();
+                        _ = FileMode.Create;
+                        _ = new IOException("x");
+                        var sb = new StringBuilder();
+                        using (var p = XmlWriter.Create(sb)) { new XDocument(new XElement("x")).Save(p); }
+                        _ = XDocument.Parse("<x/>").ToString();
+                        _ = Stream.Null;
+                    }
+                }
+            }
+            """;
+        var buiten = Bron(Modules + ".Proef");
+        var verwacht = buiten.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0002", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
+        var inOpslag = await AnalyzerHarnas.AnalyseerAsync(Bron("Jellyfin.Plugin.JellyLeon.Core.Storage"), null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(24, verwacht.Count);
+        Assert.All(gevonden, b => Assert.Equal(Regels.BestandSchrijf, b.Id));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel).Distinct());
+        Assert.Empty(inOpslag);
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-13 (S-G1-17 herstelronde 6): de server-ABI die zelf een bestand schrijft, wist of verplaatst of een proces
+    /// start, gevonden met de padscan van de plugin-ABI en de bronscan van de server (ADR-0032, kop "Bestanden (JL0002)").
+    /// Nergens toegestaan: ook niet in Core.Storage, want de server doet het langs de padgrens heen. De leesleden ernaast
+    /// blijven toegestaan. <c>BaseItemExtensions.SetImagePath</c> wijzigt een item en is JL0001.
+    /// </summary>
+    [Fact]
+    public async Task ServerAbiDieZelfSchrijftOfStart_IsNergensToegestaan()
+    {
+        static string Bron(string ruimte) => $$"""
+            using System;
+            using System.IO;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Jellyfin.Extensions;
+            using Jellyfin.MediaEncoding.Keyframes.FfProbe;
+            using MediaBrowser.Common.Configuration;
+            using MediaBrowser.Common.Plugins;
+            using MediaBrowser.Common.Updates;
+            using MediaBrowser.Controller.ClientEvent;
+            using MediaBrowser.Controller.Drawing;
+            using MediaBrowser.Controller.Entities;
+            using MediaBrowser.Controller.Entities.Movies;
+            using MediaBrowser.Controller.IO;
+            using MediaBrowser.Controller.Library;
+            using MediaBrowser.Controller.LiveTv;
+            using MediaBrowser.Controller.MediaEncoding;
+            using MediaBrowser.Controller.Providers;
+            using MediaBrowser.Controller.Streaming;
+            using MediaBrowser.Model.Drawing;
+            using MediaBrowser.Model.Entities;
+            using MediaBrowser.Model.IO;
+            using MediaBrowser.Model.Serialization;
+            using Microsoft.Extensions.Logging.Abstractions;
+
+            namespace {{ruimte}}
+            {
+                public class ServerAbi
+                {
+                    public async Task M(string pad, IPluginManager plugins, IInstallationManager installatie, IApplicationPaths paden, IXmlSerializer xml,
+                        IShortcutHandler snelkoppeling, IFileSystem bestandssysteem, IDirectoryService mappen, IMetadataSaver opslaan,
+                        IRemoteMetadataProvider<Movie, MovieInfo> leverancier, IDynamicImageProvider afbeeldingen, ITranscodeManager transcode,
+                        IMediaEncoder encoder, ISubtitleEncoder ondertitels, IAttachmentExtractor bijlagen, EncodingHelper hulp, EncodingJobInfo taak,
+                        IImageProcessor beelden, IImageEncoder beeldencoder, IClientEventLogger log, IListingsProvider gids, ITunerHost tuner,
+                        ILiveStream live, BaseItem item, Stream stroom, CancellationToken stop)
+                    {
+                        _ = plugins.RemovePlugin(plugins.GetPlugin(Guid.Empty)!); // JL0002
+                        _ = plugins.SaveManifest(new PluginManifest(), pad); // JL0002
+                        _ = plugins.Plugins;
+                        installatie.UninstallPlugin(new LocalPlugin(pad, true, new PluginManifest())); // JL0002
+                        paden.CreateAndCheckMarker(pad, "x"); // JL0002
+                        _ = paden.DataPath;
+                        xml.SerializeToFile(new object(), pad); // JL0002
+                        _ = xml.DeserializeFromFile(typeof(object), pad);
+                        using var a = AsyncFile.Create(pad); // JL0002
+                        using var b = AsyncFile.OpenWrite(pad); // JL0002
+                        using var c = AsyncFile.OpenRead(pad);
+                        snelkoppeling.Create(pad, pad); // JL0002
+                        _ = snelkoppeling.Resolve(pad);
+                        FileSystemHelper.DeleteFile(bestandssysteem, pad, NullLogger.Instance); // JL0002
+                        _ = FileSystemHelper.ResolveLinkTarget(pad);
+                        FileHelper.CreateEmpty(pad); // JL0002
+                        mappen.Move(pad, pad); // JL0002
+                        _ = mappen.GetFiles(pad);
+                        await opslaan.SaveAsync(item, stop); // JL0002
+                        _ = await leverancier.GetMetadata(new MovieInfo(), stop); // JL0002
+                        _ = await afbeeldingen.GetImage(item, ImageType.Primary, stop); // JL0002
+                        _ = afbeeldingen.Supports(item);
+                        await transcode.KillTranscodingJobs("x", null, _ => true); // JL0002
+                        var job = transcode.GetTranscodingJob("x");
+                        job!.Path = pad; // JL0002
+                        _ = new TranscodingJob(NullLogger<TranscodingJob>.Instance); // JL0002
+                        using var d = new ProgressiveFileStream(pad, job, transcode); // JL0002
+                        await encoder.ConvertImage(pad, pad); // JL0002
+                        _ = await encoder.GetMediaInfo(null!, stop); // JL0002
+                        _ = encoder.SupportsEncoder("x");
+                        _ = await ondertitels.GetSubtitles(item, "x", 0, "srt", 0, 0, false, stop); // JL0002
+                        await bijlagen.ExtractAllAttachments(pad, null!, stop); // JL0002
+                        _ = hulp.GetInputArgument(taak, null!, "ts"); // JL0002
+                        beelden.CreateImageCollage(null!, null); // JL0002
+                        _ = beelden.GetImageDimensions(pad);
+                        _ = beeldencoder.EncodeImage(pad, DateTime.UtcNow, pad, false, null, 90, null!, ImageFormat.Jpg); // JL0002
+                        _ = await log.WriteDocumentAsync("x", "1", stroom); // JL0002
+                        _ = FfProbeKeyframeExtractor.GetKeyframeData(pad, pad); // JL0002
+                        _ = await gids.GetChannels(null!, stop); // JL0002
+                        _ = await tuner.GetChannels(false, stop); // JL0002
+                        await live.Open(stop); // JL0002
+                        _ = live.GetStream();
+                        item.SetImagePath(ImageType.Primary, pad); // JL0001
+                        _ = item.GetImagePath(ImageType.Primary);
+                    }
+                }
+            }
+            """;
+        static (int Regel, string Id)[] Verwacht(string bron) => bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst))
+            .Where(r => r.tekst.EndsWith("// JL0002", StringComparison.Ordinal) || r.tekst.EndsWith("// JL0001", StringComparison.Ordinal))
+            .Select(r => (r.Regel, r.tekst[^6..])).ToArray();
+
+        var buiten = Bron(Modules + ".Proef");
+        var opslag = Bron("Jellyfin.Plugin.JellyLeon.Core.Storage");
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
+        var inOpslag = await AnalyzerHarnas.AnalyseerAsync(opslag, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(31, Verwacht(buiten).Length);
+        Assert.Equal(Verwacht(buiten), gevonden.Select(b => (b.Regel, b.Id)).Distinct());
+        Assert.Equal(Verwacht(opslag), inOpslag.Select(b => (b.Regel, b.Id)).Distinct());
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-13 (S-G1-17 herstelronde 6), dreigingsmodel van ADR-0032: de omwegen langs de bouwgrens zijn nergens
+    /// toegestaan (JL0002): P/Invoke (<c>[DllImport]</c>, <c>[LibraryImport]</c>, <c>extern</c>, ook de aanroep),
+    /// <c>unsafe</c> en functiewijzers, <c>NativeLibrary</c> en <c>Marshal</c>, reflectie die een lid aanroept of een type
+    /// uit een tekst haalt, code laden, een object van een willekeurig type maken, <c>dynamic</c> en System.Reflection.Emit.
+    /// De reflectie die de plugin gebruikt (versie en kenmerken van de eigen assembly, de naam van een type) blijft toegestaan.
+    /// </summary>
+    [Fact]
+    public async Task Omwegen_NativeCodeReflectieEnDynamic_ZijnNergensToegestaan()
+    {
+        static string Bron(string ruimte) => $$"""
+            using System;
+            using System.Linq.Expressions;
+            using System.Reflection;
+            using System.Reflection.Emit;
+            using System.Runtime.InteropServices;
+            using System.Runtime.Loader;
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace {{ruimte}}
+            {
+                public static partial class Native
+                {
+                    [DllImport("libc")] private static extern int unlink(string pad); // JL0002
+                    [LibraryImport("libc", StringMarshalling = StringMarshalling.Utf8)] private static partial int rmdir(string pad); private static partial int rmdir(string pad) => 0; // JL0002
+                    private static unsafe int Wijzer(delegate* unmanaged<int> f) => f(); // JL0002
+
+                    public static void M(string pad, object iets, Type type, MethodInfo methode, PropertyInfo eigenschap, FieldInfo veld, Delegate d, IServiceProvider diensten)
+                    {
+                        _ = unlink(pad); // JL0002
+                        Func<string, int> f = rmdir; // JL0002
+                        var bib = NativeLibrary.Load("libc"); // JL0002
+                        _ = Marshal.GetDelegateForFunctionPointer<Func<int>>(bib); // JL0002
+                        _ = methode.Invoke(null, new object[] { pad }); // JL0002
+                        _ = typeof(System.IO.FileStream).GetConstructors()[0].Invoke(new object[] { pad }); // JL0002
+                        eigenschap.SetValue(iets, pad); // JL0002
+                        _ = veld.GetValue(iets); // JL0002
+                        _ = Type.GetType("System.IO.File"); // JL0002
+                        _ = type.InvokeMember("Delete", BindingFlags.InvokeMethod, null, null, new object[] { pad }); // JL0002
+                        _ = Assembly.LoadFrom(pad); // JL0002
+                        _ = AssemblyLoadContext.Default.LoadFromAssemblyPath(pad); // JL0002
+                        _ = Activator.CreateInstance(typeof(System.IO.FileStream), pad, System.IO.FileMode.Create); // JL0002
+                        _ = ActivatorUtilities.CreateInstance(diensten, typeof(object)); // JL0002
+                        _ = d.DynamicInvoke(pad); // JL0002
+                        _ = methode.CreateDelegate<Action<string>>(); // JL0002
+                        _ = Expression.Lambda<Func<int>>(Expression.Constant(1)).Compile(); // JL0002
+                        dynamic x = iets;
+                        x.Delete(pad); // JL0002
+                        _ = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("x"), AssemblyBuilderAccess.Run); // JL0002
+                        unsafe { int* p = null; _ = p == null; } // JL0002
+                        _ = typeof(Native).Assembly.GetName().Version;
+                        _ = typeof(Native).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>();
+                        _ = iets.GetType().Name;
+                        _ = typeof(Native).Namespace;
+                        _ = diensten.GetService(typeof(object));
+                        Action a = () => { };
+                        a.Invoke();
+                    }
+                }
+            }
+            """;
+        var buiten = Bron(Modules + ".Proef");
+        var verwacht = buiten.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0002", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
+
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
+        var inOpslag = await AnalyzerHarnas.AnalyseerAsync(Bron("Jellyfin.Plugin.JellyLeon.Core.Storage"), null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(23, verwacht.Count);
+        Assert.All(gevonden.Concat(inOpslag), b => Assert.Equal(Regels.BestandSchrijf, b.Id));
+        Assert.All(gevonden, b => Assert.Contains("omzeilt de bouwgrens", b.Tekst, StringComparison.Ordinal));
+        Assert.Equal(verwacht, gevonden.Select(b => b.Regel).Distinct());
+        Assert.Equal(verwacht, inOpslag.Select(b => b.Regel).Distinct());
     }
 
     /// <summary>Een leesvoorvoegsel geldt alleen als heel woord: <c>CancelTimer</c> begint met "Can" maar leest niet.</summary>
@@ -846,6 +1218,11 @@ public class VerbodenApiAnalyzerTests
     [InlineData("JL0004 System.Diagnostics.Process.Start " + Modules + ".Quality.X", "nergens toegestaan")]
     [InlineData("JL0002 Microsoft.Data.Sqlite.SqliteFactory.CreateConnection " + Modules + ".Quality.X", "nergens toegestaan")]
     [InlineData("JL0002 System.Data.Common.DbProviderFactories.GetFactory " + Modules + ".Quality.X", "nergens toegestaan")]
+    [InlineData("JL0002 System.IO.Compression.ZipFile.ExtractToDirectory " + Modules + ".Quality.X", "nergens toegestaan")]
+    [InlineData("JL0002 System.IO.Path.GetTempFileName " + Modules + ".Quality.X", "nergens toegestaan")]
+    [InlineData("JL0002 MediaBrowser.Common.Plugins.IPluginManager.RemovePlugin " + Modules + ".Quality.X", "nergens toegestaan")]
+    [InlineData("JL0002 MediaBrowser.Controller.MediaEncoding.ITranscodeManager.StartFfMpeg " + Modules + ".Quality.X", "nergens toegestaan")]
+    [InlineData("JL0002 System.Reflection.MethodBase.Invoke " + Modules + ".Quality.X", "nergens toegestaan")]
     [InlineData("JL0003 jellyfin.db " + Modules + ".Quality.X", "niet bewaakt")]
     [InlineData("JL0001 MediaBrowser.Controller.Library.IUserDataManager.GetUserData " + Modules + ".Quality.X", "niet bewaakt")]
     [InlineData("JL0002 MediaBrowser.Controller.Library.IUserDataManager.SaveUserData " + Modules + ".Quality.X", "niet bewaakt")]
@@ -889,6 +1266,8 @@ public class VerbodenApiAnalyzerTests
             .Concat(Regels.ServerDatabaseTypen)
             .Concat(Regels.ServerDatabaseTypenExact)
             .Concat(Regels.DatabaseVerbindingTypen)
+            .Concat(Regels.BestandWitteLijst.Select(w => w.Type))
+            .Concat(Regels.BestandTypen)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
@@ -908,8 +1287,9 @@ public class VerbodenApiAnalyzerTests
         // een upstream-sync een lid bij of verdwijnt er een, dan faalt deze test tot iemand het oordeel heeft bekeken.
         // Bijwerken: draai de tests één keer met JL_SCHRIJF_BEWAAKTE_LEDEN=1 en lees het verschil in de commit.
         var compilatie = AnalyzerHarnas.Compileer("namespace Leeg { public class Niets { } }");
+        // Alleen de servertypen (de BCL-, Microsoft- en reflectieregels volgen de SDK, niet de upstream-sync).
         var regels = Regels.Typen
-            .Where(t => !t.Type.StartsWith("System.", StringComparison.Ordinal))
+            .Where(t => t.Type.StartsWith("MediaBrowser.", StringComparison.Ordinal) || t.Type.StartsWith("Jellyfin.", StringComparison.Ordinal))
             .SelectMany(t => compilatie.GetTypeByMetadataName(t.Type)!.GetMembers()
                 .OfType<IMethodSymbol>()
                 .Where(m => m.MethodKind == MethodKind.Ordinary && m.DeclaredAccessibility == Accessibility.Public)

@@ -412,3 +412,120 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
         }
     }
 }
+
+// Bestanden buiten Core.Storage (R-HARDE-EIS-13, S-G1-17 herstelronde 6): de proef SlippendeRoutes van herreview 5 (jellyfin.db
+// als bestand overschrijven of wissen, met een naam die pas bij het draaien ontstaat), de regel op de bestandsnamespaces met
+// de witte lijst, de server-ABI die zelf schrijft of een proces start, en de omwegen (native code, reflectie, dynamic).
+namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+{
+    using System.Data;
+    using System.Formats.Tar;
+    using System.IO.Compression;
+    using System.IO.MemoryMappedFiles;
+    using System.Linq.Expressions;
+    using System.Reflection;
+    using System.Reflection.Emit;
+    using System.Runtime.InteropServices;
+    using System.Runtime.Loader;
+    using System.Text;
+    using System.Xml;
+    using System.Xml.Linq;
+    using Jellyfin.Extensions;
+    using MediaBrowser.Common.Plugins;
+    using MediaBrowser.Controller.MediaEncoding;
+    using MediaBrowser.Controller.Streaming;
+    using MediaBrowser.Model.Serialization;
+
+    public class EigenSchrijver : StreamWriter
+    {
+        public EigenSchrijver(string pad) : base(pad) // VERWACHT: JL0002
+        {
+        }
+    }
+
+    public static class Bestandsroutes
+    {
+        [DllImport("libc")] private static extern int unlink(string pad); // VERWACHT: JL0002
+
+        private static unsafe int Wijzer(delegate* unmanaged<int> f) => f(); // VERWACHT: JL0002
+
+        public static async Task SlippendeRoutes(IApplicationPaths paden, IPluginManager plugins, IXmlSerializer xml, ITranscodeManager transcode, StreamState staat, string bron)
+        {
+            var db = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
+            var plugin = new LocalPlugin(paden.DataPath, true, new PluginManifest()); // VERWACHT: JL0002
+            _ = plugins.RemovePlugin(plugin); // VERWACHT: JL0002
+            xml.SerializeToFile(new object(), db); // VERWACHT: JL0002
+            ZipFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // VERWACHT: JL0002
+            TarFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // VERWACHT: JL0002
+            using (var w = XmlWriter.Create(db)) // VERWACHT: JL0002
+            {
+                _ = w;
+            }
+
+            new XDocument().Save(db); // VERWACHT: JL0002
+            new DataSet().WriteXml(db); // VERWACHT: JL0002
+            using var mm = MemoryMappedFile.CreateFromFile(db, FileMode.Open); // VERWACHT: JL0002
+            using var zicht = mm.CreateViewAccessor(); // VERWACHT: JL0002
+            zicht.Write(0, (byte)0); // VERWACHT: JL0002
+            _ = await transcode.StartFfMpeg(staat, db, "-y " + db, Guid.Empty, TranscodingJobType.Progressive, new CancellationTokenSource()); // VERWACHT: JL0002
+            _ = unlink(db); // VERWACHT: JL0002
+        }
+
+        public static async Task WitteLijst(string pad, Stream stroom, byte[] inhoud, MediaBrowser.Controller.IO.IPathManager paden)
+        {
+            _ = Path.GetTempFileName(); // VERWACHT: JL0002
+            using var a = File.OpenHandle(pad, FileMode.Open, FileAccess.ReadWrite); // VERWACHT: JL0002
+            RandomAccess.Write(a, inhoud, 0); // VERWACHT: JL0002
+            using var b = new GZipStream(stroom, CompressionLevel.Fastest); // VERWACHT: JL0002
+            using var c = new FormattingStreamWriter(pad, System.Globalization.CultureInfo.InvariantCulture); // VERWACHT: JL0002
+            Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(pad); // VERWACHT: JL0002
+            using var d = new System.Diagnostics.TextWriterTraceListener(pad); // VERWACHT: JL0002
+            new XElement("x").Save(stroom); // VERWACHT: JL0002
+            _ = AsyncFile.Create(pad); // VERWACHT: JL0002
+            // Toegestaan: padbewerking, lezen, en lezen of schrijven op een stroom die de code al heeft.
+            _ = Path.Combine(pad, "x.json");
+            _ = File.Exists(pad) ? File.ReadAllText(pad) : string.Empty;
+            using var e = new StreamReader(pad);
+            _ = await e.ReadToEndAsync();
+            using var f = new MemoryStream();
+            await f.WriteAsync(inhoud);
+            await stroom.WriteAsync(inhoud);
+            using var g = new StreamWriter(stroom, Encoding.UTF8, 1024, leaveOpen: true);
+            await g.WriteAsync("x");
+            _ = new IOException("x");
+            var sb = new StringBuilder();
+            using (var h = XmlWriter.Create(sb))
+            {
+                new XDocument(new XElement("x")).Save(h);
+            }
+
+            _ = AsyncFile.OpenRead(pad);
+            _ = paden.GetAttachmentPath("x", "y");
+        }
+
+        public static void Omwegen(string pad, object iets, MethodInfo methode, Delegate d)
+        {
+            var bib = NativeLibrary.Load("libc"); // VERWACHT: JL0002
+            _ = Marshal.GetDelegateForFunctionPointer<Func<int>>(bib); // VERWACHT: JL0002
+            _ = methode.Invoke(null, new object[] { pad }); // VERWACHT: JL0002
+            _ = Type.GetType("System.IO.File"); // VERWACHT: JL0002
+            _ = Assembly.LoadFrom(pad); // VERWACHT: JL0002
+            _ = AssemblyLoadContext.Default.LoadFromAssemblyPath(pad); // VERWACHT: JL0002
+            _ = Activator.CreateInstance(typeof(FileStream), pad, FileMode.Create); // VERWACHT: JL0002
+            _ = d.DynamicInvoke(pad); // VERWACHT: JL0002
+            _ = Expression.Lambda<Func<int>>(Expression.Constant(1)).Compile(); // VERWACHT: JL0002
+            dynamic x = iets;
+            x.Delete(pad); // VERWACHT: JL0002
+            _ = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("x"), AssemblyBuilderAccess.Run); // VERWACHT: JL0002
+            unsafe // VERWACHT: JL0002
+            {
+                int* p = null;
+                _ = p == null;
+            }
+
+            // Toegestaan: de reflectie die de plugin gebruikt.
+            _ = typeof(Bestandsroutes).Assembly.GetName().Version;
+            _ = iets.GetType().Name;
+        }
+    }
+}

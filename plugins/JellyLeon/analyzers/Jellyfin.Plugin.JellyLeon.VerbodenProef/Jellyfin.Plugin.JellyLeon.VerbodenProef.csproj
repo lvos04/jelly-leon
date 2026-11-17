@@ -13,6 +13,8 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <Nullable>disable</Nullable>
+    <!-- unsafe moet compileren, zodat de proef laat zien dat de analyzer het weigert (JL0002, omweg; ADR-0032). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
