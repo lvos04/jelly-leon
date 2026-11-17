@@ -57,6 +57,33 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         true,
         customTags: WellKnownDiagnosticTags.NotConfigurable);
 
+    private static readonly DiagnosticDescriptor _httpLaag = new(
+        Regels.ServerSchrijf,
+        "De HTTP-laag van de server alleen via de witte lijst",
+        "'{0}' raakt de HTTP-laag van de server (de pijplijn, de instellingen van MVC, autorisatie of authenticatie, de routering of de features, de argumenten van een actie, of het verzoek of de gebruiker wijzigen); zo kan plugincode een verzoek aan de server omzetten. Dat mag alleen in een klasse op de witte lijst van de HTTP-laag (ADR-0032, kop \"HTTP-laag en netwerk\").",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    private static readonly DiagnosticDescriptor _httpUitbreiding = new(
+        Regels.ServerSchrijf,
+        "Uitbreidingspunt van de HTTP-laag buiten de witte lijst",
+        "'{0}' implementeert of erft '{1}' uit de HTTP-laag van de server (middleware, filter, claimsomzetting, autorisatie, binding of routering); zo kan plugincode een verzoek aan de server omzetten. Alleen een klasse op de witte lijst van de HTTP-laag mag dat (ADR-0032, kop \"HTTP-laag en netwerk\").",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    private static readonly DiagnosticDescriptor _netwerk = new(
+        Regels.ServerSchrijf,
+        "Netwerkclients alleen in een benoemde transportklasse",
+        "'{0}' is een netwerkclient (HTTP, sockets of websockets); daarmee kan plugincode de eigen server aanroepen met het token van een verzoek. Dat mag alleen in een transportklasse die loopback, het eigen serveradres en link-local weigert (ADR-0032, kop \"HTTP-laag en netwerk\"); zo'n klasse is er nu niet.",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
     private static readonly DiagnosticDescriptor _pluginConfig = new(
         Regels.BestandSchrijf,
         "Het pad van de pluginconfiguratie mag niet worden verlegd",
@@ -131,7 +158,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(_serverSchrijf, _serverAbi, _serverToewijzing, _serverUitbreiding, _pluginConfig, _bestandSchrijf, _serverBestand, _omweg, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
+        ImmutableArray.Create(_serverSchrijf, _serverAbi, _serverToewijzing, _serverUitbreiding, _httpLaag, _httpUitbreiding, _netwerk, _pluginConfig, _bestandSchrijf, _serverBestand, _omweg, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -200,6 +227,24 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             OperationKind.Increment,
             OperationKind.Decrement);
         context.RegisterSymbolAction(toestand.Uitbreiding, SymbolKind.NamedType);
+        context.RegisterOperationAction(
+            toestand.HttpLaag,
+            OperationKind.Invocation,
+            OperationKind.MethodReference,
+            OperationKind.PropertyReference,
+            OperationKind.FieldReference,
+            OperationKind.EventReference,
+            OperationKind.ObjectCreation,
+            OperationKind.Conversion);
+        context.RegisterSymbolAction(toestand.HttpUitbreiding, SymbolKind.NamedType);
+        context.RegisterOperationAction(
+            toestand.Netwerk,
+            OperationKind.Invocation,
+            OperationKind.MethodReference,
+            OperationKind.PropertyReference,
+            OperationKind.FieldReference,
+            OperationKind.EventReference,
+            OperationKind.ObjectCreation);
         context.RegisterSymbolAction(toestand.PluginConfig, SymbolKind.Method, SymbolKind.Property);
         context.RegisterOperationAction(toestand.XmlSchrijven, OperationKind.Invocation, OperationKind.MethodReference, OperationKind.ObjectCreation);
         context.RegisterOperationAction(toestand.NativeAanroep, OperationKind.Invocation, OperationKind.MethodReference);
@@ -266,6 +311,14 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         private readonly List<INamedTypeSymbol> _volledig = new();
         private readonly List<(INamedTypeSymbol Type, ServerWit Wit)> _serverWit = new();
         private readonly List<(INamedTypeSymbol Type, UitbreidingWit Wit, INamedTypeSymbol? Argument)> _uitbreidingWit = new();
+        private readonly List<INamedTypeSymbol> _httpUitbreidingTypen = new();
+        private readonly List<INamedTypeSymbol> _httpPijplijn = new();
+        private readonly List<INamedTypeSymbol> _httpOpties = new();
+        private readonly List<(INamedTypeSymbol Type, string Lid)> _httpVerboden = new();
+        private readonly List<INamedTypeSymbol> _httpZet = new();
+        private readonly List<(INamedTypeSymbol Type, HttpWit Wit)> _httpWit = new();
+        private readonly List<INamedTypeSymbol> _netwerkTypen = new();
+        private readonly INamedTypeSymbol? _verzoek;
         private readonly INamedTypeSymbol? _streamOpties;
         private readonly INamedTypeSymbol? _basisPlugin;
         private readonly INamedTypeSymbol? _pluginConfiguratie;
@@ -279,6 +332,28 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             _streamOpties = compilatie.GetTypeByMetadataName("System.IO.FileStreamOptions");
             _basisPlugin = compilatie.GetTypeByMetadataName("MediaBrowser.Common.Plugins.BasePlugin`1");
             _pluginConfiguratie = compilatie.GetTypeByMetadataName("MediaBrowser.Common.Plugins.IHasPluginConfiguration");
+            _verzoek = compilatie.GetTypeByMetadataName("Microsoft.AspNetCore.Http.HttpRequest");
+            Vul(compilatie, Regels.HttpUitbreidingTypen, _httpUitbreidingTypen);
+            Vul(compilatie, Regels.HttpPijplijnTypen, _httpPijplijn);
+            Vul(compilatie, Regels.HttpOptieTypen, _httpOpties);
+            Vul(compilatie, Regels.HttpZetTypen, _httpZet);
+            Vul(compilatie, Regels.NetwerkTypen, _netwerkTypen);
+            foreach (var (naam, lid) in Regels.HttpVerbodenLeden)
+            {
+                if (compilatie.GetTypeByMetadataName(naam) is { } type)
+                {
+                    _httpVerboden.Add((type, lid));
+                }
+            }
+
+            foreach (var wit in Regels.HttpWitteLijst)
+            {
+                if (compilatie.GetTypeByMetadataName(wit.Type) is { } type)
+                {
+                    _httpWit.Add((type, wit));
+                }
+            }
+
             foreach (var naam in Regels.BestandVolledigTypen)
             {
                 if (compilatie.GetTypeByMetadataName(naam) is { } type)
@@ -966,6 +1041,212 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 && expliciet.FirstOrDefault(i => SymbolEqualityComparer.Default.Equals(i.ContainingType?.OriginalDefinition, _pluginConfiguratie) && Regels.PluginConfigLeden.Contains(i.Name)) is { } geraakt)
             {
                 context.ReportDiagnostic(Diagnostic.Create(_pluginConfig, plek, geraakt.ContainingType.ToDisplayString() + "." + geraakt.Name));
+            }
+        }
+
+        /// <summary>
+        /// JL0001 HTTP-laag (R-HARDE-EIS-17, S-G1-17 herstelronde 8): de pijplijn van de server opbouwen
+        /// (<see cref="Regels.HttpPijplijnTypen"/> en hun extensiemethoden), de instellingen van de HTTP-laag
+        /// (<see cref="Regels.HttpOptieTypen"/>), elk lid uit <see cref="Regels.HttpLedenNamespaces"/> (behalve een constante),
+        /// de losse leden uit <see cref="Regels.HttpVerbodenLeden"/>, een eigenschap van het verzoek of de context zetten
+        /// (<see cref="Regels.HttpZetTypen"/>), de verzoekkoppen anders gebruiken dan rechtstreeks lezen, en een waarde uit die
+        /// namespaces als ander type doorgeven (een <c>RouteValueDictionary</c> als <c>IDictionary</c>). Behalve wat in deze
+        /// klasse op <see cref="Regels.HttpWitteLijst"/> staat. Attributen op eigen code tellen niet: die gelden alleen voor
+        /// die code.
+        /// </summary>
+        public void HttpLaag(OperationAnalysisContext context)
+        {
+            var operatie = context.Operation;
+            if (operatie.Syntax.FirstAncestorOrSelf<AttributeSyntax>() is not null)
+            {
+                return;
+            }
+
+            if (operatie is IConversionOperation omzetting)
+            {
+                if (omzetting.Operand.Type is INamedTypeSymbol bron && omzetting.Type is { } doel && !omzetting.Conversion.IsIdentity
+                    && !SymbolEqualityComparer.Default.Equals(bron, doel) && InHttpLedenNamespace(bron))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(_httpLaag, operatie.Syntax.GetLocation(), bron.OriginalDefinition.ToDisplayString() + " als " + doel.ToDisplayString()));
+                }
+
+                return;
+            }
+
+            var (lid, type, constructor) = LidEnType(operatie);
+            if (lid is null || type is null || HttpVerboden(operatie, lid, type, constructor) is not { } api)
+            {
+                return;
+            }
+
+            var klasse = BuitensteType(context.ContainingSymbol)?.ToDisplayString();
+            var lidnaam = constructor is not null ? ".ctor" : lid.Name;
+            var declarerend = (constructor is not null ? type : lid.ContainingType)?.OriginalDefinition;
+            if (_httpWit.Any(w => w.Wit.Lid == lidnaam && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(declarerend, w.Type)))
+            {
+                return;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(_httpLaag, operatie.Syntax.GetLocation(), api));
+        }
+
+        /// <summary>De naam van wat in de HTTP-laag verboden is, of null als deze operatie daar niet onder valt.</summary>
+        private string? HttpVerboden(IOperation operatie, ISymbol lid, INamedTypeSymbol type, IMethodSymbol? constructor)
+        {
+            var naam = Naam(type, lid, constructor);
+
+            // De pijplijn: een lid van IApplicationBuilder of IEndpointRouteBuilder, of een extensiemethode erop.
+            if (_httpPijplijn.Any(p => HoortBij(type, p))
+                || (lid is IMethodSymbol { IsExtensionMethod: true, Parameters.Length: > 0 } extensie
+                    && extensie.Parameters[0].Type is INamedTypeSymbol ontvanger && _httpPijplijn.Any(p => HoortBij(ontvanger, p))))
+            {
+                return naam;
+            }
+
+            // De instellingen die voor alle routes van de server gelden.
+            if (_httpOpties.Any(o => HoortBij(type, o)))
+            {
+                return naam;
+            }
+
+            // Authenticatie, autorisatie, routering, features en herschrijfregels: elk lid, behalve een constante.
+            if (InHttpLedenNamespace(type) && lid is not IFieldSymbol { IsConst: true })
+            {
+                return naam;
+            }
+
+            if (_httpVerboden.Any(v => v.Lid == lid.Name && HoortBij(type, v.Type)))
+            {
+                return naam;
+            }
+
+            var geschreven = operatie is IPropertyReferenceOperation or IFieldReferenceOperation && IsGeschreven(operatie);
+            if (geschreven && _httpZet.Any(z => HoortBij(type, z)))
+            {
+                return naam;
+            }
+
+            // De verzoekkoppen: alleen rechtstreeks lezen (een kop, TryGetValue, ContainsKey); opslaan, doorgeven of wijzigen niet.
+            if (operatie is IPropertyReferenceOperation { Property.Name: "Headers" } koppen && _verzoek is not null && HoortBij(type, _verzoek)
+                && !AlleenGelezen(koppen))
+            {
+                return naam + " (anders dan rechtstreeks lezen)";
+            }
+
+            return null;
+        }
+
+        /// <summary>Waar als de verzoekkoppen hier alleen rechtstreeks gelezen worden.</summary>
+        private static bool AlleenGelezen(IPropertyReferenceOperation koppen) => koppen.Parent switch
+        {
+            IPropertyReferenceOperation kop when ReferenceEquals(kop.Instance, koppen) => !IsGeschreven(kop),
+            IInvocationOperation aanroep when ReferenceEquals(aanroep.Instance, koppen) => aanroep.TargetMethod.Name is "TryGetValue" or "ContainsKey",
+            _ => false,
+        };
+
+        private static bool InHttpLedenNamespace(INamedTypeSymbol type) =>
+            type.TypeKind != TypeKind.Enum && Regels.InNamespace(type.OriginalDefinition.ContainingNamespace?.ToDisplayString() ?? string.Empty, Regels.HttpLedenNamespaces);
+
+        /// <summary>
+        /// JL0001 uitbreidingspunten van de HTTP-laag (R-HARDE-EIS-17): een type van de plugin dat een type uit
+        /// <see cref="Regels.HttpUitbreidingTypen"/> of uit <see cref="Regels.HttpUitbreidingNamespaces"/> implementeert of
+        /// ervan afleidt (ook via een eigen tussentype), moet daarvoor op <see cref="Regels.HttpWitteLijst"/> staan, met precies
+        /// zijn eigen volledige naam. Wat een toegestaan type zelf meebrengt (<c>IFilterMetadata</c> bij <c>IAsyncActionFilter</c>)
+        /// mag mee.
+        /// </summary>
+        public void HttpUitbreiding(SymbolAnalysisContext context)
+        {
+            var type = (INamedTypeSymbol)context.Symbol;
+            if (type.IsImplicitlyDeclared || type.Locations.FirstOrDefault(l => l.IsInSource) is not { } plek)
+            {
+                return;
+            }
+
+            var alle = new List<INamedTypeSymbol>();
+            for (var t = type.BaseType; t is not null; t = t.BaseType)
+            {
+                alle.Add(t);
+            }
+
+            alle.AddRange(type.AllInterfaces);
+            var http = alle.Where(IsHttpUitbreiding).ToList();
+            if (http.Count == 0)
+            {
+                return;
+            }
+
+            var klasse = type.ToDisplayString();
+            var toegestaan = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+            foreach (var s in http.Where(s => _httpWit.Any(w => w.Wit.Lid == HttpWit.Implementeert && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(s.OriginalDefinition, w.Type))))
+            {
+                toegestaan.Add(s);
+                for (var t = s.BaseType; t is not null; t = t.BaseType)
+                {
+                    toegestaan.Add(t);
+                }
+
+                foreach (var i in s.AllInterfaces)
+                {
+                    toegestaan.Add(i);
+                }
+            }
+
+            var fout = http.Where(s => !toegestaan.Contains(s))
+                .Select(s => s.ToDisplayString())
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToList();
+            if (fout.Count > 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_httpUitbreiding, plek, klasse, string.Join(", ", fout)));
+            }
+        }
+
+        private bool IsHttpUitbreiding(INamedTypeSymbol type) =>
+            _httpUitbreidingTypen.Any(t => SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, t))
+            || Regels.InNamespace(type.OriginalDefinition.ContainingNamespace?.ToDisplayString() ?? string.Empty, Regels.HttpUitbreidingNamespaces);
+
+        /// <summary>
+        /// JL0001 netwerkclients (R-HARDE-EIS-17, besluit punt 2): elk lid van een type uit <see cref="Regels.NetwerkNamespaces"/>
+        /// of <see cref="Regels.NetwerkTypen"/> (ook van een eigen type dat ervan afleidt, en aanmaken), in elke namespace,
+        /// behalve in een klasse uit <see cref="Regels.NetwerkKlassen"/> (nu leeg). Een enumwaarde mag. WebClient en WebRequest
+        /// buiten de opslaglaag meldt de bestandsregel al (JL0002); daar volgt geen tweede melding.
+        /// </summary>
+        public void Netwerk(OperationAnalysisContext context)
+        {
+            var (lid, type, constructor) = LidEnType(context.Operation);
+            if (lid is null || type is null || type.TypeKind == TypeKind.Enum)
+            {
+                return;
+            }
+
+            INamedTypeSymbol? netwerk = null;
+            for (var t = type; t is not null && netwerk is null; t = t.BaseType)
+            {
+                if (IsType(t, Regels.NetwerkNamespaces, ImmutableArray<string>.Empty) || _netwerkTypen.Any(n => SymbolEqualityComparer.Default.Equals(t.OriginalDefinition, n)))
+                {
+                    netwerk = t;
+                }
+            }
+
+            if (netwerk is null
+                || Regels.NetwerkKlassen.Contains(BuitensteType(context.ContainingSymbol)?.ToDisplayString() ?? string.Empty)
+                || (_netwerkTypen.Any(n => HoortBij(netwerk, n)) && !InNamespace(context.ContainingSymbol, Regels.OpslagNamespaces)))
+            {
+                return;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(_netwerk, context.Operation.Syntax.GetLocation(), Naam(netwerk, lid, constructor)));
+        }
+
+        private static void Vul(Compilation compilatie, ImmutableArray<string> namen, List<INamedTypeSymbol> doel)
+        {
+            foreach (var naam in namen)
+            {
+                if (compilatie.GetTypeByMetadataName(naam) is { } type)
+                {
+                    doel.Add(type);
+                }
             }
         }
 

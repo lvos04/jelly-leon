@@ -31,6 +31,12 @@
   afleiding van een servertype is JL0001 buiten de witte lijst van uitbreidingspunten per namespace; het pad van de
   pluginconfiguratie verleggen is JL0002 nergens. `WebClient`, `WebRequest` en de trace-laag zijn buiten de opslaglaag
   helemaal JL0002, en een constructor met `FileStreamOptions` staat nooit op de witte lijst. Zie "Server-ABI: witte lijst".
+  Bijgewerkt 2026-11-17 na herreview 7 (S-G1-17 herstelronde 8, R-HARDE-EIS-17 en de grenzen 1 tot en met 5; besluit van de
+  regisseur): de HTTP-laag van de server is JL0001 buiten een witte lijst per klasse (middleware, filters, claimsomzetting,
+  autorisatie, de instellingen van MVC, autorisatie en authenticatie, het verzoek, de gebruiker, de routewaarden en de
+  argumenten van een actie), een netwerkclient mag alleen in een benoemde transportklasse (de lijst is leeg), en
+  `ConfigurationBinder.Bind`/`Get`, `TypeDescriptor` met `PropertyDescriptor.SetValue`, `DispatchProxy`, System.Linq.Expressions
+  en `Unsafe` zijn omwegen (JL0002). De grenzen staan eerlijk onder "Grenzen". Zie "HTTP-laag en netwerk".
 - **Werkpakket:** B03-017; raakt de HARDE EIS (kijkgeschiedenis, bibliotheek, metadata en gebruikersgegevens blijven
   behouden) en JLT-65.
 - **Bewijs:** `plugins/JellyLeon/tests/…/Analyzer/VerbodenApiAnalyzerTests.cs` (xunit), de proefassembly
@@ -58,8 +64,8 @@ configureerbaar (`NotConfigurable`): een `.editorconfig`, `NoWarn` of `#pragma` 
 
 | Regel | Verboden | Waar wel |
 |---|---|---|
-| **JL0001** | **de server-ABI buiten de witte lijst** (sinds herstelronde 7; zie "Server-ABI: witte lijst"): elk lid van een servertype (aanroepen, lezen, een event, aanmaken), behalve de lezende leden op de witte lijst van die klasse; elke toewijzing aan een eigenschap of veld van een servertype; elke implementatie of afleiding van een servertype buiten de witte lijst van uitbreidingspunten. Daaronder, met een eigen melding: schrijvende server-API. Per interface geldt "alles verboden behalve lezen" (voorvoegsels `Get`, `Find`, `Query`, `Is`, `Has`, `Can`, `To`, alleen als heel woord: `CanRefresh` is lezen, `CancelTimer` niet): `ILibraryManager`, `IItemRepository`, `IItemPersistenceService`, `IPlaylistManager`, `ICollectionManager` (ook `GetCollectionsFolder`, want die kan aanmaken), `IUserManager`, `IDeviceManager`, `IUserDataManager`, `IProviderManager`, `ISubtitleManager`, `IMediaSegmentManager`, `ISessionManager`, `IServerConfigurationManager`/`IConfigurationManager`, plus de diensten uit "Wat JL0001 bewaakt" hieronder; op `BaseItem` en afgeleiden de wijzigende methoden (`Update*`, `Delete*`, `Refresh*`, `Save*`, `Add*`, `Remove*`, `Set*`, `Swap*`, `Changed*`, `Mark*`, `Validate*`). Ook het schrijven van een eigenschap (toewijzing, `++`, `--`) op een bewaakt type telt: `item.Name = …` op een `BaseItem` is JL0001. Bij een bewaakte interface tellen van een eigen klasse die de interface implementeert alleen de leden die een lid van die interface implementeren (zie "Wat JL0001 bewaakt") | witte lijst van de server-ABI: per lid en per klasse, alleen in `Regels.cs` en in deze ADR; uitbreidingspunten per namespace. Schrijvende server-API: bibliotheek, opslag van items, afspeellijsten, collecties, gebruikers, apparaten en alle diensten uit "Wat JL0001 bewaakt": **nergens**. De overige alleen in één met naam genoemde klasse per API (witte lijst) |
-| **JL0002** | **bestanden**: elk gebruik van een type uit System.IO (met alle subnamespaces), System.Formats.Tar en Microsoft.VisualBasic.FileIO (plus `Microsoft.VisualBasic.FileSystem`), behalve de kleine witte lijst (padbewerking, lezen, en een stroom of lezer/schrijver die de code al heeft); het schrijvende deel van System.Xml/System.Xml.Linq (`Save`, `WriteTo`, `WriteContentTo`, `Transform`, `Serialize` en een XmlWriter maken, met een pad of stroom), `DataSet`/`DataTable.WriteXml*`, `WebClient`, `WebRequest` en de trace-laag helemaal (sinds herstelronde 7), `ResourceWriter` met een pad en `ProfileOptimization`; een constructor met `FileStreamOptions`; wijzigende methoden van `IFileSystem` (zie "Bestanden (JL0002)"). **Het pad van de pluginconfiguratie verleggen** (een override van `BasePlugin<T>.ConfigurationFileName`, `SaveConfiguration` of `UpdateConfiguration`; zie "Server-ABI: witte lijst"): nergens. **Server-ABI die zelf schrijft of een proces start** (`IPluginManager`, `new LocalPlugin`, `IXmlSerializer.SerializeTo…`, `ITranscodeManager`, `IMediaEncoder` en de rest van de lijst onder "Bestanden (JL0002)"). **Omwegen**: P/Invoke, `unsafe`, `NativeLibrary`/`Marshal`, reflectie die een lid aanroept of een type uit een tekst haalt, code laden, `Activator`, `dynamic`, System.Reflection.Emit (zie "Dreigingsmodel"). Daarnaast **databasetoegang**: elke operatie die een databaseverbinding of -bron oplevert of gebruikt (`new SqliteConnection`, `SqliteFactory`, `DbProviderFactory`/`DbProviderFactories`, `DbDataSource`, `IDbConnection`, SQLitePCL en de bouwers van Entity Framework Core; zie "Databasetoegang (JL0002)") | bestanden: alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`FileInfo`/`DirectoryInfo`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API; voor de andere bestandsleden bestaat geen uitzondering. Server-ABI die zelf schrijft en de omwegen: **nergens**, ook niet in `Core.Storage`, geen uitzondering. Databasetoegang: **alleen in `Core.Storage`** (`JlDatabase`), geen uitzondering mogelijk |
+| **JL0001** | **de server-ABI buiten de witte lijst** (sinds herstelronde 7; zie "Server-ABI: witte lijst"): elk lid van een servertype (aanroepen, lezen, een event, aanmaken), behalve de lezende leden op de witte lijst van die klasse; elke toewijzing aan een eigenschap of veld van een servertype; elke implementatie of afleiding van een servertype buiten de witte lijst van uitbreidingspunten. **De HTTP-laag van de server en netwerkclients** (sinds herstelronde 8; zie "HTTP-laag en netwerk"): een middleware, filter, claimsomzetting of ander uitbreidingspunt van de HTTP-laag, de pijplijn opbouwen, de instellingen van MVC, autorisatie en authenticatie, routering en features, het verzoek of de gebruiker zetten, de verzoekkoppen anders dan lezen, de argumenten van een actie, en elke HTTP-, socket- of websocketclient. Daaronder, met een eigen melding: schrijvende server-API. Per interface geldt "alles verboden behalve lezen" (voorvoegsels `Get`, `Find`, `Query`, `Is`, `Has`, `Can`, `To`, alleen als heel woord: `CanRefresh` is lezen, `CancelTimer` niet): `ILibraryManager`, `IItemRepository`, `IItemPersistenceService`, `IPlaylistManager`, `ICollectionManager` (ook `GetCollectionsFolder`, want die kan aanmaken), `IUserManager`, `IDeviceManager`, `IUserDataManager`, `IProviderManager`, `ISubtitleManager`, `IMediaSegmentManager`, `ISessionManager`, `IServerConfigurationManager`/`IConfigurationManager`, plus de diensten uit "Wat JL0001 bewaakt" hieronder; op `BaseItem` en afgeleiden de wijzigende methoden (`Update*`, `Delete*`, `Refresh*`, `Save*`, `Add*`, `Remove*`, `Set*`, `Swap*`, `Changed*`, `Mark*`, `Validate*`). Ook het schrijven van een eigenschap (toewijzing, `++`, `--`) op een bewaakt type telt: `item.Name = …` op een `BaseItem` is JL0001. Bij een bewaakte interface tellen van een eigen klasse die de interface implementeert alleen de leden die een lid van die interface implementeren (zie "Wat JL0001 bewaakt") | witte lijst van de server-ABI: per lid en per klasse, alleen in `Regels.cs` en in deze ADR; uitbreidingspunten per namespace. HTTP-laag: alleen per klasse op de witte lijst van de HTTP-laag (nu de spike van ADR-0033 en `JlRouteAttribute`, alleen voor de eigen pluginpaden en acties). Netwerkclients: alleen in een benoemde transportklasse (de lijst is leeg). Schrijvende server-API: bibliotheek, opslag van items, afspeellijsten, collecties, gebruikers, apparaten en alle diensten uit "Wat JL0001 bewaakt": **nergens**. De overige alleen in één met naam genoemde klasse per API (witte lijst) |
+| **JL0002** | **bestanden**: elk gebruik van een type uit System.IO (met alle subnamespaces), System.Formats.Tar en Microsoft.VisualBasic.FileIO (plus `Microsoft.VisualBasic.FileSystem`), behalve de kleine witte lijst (padbewerking, lezen, en een stroom of lezer/schrijver die de code al heeft); het schrijvende deel van System.Xml/System.Xml.Linq (`Save`, `WriteTo`, `WriteContentTo`, `Transform`, `Serialize` en een XmlWriter maken, met een pad of stroom), `DataSet`/`DataTable.WriteXml*`, `WebClient`, `WebRequest` en de trace-laag helemaal (sinds herstelronde 7), `ResourceWriter` met een pad en `ProfileOptimization`; een constructor met `FileStreamOptions`; wijzigende methoden van `IFileSystem` (zie "Bestanden (JL0002)"). **Het pad van de pluginconfiguratie verleggen** (een override van `BasePlugin<T>.ConfigurationFileName`, `SaveConfiguration` of `UpdateConfiguration`; zie "Server-ABI: witte lijst"): nergens. **Server-ABI die zelf schrijft of een proces start** (`IPluginManager`, `new LocalPlugin`, `IXmlSerializer.SerializeTo…`, `ITranscodeManager`, `IMediaEncoder` en de rest van de lijst onder "Bestanden (JL0002)"). **Omwegen**: P/Invoke, `unsafe`, `NativeLibrary`/`Marshal`, reflectie die een lid aanroept of een type uit een tekst haalt, code laden, `Activator`, `dynamic`, System.Reflection.Emit, en sinds herstelronde 8 `ConfigurationBinder.Bind`/`Get`, `TypeDescriptor` en `PropertyDescriptor.SetValue`/`GetValue`, `DispatchProxy`, System.Linq.Expressions, `Unsafe` en `TryUpdateModelAsync` (zie "Dreigingsmodel"). Daarnaast **databasetoegang**: elke operatie die een databaseverbinding of -bron oplevert of gebruikt (`new SqliteConnection`, `SqliteFactory`, `DbProviderFactory`/`DbProviderFactories`, `DbDataSource`, `IDbConnection`, SQLitePCL en de bouwers van Entity Framework Core; zie "Databasetoegang (JL0002)") | bestanden: alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`FileInfo`/`DirectoryInfo`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API; voor de andere bestandsleden bestaat geen uitzondering. Server-ABI die zelf schrijft en de omwegen: **nergens**, ook niet in `Core.Storage`, geen uitzondering. Databasetoegang: **alleen in `Core.Storage`** (`JlDatabase`), geen uitzondering mogelijk |
 | **JL0003** | de database van de server: elk gebruik van de typenaam `JellyfinDbContext`, `IJellyfinDatabaseProvider` (een dienst in de container van de server: `DbContextFactory` geeft een context, `PurgeDatabase` wist elke tabel en `RestoreBackupFast` overschrijft `jellyfin.db`), `IEntityFrameworkCoreLockingBehavior` of `IItemQueryHelpers` (die twee nemen een context als argument), en van een type dat er een implementeert of ervan afleidt. Elk gebruik is: een parameter, een veld, een lokale variabele, `GetService<T>`, `typeof`, een alias, een typeargument (`IDbContextFactory<JellyfinDbContext>`), een elementtype en `var` dat naar zo'n type verwijst (`var f = provider.DbContextFactory`). Ook de niet-generieke `Microsoft.EntityFrameworkCore.DbContextOptions` (precies dat type, niet een afgeleid type) is JL0003 bij elk gebruik van de naam: na `AddPooledDbContextFactory<JellyfinDbContext>` staat hij in de container van de server en draagt hij de verbindingstekst van `jellyfin.db` (resolven met `GetRequiredService<DbContextOptions>()`, injecteren als parameter, `typeof`). Zonder die naam krijgt plugincode de dienst niet: de container geeft hem alleen op type, en volgens een scan van de plugin-ABI is `IJellyfinDatabaseProvider.DbContextFactory` het enige publieke lid dat een context of een fabriek ervan teruggeeft (herhaald in herstelronde 5 met een scan over alle compile-assets: zie "Databasetoegang (JL0002)"). Verder elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke UTF-8-tekst (`"…"u8`), elke constante (ook uit een andere assembly, en de constante waarde van een omzetting: `(char)46` en `(char)0x2E` zijn een punt, `(int)'.'` is geen tekst) en elke samenstelling met `+` of `$"…"`, ook een optelling van UTF-8-teksten (`"jellyfin"u8 + ".db"u8`): de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een uitlijning `{x,n}` met een bekend stuk vult met spaties aan tot \|n\| tekens (n positief ervoor, negatief erna; een kortere n vult niets aan, dus `$"jellyfin{".db",3}"` is JL0003); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
 | **JL0004** | processen starten (`Process.Start`, `new Process`, `new ProcessStartInfo`, `Microsoft.VisualBasic.Interaction.Shell`). Het besluit van herstelronde 6 noemt processen starten bij JL0002; de regel blijft JL0004, want die is strenger (ook in `Core.Storage` en `Core.Secrets` verboden) en houdt de werkerbewaker van B03-018 in `Core.Werker` mogelijk. Een proces dat de server start (`ITranscodeManager.StartFfMpeg`, `IMediaEncoder`, de keyframe-extractors) is JL0002 (server-ABI) | alleen in `Core.Werker` (de werkerbewaker van B03-018); geen uitzondering per klasse |
 | **JL0009** | een ongeldige regel in de witte lijst | — |
@@ -76,8 +82,11 @@ maakte van `jellyfin.db` een XML-bestand), `IServerApplicationHost.RestoreBackup
 start een back-up terug), `IApplicationHost.GetExports<ILibraryPostScanTask>()` met `Run`, en uitbreidingspunten die de
 server zelf in de pluginassembly zoekt (een eigen `IResolverIgnoreRule` laat de volgende scan items wissen). Daarbij
 `SessionInfo`: wie `NowPlayingItem` of `LastPlaybackCheckIn` zet, laat de server voor die sessie `OnPlaybackStopped` doen,
-dat `PlayCount`, `Played` en `PlaybackPositionTicks` opslaat. Een nieuwe scan vindt met deze regel geen nieuwe weg meer,
-alleen een vraag om de lijst uit te breiden.
+dat `PlayCount`, `Played` en `PlaybackPositionTicks` opslaat. Binnen de server-ABI vond herreview 7 met deze regel geen
+nieuwe weg meer (lid voor lid nagelopen, en de pluginbouw met een lege lijst gaf precies de gebruikte leden). Dat geldt alleen
+voor de server-ABI. Buiten de server-ABI om vond dezelfde herreview wel een weg: de HTTP-laag van de server, met alleen
+Microsoft- en BCL-typen (R-HARDE-EIS-17, zie "HTTP-laag en netwerk"). Wat de analyzer daarna nog niet ziet, staat onder
+"Grenzen"; een nieuwe scan kan daar nog wegen vinden.
 
 **Servertype** = elk type uit een namespace of assembly `MediaBrowser.*`, `Jellyfin.*` of `Emby.*`, behalve de eigen plugin
 (`Jellyfin.Plugin.JellyLeon.*`).
@@ -158,7 +167,8 @@ Witte lijst van uitbreidingspunten (`Regels.UitbreidingWitteLijst`):
 | `IEventConsumer<UserDeletedEventArgs>` | `Jellyfin.Plugin.JellyLeon.Core.Privacy` | `UserDeletedConsumer` wist de eigen gegevens van een verwijderde gebruiker (c09698f09). Alleen dit typeargument; een consumer van een ander event is JL0001. Stond niet in het voorstel van herreview 6, maar de plugin gebruikt het al sinds golf 1. |
 
 Microsoft-typen zijn geen server-ABI en vallen niet onder deze regel: `IHostedService` (`DevicesListener`, `MediaGuardPoller`,
-`BatchPlanner`) en `IStartupFilter` (de spike van ADR-0033); zie "Grenzen". Later, elk met een eigen ADR en een regel in
+`BatchPlanner`); zie "Grenzen". `IStartupFilter` (de spike van ADR-0033) en de andere uitbreidingspunten van de HTTP-laag vallen
+sinds herstelronde 8 onder een eigen regel met een eigen witte lijst (zie "HTTP-laag en netwerk"). Later, elk met een eigen ADR en een regel in
 `Regels.UitbreidingWitteLijst`: `IScheduledTask` (de ingang naar de batchplanner) en `IMediaSegmentProvider` (alleen in
 `Modules.Segments`, B03-07x). Nu geven beide JL0001.
 
@@ -176,6 +186,81 @@ geeft nu een JL-fout; lezen per klasse; zetten; uitbreidingspunten; de plugincon
 `StreamReader` met opties; elk type en lid op de lijsten bestaat; elke regel staat in deze ADR), `PluginGrensTests` (het pad
 van de configuratie en de typen in de vrijgestelde namespaces) en de proefregels in `VerbodenAanroepen.cs`. De oudere
 analyzertests toetsen hun specifieke regel zoals voorheen en markeren met `/*WL*/` waar de witte lijst daarnaast JL0001 geeft.
+
+#### HTTP-laag en netwerk (JL0001)
+
+Sinds herstelronde 8 (herreview 7, R-HARDE-EIS-17; besluit van de regisseur). Aanleiding: de REST-API van de server schrijft
+ook kijkgegevens, en plugincode bereikte die zonder één lid van de server-ABI, met alleen Microsoft- en BCL-typen. Vier vormen
+gaven geen JL-fout en de echte pluginbouw slaagde: (A) een `IStartupFilter` met een middleware vóór routing en authenticatie
+die `GET /Items?ParentId=<bibliotheek>` omzet naar `DELETE /UserPlayedItems/<bibliotheek>`; (B) een globaal MVC-filter
+(`MvcOptions.Filters`) dat `ActionArguments` van een serveractie wijzigt; (C) `HttpClient` naar de eigen server via loopback,
+met het token uit een binnenkomend verzoek; (D) een `IClaimsTransformation` die de claim `Jellyfin-UserId` vervangt. Eén verzoek
+`DELETE /UserPlayedItems/<bibliotheek-ID>` zet in de serverbron (v12.4) voor die gebruiker van elk item in de bibliotheek
+`Played`, `PlayCount`, `PlaybackPositionTicks` en `LastPlayedDate` terug (`PlaystateController.MarkUnplayedItem` →
+`Folder.MarkUnplayed` met `Recursive = true` → `BaseItem.ResetPlayedState` → `SaveUserData`). Met een beheerderstoken en
+`?userId=` kan dat ook voor een andere gebruiker.
+
+**De regel (JL0001, eigen melding "raakt de HTTP-laag van de server").** Buiten de witte lijst hieronder is verboden, in elke
+namespace (ook `Core.Storage`, `Core.Secrets` en `Core.Werker`):
+
+1. **Uitbreidingspunten** (een symboolactie op elk type van de plugin, ook via een eigen tussentype of interface): een type dat
+   `IStartupFilter`, `IHostingStartup`, `IMiddleware`, `IMiddlewareFactory`, `IHttpContextFactory`, `IHttpContextAccessor`,
+   `IEndpointFilter` of `Endpoint` implementeert of ervan afleidt, of een type uit Microsoft.AspNetCore.Authentication
+   (`IClaimsTransformation`, een eigen schema), .Authorization (`IAuthorizationHandler`, `IAuthorizationPolicyProvider`),
+   .Mvc.Filters (elk filter), .Mvc.ApplicationModels (conventies), .Mvc.ApplicationParts, .Mvc.ModelBinding (een binder of
+   waardebron voor de argumenten van een serveractie), .Mvc.Formatters, .Mvc.Routing, .Mvc.Abstractions, .Mvc.Infrastructure,
+   .Mvc.Controllers, .Routing, .Http.Features of .Rewrite (met alle namespaces eronder).
+2. **De pijplijn opbouwen**: elk lid van `IApplicationBuilder` en `IEndpointRouteBuilder`, en elke extensiemethode die erop
+   werkt (`Use`, `UseMiddleware`, `Map`, `MapWhen`, `UseWhen`, `Run`, `UseRouting`, `MapGet`, …).
+3. **De instellingen die voor alle routes gelden**: elk lid van `MvcOptions` (filters, conventies, waardebronnen, binders,
+   formatters), `ApplicationPartManager`, `AuthorizationOptions` en `AuthorizationBuilder` (een policy toevoegen of vervangen, de
+   standaard- of terugvalpolicy), `AuthenticationOptions` en `AuthenticationBuilder` (een schema of het standaardschema). De
+   registratie (`Configure<T>`, `AddMvc`, `AddAuthorization`) is een typenaam; het lid in de lambda telt.
+4. **Elk lid** (ook lezen, behalve een constante) van een type uit Microsoft.AspNetCore.Authentication, .Authorization,
+   .Routing (ook `RouteValueDictionary` en de endpoints van de server), .Http.Features (`IHttpRequestFeature.Path` zetten gaat
+   langs `HttpRequest` heen), .Rewrite, .Mvc.ApplicationModels, .Mvc.ApplicationParts, .Mvc.Infrastructure, .Mvc.Abstractions
+   en .Mvc.Controllers (met `IActionDescriptorCollectionProvider` en `IActionInvokerFactory` voert plugincode een actie van de
+   server in het proces uit, langs authenticatie en autorisatie heen); en een waarde uit die namespaces als ander type
+   doorgeven (`IDictionary<string, object> d = http.Request.RouteValues`).
+5. **Losse leden**: `ActionExecutingContext.ActionArguments` (ook lezen: het is een gewone, wijzigbare lijst),
+   `Endpoint.RequestDelegate` (een endpoint van de server rechtstreeks uitvoeren gaat langs authenticatie en autorisatie heen),
+   `SetEndpoint`, `GetTypedHeaders` (getypeerde koppen met setters), en `ClaimsPrincipal.AddIdentity`/`AddIdentities`,
+   `ClaimsIdentity.AddClaim`/`AddClaims`/`RemoveClaim`/`TryRemoveClaim`.
+6. **Het verzoek of de gebruiker zetten**: een eigenschap van `HttpRequest` (`Path`, `PathBase`, `Method`, `QueryString`,
+   `Query`, `Body`, `RouteValues`, …), `HttpContext` (`User`, `RequestServices`, `Items`, …) of `IHttpContextAccessor` zetten.
+7. **De verzoekkoppen**: `HttpRequest.Headers` mag alleen rechtstreeks gelezen worden (een kop, een getypeerde kop lezen,
+   `TryGetValue`, `ContainsKey`). Een kop zetten, `Append`, `Remove`, de koppen in een variabele opslaan of doorgeven is JL0001.
+   De antwoordkoppen (`HttpResponse.Headers`) vallen er niet onder.
+
+Attributen op eigen code (`[Authorize]`, `[Route]`) tellen niet: die gelden alleen voor die code.
+
+Witte lijst van de HTTP-laag (`Regels.HttpWitteLijst`, per klasse; `HttpLaagTests.WitteLijst_ElkeRegelStaatInAdr0032` eist dat
+elke regel in deze tabel staat). Een plugin zonder deze lijst gebouwd gaf precies deze drie meldingen:
+
+| Type | Lid | Klasse (onder `Jellyfin.Plugin.JellyLeon`) | Motivatie |
+|---|---|---|---|
+| `IStartupFilter` | implementeert | `Core.Http.JlStartupFilterSpike` | De spike van ADR-0033 (standaard uit): een laag vóór routing en authenticatie die alleen een verzoek van meer dan 1 MiB aan `/media/v1` of `/connector/v1` met 413 weigert. Alle andere verzoeken gaan ongewijzigd door; `StartupFilterSpikeTests.In_een_echte_host_komt_een_verzoek_buiten_de_pluginpaden_ongewijzigd_aan` legt dat vast. |
+| `UseExtensions` | `Use` | `Core.Http.JlStartupFilterSpike` | De ene middleware van de spike in de pijplijn zetten; `Map`, `UseMiddleware` en andere leden blijven ook in deze klasse JL0001. |
+| `IAsyncActionFilter` | implementeert | `Core.Http.JlRouteAttribute` | Het attribuut op de eigen acties dat de ene pipeline laat lopen. Het werkt alleen op de acties die het dragen; een globaal filter vraagt `MvcOptions` en is JL0001. |
+
+**Netwerkclients (JL0001, eigen melding "is een netwerkclient").** Elk lid van een type uit System.Net.Http (ook
+`IHttpClientFactory`, `HttpMessageInvoker`, `SocketsHttpHandler` en de headers), System.Net.Sockets (`Socket`, `TcpClient`,
+`UdpClient`), System.Net.WebSockets (`ClientWebSocket`) en System.Net.Quic, ook aanmaken en ook een eigen type dat ervan afleidt
+(een `DelegatingHandler`), is JL0001 in elke namespace, behalve in een klasse uit `Regels.NetwerkKlassen`. `WebClient` en
+`WebRequest` zijn buiten de opslaglaag al JL0002 (bestanden); in de opslaglaag zijn ze nu JL0001 als netwerkclient. Een enumwaarde
+mag. **De lijst met transportklassen is leeg**: de plugin heeft er nu geen nodig (`GeenMediaGuardVervoer` maakt geen
+verbinding). Een klasse komt er alleen op met een eigen ADR (straks de MediaGuard-vervoerder, B03-009/ADR-0034), en die klasse
+moet bij het draaien loopback (127/8 en ::1), het eigen serveradres en link-local (169.254/16 en fe80::/10) weigeren, ook na
+het oplossen van de naam en na een omleiding, fail-closed, met een test daarop. `HttpLaagTests.Netwerk_TransportlijstIsLeegEnElkeClientIsOveralJL0001`
+eist dat de lijst leeg is; wie er een klasse op zet, past die test bewust aan.
+
+Tests: `HttpLaagTests.Herreview7Punt3_VormenAtotD_GevenNuEenJLFout` (de vormen A tot en met D van herreview 7, nagebouwd),
+`.Varianten_ElkeWegLangsDeHttpLaagOfHetNetwerkIsJL0001` (34 vormen: andere uitbreidingspunten, policies en schema's, features,
+koppen, routewaarden, gebruiker, endpoint, een actie in het proces, sockets, websockets, `IHttpClientFactory`, een eigen handler; met de toegestane
+tegenvormen; ook in `Core.Storage`), `.WitteLijst_GeldtPerKlasseEnPerLid`, `.Netwerk_TransportlijstIsLeegEnElkeClientIsOveralJL0001`,
+`.Tabellen_ElkTypeEnLidBestaat`, `.WitteLijst_ElkeRegelStaatInAdr0032`, de runtime-test van de spike in een echte host (Kestrel op
+loopback; methode, pad, query, Authorization, body en routewaarde blijven gelijk, en 413 op een te groot verzoek aan een pluginpad
+bewijst dat de spike in de pijplijn zit) en de proefregels in `VerbodenAanroepen.cs`.
 
 #### Wat JL0001 bewaakt
 
@@ -436,14 +521,28 @@ pakket dat zelf schrijft. Binnen dat model zijn de omwegen die triviaal te verbi
 - code laden of maken: `Assembly.Load…`/`LoadFrom`/`LoadFile`/`UnsafeLoadFrom`/`CreateInstance`, `AssemblyLoadContext`,
   `AppDomain.Load`/`ExecuteAssembly`/`CreateInstance…`, System.Reflection.Emit;
 - een object van een willekeurig type maken: `Activator`, `ActivatorUtilities`;
-- `dynamic` (een lid, aanroep, index of aanmaak die pas bij het draaien wordt gebonden).
+- `dynamic` (een lid, aanroep, index of aanmaak die pas bij het draaien wordt gebonden);
+- sinds herstelronde 8 (herreview 7, grenzen 2 en 3): reflectie in een Microsoft- of BCL-bibliotheek die een eigenschap van een
+  willekeurig (ook een levend server)object zet of leest: `ConfigurationBinder.Bind` en `Get`, `TypeDescriptor` (elk lid) en
+  `PropertyDescriptor.SetValue`/`GetValue`/`ResetValue`, `EventDescriptor.AddEventHandler`/`RemoveEventHandler`;
+  `DispatchProxy` (`Create` maakt bij het draaien een implementatie van een serverinterface zonder eigen klasse, langs de regel
+  voor uitbreidingspunten heen); System.Linq.Expressions (elk lid: een boom met een aanroep, aanmaak of toewijzing opbouwen en
+  compileren of via een `IQueryable`-provider laten uitvoeren roept een lid aan buiten de analyzer om; een lambda die de compiler
+  naar een expressieboom omzet, ziet de analyzer gewoon); `Unsafe` (het beheerde equivalent van `unsafe`: `Unsafe.As` geeft een
+  serverobject onder een eigen type met dezelfde velden); en modelbinding op een bestaand object
+  (`ControllerBase.TryUpdateModelAsync`, `ModelBindingHelper`), net als `ConfigurationBinder.Bind`. Wat deze lijst niet dekt:
+  reflectie binnen een andere bibliotheek die een bestaand object vult (bijvoorbeeld een serializer die een eigenschap van een
+  bestaand object vult); zie "Grenzen".
 
 De plugin gebruikt geen van deze (gecontroleerd met grep en met de build: geen `DllImport`, `LibraryImport`, `unsafe`,
 `delegate*`, `Marshal`, `NativeLibrary`, `Activator`, `dynamic` of `Assembly.Load` in `plugins/JellyLeon/src`), dus er is geen
 uitzondering nodig. Wat de plugin wel aan reflectie gebruikt blijft toegestaan, omdat het alleen metadata leest: de versie en
 de kenmerken van de eigen assembly (`Assembly.GetName`, `GetCustomAttributes`), `typeof(…).Namespace`, `GetType().Name` en
 `GetService(typeof(…))`. Test: `VerbodenApiAnalyzerTests.Omwegen_NativeCodeReflectieEnDynamic_ZijnNergensToegestaan` (23
-vormen, buiten en binnen `Core.Storage`, plus de toegestane reflectie).
+vormen, buiten en binnen `Core.Storage`, plus de toegestane reflectie) en, voor de omwegen van herstelronde 8,
+`HttpLaagTests.Omwegen_ReflectieInBibliotheken_DispatchProxyEnExpressies_ZijnNergensToegestaan` (de vormen van grens 2 en 3 van
+herreview 7 en de varianten, buiten en binnen `Core.Storage`). Ook die gebruikt de plugin niet (grep op `ConfigurationBinder`,
+`TypeDescriptor`, `DispatchProxy`, `System.Linq.Expressions` en `Unsafe` in `plugins/JellyLeon/src`, en de pluginbouw).
 
 ### 2. Witte lijst: één API in één klasse
 
@@ -462,7 +561,7 @@ bij een taak uit het plan en een eigen ADR.
 ### 3. Drie soorten bewijs
 
 1. **De plugin bouwt** met de analyzer aan: er staat geen verboden aanroep in.
-2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 269 verboden aanroepen, elk gemarkeerd met
+2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 295 verboden aanroepen, elk gemarkeerd met
    `// VERWACHT: JLxxxx`, afgewisseld met toegestane aanroepen (sinds herstelronde 7 is lezen van de server-ABI buiten de
    witte lijst ook verboden en dus gemarkeerd; toegestaan zijn bestanden lezen, constanten, typenamen en een lid dat in die
    klasse op de witte lijst staat). `analyzer_proef.py` bouwt het project echt en eist
@@ -494,7 +593,9 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   herstelronde 6 JL0002, maar wat hij niet ziet blijft: een **tweede assembly** of een **pakket** dat zelf een bestand
   schrijft (elke nieuwe `PackageReference` van de plugin hoort daarom in een review; nu alleen de plugin-ABI en
   Microsoft.Data.Sqlite.Core), en een bestandsschrijver in de BCL buiten de bestandsnamespaces die de scan niet vond (de scan zocht op schrijvende namen
-  met een padparameter; zie "Bestanden (JL0002)"). Daarom
+  met een padparameter; zie "Bestanden (JL0002)"), en reflectie binnen een bibliotheek die niet als omweg op de lijst staat
+  (bijvoorbeeld een serializer die een eigenschap van een bestaand object vult; `ConfigurationBinder`, `TypeDescriptor`,
+  `DispatchProxy`, System.Linq.Expressions, `Unsafe` en `TryUpdateModelAsync` staan er sinds herstelronde 8 wel op). Daarom
   blijven de andere lagen bestaan: de schrijfgrens in `Core.Storage` tijdens het draaien (`InternalWriteScope` voor
   bestanden en `JlDatabase` voor SQLite weigeren elk pad buiten `<DataPath>/jelly-leon/**`, `/cache/jelly-leon/**` en
   `/run/jelly-leon/**` (`JlPaths.MagSchrijven`), voordat er iets geopend of aangemaakt is), de alleen-lezen mediamount,
@@ -547,15 +648,41 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   opslaan. Tot herstelronde 7 stond hier dat eigenschappen van **entiteiten** die een server-API teruggeeft (`User`,
   `UserItemData`, `DisplayPreferences`, de rijen in `BaseItem.UserData`) niet bewaakt werden, met een open besluit. Dat is
   gesloten: een eigenschap of veld van elk servertype zetten is nu JL0001, ook van entiteiten en van `SessionInfo` (zie
-  "Server-ABI: witte lijst", punt 2). Wat blijft: een lijst of object van de server dat plugincode via een BCL-lid wijzigt
-  (`user.AccessSchedules.Clear()` op een gedeelde entiteit: `Clear` is een lid van `ICollection<T>`, geen servertype). De
-  plugin doet dat niet; JLT-65 vangt het.
+  "Server-ABI: witte lijst", punt 2). Wat blijft (herreview 7, grens 4): een lijst of object van de server dat plugincode via
+  een BCL-lid wijzigt. `gebruiker.AccessSchedules.Clear()` in `KidPolicy` en `e.Users.Clear()` in `DevicesListener` geven geen
+  melding: `Clear` is een lid van `ICollection<T>`, geen servertype. In v12.4 is er geen pad dat zo'n wijziging opslaat, maar dat
+  leunt op twee dingen in de serverbron: de `User` in `KidPolicy` komt via `AuthorizationContext` uit `UserManager.GetUserById`,
+  dat elke keer een nieuwe kopie geeft (`AsNoTracking`) die de server nooit aan `UpdateUserAsync` doorgeeft; en
+  `UpdateUserAsync` neemt `AccessSchedules` wel uit het object in het geheugen over (`dbUser.AccessSchedules.Clear()` en opnieuw
+  toevoegen). `e.Users` gebruikt de server na `QueueEventIfNotNull` niet meer. Komt er een regel op de witte lijst die een
+  `User` of ander serverobject geeft dat de server daarna zelf opslaat, of verandert een van die twee dingen bij een
+  upstream-sync, dan is dit een weg. De plugin wijzigt zulke lijsten niet; JLT-65 vangt het bij het draaien.
 - De witte lijst van de server-ABI ziet operaties met een lid. Een impliciete aanroep op een servertype ziet hij niet: de
   enumerator van `foreach` over een eigen collectietype van de server, `Dispose` via `using`, `Deconstruct`, een eigen
-  `await`er. De lijst geldt per klassenaam: een `partial` deel van een klasse op de lijst krijgt dezelfde rechten (dat hoort in
-  de review). En plugincode kan via `RegisterServices` Microsoft-uitbreidingspunten registreren (`IStartupFilter`,
-  `IHostedService`, `IConfigureOptions<T>`); dat zijn geen servertypen. Een serverdienst vervangen vraagt wel een eigen
-  implementatie van de serverinterface en is dus JL0001.
+  `await`er. Ook een expliciete aanroep van een lid van een Microsoft- of BCL-interface die een servertype implementeert, ziet
+  hij niet (herreview 7, grens 1): het lid hoort bij `IHostedService` of `IAsyncDisposable`, niet bij het servertype.
+  `h.StopAsync(stop)` op `GetServices<IHostedService>()` en `((IAsyncDisposable)sessies).DisposeAsync()` geven geen melding.
+  Nagelopen in v12.4: de hosted services van de server (`DeviceAccessHost`, `NfoUserDataSaver`, `RecordingsHost`,
+  `RecordingNotifier`, `UserDataChangeNotifier`, `LibraryChangedNotifier`, `AutoDiscoveryHost`) melden events aan of af of doen
+  wat elke start doet, en `SessionManager.DisposeAsync` ruimt sessies en timers op. Er is geen pad gevonden dat kijkgegevens
+  schrijft of wist; wel gaat functie verloren (nieuwe kijkgegevens worden dan niet meer vastgelegd). De lijst geldt per
+  klassenaam: een `partial` deel van een klasse op de lijst krijgt dezelfde rechten (dat hoort in de review). Plugincode kan via
+  `RegisterServices` Microsoft-uitbreidingspunten registreren die niet bij de HTTP-laag horen (`IHostedService`,
+  `IConfigureOptions<T>` op andere instellingen); dat zijn geen servertypen. `IStartupFilter` en de andere uitbreidingspunten van
+  de HTTP-laag vallen sinds herstelronde 8 onder "HTTP-laag en netwerk". Een serverdienst vervangen vraagt een eigen implementatie
+  van de serverinterface en is dus JL0001; zonder eigen klasse kon dat alleen met `DispatchProxy`, en dat is sinds herstelronde 8
+  een omweg (JL0002).
+- De regel voor de HTTP-laag (sinds herstelronde 8) noemt de uitbreidingspunten, leden en namespaces waarlangs een verzoek aan de
+  server, de gebruiker of de argumenten van een serveractie te wijzigen zijn; het is een opsomming, geen witte lijst van heel
+  ASP.NET Core. Wat hij niet dekt: het antwoord van de server (koppen, status en body van een antwoord zetten mag, de plugin
+  schrijft zo zijn eigen antwoorden), een lid dat alleen leest (`HttpRequest.Path`, `Query`, `Form`, `IHttpContextAccessor`
+  lezen), attributen op eigen code, de instellingen van Kestrel, doorgestuurde koppen en andere hosting (geen kijkgegevens), en
+  een netwerkclient buiten System.Net.Http, .Sockets, .WebSockets en .Quic en buiten `WebClient`/`WebRequest` (bijvoorbeeld
+  `SmtpClient`, `Ping`). Een klasse op de witte lijst van de HTTP-laag heeft alleen het genoemde lid of uitbreidingspunt; wat zij
+  daarbinnen doet (de spike roept na de controle `volgende(http)` aan) bewaakt de runtime-test van de spike, niet de analyzer.
+- Ongewijzigd (herreview 7, grens 5): een tweede assembly of een pakket dat zelf schrijft (zie de eerste grens), een kindproces
+  uit `Core.Werker` (zie de grens daarover hierboven en ADR-0035), een koppeling die tussen de controle en het openen ontstaat (TOCTOU) en een
+  harde koppeling (zie de padgrens hierboven).
 - Niet bewaakt, met reden: diensten die bij gewoon lezen een map of item van de server zelf aanmaken als die ontbreekt
   (`IDtoService`, `IUserViewManager.GetUserViews` en `GetUserSubView`, `ITVSeriesManager`, `IMusicManager` en leesleden
   van `ILibraryManager` zoals `GetVirtualFolders` en van `ILiveTvManager` zoals `GetInternalLiveTvFolder` roepen intern
@@ -591,6 +718,10 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
 - Elke nieuwe module begint zonder één lid van de server: ook lezen vraagt een regel op de witte lijst van de server-ABI,
   met motivatie in deze ADR en een review; een schrijfuitzondering kost een regel, een ADR en een review.
 - B03-018 plaatst de werkerbewaker in `Core.Werker`; nergens anders kan plugincode een proces starten.
+- Een nieuwe middleware, een filter of een ander uitbreidingspunt van de HTTP-laag vraagt een regel op de witte lijst van de
+  HTTP-laag, alleen voor eigen pluginpaden, met motivatie in deze ADR, een runtime-test en een review. Een netwerkclient (straks
+  de MediaGuard-vervoerder) vraagt een transportklasse met een eigen ADR en een test dat zij loopback, het eigen serveradres en
+  link-local weigert.
 - CI: de job "Plugins bouwen en testen" draait de solution (plugin schoon), de tests en `analyzer_proef.py --bouw`.
 
 ## Alternatieven

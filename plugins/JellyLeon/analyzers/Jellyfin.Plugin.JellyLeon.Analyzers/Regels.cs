@@ -163,6 +163,34 @@ internal sealed class UitbreidingWit
     public string? Typeargument { get; }
 }
 
+/// <summary>
+/// Eén regel van de witte lijst van de HTTP-laag (ADR-0032, kop "HTTP-laag en netwerk"): één lid van de HTTP-laag
+/// (<see cref="Lid"/> is een naam) of één uitbreidingspunt van de HTTP-laag (<see cref="Lid"/> is <see cref="Implementeert"/>)
+/// in precies één klasse van de plugin (bij een lid de buitenste klasse, bij een uitbreidingspunt het type zelf, met
+/// volledige naam). Alleen voor de eigen pluginpaden of de eigen acties; de motivatie staat in ADR-0032.
+/// </summary>
+internal sealed class HttpWit
+{
+    /// <summary>Waarde van <see cref="Lid"/> voor een uitbreidingspunt: het type implementeert of erft <see cref="Type"/>.</summary>
+    public const string Implementeert = ":";
+
+    public HttpWit(string type, string lid, string klasse)
+    {
+        Type = type;
+        Lid = lid;
+        Klasse = klasse;
+    }
+
+    /// <summary>Metadatanaam van het type dat het lid declareert, of van het uitbreidingspunt.</summary>
+    public string Type { get; }
+
+    /// <summary>Naam van het lid (alle overloads), of <see cref="Implementeert"/>.</summary>
+    public string Lid { get; }
+
+    /// <summary>Volledige naam van de klasse van de plugin.</summary>
+    public string Klasse { get; }
+}
+
 /// <summary>De tabellen van de analyzer. Wijzigen kan alleen hier, in één bestand, en hoort in ADR-0032.</summary>
 internal static class Regels
 {
@@ -359,9 +387,21 @@ internal static class Regels
         new TypeRegel(BestandSchrijf, "System.Activator", true, false) { Nergens = true, Omweg = true },
         new TypeRegel(BestandSchrijf, "Microsoft.Extensions.DependencyInjection.ActivatorUtilities", true, false) { Nergens = true, Omweg = true },
         new TypeRegel(BestandSchrijf, "System.Delegate", false, false, "DynamicInvoke", "CreateDelegate") { Nergens = true, Omweg = true },
-        new TypeRegel(BestandSchrijf, "System.Linq.Expressions.LambdaExpression", false, false, "Compile") { Nergens = true, Omweg = true },
         new TypeRegel(BestandSchrijf, "System.Runtime.InteropServices.NativeLibrary", true, false) { Nergens = true, Omweg = true },
         new TypeRegel(BestandSchrijf, "System.Runtime.InteropServices.Marshal", true, false) { Nergens = true, Omweg = true },
+        // Herstelronde 8 (herreview 7, grenzen 2 en 3): reflectie in een Microsoft- of BCL-bibliotheek die een eigenschap van
+        // een willekeurig object zet (ConfigurationBinder.Bind/Get, PropertyDescriptor.SetValue via TypeDescriptor), een
+        // implementatie van een willekeurige interface maakt zonder eigen klasse (DispatchProxy.Create) en het beheerde
+        // equivalent van unsafe (Unsafe.As op een object). System.Linq.Expressions staat bij OmwegNamespaces.
+        new TypeRegel(BestandSchrijf, "Microsoft.Extensions.Configuration.ConfigurationBinder", false, false) { Nergens = true, Omweg = true, OokVerboden = new[] { "Bind", "Get" } },
+        new TypeRegel(BestandSchrijf, "System.ComponentModel.TypeDescriptor", true, false) { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.ComponentModel.PropertyDescriptor", false, false, "SetValue", "GetValue", "ResetValue") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.ComponentModel.EventDescriptor", false, false, "AddEventHandler", "RemoveEventHandler") { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Reflection.DispatchProxy", true, false) { Nergens = true, Omweg = true },
+        new TypeRegel(BestandSchrijf, "System.Runtime.CompilerServices.Unsafe", true, false) { Nergens = true, Omweg = true },
+        // Modelbinding op een bestaand object (zoals ConfigurationBinder.Bind): de waarden uit een verzoek in een levend object zetten.
+        new TypeRegel(BestandSchrijf, "Microsoft.AspNetCore.Mvc.ControllerBase", false, false) { Nergens = true, Omweg = true, OokVerboden = new[] { "TryUpdateModelAsync" } },
+        new TypeRegel(BestandSchrijf, "Microsoft.AspNetCore.Mvc.ModelBinding.ModelBindingHelper", true, false) { Nergens = true, Omweg = true },
         new TypeRegel(ProcesStart, "System.Diagnostics.Process", false, false, "Start"),
         new TypeRegel(ProcesStart, "Microsoft.VisualBasic.Interaction", false, false, "Shell"));
 
@@ -394,8 +434,13 @@ internal static class Regels
     /// <summary>Losse bestandstypen buiten die namespaces (de bestandsfuncties van Visual Basic: Kill, FileOpen, FileCopy).</summary>
     public static readonly ImmutableArray<string> BestandTypen = ImmutableArray.Create("Microsoft.VisualBasic.FileSystem");
 
-    /// <summary>Namespaces die alleen code maken of laden (omweg): nergens, zonder uitzondering.</summary>
-    public static readonly ImmutableArray<string> OmwegNamespaces = ImmutableArray.Create("System.Reflection.Emit");
+    /// <summary>
+    /// Namespaces die alleen code maken of laden (omweg): nergens, zonder uitzondering. System.Linq.Expressions (sinds
+    /// herstelronde 8): een boom met een aanroep, aanmaak of toewijzing opbouwen en compileren of laten uitvoeren
+    /// (<c>Expression.Call</c>, <c>Compile</c>, een <c>IQueryable</c>-provider) roept een lid aan buiten de analyzer om.
+    /// Een lambda die de compiler naar een expressieboom omzet, ziet de analyzer gewoon (de leden in de lambda tellen).
+    /// </summary>
+    public static readonly ImmutableArray<string> OmwegNamespaces = ImmutableArray.Create("System.Reflection.Emit", "System.Linq.Expressions");
 
     /// <summary>
     /// De kleine witte lijst van de bestandsnamespaces: pure padbewerking, lezen, en lezen of schrijven op een stroom of
@@ -617,6 +662,149 @@ internal static class Regels
     /// expliciete implementatie van het interfacelid) is JL0002, nergens.
     /// </summary>
     public static readonly ImmutableArray<string> PluginConfigLeden = ImmutableArray.Create("ConfigurationFileName", "SaveConfiguration", "UpdateConfiguration", "Configuration");
+
+    /// <summary>
+    /// De HTTP-laag van de server (R-HARDE-EIS-17, S-G1-17 herstelronde 8): uitbreidingspunten waarmee plugincode een
+    /// verzoek aan de server kan omzetten, de gebruiker kan verwisselen of de argumenten van een serveractie kan wijzigen. Een
+    /// type van de plugin dat een van deze typen (of een type uit <see cref="HttpUitbreidingNamespaces"/>) implementeert of
+    /// ervan afleidt, is JL0001, behalve wat op <see cref="HttpWitteLijst"/> staat.
+    /// </summary>
+    public static readonly ImmutableArray<string> HttpUitbreidingTypen = ImmutableArray.Create(
+        "Microsoft.AspNetCore.Hosting.IStartupFilter",
+        "Microsoft.AspNetCore.Hosting.IHostingStartup",
+        "Microsoft.AspNetCore.Http.IMiddleware",
+        "Microsoft.AspNetCore.Http.IMiddlewareFactory",
+        "Microsoft.AspNetCore.Http.IHttpContextFactory",
+        "Microsoft.AspNetCore.Http.IHttpContextAccessor",
+        "Microsoft.AspNetCore.Http.IEndpointFilter",
+        "Microsoft.AspNetCore.Http.Endpoint");
+
+    /// <summary>
+    /// Namespaces van de HTTP-laag waarvan elk type een uitbreidingspunt is: authenticatie (ook <c>IClaimsTransformation</c>),
+    /// autorisatie (<c>IAuthorizationHandler</c>, <c>IAuthorizationPolicyProvider</c>), MVC-filters, conventies, modelbinding
+    /// (een waardebron of binder voor de argumenten van een serveractie), formatters, routering en de features van een verzoek.
+    /// </summary>
+    public static readonly ImmutableArray<string> HttpUitbreidingNamespaces = ImmutableArray.Create(
+        "Microsoft.AspNetCore.Authentication",
+        "Microsoft.AspNetCore.Authorization",
+        "Microsoft.AspNetCore.Mvc.Filters",
+        "Microsoft.AspNetCore.Mvc.ApplicationModels",
+        "Microsoft.AspNetCore.Mvc.ApplicationParts",
+        "Microsoft.AspNetCore.Mvc.ModelBinding",
+        "Microsoft.AspNetCore.Mvc.Formatters",
+        "Microsoft.AspNetCore.Mvc.Routing",
+        "Microsoft.AspNetCore.Mvc.Abstractions",
+        "Microsoft.AspNetCore.Mvc.Infrastructure",
+        "Microsoft.AspNetCore.Mvc.Controllers",
+        "Microsoft.AspNetCore.Routing",
+        "Microsoft.AspNetCore.Http.Features",
+        "Microsoft.AspNetCore.Rewrite");
+
+    /// <summary>
+    /// De pijplijn van de server opbouwen: elk lid van deze typen en elke extensiemethode die erop werkt (<c>Use</c>,
+    /// <c>UseMiddleware</c>, <c>Map</c>, <c>MapWhen</c>, <c>UseWhen</c>, <c>Run</c>, <c>UseRouting</c>, <c>MapGet</c>, …) is
+    /// JL0001, behalve wat op <see cref="HttpWitteLijst"/> staat.
+    /// </summary>
+    public static readonly ImmutableArray<string> HttpPijplijnTypen = ImmutableArray.Create(
+        "Microsoft.AspNetCore.Builder.IApplicationBuilder",
+        "Microsoft.AspNetCore.Routing.IEndpointRouteBuilder");
+
+    /// <summary>
+    /// De instellingen van de HTTP-laag die voor alle routes van de server gelden: elk lid is JL0001 (een filter, conventie,
+    /// waardebron, binder of formatter toevoegen; een policy of schema toevoegen, vervangen of als standaard zetten; de
+    /// onderdelen met controllers wijzigen). Plugincode komt hier via <c>Configure&lt;T&gt;</c>, <c>AddMvc</c>,
+    /// <c>AddAuthorization</c> of <c>AddAuthentication</c>; die registratie zelf is een typenaam, het lid telt.
+    /// </summary>
+    public static readonly ImmutableArray<string> HttpOptieTypen = ImmutableArray.Create(
+        "Microsoft.AspNetCore.Mvc.MvcOptions",
+        "Microsoft.AspNetCore.Mvc.ApplicationParts.ApplicationPartManager",
+        "Microsoft.AspNetCore.Authorization.AuthorizationOptions",
+        "Microsoft.AspNetCore.Authorization.AuthorizationBuilder",
+        "Microsoft.AspNetCore.Authentication.AuthenticationOptions",
+        "Microsoft.AspNetCore.Authentication.AuthenticationBuilder");
+
+    /// <summary>
+    /// Namespaces van de HTTP-laag waarvan elk lid JL0001 is (lezen ook): authenticatie, autorisatie, routering (met
+    /// <c>RouteValueDictionary</c>, de routewaarden van een verzoek, en de endpoints van de server), de features van een
+    /// verzoek (<c>IHttpRequestFeature.Path</c> zetten zou langs <c>HttpRequest</c> heen gaan), herschrijfregels, en de
+    /// acties van MVC zelf (<c>IActionDescriptorCollectionProvider</c> en <c>IActionInvokerFactory</c> voeren een actie van de
+    /// server uit in het proces, langs authenticatie en autorisatie heen).
+    /// </summary>
+    public static readonly ImmutableArray<string> HttpLedenNamespaces = ImmutableArray.Create(
+        "Microsoft.AspNetCore.Authentication",
+        "Microsoft.AspNetCore.Authorization",
+        "Microsoft.AspNetCore.Routing",
+        "Microsoft.AspNetCore.Http.Features",
+        "Microsoft.AspNetCore.Rewrite",
+        "Microsoft.AspNetCore.Mvc.ApplicationModels",
+        "Microsoft.AspNetCore.Mvc.ApplicationParts",
+        "Microsoft.AspNetCore.Mvc.Infrastructure",
+        "Microsoft.AspNetCore.Mvc.Abstractions",
+        "Microsoft.AspNetCore.Mvc.Controllers");
+
+    /// <summary>
+    /// Losse leden van de HTTP-laag die JL0001 zijn (type, lid): de argumenten van een actie (ook lezen: het is een
+    /// gewone, wijzigbare lijst), een endpoint van de server rechtstreeks uitvoeren (langs authenticatie en autorisatie
+    /// heen), het endpoint van een verzoek zetten, de getypeerde verzoekkoppen (met setters) en de claims of identiteiten van
+    /// een gebruiker wijzigen.
+    /// </summary>
+    public static readonly ImmutableArray<(string Type, string Lid)> HttpVerbodenLeden = ImmutableArray.Create(
+        ("Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext", "ActionArguments"),
+        ("Microsoft.AspNetCore.Http.Endpoint", "RequestDelegate"),
+        ("Microsoft.AspNetCore.Http.EndpointHttpContextExtensions", "SetEndpoint"),
+        ("Microsoft.AspNetCore.Http.HeaderDictionaryTypeExtensions", "GetTypedHeaders"),
+        ("System.Security.Claims.ClaimsPrincipal", "AddIdentity"),
+        ("System.Security.Claims.ClaimsPrincipal", "AddIdentities"),
+        ("System.Security.Claims.ClaimsIdentity", "AddClaim"),
+        ("System.Security.Claims.ClaimsIdentity", "AddClaims"),
+        ("System.Security.Claims.ClaimsIdentity", "RemoveClaim"),
+        ("System.Security.Claims.ClaimsIdentity", "TryRemoveClaim"));
+
+    /// <summary>
+    /// Typen waarvan het zetten van een eigenschap JL0001 is: het verzoek (<c>Path</c>, <c>PathBase</c>, <c>Method</c>,
+    /// <c>QueryString</c>, <c>Query</c>, <c>Body</c>, <c>RouteValues</c>, …), de context (<c>User</c>,
+    /// <c>RequestServices</c>, <c>Items</c>, …) en de toegang tot de context van het lopende verzoek.
+    /// </summary>
+    public static readonly ImmutableArray<string> HttpZetTypen = ImmutableArray.Create(
+        "Microsoft.AspNetCore.Http.HttpRequest",
+        "Microsoft.AspNetCore.Http.HttpContext",
+        "Microsoft.AspNetCore.Http.IHttpContextAccessor");
+
+    /// <summary>
+    /// De witte lijst van de HTTP-laag, per klasse: alleen voor de eigen pluginpaden of de eigen acties. De motivatie staat in
+    /// ADR-0032 (kop "HTTP-laag en netwerk"); een test eist dat elke regel daar genoemd wordt.
+    /// </summary>
+    public static readonly ImmutableArray<HttpWit> HttpWitteLijst = ImmutableArray.Create(
+        // De spike van ADR-0033: een laag vóór routing en authenticatie die alleen /media/v1 en /connector/v1 boven 1 MiB weigert.
+        new HttpWit("Microsoft.AspNetCore.Hosting.IStartupFilter", HttpWit.Implementeert, PluginNamespace + ".Core.Http.JlStartupFilterSpike"),
+        new HttpWit("Microsoft.AspNetCore.Builder.UseExtensions", "Use", PluginNamespace + ".Core.Http.JlStartupFilterSpike"),
+        // Het attribuut op de eigen acties dat de ene pipeline laat lopen (nooit een globaal filter: MvcOptions is JL0001).
+        new HttpWit("Microsoft.AspNetCore.Mvc.Filters.IAsyncActionFilter", HttpWit.Implementeert, PluginNamespace + ".Core.Http.JlRouteAttribute"));
+
+    /// <summary>
+    /// Netwerkclients (R-HARDE-EIS-17, besluit punt 2): elk lid van een type uit deze namespaces (ook aanmaken, ook een eigen
+    /// type dat ervan afleidt, zoals een <c>DelegatingHandler</c>) is JL0001, in elke namespace, behalve in een klasse uit
+    /// <see cref="NetwerkKlassen"/>. Zo kan plugincode de eigen server niet via loopback aanroepen met het token van een
+    /// binnenkomend verzoek. <c>IHttpClientFactory</c> ligt ook in System.Net.Http.
+    /// </summary>
+    public static readonly ImmutableArray<string> NetwerkNamespaces = ImmutableArray.Create(
+        "System.Net.Http",
+        "System.Net.Sockets",
+        "System.Net.WebSockets",
+        "System.Net.Quic");
+
+    /// <summary>
+    /// Netwerkclients buiten die namespaces (met elk afgeleid type): buiten de opslaglaag al JL0002 (bestanden, zie
+    /// <see cref="BestandVolledigTypen"/>), in de opslaglaag JL0001 als netwerkclient.
+    /// </summary>
+    public static readonly ImmutableArray<string> NetwerkTypen = ImmutableArray.Create("System.Net.WebClient", "System.Net.WebRequest");
+
+    /// <summary>
+    /// De transportklassen die een netwerkclient mogen gebruiken (volledige naam). Leeg: de plugin heeft er nu geen nodig.
+    /// Een klasse komt er alleen op met een eigen ADR, en moet bij het draaien loopback, het eigen serveradres en link-local
+    /// weigeren (ook na het oplossen van de naam en na een omleiding), met een test daarop (ADR-0032, kop "HTTP-laag en netwerk").
+    /// </summary>
+    public static readonly ImmutableArray<string> NetwerkKlassen = ImmutableArray<string>.Empty;
 
     /// <summary>Waar als de namespace of de assembly bij de server-ABI hoort (niet de eigen plugin).</summary>
     public static bool IsServerAbi(string ruimte, string? assembly) =>

@@ -915,10 +915,13 @@ public class VerbodenApiAnalyzerTests
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel).Distinct());
 
         // In Core.Storage geldt de bestandsregel niet, de witte lijst van de server-ABI wel (herstelronde 7):
-        // FormattingStreamWriter komt uit Jellyfin.Extensions en staat voor deze klasse niet op de lijst.
-        var serverAbi = Assert.Single(inOpslag);
-        Assert.True(AnalyzerHarnas.IsWitteLijst(serverAbi));
+        // FormattingStreamWriter komt uit Jellyfin.Extensions en staat voor deze klasse niet op de lijst. WebClient is daar
+        // sinds herstelronde 8 een netwerkclient (JL0001, nergens buiten een transportklasse; ADR-0032, "HTTP-laag en netwerk").
+        var serverAbi = Assert.Single(inOpslag, AnalyzerHarnas.IsWitteLijst);
         Assert.Contains("'Jellyfin.Extensions.FormattingStreamWriter..ctor'", serverAbi.Tekst, StringComparison.Ordinal);
+        var webClient = buiten.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Single(r => r.tekst.Contains("new WebClient()", StringComparison.Ordinal)).Regel;
+        Assert.Equal(2, inOpslag.Count(b => b.Regel == webClient && b.Id == Regels.ServerSchrijf && b.Tekst.Contains("is een netwerkclient", StringComparison.Ordinal)));
+        Assert.Equal(3, inOpslag.Count);
     }
 
     /// <summary>

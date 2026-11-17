@@ -463,7 +463,9 @@ public class ServerAbiWitteLijstTests
 
     /// <summary>
     /// R-HARDE-EIS-15: WebClient, WebRequest (ook FileWebRequest) en de trace-laag zijn buiten de opslaglaag helemaal JL0002,
-    /// ook lezen; in Core.Storage en Core.Secrets niet (die laag bewaakt zelf de padgrens). HttpClient blijft vrij.
+    /// ook lezen; in Core.Storage en Core.Secrets niet (die laag bewaakt zelf de padgrens). Sinds herstelronde 8
+    /// (R-HARDE-EIS-17) zijn HttpClient overal en WebClient en WebRequest in de opslaglaag JL0001: een netwerkclient mag alleen
+    /// in een benoemde transportklasse (ADR-0032, kop "HTTP-laag en netwerk").
     /// </summary>
     [Fact]
     public async Task WebClientWebRequestEnTrace_BuitenDeOpslaglaagHelemaalJL0002()
@@ -481,18 +483,18 @@ public class ServerAbiWitteLijstTests
                 {
                     public void M(string pad, Uri doel, HttpClient http)
                     {
-                        var r = (FileWebRequest)WebRequest.Create(doel); // JL0002
-                        _ = r.Method; // JL0002
-                        _ = r.ContentLength; // JL0002
-                        _ = WebRequest.DefaultWebProxy; // JL0002
-                        var w = new WebClient(); // JL0002
-                        _ = w.BaseAddress; // JL0002
-                        w.UploadFileAsync(doel, pad); // JL0002
+                        var r = (FileWebRequest)WebRequest.Create(doel); // JL0002 NET
+                        _ = r.Method; // JL0002 NET
+                        _ = r.ContentLength; // JL0002 NET
+                        _ = WebRequest.DefaultWebProxy; // JL0002 NET
+                        var w = new WebClient(); // JL0002 NET
+                        _ = w.BaseAddress; // JL0002 NET
+                        w.UploadFileAsync(doel, pad); // JL0002 NET
                         _ = new TraceSource("x").Listeners.Count; // JL0002
                         Trace.Listeners.Add(new ConsoleTraceListener()); // JL0002
                         Trace.TraceInformation("x"); // JL0002
                         Debug.WriteLine("x"); // JL0002
-                        _ = http.GetAsync(doel);
+                        _ = http.GetAsync(doel); // HTTPCLIENT
                     }
                 }
             #pragma warning restore SYSLIB0014
@@ -502,12 +504,21 @@ public class ServerAbiWitteLijstTests
         var buiten = Bron(Modules + ".Proef");
         var gevonden = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
 
-        Assert.All(gevonden, b => Assert.Equal(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.BestandSchrijf, b.Id));
-        Assert.Equal(Regels(buiten, "// JL0002").ToHashSet(), gevonden.Select(b => b.Regel).ToHashSet());
+        var httpClient = Regel(buiten, "// HTTPCLIENT");
+        Assert.All(gevonden.Where(b => b.Regel != httpClient), b => Assert.Equal(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.BestandSchrijf, b.Id));
+        Assert.Equal(Regels(buiten, "// JL0002").Append(httpClient).ToHashSet(), gevonden.Select(b => b.Regel).ToHashSet());
         Assert.Equal(11, Regels(buiten, "// JL0002").Count);
+        var client = Assert.Single(gevonden, b => b.Regel == httpClient);
+        Assert.Equal(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.ServerSchrijf, client.Id);
+        Assert.Contains("is een netwerkclient", client.Tekst, StringComparison.Ordinal);
+
+        // In de opslaglaag geldt de bestandsregel niet; WebClient, WebRequest en HttpClient zijn daar netwerkclients (JL0001).
         foreach (var ruimte in new[] { "Jellyfin.Plugin.JellyLeon.Core.Storage", "Jellyfin.Plugin.JellyLeon.Core.Secrets" })
         {
-            Assert.Empty(await AnalyzerHarnas.AnalyseerAsync(Bron(ruimte), null, TestContext.Current.CancellationToken));
+            var inOpslag = await AnalyzerHarnas.AnalyseerAsync(Bron(ruimte), null, TestContext.Current.CancellationToken);
+            Assert.All(inOpslag, b => Assert.Equal(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.ServerSchrijf, b.Id));
+            Assert.All(inOpslag, b => Assert.Contains("is een netwerkclient", b.Tekst, StringComparison.Ordinal));
+            Assert.Equal(Regels(buiten, " NET").Append(httpClient).ToHashSet(), inOpslag.Select(b => b.Regel).ToHashSet());
         }
     }
 

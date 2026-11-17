@@ -2,7 +2,8 @@
 // Elke regel met de markering "VERWACHT: JLxxxx" moet precies die bouwfout geven; geen enkele andere regel mag een
 // JL-fout geven. Dit bestand wordt nooit geleverd en nooit uitgevoerd: het bestaat alleen om de build te laten falen.
 // Sinds herstelronde 7 (S-G1-17) is de server-ABI een witte lijst per klasse: ook lezen van een servertype is JL0001 buiten
-// die lijst, dus de leesregels hieronder staan ook gemarkeerd. Elke regel geeft precies één melding.
+// die lijst, dus de leesregels hieronder staan ook gemarkeerd. Elke regel geeft precies één melding. Sinds herstelronde 8 is
+// System.Linq.Expressions een omweg (elk lid), en staan onderaan de HTTP-laag, netwerkclients en de nieuwe omwegen.
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -519,7 +520,9 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = AssemblyLoadContext.Default.LoadFromAssemblyPath(pad); // VERWACHT: JL0002
             _ = Activator.CreateInstance(typeof(FileStream), pad, FileMode.Create); // VERWACHT: JL0002
             _ = d.DynamicInvoke(pad); // VERWACHT: JL0002
-            _ = Expression.Lambda<Func<int>>(Expression.Constant(1)).Compile(); // VERWACHT: JL0002
+            var getal = Expression.Constant(1); // VERWACHT: JL0002
+            var lambda = Expression.Lambda<Func<int>>(getal); // VERWACHT: JL0002
+            _ = lambda.Compile(); // VERWACHT: JL0002
             dynamic x = iets;
             x.Delete(pad); // VERWACHT: JL0002
             _ = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("x"), AssemblyBuilderAccess.Run); // VERWACHT: JL0002
@@ -627,5 +630,115 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
     public class Negeerregel : IResolverIgnoreRule // VERWACHT: JL0001
     {
         public bool ShouldIgnore(FileSystemMetadata fileInfo, BaseItem parent) => true;
+    }
+}
+
+// Herstelronde 8 (S-G1-17; R-HARDE-EIS-17 en de grenzen 2 en 3 van herreview 7): de HTTP-laag van de server (vormen A, B en
+// D), netwerkclients (vorm C: loopback met het token van de client) en de omwegen via reflectie in een bibliotheek,
+// DispatchProxy, expressiebomen, Unsafe en modelbinding op een bestaand object.
+namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+{
+    using System.ComponentModel;
+    using System.Linq.Expressions;
+    using System.Net.Http;
+    using System.Net.Sockets;
+    using System.Reflection;
+    using System.Runtime.CompilerServices;
+    using System.Security.Claims;
+    using Microsoft.AspNetCore.Authentication;
+    using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.Mvc.Filters;
+    using Microsoft.AspNetCore.Mvc.Infrastructure;
+    using Microsoft.Extensions.Configuration;
+
+    // Vorm A: een middleware vóór routing die een clientverzoek omzet naar een wis-verzoek.
+    public sealed class Omzetter : IStartupFilter // VERWACHT: JL0001
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use(async (http, volgende) => // VERWACHT: JL0001
+            {
+                http.Request.Method = "DELETE"; // VERWACHT: JL0001
+                http.Request.Path = "/UserPlayedItems/x"; // VERWACHT: JL0001
+                await volgende(http);
+            });
+            next(app);
+        };
+    }
+
+    // Vorm B: een globaal MVC-filter dat de argumenten van een serveractie wijzigt.
+    public sealed class Omleiden : IActionFilter // VERWACHT: JL0001
+    {
+        public void OnActionExecuting(ActionExecutingContext context) => context.ActionArguments["itemId"] = "x"; // VERWACHT: JL0001
+
+        public void OnActionExecuted(ActionExecutedContext context)
+        {
+        }
+    }
+
+    // Vorm D: een claimsomzetting die de gebruiker verwisselt.
+    public sealed class AndereGebruiker : IClaimsTransformation // VERWACHT: JL0001
+    {
+        public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal) => Task.FromResult(new ClaimsPrincipal());
+    }
+
+    public static class HttpLaag
+    {
+        public static void Registreer(IServiceCollection diensten, HttpContext http, ClaimsIdentity identiteit, Claim claim)
+        {
+            diensten.AddTransient<IStartupFilter, Omzetter>();
+            diensten.Configure<MvcOptions>(o => o.Filters.Add(new Omleiden())); // VERWACHT: JL0001
+            diensten.AddTransient<IClaimsTransformation, AndereGebruiker>();
+            http.Request.Headers["Authorization"] = "x"; // VERWACHT: JL0001
+            http.User = new ClaimsPrincipal(); // VERWACHT: JL0001
+            identiteit.AddClaim(claim); // VERWACHT: JL0001
+
+            // Toegestaan: het verzoek lezen en het antwoord schrijven.
+            _ = http.Request.Headers["Authorization"].ToString();
+            http.Response.Headers["Cache-Control"] = "no-store";
+        }
+
+        // Een actie van de server in het proces uitvoeren, langs authenticatie en autorisatie heen.
+        public static void Actie(IActionInvokerFactory invokers, ActionContext context)
+        {
+            _ = invokers.CreateInvoker(context); // VERWACHT: JL0001
+        }
+
+        // Vorm C: loopback naar de eigen server met het token van het binnenkomende verzoek.
+        public static async Task Lus()
+        {
+            using var client = new HttpClient(); // VERWACHT: JL0001
+            await client.DeleteAsync("http://127.0.0.1:8096/UserPlayedItems/x"); // VERWACHT: JL0001
+            using var tcp = new TcpClient(); // VERWACHT: JL0001
+        }
+    }
+
+    public class Stomp : DispatchProxy
+    {
+        protected override object Invoke(MethodInfo targetMethod, object[] args) => null;
+    }
+
+    public sealed class Schaduw
+    {
+        public DateTime LastPlaybackCheckIn;
+    }
+
+    public static class Omwegen8
+    {
+        public static void M(IConfiguration cfg, SessionInfo sessie, MethodInfo methode, object iets, ControllerBase controller)
+        {
+            cfg.Bind(sessie); // VERWACHT: JL0002
+            _ = controller.TryUpdateModelAsync(sessie); // VERWACHT: JL0002
+            _ = cfg.Get<SessionInfo>(); // VERWACHT: JL0002
+            var eigenschappen = TypeDescriptor.GetProperties(sessie); // VERWACHT: JL0002
+            eigenschappen["LastPlaybackCheckIn"].SetValue(sessie, DateTime.MinValue); // VERWACHT: JL0002
+            _ = DispatchProxy.Create<IUserDataManager, Stomp>(); // VERWACHT: JL0002
+            var doel = Expression.Constant(iets); // VERWACHT: JL0002
+            _ = Expression.Call(doel, methode); // VERWACHT: JL0002
+            Unsafe.As<Schaduw>(sessie).LastPlaybackCheckIn = DateTime.MinValue; // VERWACHT: JL0002
+        }
     }
 }
