@@ -4,7 +4,8 @@ using System.IO;
 namespace Jellyfin.Plugin.JellyLeon.Core.Storage;
 
 /// <summary>
-/// De enige weg waarlangs een module een bestand schrijft (plan §10.9): alleen onder de eigen data- en cachemap.
+/// De enige weg waarlangs een module een bestand schrijft (plan §10.9): alleen onder de eigen data- en cachemap, ook na
+/// het volgen van symbolische koppelingen (<see cref="JlPaths.MagSchrijven"/>; ook voor het tijdelijke bestand).
 /// De analyzer (JL0002) verbiedt directe schrijfaanroepen buiten Core.Storage en Core.Secrets.
 /// </summary>
 internal sealed class InternalWriteScope
@@ -18,9 +19,10 @@ internal sealed class InternalWriteScope
 
     public void SchrijfAtomisch(string pad, ReadOnlySpan<byte> inhoud)
     {
-        Eis(pad);
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(pad))!);
         var tijdelijk = pad + ".tmp";
+        Eis(pad);
+        Eis(tijdelijk);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(pad))!);
         using (var stroom = new FileStream(tijdelijk, FileMode.Create, FileAccess.Write, FileShare.None))
         {
             stroom.Write(inhoud);

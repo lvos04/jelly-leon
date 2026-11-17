@@ -11,13 +11,17 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Storage;
 /// <summary>
 /// Eigen SQLite-bestand van Core of van één module (ADR-0016). Migraties via <c>user_version</c>; vóór elke
 /// migratie van een bestaand bestand een kopie na <c>PRAGMA integrity_check</c> (hooguit 3 kopieën, 30 dagen).
-/// Alleen een bestand binnen de eigen mappen (<see cref="JlPaths.MagSchrijven"/>): elk ander pad, zoals de database
-/// van de server, weigert de constructor voordat er iets geopend of aangemaakt is (HARDE EIS, ADR-0032).
+/// Alleen een bestand binnen de eigen mappen (<see cref="JlPaths.MagSchrijven"/>, ook na het volgen van symbolische
+/// koppelingen): elk ander pad, zoals de database van de server, weigert de constructor voordat er iets geopend of
+/// aangemaakt is, en elke opening controleert het opnieuw (HARDE EIS, ADR-0032). Dat geldt ook voor de bestanden die
+/// SQLite ernaast schrijft (<c>-wal</c>, <c>-shm</c>, <c>-journal</c>).
 /// </summary>
 internal sealed class JlDatabase
 {
     private const int MaxKopieen = 3;
     private static readonly TimeSpan _bewaartermijn = TimeSpan.FromDays(30);
+    private static readonly string[] _naastBestanden = ["", "-wal", "-shm", "-journal"];
+    private readonly JlPaths _paden;
     private readonly string _connectionString;
     private readonly IReadOnlyList<string> _migraties;
     private readonly object _slot = new();
@@ -26,11 +30,8 @@ internal sealed class JlDatabase
     public JlDatabase(JlPaths paden, string pad, IReadOnlyList<string> migraties)
     {
         ArgumentNullException.ThrowIfNull(paden);
-        if (!paden.MagSchrijven(pad))
-        {
-            throw new UnauthorizedAccessException("Een database buiten de eigen mappen van Jelly Leon openen is niet toegestaan.");
-        }
-
+        EisEigenPlek(paden, pad);
+        _paden = paden;
         Pad = pad;
         _migraties = migraties;
         _connectionString = new SqliteConnectionStringBuilder { DataSource = pad, Pooling = false }.ToString();
@@ -124,8 +125,19 @@ internal sealed class JlDatabase
         return opdracht;
     }
 
+    /// <summary>Het bestand en wat SQLite ernaast schrijft, liggen (ook na het volgen van koppelingen) in een eigen map.</summary>
+    private static void EisEigenPlek(JlPaths paden, string pad)
+    {
+        if (_naastBestanden.Any(achtervoegsel => !paden.MagSchrijven(pad + achtervoegsel)))
+        {
+            throw new UnauthorizedAccessException("Een database buiten de eigen mappen van Jelly Leon openen is niet toegestaan.");
+        }
+    }
+
     private SqliteConnection Open()
     {
+        // Bij elke opening opnieuw: een koppeling kan na het aanmaken van dit object zijn ontstaan.
+        EisEigenPlek(_paden, Pad);
         if (!_klaar)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Pad)!);
