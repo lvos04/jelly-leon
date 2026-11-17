@@ -391,6 +391,95 @@ public sealed class OpslagTests : IDisposable
         Assert.Equal(voor, File.ReadAllBytes(serverDb));
     }
 
+    /// <summary>
+    /// R-HARDE-EIS-5 vervolg (S-G1-17 herstelronde 3): SQLite zet <c>-wal</c>, <c>-shm</c> en <c>-journal</c> naast het
+    /// echte bestand. Is het opgegeven pad zelf een koppeling binnen de eigen map (a.db -&gt; b.db), dan controleert
+    /// JlDatabase de naastbestanden ook naast b.db: een koppeling b.db-wal (of -shm, -journal) naar de naastbestanden
+    /// van jellyfin.db weigert de constructor. Vóór het herstel keek de controle alleen naar a.db-wal enz. en liet hij
+    /// dit toe (proef H8 van de herreview).
+    /// </summary>
+    [Fact]
+    public void Database_NaastbestandenNaastHetEchtePadWordenGecontroleerd()
+    {
+        var paden = _h.Dienst<JlPaths>();
+        var data = Path.GetDirectoryName(paden.DataRoot)!;
+        var serverDb = MaakServerDb(data);
+        var voor = File.ReadAllBytes(serverDb);
+        var proef = Path.Combine(paden.DataRoot, "proef");
+        Directory.CreateDirectory(proef);
+        var servermapVoor = Directory.GetFileSystemEntries(data).Order(StringComparer.Ordinal).ToList();
+
+        foreach (var achtervoegsel in new[] { "-wal", "-shm", "-journal" })
+        {
+            var naam = "n" + achtervoegsel.TrimStart('-');
+            var echt = Path.Combine(proef, naam + "-b.db");
+            var koppeling = Path.Combine(proef, naam + "-a.db");
+            File.WriteAllBytes(echt, []);
+            File.CreateSymbolicLink(koppeling, echt);
+            File.CreateSymbolicLink(echt + achtervoegsel, serverDb + achtervoegsel);
+
+            Assert.True(paden.MagSchrijven(koppeling) && paden.MagSchrijven(koppeling + achtervoegsel), koppeling);
+            Assert.Throws<UnauthorizedAccessException>(() => new JlDatabase(paden, koppeling, ["CREATE TABLE jl_proef(a INTEGER);"]));
+        }
+
+        Assert.Equal(voor, File.ReadAllBytes(serverDb));
+        Assert.Equal(servermapVoor, Directory.GetFileSystemEntries(data).Order(StringComparer.Ordinal).ToList());
+
+        // Tegenproef: een koppeling binnen de eigen map zonder koppelingen ernaast werkt; SQLite schrijft naast b.db.
+        var goedEcht = Path.Combine(proef, "goed-b.db");
+        var goed = Path.Combine(proef, "goed-a.db");
+        File.CreateSymbolicLink(goed, goedEcht);
+        var db = new JlDatabase(paden, goed, ["CREATE TABLE jl_proef(a INTEGER);"]);
+        Assert.Equal(0, db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM jl_proef")));
+        Assert.True(File.Exists(goedEcht));
+    }
+
+    /// <summary>
+    /// Bewaakt een aanname uit ADR-0032 (proef H8r van de herreview): SQLite opent zelf geen <c>-wal</c>, <c>-shm</c> of
+    /// <c>-journal</c> dat een symbolische koppeling is (fout 14, SQLITE_CANTOPEN), ook buiten JlDatabase. Verandert dat
+    /// bij een upgrade van SQLite, dan faalt deze test en hoort de padgrens opnieuw beoordeeld te worden. Per opdracht,
+    /// niet in één batch: een batch verbergt de fout van een latere opdracht.
+    /// </summary>
+    [Fact]
+    public void Sqlite_OpentGeenKoppelingAlsNaastbestand()
+    {
+        var map = Path.Combine(_h.Map, "sqlite-proef");
+        var buiten = Path.Combine(_h.Map, "buiten");
+        Directory.CreateDirectory(map);
+        Directory.CreateDirectory(buiten);
+
+        foreach (var (achtervoegsel, wal) in new[] { ("-journal", false), ("-wal", true), ("-shm", true) })
+        {
+            var db = Path.Combine(map, "b" + achtervoegsel + ".db");
+            using (var verbinding = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + db + ";Pooling=False"))
+            {
+                verbinding.Open();
+                using var modus = verbinding.CreateCommand();
+                modus.CommandText = wal ? "PRAGMA journal_mode=WAL;" : "PRAGMA journal_mode=DELETE;";
+                modus.ExecuteNonQuery();
+                using var tabel = verbinding.CreateCommand();
+                tabel.CommandText = "CREATE TABLE t(a INTEGER);";
+                tabel.ExecuteNonQuery();
+            }
+
+            Assert.False(File.Exists(db + achtervoegsel), db + achtervoegsel);
+            var doel = Path.Combine(buiten, "doel" + achtervoegsel);
+            File.CreateSymbolicLink(db + achtervoegsel, doel);
+
+            var fout = Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() =>
+            {
+                using var verbinding = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + db + ";Pooling=False");
+                verbinding.Open();
+                using var invoegen = verbinding.CreateCommand();
+                invoegen.CommandText = "INSERT INTO t VALUES(1);";
+                invoegen.ExecuteNonQuery();
+            });
+
+            Assert.Equal(14, fout.SqliteErrorCode);
+            Assert.False(File.Exists(doel), doel);
+        }
+    }
+
     private static string MaakServerDb(string data)
     {
         Directory.CreateDirectory(data);

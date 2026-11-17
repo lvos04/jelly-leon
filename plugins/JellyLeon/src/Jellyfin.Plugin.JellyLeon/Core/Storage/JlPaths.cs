@@ -52,8 +52,18 @@ internal sealed class JlPaths
         }
 
         // Niet de tekstueel opgeschoonde vorm volgen: na een koppeling betekent ".." de ouder van het doel.
+        return EchtInEigenMap(pad);
+    }
+
+    /// <summary>
+    /// Alleen de tweede eis van <see cref="MagSchrijven"/>: het echte pad van <paramref name="pad"/> ligt in een eigen map.
+    /// Voor een pad dat zelf al een echt pad is (zoals de naam waaronder SQLite de bestanden naast een database zet),
+    /// waar de eerste eis (het pad zoals het er staat) niets toevoegt.
+    /// </summary>
+    public bool EchtInEigenMap(string pad)
+    {
         var echt = EchtPad(Path.IsPathRooted(pad) ? pad : Path.Combine(Directory.GetCurrentDirectory(), pad));
-        return echt is not null && wortels.Any(w => EchteWortel(w) is { } e && Binnen(echt, e));
+        return echt is not null && new[] { DataRoot, CacheRoot, RunWortel }.Any(w => EchteWortel(w) is { } e && Binnen(echt, e));
     }
 
     /// <summary>

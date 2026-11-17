@@ -125,10 +125,15 @@ internal sealed class JlDatabase
         return opdracht;
     }
 
-    /// <summary>Het bestand en wat SQLite ernaast schrijft, liggen (ook na het volgen van koppelingen) in een eigen map.</summary>
+    /// <summary>
+    /// Het bestand en wat SQLite ernaast schrijft, liggen (ook na het volgen van koppelingen) in een eigen map. SQLite zet
+    /// <c>-wal</c>, <c>-shm</c> en <c>-journal</c> naast het echte bestand: is <paramref name="pad"/> zelf een koppeling
+    /// (a.db -&gt; b.db), dan naast b.db. Daarom telt elk naastbestand naast de opgegeven naam én naast het echte pad.
+    /// </summary>
     private static void EisEigenPlek(JlPaths paden, string pad)
     {
-        if (_naastBestanden.Any(achtervoegsel => !paden.MagSchrijven(pad + achtervoegsel)))
+        var echt = JlPaths.EchtPad(Path.IsPathRooted(pad) ? pad : Path.Combine(Directory.GetCurrentDirectory(), pad));
+        if (echt is null || _naastBestanden.Any(achtervoegsel => !paden.MagSchrijven(pad + achtervoegsel) || !paden.EchtInEigenMap(echt + achtervoegsel)))
         {
             throw new UnauthorizedAccessException("Een database buiten de eigen mappen van Jelly Leon openen is niet toegestaan.");
         }
