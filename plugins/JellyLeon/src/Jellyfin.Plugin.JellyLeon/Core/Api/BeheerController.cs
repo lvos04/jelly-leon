@@ -19,25 +19,22 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Api;
 [Route("media/v1")]
 public sealed class BeheerController : ControllerBase
 {
-    private readonly HubPin _pin;
-    private readonly ModuleRegistry _modules;
-    private readonly IModuleSwitches _schakelaars;
-    private readonly PrivacyService _privacy;
-    private readonly BatchPlanner _planner;
-    private readonly TimeProvider _klok;
+    private readonly IServiceProvider _diensten;
     private readonly ILogger<BeheerController> _log;
+
+    private HubPin Pin => (HubPin)_diensten.GetService(typeof(HubPin))!;
+    private ModuleRegistry Register => (ModuleRegistry)_diensten.GetService(typeof(ModuleRegistry))!;
+    private IModuleSwitches Schakelaars => (IModuleSwitches)_diensten.GetService(typeof(IModuleSwitches))!;
+    private PrivacyService Privacy => (PrivacyService)_diensten.GetService(typeof(PrivacyService))!;
+    private BatchPlanner Batch => (BatchPlanner)_diensten.GetService(typeof(BatchPlanner))!;
+    private TimeProvider Klok => (TimeProvider)_diensten.GetService(typeof(TimeProvider))!;
 
     /// <summary>Initializes a new instance of the <see cref="BeheerController"/> class.</summary>
     /// <param name="services">De dienstverlener van de server.</param>
     /// <param name="log">Het logboek.</param>
     public BeheerController(IServiceProvider services, ILogger<BeheerController> log)
     {
-        _pin = (HubPin)services.GetService(typeof(HubPin))!;
-        _modules = (ModuleRegistry)services.GetService(typeof(ModuleRegistry))!;
-        _schakelaars = (IModuleSwitches)services.GetService(typeof(IModuleSwitches))!;
-        _privacy = (PrivacyService)services.GetService(typeof(PrivacyService))!;
-        _planner = (BatchPlanner)services.GetService(typeof(BatchPlanner))!;
-        _klok = (TimeProvider)services.GetService(typeof(TimeProvider))!;
+        _diensten = services;
         _log = log;
     }
 
@@ -87,7 +84,7 @@ public sealed class BeheerController : ControllerBase
             throw Fouten.Validatie(("fingerprint", "vingerafdruk_klopt_niet", "De overgetikte vingerafdruk hoort niet bij deze sleutelset."));
         }
 
-        _pin.Zet(sleutels, serviceId!.ToLowerInvariant(), _klok.GetUtcNow());
+        Pin.Zet(sleutels, serviceId!.ToLowerInvariant(), Klok.GetUtcNow());
         _log.LogInformation("Jelly Leon: Hub-sleutelset gepind ({Aantal} JWT-sleutels).", sleutels.JwtSleutels.Count);
         return JlResult.Ok(HubLinkJson());
     }
@@ -98,7 +95,7 @@ public sealed class BeheerController : ControllerBase
     [JlRoute("hublink.delete")]
     public IActionResult HubLinkWis()
     {
-        _pin.Wis();
+        Pin.Wis();
         _log.LogInformation("Jelly Leon: Hub-koppeling verwijderd.");
         return JlResult.Ok(HubLinkJson());
     }
@@ -107,7 +104,7 @@ public sealed class BeheerController : ControllerBase
     /// <returns>De lijst van modules.</returns>
     [HttpGet("modules")]
     [JlRoute("modules.list")]
-    public IActionResult Modules() => JlResult.Ok(ModulesJson(), _schakelaars.Etag);
+    public IActionResult Modules() => JlResult.Ok(ModulesJson(), Schakelaars.Etag);
 
     /// <summary>Zet één module aan of uit.</summary>
     /// <param name="slug">De korte naam van de module.</param>
@@ -120,18 +117,18 @@ public sealed class BeheerController : ControllerBase
         var lezer = new BodyLezer(context.Body);
         var aan = lezer.Bool("enabled", true);
         lezer.Klaar();
-        if (_modules.Zoek(slug) is null)
+        if (Register.Zoek(slug) is null)
         {
             throw Fouten.NietGevonden();
         }
 
-        if (!string.Equals(context.IfMatch, _schakelaars.Etag, StringComparison.Ordinal))
+        if (!string.Equals(context.IfMatch, Schakelaars.Etag, StringComparison.Ordinal))
         {
-            throw Fouten.PreconditieMislukt(_schakelaars.Etag);
+            throw Fouten.PreconditieMislukt(Schakelaars.Etag);
         }
 
-        _schakelaars.Zet(slug, aan!.Value);
-        return JlResult.Ok(ModulesJson(), _schakelaars.Etag);
+        Schakelaars.Zet(slug, aan!.Value);
+        return JlResult.Ok(ModulesJson(), Schakelaars.Etag);
     }
 
     /// <summary>Het register van persoonsgegevens per module.</summary>
@@ -140,7 +137,7 @@ public sealed class BeheerController : ControllerBase
     [JlRoute("privacy.register")]
     public IActionResult PrivacyRegister()
     {
-        var regels = _privacy.Register().Select(r => (JsonNode)new JsonObject
+        var regels = Privacy.Register().Select(r => (JsonNode)new JsonObject
         {
             ["module"] = r.Module,
             ["tabel"] = r.Tabel,
@@ -155,11 +152,11 @@ public sealed class BeheerController : ControllerBase
     /// <returns>Aantallen, tijden en vaste woorden; geen titels, namen of paden.</returns>
     [HttpGet("planner")]
     [JlRoute("planner.status")]
-    public IActionResult Planner() => JlResult.Ok(_planner.Status());
+    public IActionResult Planner() => JlResult.Ok(Batch.Status());
 
     private JsonObject HubLinkJson()
     {
-        var pin = _pin.Huidig;
+        var pin = Pin.Huidig;
         return new JsonObject
         {
             ["status"] = pin is null ? "not_linked" : "linked",
@@ -174,11 +171,11 @@ public sealed class BeheerController : ControllerBase
 
     private JsonObject ModulesJson() => new()
     {
-        ["items"] = new JsonArray(_modules.Alle.Select(m => (JsonNode)new JsonObject
+        ["items"] = new JsonArray(Register.Alle.Select(m => (JsonNode)new JsonObject
         {
             ["slug"] = m.Slug,
             ["naam"] = m.Naam,
-            ["enabled"] = _schakelaars.IsAan(m.Slug),
+            ["enabled"] = Schakelaars.IsAan(m.Slug),
             ["item_types"] = new JsonArray(m.ItemTypes.Select(t => (JsonNode)t).ToArray()),
             ["event_types"] = new JsonArray(m.EventTypes.Select(t => (JsonNode)t).ToArray()),
             ["job_types"] = new JsonArray(m.JobTypes.Select(t => (JsonNode)t).ToArray()),

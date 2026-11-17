@@ -212,8 +212,21 @@ jobs:
       - name: Build plugins (tegen Jellyfin.Controller van de basisversie)
         run: dotnet build plugins/JellyLeon.Plugins.sln -c Release
 
+      - name: Tijdelijke opslag met een vreemde eigenaar (geen root of sudo in de tests)
+        run: |
+          fixture=$(mktemp -d)
+          chmod 1777 "$fixture"
+          docker run --rm --network none --user 65534:65534 --entrypoint /bin/sh \
+            -v "$fixture:/fixture" "$JL_RUNTIME_IMAGE" -c 'mkdir -m 0755 /fixture/vreemd'
+          chmod 0755 "$fixture"
+          printf 'JL_VREEMDE_OPSLAG=%s/vreemd\n' "$fixture" >> "$GITHUB_ENV"
+
       - name: Test plugins
         run: dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+
+      - name: Alleen de eigen tijdelijke eigenaarfixture opruimen
+        if: always() && env.JL_VREEMDE_OPSLAG != ''
+        run: rmdir -- "$JL_VREEMDE_OPSLAG" "$(dirname -- "$JL_VREEMDE_OPSLAG")"
 
       # B03-017 / ADR-0032: de proefassembly bevat elke verboden aanroep en MOET de build laten falen, met precies de
       # gemarkeerde bouwfouten (JL0001–JL0004) en om geen andere reden. De gewone build hierboven bewijst het omgekeerde:

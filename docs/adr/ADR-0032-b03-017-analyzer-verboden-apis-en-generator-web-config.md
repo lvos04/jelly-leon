@@ -804,6 +804,51 @@ faalt. SQLite opent zijn naastbestanden zelf op naam; dat blijft ook dan buiten 
 en geen uitzondering gebouwd; de HARDE EIS is niet verlaagd. Of deze twee grenzen het foutenmodel formeel afbakenen, is
 een besluit van de regisseur.
 
+#### Opslagdreigingen, deel 1d (beschikbaarheid, 2026-11-17)
+
+Besluit regisseur B3, optie B: **beschikbaarheid van de mediaserver gaat boven uitval van de hele server door de
+plugin**. De controles uit deel 1b blijven onverminderd streng. `JlPaths` blijft onveilige opslag weigeren;
+`PluginOpslag` vangt die weigering één keer op en houdt de plugin uitgeschakeld tot de volgende serverstart.
+`OpslagDienst<T>` maakt dan geen Devices-listener, MediaGuard-poller of planner aan. De moduleschakelaars melden uit,
+weigeren inschakelen en lezen geen pluginconfiguratie. `UserDeletedConsumer` doet zonder beschikbare opslag niets;
+hij opent geen database en beïnvloedt de gebruikersafhandeling van de server niet. De configuratie wordt niet aangepast.
+
+De vier opslagafhankelijke controllers halen hun diensten pas in de actie op, zodat `JlRouteAttribute` de weigering
+vóór elke opslagafhankelijke constructor kan afhandelen. Een aangemelde beheerder krijgt 503 `storage_unavailable`,
+een anonieme bezoeker 401 en een onbevoegd account 403. **Geen onveilige pin lezen om een Hub-token te controleren:**
+Hub-routes blijven 401 `unauthorized` / `not_linked` (contract §4.7). Hun Nederlandse melding legt de opslaguitval uit.
+De weigering bevat `details.health.status=down`, `reason_code=storage_unavailable`, `modules_enabled=false` en
+`restart_required=true`; ook de connector-healthroute geeft zo de toestand door. Alleen vaste diagnosevelden, geen
+bestandsinhoud of paden. Het serverlog krijgt één Nederlandse opslagmelding met herstel via TrueNAS
+(Apps → Edit → Storage en Datasets → Permissions → Edit), zonder terminalstappen. `/media/v1/version` en de eigen
+routes van de mediaserver blijven werken. De normale pipeline en connector-health blijven bij veilige opslag ongewijzigd.
+
+Dit maakt een onveilige map niet bruikbaar: er zijn geen bestandsbewerkingen, sleutelpinlezingen of databases via die
+map zolang de plugin uit staat. De bestaande eigendomsproef van deel 1b zet tijdens de controle uitsluitend dezelfde
+veilige modus terug (ctime kan veranderen); er wordt geen recht gerepareerd of verruimd. Na de weigering is er geen
+stille hercontrole. `JlPaths`, de analyzer en zijn uitzonderingslijst zijn niet gewijzigd; geen native aanroep toegevoegd.
+De containerstart blijft zijn eigen gedeelde `/config` of `/cache` weigeren vóór schrijven; dit beschikbaarheidsherstel
+betreft de opslag van de plugin (bijvoorbeeld onder `/config/data/jelly-leon`), niet de bestaande startwaarborgen.
+
+Klein herstel van deel 1c: `assert_not_downgrade` controleert de mappen en het versiepad vóór de eerste versielezing,
+ook in de rootfase vóór de eigenaarswissel. Een gekoppeld versiepad (ook een dode koppeling), FIFO of ander bijzonder
+bestand wordt geweigerd; een gewoon bestand met groeps-/wereldschrijfrecht eveneens. De bestaande downgradeweigering
+blijft gelden. Tests lezen de echte functies uit de entrypoint; een onderschepte leesaanroep voorkomt een hangende
+FIFO-proef en bewijst dat de weigering vóór die leesaanroep valt.
+
+Bewijs: `OpslagTerugvalTests` start een echte tijdelijke Kestrel-host met de echte pluginregistratie, MVC, achtergrondtaken
+en alle routes uit de routetabel. Eigenaar, groeps-/wereldschrijfrechten, gekoppelde eigen mappen en onveilige ouders
+laten de host doorstarten, zonder gewijzigde mapinhoud binnen of buiten de opslag. De eigenaarfixture is een lege,
+tijdelijke map van een andere UID, gemaakt in een wegwerpcontainer zonder netwerk; geen ACL, native proefhaak of
+verzwakte opslagtest. Herstel tijdens dezelfde host blijft geweigerd; na herstart starten de gewone diensten weer.
+`test_entrypoint_opslaggrens.py` bewaakt de vroege leesgrens. Uitvoering en tegenproeven staan in
+`docs/platform-v2/test-evidence/s-g1-16-deel1d-beschikbaarheid.md`.
+
+B1 optie A (regisseur): de harde databasekoppeling en de lege ingang na padwissel blijven de vastgelegde grenzen van
+het foutenmodel; geen herstel in dit deel. Alleen eigen snapshots of back-ups terugzetten en nooit een deel van de
+Jelly Leon-config aan een andere app koppelen. Dit besluit wordt nog aan de gebruiker voorgelegd. B2 blijft strikt:
+rechten en ACL-werking op de echte NAS moeten door de gebruiker worden gemeten. Geen NAS, Emby of accounts benaderd.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:

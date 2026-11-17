@@ -33,6 +33,30 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter, IAsyncAlwa
         var http = context.HttpContext;
         DoorstuurWacht.Bewaak(http);
         var traceId = Guid.NewGuid().ToString();
+        // Controllers laden hun diensten pas in de actie. Deze controle raakt geen opslag, ook geen sleutelpin.
+        if (http.RequestServices.GetService<PluginOpslag>() is { Beschikbaar: false } opslag)
+        {
+            var route = RouteTable.Zoek(Id);
+            try
+            {
+                if (route.Auth == JlAuth.SessieBeheerder)
+                {
+                    var wie = await http.RequestServices.GetRequiredService<ISessionAuthenticator>().AuthenticeerAsync(http.Request).ConfigureAwait(false);
+                    if (wie.IsKid || !wie.IsBeheerder)
+                    {
+                        throw Fouten.Verboden(wie.IsKid ? "kid_profile" : "admin_required");
+                    }
+                }
+
+                throw opslag.Fout(route.Auth == JlAuth.Hub, http.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow());
+            }
+            catch (JlException fout)
+            {
+                context.Result = JlResult.Fout(fout, traceId);
+                return;
+            }
+        }
+
         var pipeline = http.RequestServices.GetRequiredService<JlPipeline>();
         JlContext jl;
         try

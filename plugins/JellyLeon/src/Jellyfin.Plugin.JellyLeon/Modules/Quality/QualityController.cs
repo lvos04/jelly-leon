@@ -9,32 +9,33 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Quality;
 [Route("media/v1/quality")]
 public sealed class QualityController : ControllerBase
 {
-    private readonly QualityModule _module;
-    private readonly TimeProvider _klok;
+    private readonly IServiceProvider _diensten;
+
+    private QualityModule Module => (QualityModule)_diensten.GetService(typeof(QualityModule))!;
+    private TimeProvider Klok => (TimeProvider)_diensten.GetService(typeof(TimeProvider))!;
 
     /// <summary>Initializes a new instance of the <see cref="QualityController"/> class.</summary>
     /// <param name="services">De dienstverlener van de server.</param>
     public QualityController(IServiceProvider services)
     {
-        _module = (QualityModule)services.GetService(typeof(QualityModule))!;
-        _klok = (TimeProvider)services.GetService(typeof(TimeProvider))!;
+        _diensten = services;
     }
 
     /// <summary>Status van de module (alleen aantallen).</summary>
     /// <returns>De status.</returns>
     [HttpGet("status")]
     [JlRoute("quality.status")]
-    public IActionResult Status() => ModuleRoutes.Status(_module, _klok.GetUtcNow());
+    public IActionResult Status() => ModuleRoutes.Status(Module, Klok.GetUtcNow());
 
     /// <summary>De instellingen van de module, met ETag.</summary>
     /// <returns>De instellingen.</returns>
     [HttpGet("settings")]
     [JlRoute("quality.settings.get")]
-    public IActionResult Instellingen() => ModuleRoutes.LeesInstellingen(_module);
+    public IActionResult Instellingen() => ModuleRoutes.LeesInstellingen(Module);
 
     /// <summary>Wijzigt de instellingen (If-Match en Idempotency-Key verplicht).</summary>
     /// <returns>De nieuwe instellingen.</returns>
     [HttpPut("settings")]
     [JlRoute("quality.settings.put")]
-    public IActionResult InstellingenZet() => ModuleRoutes.SchrijfInstellingen(_module, JlContext.Van(HttpContext));
+    public IActionResult InstellingenZet() => ModuleRoutes.SchrijfInstellingen(Module, JlContext.Van(HttpContext));
 }

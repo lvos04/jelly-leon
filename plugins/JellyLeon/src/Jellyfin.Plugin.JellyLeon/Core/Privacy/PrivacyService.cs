@@ -66,10 +66,10 @@ internal sealed class PrivacyService
 /// <summary>De ene UserDeleted-afhandeling van de plugin (officiële gebeurtenis van de server).</summary>
 internal sealed class UserDeletedConsumer : IEventConsumer<UserDeletedEventArgs>
 {
-    private readonly PrivacyService _privacy;
+    private readonly PrivacyService? _privacy;
     private readonly ILogger<UserDeletedConsumer> _log;
 
-    public UserDeletedConsumer(PrivacyService privacy, ILogger<UserDeletedConsumer> log)
+    public UserDeletedConsumer(PrivacyService? privacy, ILogger<UserDeletedConsumer> log)
     {
         _privacy = privacy;
         _log = log;
@@ -77,6 +77,12 @@ internal sealed class UserDeletedConsumer : IEventConsumer<UserDeletedEventArgs>
 
     public Task OnEvent(UserDeletedEventArgs eventArgs)
     {
+        // Bij de serverstart geweigerde pluginopslag: geen dienst laden, geen geheim lezen of database openen.
+        if (_privacy is null)
+        {
+            return Task.CompletedTask;
+        }
+
         var rijen = _privacy.VerwijderGebruiker(eventArgs.Argument.Id);
         _log.LogInformation("Jelly Leon: gegevens van een verwijderd account gewist ({Rijen} rijen).", rijen);
         return Task.CompletedTask;

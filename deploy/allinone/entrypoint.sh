@@ -137,6 +137,15 @@ image_version() {
 
 # Leest alleen; schrijft niets. Weigert een datamap die al door een nieuwere Jelly Leon is gestart.
 assert_not_downgrade() {
+  # Ook vóór de eerste leesactie: geen gedeelde ouder, mapkoppeling, bestandskoppeling of FIFO volgen.
+  # Root mag hier nog een vreemde eigenaar aantreffen (de eenmalige eigenaarswissel volgt pas na deze weigering).
+  check_uid=$(id -u)
+  [ "$check_uid" != 0 ] || check_uid=""
+  assert_private_storage "$check_uid"
+  if [ -L "$DATAMAP_VERSION_FILE" ] || { [ -e "$DATAMAP_VERSION_FILE" ] && [ ! -f "$DATAMAP_VERSION_FILE" ]; }; then
+    fail "datamap-versie is geen gewoon bestand zonder koppeling. Er is niets gewijzigd. Controleer in TrueNAS bij Apps → Edit → Storage de eigen config-opslag; zet bij Datasets → Snapshots zo nodig de snapshot van vóór de wijziging terug of vraag hulp via de Hub"
+  fi
+  assert_private_dir "$DATAMAP_VERSION_FILE" "$check_uid"
   own=$(image_version)
   own_fields=$(version_fields "$own")
   [ -n "$own_fields" ] || fail "forkversie van deze image ('$own') heeft geen geldige vorm <x.y.z>-jl.<n>"

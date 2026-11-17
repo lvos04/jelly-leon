@@ -20,9 +20,16 @@ internal interface IModuleSwitches
 /// <summary>Schakelaars uit de pluginconfiguratie (alleen aan/uit; nooit een geheim).</summary>
 internal sealed class PluginModuleSwitches : IModuleSwitches
 {
+    private readonly PluginOpslag _opslag;
+
+    public PluginModuleSwitches(PluginOpslag opslag)
+    {
+        _opslag = opslag;
+    }
+
     private static PluginConfiguration Config => Plugin.Instance?.Configuration ?? new PluginConfiguration();
 
-    public string Etag => BerekenEtag(Config);
+    public string Etag => _opslag.Beschikbaar ? BerekenEtag(Config) : "\"storage-disabled\"";
 
     public static string BerekenEtag(PluginConfiguration config)
     {
@@ -30,10 +37,11 @@ internal sealed class PluginModuleSwitches : IModuleSwitches
         return "\"" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(stand)).AsSpan(0, 8)) + "\"";
     }
 
-    public bool IsAan(string slug) => Config.Schakelaars().Any(s => s.Slug == slug && s.Schakelaar.Enabled);
+    public bool IsAan(string slug) => _opslag.Beschikbaar && Config.Schakelaars().Any(s => s.Slug == slug && s.Schakelaar.Enabled);
 
     public void Zet(string slug, bool aan)
     {
+        _ = _opslag.Paden;
         var plugin = Plugin.Instance ?? throw new InvalidOperationException("De plugin is nog niet geladen.");
         plugin.Configuration.Schakelaars().First(s => s.Slug == slug).Schakelaar.Enabled = aan;
         plugin.SaveConfiguration();

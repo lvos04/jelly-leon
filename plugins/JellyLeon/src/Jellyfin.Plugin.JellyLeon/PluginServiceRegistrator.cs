@@ -23,6 +23,7 @@ using MediaBrowser.Controller.Plugins;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyLeon;
 
@@ -39,8 +40,9 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton(sp =>
         {
             var paden = sp.GetRequiredService<IApplicationPaths>();
-            return new JlPaths(paden.DataPath, paden.CachePath);
+            return new PluginOpslag(paden.DataPath, paden.CachePath, sp.GetRequiredService<ILogger<PluginOpslag>>());
         });
+        serviceCollection.AddSingleton(sp => sp.GetRequiredService<PluginOpslag>().Paden);
         serviceCollection.AddSingleton<CoreDatabase>();
         serviceCollection.AddSingleton<SecretStore>();
         serviceCollection.AddSingleton<InternalWriteScope>();
@@ -62,14 +64,18 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<JlPipeline>();
         serviceCollection.AddSingleton<IMediaMappen, BibliotheekMappen>();
         serviceCollection.AddSingleton<ConnectorService>();
-        serviceCollection.AddScoped<IEventConsumer<UserDeletedEventArgs>, UserDeletedConsumer>();
-        serviceCollection.AddHostedService<DevicesListener>();
+        serviceCollection.AddScoped<IEventConsumer<UserDeletedEventArgs>>(sp => new UserDeletedConsumer(
+            sp.GetRequiredService<PluginOpslag>().Beschikbaar ? sp.GetRequiredService<PrivacyService>() : null,
+            sp.GetRequiredService<ILogger<UserDeletedConsumer>>()));
+        serviceCollection.AddSingleton<DevicesListener>();
+        serviceCollection.AddHostedService<OpslagDienst<DevicesListener>>();
 
         // De ene MediaGuard-viewerclient (B03-009, ADR-0034). Standaard is er geen weg naar MediaGuard: status onbekend.
         serviceCollection.TryAddSingleton<IMediaGuardVervoer, GeenMediaGuardVervoer>();
         serviceCollection.AddSingleton<MediaGuardClient>();
         serviceCollection.AddSingleton<IHealthBron, MediaGuardHealthBron>();
-        serviceCollection.AddHostedService<MediaGuardPoller>();
+        serviceCollection.AddSingleton<MediaGuardPoller>();
+        serviceCollection.AddHostedService<OpslagDienst<MediaGuardPoller>>();
 
         // De ene planner en de ene budgetbeslisser (B03-018, ADR-0035). Zonder werker draait er geen zwaar werk.
         serviceCollection.TryAddSingleton<IWerker, GeenWerker>();
@@ -77,7 +83,7 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<LeesfoutBreker>();
         serviceCollection.AddSingleton<BudgetBeslisser>();
         serviceCollection.AddSingleton<BatchPlanner>();
-        serviceCollection.AddHostedService(sp => sp.GetRequiredService<BatchPlanner>());
+        serviceCollection.AddHostedService<OpslagDienst<BatchPlanner>>();
 
         // Spike (ADR-0033): 1 MiB vóór routing en authenticatie; standaard uit, de controle per route blijft altijd staan.
         if (JlStartupFilterSpike.IsAan(Environment.GetEnvironmentVariable))

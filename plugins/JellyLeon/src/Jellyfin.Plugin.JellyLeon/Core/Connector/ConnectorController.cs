@@ -12,40 +12,41 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Connector;
 [Route("connector/v1")]
 public sealed class ConnectorController : ControllerBase
 {
-    private readonly ConnectorService _connector;
-    private readonly TimeProvider _klok;
+    private readonly IServiceProvider _diensten;
+
+    private ConnectorService Connector => (ConnectorService)_diensten.GetService(typeof(ConnectorService))!;
+    private TimeProvider Klok => (TimeProvider)_diensten.GetService(typeof(TimeProvider))!;
 
     /// <summary>Initializes a new instance of the <see cref="ConnectorController"/> class.</summary>
     /// <param name="services">De dienstverlener van de server.</param>
     public ConnectorController(IServiceProvider services)
     {
-        _connector = (ConnectorService)services.GetService(typeof(ConnectorService))!;
-        _klok = (TimeProvider)services.GetService(typeof(TimeProvider))!;
+        _diensten = services;
     }
 
     /// <summary>Wat Jelly Leon aanbiedt.</summary>
     /// <returns>Het discover-antwoord.</returns>
     [HttpGet("discover")]
     [JlRoute("connector.discover")]
-    public IActionResult Discover() => JlResult.Ok(_connector.Discover(_klok.GetUtcNow()));
+    public IActionResult Discover() => JlResult.Ok(Connector.Discover(Klok.GetUtcNow()));
 
     /// <summary>Gezondheid; het totaal is de slechtste check.</summary>
     /// <returns>Het health-antwoord.</returns>
     [HttpGet("health")]
     [JlRoute("connector.health")]
-    public IActionResult Health() => JlResult.Ok(_connector.Health(_klok.GetUtcNow()));
+    public IActionResult Health() => JlResult.Ok(Connector.Health(Klok.GetUtcNow()));
 
     /// <summary>Items van één type.</summary>
     /// <returns>Een pagina met items.</returns>
     [HttpGet("items")]
     [JlRoute("connector.items")]
-    public IActionResult Items() => JlResult.Ok(_connector.Items(Vraag("type"), Vraag("cursor"), Vraag("limit"), _klok.GetUtcNow()));
+    public IActionResult Items() => JlResult.Ok(Connector.Items(Vraag("type"), Vraag("cursor"), Vraag("limit"), Klok.GetUtcNow()));
 
     /// <summary>De outbox van Jelly Leon.</summary>
     /// <returns>Een pagina met events.</returns>
     [HttpGet("events")]
     [JlRoute("connector.events")]
-    public IActionResult Events() => JlResult.Ok(_connector.Events(Vraag("cursor"), Vraag("limit")));
+    public IActionResult Events() => JlResult.Ok(Connector.Events(Vraag("cursor"), Vraag("limit")));
 
     /// <summary>Bewijs: nog niet beschikbaar.</summary>
     /// <returns>Altijd 501.</returns>

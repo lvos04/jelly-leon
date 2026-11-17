@@ -187,3 +187,50 @@ def test_controle_staat_als_root_voor_de_eigenaarswissel_en_als_app_voor_het_vas
     assert app < tekst.index("    record_datamap_version\n", fase)
     root = tekst.index("\nassert_private_storage\n")
     assert tekst.index("  assert_owned_mount \"$dir\"\n") < root < tekst.index('chown -R "$APP_UID:$APP_GID" "$dir"')
+
+
+@pytest.mark.parametrize(
+    "geval", ["map-gedeeld", "map-koppeling", "bestand-koppeling", "bestand-dode-koppeling", "bestand-fifo", "bestand-gedeeld"],
+)
+def test_downgradecontrole_leest_niet_voor_de_opslaggrens(tmp_path: Path, geval: str) -> None:
+    """De eerste versiecontrole (ook vóór de rootfase) mag geen koppeling of FIFO volgen."""
+    data, cache, _ = opzet(tmp_path)
+    eigen = maak(data / "jelly-leon")
+    versie = eigen / "datamap-versie"
+    elders = maak(tmp_path / "elders")
+    doel = elders / "datamap-versie"
+    doel.write_text(f"fork_version={VERSIE}\n")
+    if geval == "map-gedeeld":
+        eigen.chmod(0o777)
+        versie.write_text(f"fork_version={VERSIE}\n")
+    elif geval == "map-koppeling":
+        eigen.rmdir()
+        eigen.symlink_to(elders)
+    elif geval == "bestand-gedeeld":
+        versie.write_text(f"fork_version={VERSIE}\n")
+        versie.chmod(0o666)
+    elif geval.startswith("bestand-") and geval != "bestand-fifo":
+        versie.symlink_to(doel if geval == "bestand-koppeling" else elders / "ontbreekt")
+    else:
+        import os
+
+        os.mkfifo(versie)
+    tekst = SCRIPT.read_text(encoding="utf-8")
+    functies = "".join(re.findall(r"^[a-z_]+\(\) \{(?: [^\n]*\}\n|\n.*?^\}\n)", tekst, re.MULTILINE | re.DOTALL))
+    image = tmp_path / "VERSION"
+    image.write_text(VERSIE + "\n")
+    gelezen = tmp_path / "onveilig-gelezen"
+    # Onderschep de leesaanroep: oud volgt de koppeling of zou op de FIFO wachten. Geen echt blokkerend proces.
+    script = (
+        f"set -eu\nDATA_DIR='{data}'\nCACHE_DIR='{cache}'\nIMAGE_VERSION_FILE='{image}'\n"
+        f"DATAMAP_VERSION_FILE='{versie}'\n" + functies
+        + f"sed() {{ : > '{gelezen}'; printf 'fork_version={VERSIE}\\n'; }}\n"
+        + "assert_not_downgrade\n"
+    )
+    voor = boom(tmp_path) if geval != "bestand-fifo" else None
+    proc = draai(script)
+    assert not gelezen.exists(), "de versiecontrole las de onveilige datamap vóór de opslagcontrole"
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+    assert "TrueNAS" in proc.stdout + proc.stderr
+    if voor is not None:
+        assert boom(tmp_path) == voor
