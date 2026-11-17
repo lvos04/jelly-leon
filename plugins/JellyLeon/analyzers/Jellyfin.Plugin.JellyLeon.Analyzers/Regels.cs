@@ -856,6 +856,9 @@ internal static class Regels
     /// </summary>
     public static readonly ImmutableArray<string> HostOptieNamespaces = ImmutableArray.Create("Microsoft.AspNetCore");
 
+    /// <summary>Open generieke optiediensten kunnen ook de hostconfiguratie vervangen (S-G1-16).</summary>
+    public static readonly ImmutableArray<string> OptieInfrastructuurNamespaces = ImmutableArray.Create("Microsoft.Extensions.Options");
+
     public const string HostOptieAchtervoegsel = "Options";
 
     /// <summary>Instellingen van de host buiten <see cref="HostOptieNamespaces"/> (metadatanaam).</summary>

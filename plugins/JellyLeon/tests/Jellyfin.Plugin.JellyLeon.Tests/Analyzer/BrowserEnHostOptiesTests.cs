@@ -297,6 +297,73 @@ public class BrowserEnHostOptiesTests
     }
 
     /// <summary>
+    /// S-G1-16: een open optiedienst kan elk hostoptietype vervangen zonder dat type te noemen.
+    /// Gesloten eigen opties blijven bruikbaar; de bestaande categorie hostopties geldt ook voor open infrastructuur.
+    /// </summary>
+    [Fact]
+    public async Task HostOpties_OpenInfrastructuurEnGeneriekeImplementatieZijnJL0001()
+    {
+        static string Bron(string ruimte) => $$"""
+            using System;
+            using Microsoft.Extensions.Configuration;
+            using Microsoft.Extensions.DependencyInjection;
+            using Microsoft.Extensions.Options;
+
+            namespace {{ruimte}}
+            {
+                public sealed class Alles<T> : IOptionsFactory<T> where T : class, new() // JL0001
+                {
+                    public T Create(string name) => new T();
+                }
+
+                public sealed class WijzigAlles<T> : IPostConfigureOptions<T> where T : class // JL0001
+                {
+                    public void PostConfigure(string name, T options) { }
+                }
+
+                public sealed class EigenOpties { public bool Aan { get; set; } }
+                public sealed class Eigen : IConfigureOptions<EigenOpties>
+                {
+                    public void Configure(EigenOpties options) => options.Aan = true;
+                }
+
+                public static class Registratie
+                {
+                    public static void Registreer(IServiceCollection diensten, IConfiguration cfg)
+                    {
+                        diensten.AddSingleton(typeof(IOptionsFactory<>), typeof(Alles<>)); // JL0001
+                        diensten.AddSingleton(typeof(IPostConfigureOptions<>), typeof(WijzigAlles<>)); // JL0001
+                        _ = typeof(IConfigureOptions<>); // JL0001
+                        _ = typeof(IConfigureNamedOptions<>); // JL0001
+                        _ = typeof(IOptions<>); // JL0001
+                        _ = typeof(IOptionsSnapshot<>); // JL0001
+                        _ = typeof(IOptionsMonitor<>); // JL0001
+                        _ = typeof(IOptionsMonitorCache<>); // JL0001
+                        _ = typeof(ConfigureFromConfigurationOptions<>); // JL0001
+                        _ = typeof(OptionsFactory<>); // JL0001
+
+                        // Tegenproeven: eigen gesloten opties, gewone generieke typen en metadata blijven toegestaan.
+                        diensten.AddSingleton<IConfigureOptions<EigenOpties>, Eigen>();
+                        diensten.Configure<EigenOpties>(o => o.Aan = true);
+                        _ = new ConfigureFromConfigurationOptions<EigenOpties>(cfg);
+                        _ = typeof(IOptionsFactory<EigenOpties>);
+                        _ = typeof(System.Collections.Generic.List<>);
+                    }
+                }
+            }
+            """;
+
+        foreach (var ruimte in new[] { "Jellyfin.Plugin.JellyLeon.Modules.Proef", "Jellyfin.Plugin.JellyLeon.Core.Http", "Jellyfin.Plugin.JellyLeon.Core.Storage" })
+        {
+            var bron = Bron(ruimte);
+            var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+            Assert.Equal(12, Verwacht(bron).Count);
+            Assert.Equal(Verwacht(bron), gevonden.Select(b => (b.Regel, b.Id)).ToHashSet());
+            Assert.All(gevonden, b => Assert.Contains("gebruikt een instelling van de host", b.Tekst, StringComparison.Ordinal));
+        }
+    }
+
+    /// <summary>
     /// De witte lijst van de instellingen van de host is leeg (de plugin gebruikt geen optietype van de host); de genoemde
     /// typen en leden bestaan in deze SDK (anders zou een regel stil uitvallen).
     /// </summary>

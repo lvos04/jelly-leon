@@ -280,6 +280,15 @@ namespace (ook `Core.Storage`, `Core.Secrets` en `Core.Werker`):
    `PlaystateController.ReportPlaybackStopped` `PositionTicks` 360000000000000000 in plaats van 36000000000. Een `PostConfigure`
    komt na de instelling van de server (`AddJellyfinApi`, met `Converters.Clear()`), een gewone `Configure` ervoor. In de serverbron
    zet `UserDataManager.UpdatePlayState` het item dan bij elke stop- of voortgangsmelding op gezien en wist het hervatpunt.
+   Sinds S-G1-16 geldt dit ook voor open generieke optie-infrastructuur uit `Microsoft.Extensions.Options`:
+   `typeof(IOptionsFactory<>)`, `typeof(IPostConfigureOptions<>)` en de andere open optiediensten, een open Microsoft-klasse
+   zoals `ConfigureFromConfigurationOptions<>`, en een generieke implementatie zoals `Alles<T> : IOptionsFactory<T>` zijn
+   JL0001 in elke namespace. Een typeparameter in een typeargument telt ook als open. De runtimeproef bevestigt dat een
+   fabriek met `new T()` een ingestelde `JsonOptions` terugzet, zonder reflectie of dynamic in de proefcode. Gesloten
+   optiediensten voor eigen opties blijven toegestaan; de witte lijst en de overige verboden zijn niet verruimd.
+   Tests: `BrowserEnHostOptiesTests.HostOpties_OpenInfrastructuurEnGeneriekeImplementatieZijnJL0001` (12 vormen in drie
+   namespaces met toegestane tegenvormen) en
+   `HostOptiesDraaienTests.OpenFabriek_IsJL0001_EnZetZonderAnalyzerDeHostinstellingTerug`.
 
 Attributen op eigen code (`[Authorize]`, `[Route]`) tellen niet: die gelden alleen voor die code.
 
@@ -648,7 +657,7 @@ bij een taak uit het plan en een eigen ADR.
 ### 3. Drie soorten bewijs
 
 1. **De plugin bouwt** met de analyzer aan: er staat geen verboden aanroep in.
-2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 295 verboden aanroepen, elk gemarkeerd met
+2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat verboden aanroepen, elk gemarkeerd met
    `// VERWACHT: JLxxxx`, afgewisseld met toegestane aanroepen (sinds herstelronde 7 is lezen van de server-ABI buiten de
    witte lijst ook verboden en dus gemarkeerd; toegestaan zijn bestanden lezen, constanten, typenamen en een lid dat in die
    klasse op de witte lijst staat). `analyzer_proef.py` bouwt het project echt en eist
@@ -711,8 +720,12 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   `.Database_KoppelingNaHetAanmakenWordtBijHetOpenenGeweigerd`, `.Database_NaastbestandenNaastHetEchtePadWordenGecontroleerd`
   en `.Schrijfbereik_SymbolischeKoppelingNaarBuitenWordtGeweigerd`
   (jellyfin.db blijft byte-gelijk). Wat de padgrens niet ziet: een koppeling die precies tussen de controle en het
-  openen ontstaat, en een harde koppeling (zelfde bestand onder twee namen). De plugin maakt zelf geen koppelingen en
-  de entrypoint alleen mappen.
+  openen ontstaat, en een harde koppeling (zelfde bestand onder twee namen). S-G1-16 heeft beide nu met synthetische
+  bestanden gereproduceerd: een harde koppeling op `<doel>.tmp` of het databasebestand, en een wissel na de laatste
+  controle maar vóór de bestands- of databaseopening veranderen een bestand buiten de eigen map. Dit zijn aantoonbare,
+  **nog niet herstelde fouten in de bestaande opslaggrens**, geen aanvaarde veiligheidsuitzonderingen. De reproduceerbare
+  proef en de beperkingen staan in `docs/platform-v2/test-evidence/s-g1-16-deel1-grensonderzoek.md`.
+  De plugin maakt zelf geen koppelingen en de entrypoint alleen mappen; dat is geen bewijs dat deze grens dicht is.
 - JL0003 ziet een naam die pas bij het draaien ontstaat niet: een variabele, `string.Concat`, `StringBuilder`, een
   waarde uit de configuratie. Daarvoor is de padgrens van `JlDatabase` en `InternalWriteScope` er; `jellyfin.db` en
   `library.db` liggen buiten de eigen mappen. Dat houdt alleen omdat elke verbinding via `JlDatabase` loopt en elk
@@ -766,13 +779,11 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   lezen) en attributen op eigen code (zie de grens over een eigen route hieronder). De instellingen van de host (Kestrel,
   doorgestuurde koppen, JSON en andere optietypen van ASP.NET Core) zijn sinds herstelronde 9 wel JL0001, op naam: een
   instelling van de host die niet op `Options` eindigt en geen `HostOptions` is (bijvoorbeeld een eigen `IServer`, `IHostLifetime`
-  of `IHostedService`), valt er niet onder. Ook een **open generieke registratie** van de optie-infrastructuur ziet de regel niet
-  (herreview 9): `AddSingleton(typeof(IPostConfigureOptions<>), typeof(Alles<>))`, net zo `typeof(IConfigureOptions<>)`,
-  `typeof(IOptionsFactory<>)` of een Microsoft-klasse als `ConfigureFromConfigurationOptions<>`, noemt geen optietype en raakt toch
-  elk optietype van de host. Zonder reflectie of `dynamic` (beide JL0002) kan zo'n `Alles<T>` geen lid van `JsonOptions` wijzigen;
-  een fabriek die `new T()` teruggeeft, zet wel alle instellingen terug naar de standaard (niet bij het draaien beproefd). De plugin
-  gebruikt het niet en er is geen schrijfpad gevonden; dichten (bijvoorbeeld JL0001 op `typeof` van een open generiek
-  optie-interface) hoort bij S-G1-16. Ook niet gedekt: een netwerkclient buiten System.Net.Http, .Sockets, .WebSockets en .Quic en buiten `WebClient`/`WebRequest` (bijvoorbeeld
+  of `IHostedService`), valt er niet onder. De eerder gemelde **open generieke registratie** is in S-G1-16 gesloten binnen
+  de bestaande hostoptiecategorie: onder meer `typeof(IPostConfigureOptions<>)`, `typeof(IOptionsFactory<>)` en generieke
+  implementaties zijn nu JL0001 (zie punt 9 en de bijbehorende tests). De proef zonder analyzer zet aantoonbaar een ingestelde
+  hostoptie terug naar de standaard. Dit is geen algemene vrijgave van andere Microsoft-uitbreidingspunten.
+  Ook niet gedekt: een netwerkclient buiten System.Net.Http, .Sockets, .WebSockets en .Quic en buiten `WebClient`/`WebRequest` (bijvoorbeeld
   `SmtpClient`, `Ping`). Een klasse op de witte lijst van de HTTP-laag heeft alleen het genoemde lid of uitbreidingspunt; wat zij
   daarbinnen doet (de spike roept na de controle `volgende(http)` aan) bewaakt de runtime-test van de spike, niet de analyzer.
 - **Een eigen route boven een serverroute** (herreview 8, grens 5): attributen op eigen code tellen in de analyzer niet, dus

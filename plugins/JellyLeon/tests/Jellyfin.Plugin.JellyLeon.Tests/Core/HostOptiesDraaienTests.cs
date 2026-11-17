@@ -107,6 +107,51 @@ public class HostOptiesDraaienTests
         Assert.Equal(EenUur * 10_000_000, await ServeractieKrijgtAsync(Vorm("Klasse"), stop));
     }
 
+    /// <summary>
+    /// S-G1-16: dezelfde open fabrieksregistratie geeft nu een bouwfout en zet zonder analyzer
+    /// een eerder ingestelde hostoptie terug. Alleen synthetische instellingen in een eigen dienstcontainer.
+    /// </summary>
+    [Fact]
+    public async Task OpenFabriek_IsJL0001_EnZetZonderAnalyzerDeHostinstellingTerug()
+    {
+        const string Bron = """
+            using Microsoft.Extensions.DependencyInjection;
+            using Microsoft.Extensions.Options;
+            namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+            {
+                public sealed class Alles<T> : IOptionsFactory<T> where T : class, new() // JL0001
+                {
+                    public T Create(string name) => new T();
+                }
+                public static class Fabriek
+                {
+                    public static void Registreer(IServiceCollection diensten) =>
+                        diensten.AddSingleton(typeof(IOptionsFactory<>), typeof(Alles<>)); // JL0001
+                }
+            }
+            """;
+        var stop = TestContext.Current.CancellationToken;
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, stop);
+        var verwacht = Bron.Split('\n').Select((regel, index) => (regel, nummer: index + 1))
+            .Where(r => r.regel.Contains("// JL0001", StringComparison.Ordinal))
+            .Select(r => (r.nummer, "JL0001")).ToHashSet();
+        Assert.Equal(2, verwacht.Count);
+        Assert.Equal(verwacht, gevonden.Select(b => (b.Regel, b.Id)).ToHashSet());
+
+        using var stroom = new MemoryStream();
+        var compilatie = AnalyzerHarnas.Compileer(Bron).Emit(stroom, cancellationToken: stop);
+        Assert.True(compilatie.Success, string.Join("\n", compilatie.Diagnostics));
+        var fabriek = Assembly.Load(stroom.ToArray()).GetType("Jellyfin.Plugin.JellyLeon.Modules.Proef.Fabriek", true)!;
+        var diensten = new ServiceCollection();
+        diensten.AddOptions();
+        diensten.Configure<JsonOptions>(o => o.JsonSerializerOptions.WriteIndented = true);
+        using var voor = diensten.BuildServiceProvider();
+        Assert.True(voor.GetRequiredService<Microsoft.Extensions.Options.IOptions<JsonOptions>>().Value.JsonSerializerOptions.WriteIndented);
+        fabriek.GetMethod("Registreer")!.Invoke(null, new object[] { diensten });
+        using var na = diensten.BuildServiceProvider();
+        Assert.False(na.GetRequiredService<Microsoft.Extensions.Options.IOptions<JsonOptions>>().Value.JsonSerializerOptions.WriteIndented);
+    }
+
     /// <summary>Start een host zoals de server, met eerst de registratie van de plugin, en stuurt een stopmelding van één uur.</summary>
     private static async Task<long> ServeractieKrijgtAsync(Action<IServiceCollection>? plugin, System.Threading.CancellationToken stop)
     {

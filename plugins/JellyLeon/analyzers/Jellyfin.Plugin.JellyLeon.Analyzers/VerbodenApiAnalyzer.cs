@@ -1317,7 +1317,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 case INamedTypeSymbol benoemd:
                     for (var t = benoemd; t is not null; t = t.BaseType)
                     {
-                        if (IsHostOptieType(t.OriginalDefinition))
+                        if (IsHostOptieType(t.OriginalDefinition) || IsOpenOptieInfrastructuur(t))
                         {
                             return t.OriginalDefinition;
                         }
@@ -1336,6 +1336,20 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                     return null;
             }
         }
+
+        // Een open optiedienst geldt ook voor de host: een IOptionsFactory<T> kan zonder reflectie met new T()
+        // de configuratie voor elk hostoptietype vervangen. Gesloten diensten voor eigen opties blijven toegestaan.
+        private static bool IsOpenOptieInfrastructuur(INamedTypeSymbol type) =>
+            Regels.InNamespace(type.ContainingNamespace?.ToDisplayString() ?? string.Empty, Regels.OptieInfrastructuurNamespaces)
+            && (type.IsUnboundGenericType || type.TypeArguments.Any(BevatTypeparameter));
+
+        private static bool BevatTypeparameter(ITypeSymbol type) => type switch
+        {
+            ITypeParameterSymbol => true,
+            IArrayTypeSymbol rij => BevatTypeparameter(rij.ElementType),
+            INamedTypeSymbol benoemd => benoemd.IsUnboundGenericType || benoemd.TypeArguments.Any(BevatTypeparameter),
+            _ => false,
+        };
 
         private bool IsHostOptieType(INamedTypeSymbol type) =>
             type.TypeKind is TypeKind.Class or TypeKind.Struct or TypeKind.Interface

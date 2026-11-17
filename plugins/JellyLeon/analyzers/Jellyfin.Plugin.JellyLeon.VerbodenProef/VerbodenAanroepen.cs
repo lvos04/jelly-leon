@@ -801,10 +801,23 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
         }
     }
 
+    // S-G1-16: een open fabriek kan hostinstellingen vervangen zonder een concreet hostoptietype te noemen.
+    public sealed class AlleOpties<T> : IOptionsFactory<T> where T : class, new() // VERWACHT: JL0001
+    {
+        public T Create(string name) => new T();
+    }
+
     public static class HostOpties
     {
         public static void Registreer(IServiceCollection diensten, IOptions<HostOptions> host)
         {
+            diensten.AddSingleton(typeof(IOptionsFactory<>), typeof(AlleOpties<>)); // VERWACHT: JL0001
+            _ = typeof(IPostConfigureOptions<>); // VERWACHT: JL0001
+            _ = typeof(IConfigureOptions<>); // VERWACHT: JL0001
+            _ = typeof(IConfigureNamedOptions<>); // VERWACHT: JL0001
+            _ = typeof(IOptionsMonitor<>); // VERWACHT: JL0001
+            _ = typeof(ConfigureFromConfigurationOptions<>); // VERWACHT: JL0001
+
             diensten.PostConfigure<Microsoft.AspNetCore.Mvc.JsonOptions>( // VERWACHT: JL0001
                 o => o.JsonSerializerOptions.Converters.Add(new TicksAlsSeconden())); // VERWACHT: JL0001
             diensten.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o => { }); // VERWACHT: JL0001
