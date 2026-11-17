@@ -75,6 +75,24 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         true,
         customTags: WellKnownDiagnosticTags.NotConfigurable);
 
+    private static readonly DiagnosticDescriptor _doorsturen = new(
+        Regels.ServerSchrijf,
+        "Een antwoord dat de browser doorstuurt is verboden",
+        "'{0}' stuurt de browser door (een redirect, de kop Location of een 3xx-status); de browser volgt dat met dezelfde methode en het token van de gebruiker naar elke route van de server (ook 301 en 302 bij DELETE of PUT). Dat mag nergens in plugincode (ADR-0032, kop \"HTTP-laag en netwerk\").",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    private static readonly DiagnosticDescriptor _hostOptie = new(
+        Regels.ServerSchrijf,
+        "Instellingen van de host alleen via de witte lijst",
+        "'{0}' gebruikt een instelling van de host (een optietype van ASP.NET Core, zoals JsonOptions of MvcOptions, of HostOptions); die geldt voor alle routes en acties van de server, zo kan plugincode de argumenten of het antwoord van een serveractie wijzigen. Dat mag alleen in een klasse op de witte lijst van de instellingen van de host, en die is leeg (ADR-0032, kop \"HTTP-laag en netwerk\").",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
     private static readonly DiagnosticDescriptor _netwerk = new(
         Regels.ServerSchrijf,
         "Netwerkclients alleen in een benoemde transportklasse",
@@ -158,7 +176,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(_serverSchrijf, _serverAbi, _serverToewijzing, _serverUitbreiding, _httpLaag, _httpUitbreiding, _netwerk, _pluginConfig, _bestandSchrijf, _serverBestand, _omweg, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
+        ImmutableArray.Create(_serverSchrijf, _serverAbi, _serverToewijzing, _serverUitbreiding, _httpLaag, _httpUitbreiding, _doorsturen, _hostOptie, _netwerk, _pluginConfig, _bestandSchrijf, _serverBestand, _omweg, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -235,8 +253,11 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             OperationKind.FieldReference,
             OperationKind.EventReference,
             OperationKind.ObjectCreation,
-            OperationKind.Conversion);
+            OperationKind.Conversion,
+            OperationKind.TypeOf);
         context.RegisterSymbolAction(toestand.HttpUitbreiding, SymbolKind.NamedType);
+        context.RegisterSymbolAction(toestand.HostOptieUitbreiding, SymbolKind.NamedType);
+        context.RegisterOperationAction(toestand.DoorstuurKop, OperationKind.Literal, OperationKind.Binary, OperationKind.InterpolatedString, OperationKind.NameOf);
         context.RegisterOperationAction(
             toestand.Netwerk,
             OperationKind.Invocation,
@@ -317,6 +338,9 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         private readonly List<(INamedTypeSymbol Type, string Lid)> _httpVerboden = new();
         private readonly List<INamedTypeSymbol> _httpZet = new();
         private readonly List<(INamedTypeSymbol Type, HttpWit Wit)> _httpWit = new();
+        private readonly List<(INamedTypeSymbol Type, HttpWit Wit)> _hostWit = new();
+        private readonly List<INamedTypeSymbol> _hostOptieTypen = new();
+        private readonly List<(INamedTypeSymbol Type, string Voorvoegsel)> _doorstuurStatus = new();
         private readonly List<INamedTypeSymbol> _netwerkTypen = new();
         private readonly INamedTypeSymbol? _verzoek;
         private readonly INamedTypeSymbol? _streamOpties;
@@ -351,6 +375,23 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 if (compilatie.GetTypeByMetadataName(wit.Type) is { } type)
                 {
                     _httpWit.Add((type, wit));
+                }
+            }
+
+            foreach (var wit in Regels.HostOptieWitteLijst)
+            {
+                if (compilatie.GetTypeByMetadataName(wit.Type) is { } type)
+                {
+                    _hostWit.Add((type, wit));
+                }
+            }
+
+            Vul(compilatie, Regels.HostOptieTypen, _hostOptieTypen);
+            foreach (var (naam, voorvoegsel) in Regels.DoorstuurStatusLeden)
+            {
+                if (compilatie.GetTypeByMetadataName(naam) is { } type)
+                {
+                    _doorstuurStatus.Add((type, voorvoegsel));
                 }
             }
 
@@ -1073,21 +1114,237 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            var (lid, type, constructor) = LidEnType(operatie);
-            if (lid is null || type is null || HttpVerboden(operatie, lid, type, constructor) is not { } api)
-            {
-                return;
-            }
-
             var klasse = BuitensteType(context.ContainingSymbol)?.ToDisplayString();
-            var lidnaam = constructor is not null ? ".ctor" : lid.Name;
-            var declarerend = (constructor is not null ? type : lid.ContainingType)?.OriginalDefinition;
-            if (_httpWit.Any(w => w.Wit.Lid == lidnaam && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(declarerend, w.Type)))
+            if (operatie is ITypeOfOperation typeOf)
+            {
+                // typeof(IConfigureOptions<JsonOptions>): een registratie van een instelling van de host zonder lid of typeargument.
+                if (EersteHostOptie(typeOf.TypeOperand) is { } optie && !HostOptieToegestaan(klasse, "typeof", optie))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(_hostOptie, operatie.Syntax.GetLocation(), "typeof(" + typeOf.TypeOperand.ToDisplayString() + ")"));
+                }
+
+                return;
+            }
+
+            var (lid, type, constructor) = LidEnType(operatie);
+            if (lid is null || type is null)
             {
                 return;
             }
 
-            context.ReportDiagnostic(Diagnostic.Create(_httpLaag, operatie.Syntax.GetLocation(), api));
+            var lidnaam = constructor is not null ? ".ctor" : lid.Name;
+            if (HttpVerboden(operatie, lid, type, constructor) is { } api)
+            {
+                var declarerend = (constructor is not null ? type : lid.ContainingType)?.OriginalDefinition;
+                if (!_httpWit.Any(w => w.Wit.Lid == lidnaam && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(declarerend, w.Type)))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(_httpLaag, operatie.Syntax.GetLocation(), api));
+                }
+
+                return;
+            }
+
+            if (Doorsturen(operatie, lid, type, constructor) is { } doorsturen)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_doorsturen, operatie.Syntax.GetLocation(), doorsturen));
+                return;
+            }
+
+            if (HostOptie(operatie, lid, type, constructor) is { } hostOptie && !HostOptieToegestaan(klasse, lidnaam, hostOptie))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_hostOptie, operatie.Syntax.GetLocation(), Naam(type, lid, constructor)));
+            }
+        }
+
+        /// <summary>
+        /// JL0001 de browser als tussenpersoon (R-HARDE-EIS-18, S-G1-17 herstelronde 9): een lid of aanmaak die een antwoord laat
+        /// doorsturen (<see cref="Regels.DoorstuurWoorden"/>, <see cref="Regels.DoorstuurStatusLeden"/>), of een statuscode 3xx als
+        /// constante op een eigenschap of parameter uit <see cref="Regels.DoorstuurStatusNamen"/>. Null als dat niet zo is.
+        /// </summary>
+        private string? Doorsturen(IOperation operatie, ISymbol lid, INamedTypeSymbol type, IMethodSymbol? constructor)
+        {
+            var declarerend = (constructor is not null ? type : lid.ContainingType ?? type).OriginalDefinition;
+            var naam = Naam(type, lid, constructor);
+            if (IsDoorstuurType(declarerend))
+            {
+                var lidnaam = constructor is not null || lid is INamedTypeSymbol ? string.Empty : lid.Name;
+                if (Regels.DoorstuurWoorden.Any(w => lidnaam.Contains(w) || declarerend.Name.Contains(w)))
+                {
+                    return naam;
+                }
+
+                if (_doorstuurStatus.Any(s => SymbolEqualityComparer.Default.Equals(declarerend, s.Type) && lidnaam.StartsWith(s.Voorvoegsel, StringComparison.Ordinal)))
+                {
+                    return naam;
+                }
+
+                if (lid is IPropertySymbol eigenschap && Regels.DoorstuurStatusNamen.Contains(eigenschap.Name)
+                    && operatie.Parent is IAssignmentOperation toewijzing && ReferenceEquals(toewijzing.Target, operatie) && Is3xx(toewijzing.Value))
+                {
+                    return naam + " = 3xx";
+                }
+            }
+
+            var argumenten = operatie switch
+            {
+                IInvocationOperation aanroep => aanroep.Arguments,
+                IObjectCreationOperation aanmaak => aanmaak.Arguments,
+                _ => ImmutableArray<IArgumentOperation>.Empty,
+            };
+            foreach (var argument in argumenten)
+            {
+                if (argument.Parameter is { } parameter && Regels.DoorstuurStatusNamen.Contains(parameter.Name)
+                    && parameter.ContainingSymbol?.ContainingType is { } eigenaar && IsDoorstuurType(eigenaar.OriginalDefinition) && Is3xx(argument.Value))
+                {
+                    return naam + " (" + parameter.Name + " 3xx)";
+                }
+            }
+
+            return null;
+        }
+
+        private static bool IsDoorstuurType(INamedTypeSymbol type) =>
+            Regels.InNamespace(type.ContainingNamespace?.ToDisplayString() ?? string.Empty, Regels.DoorstuurNamespaces);
+
+        /// <summary>Waar als de waarde (na omzettingen) een constante statuscode van 300 tot en met 399 is.</summary>
+        private static bool Is3xx(IOperation waarde)
+        {
+            while (waarde is IConversionOperation omzetting && !waarde.ConstantValue.HasValue)
+            {
+                waarde = omzetting.Operand;
+            }
+
+            return waarde.ConstantValue is { HasValue: true, Value: int code } && code >= 300 && code <= 399;
+        }
+
+        /// <summary>
+        /// JL0001 een kopnaam die het antwoord doorstuurt (<see cref="Regels.DoorstuurKoppen"/>) als constante: een tekst, een
+        /// samenstelling van constanten, een constante geïnterpoleerde tekst of <c>nameof</c>. Ook op een eigen antwoordtype.
+        /// </summary>
+        public void DoorstuurKop(OperationAnalysisContext context)
+        {
+            var operatie = context.Operation;
+            if (operatie.Syntax.FirstAncestorOrSelf<AttributeSyntax>() is not null || (operatie is IBinaryOperation plus && !IsTekstPlus(plus)))
+            {
+                return;
+            }
+
+            if (operatie.ConstantValue is { HasValue: true, Value: string tekst }
+                && Regels.DoorstuurKoppen.Any(k => string.Equals(tekst.Trim(), k, StringComparison.OrdinalIgnoreCase)))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_doorsturen, operatie.Syntax.GetLocation(), "\"" + tekst + "\" (kopnaam)"));
+            }
+        }
+
+        /// <summary>
+        /// JL0001 de instellingen van de host (R-HARDE-EIS-19, S-G1-17 herstelronde 9): het optietype van de host dat dit lid
+        /// raakt (als declarerend type, ook een afgeleid type; als typeargument van het type, de methode of de ontvanger; of als
+        /// eerste parameter van een extensiemethode), of null.
+        /// </summary>
+        private INamedTypeSymbol? HostOptie(IOperation operatie, ISymbol lid, INamedTypeSymbol type, IMethodSymbol? constructor)
+        {
+            if (EersteHostOptie(constructor is not null ? type : lid.ContainingType ?? type) is { } optie)
+            {
+                return optie;
+            }
+
+            if (lid is IMethodSymbol { IsExtensionMethod: true, Parameters.Length: > 0 } extensie && EersteHostOptie(extensie.Parameters[0].Type) is { } ontvanger)
+            {
+                return ontvanger;
+            }
+
+            var ruw = operatie switch
+            {
+                IInvocationOperation aanroep => aanroep.TargetMethod,
+                IMethodReferenceOperation verwijzing => verwijzing.Method,
+                _ => null,
+            };
+            if (ruw is null)
+            {
+                return null;
+            }
+
+            foreach (var t in ruw.TypeArguments.Cast<ITypeSymbol?>().Append(ruw.ContainingType).Append(ruw.ReceiverType))
+            {
+                if (EersteHostOptie(t) is { } gevonden)
+                {
+                    return gevonden;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>Het eerste optietype van de host in dit type: het type zelf of een basistype, een typeargument of het omsluitende type.</summary>
+        private INamedTypeSymbol? EersteHostOptie(ITypeSymbol? type)
+        {
+            switch (type)
+            {
+                case IArrayTypeSymbol rij:
+                    return EersteHostOptie(rij.ElementType);
+                case INamedTypeSymbol benoemd:
+                    for (var t = benoemd; t is not null; t = t.BaseType)
+                    {
+                        if (IsHostOptieType(t.OriginalDefinition))
+                        {
+                            return t.OriginalDefinition;
+                        }
+                    }
+
+                    foreach (var argument in benoemd.TypeArguments)
+                    {
+                        if (EersteHostOptie(argument) is { } gevonden)
+                        {
+                            return gevonden;
+                        }
+                    }
+
+                    return EersteHostOptie(benoemd.ContainingType);
+                default:
+                    return null;
+            }
+        }
+
+        private bool IsHostOptieType(INamedTypeSymbol type) =>
+            type.TypeKind is TypeKind.Class or TypeKind.Struct or TypeKind.Interface
+            && ((type.Name.EndsWith(Regels.HostOptieAchtervoegsel, StringComparison.Ordinal)
+                    && Regels.InNamespace(type.ContainingNamespace?.ToDisplayString() ?? string.Empty, Regels.HostOptieNamespaces))
+                || _hostOptieTypen.Any(h => SymbolEqualityComparer.Default.Equals(h, type)));
+
+        private bool HostOptieToegestaan(string? klasse, string lid, INamedTypeSymbol optie) =>
+            _hostWit.Any(w => w.Wit.Lid == lid && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(w.Type, optie));
+
+        /// <summary>
+        /// JL0001 een eigen type dat een optietype van de host implementeert of ervan afleidt, ook als typeargument
+        /// (<c>IConfigureOptions&lt;JsonOptions&gt;</c>, <c>IPostConfigureOptions&lt;JsonOptions&gt;</c>,
+        /// <c>IConfigureNamedOptions&lt;JsonOptions&gt;</c>), behalve wat op <see cref="Regels.HostOptieWitteLijst"/> staat (leeg).
+        /// </summary>
+        public void HostOptieUitbreiding(SymbolAnalysisContext context)
+        {
+            var type = (INamedTypeSymbol)context.Symbol;
+            if (type.IsImplicitlyDeclared || type.Locations.FirstOrDefault(l => l.IsInSource) is not { } plek)
+            {
+                return;
+            }
+
+            var alle = new List<INamedTypeSymbol>();
+            for (var t = type.BaseType; t is not null; t = t.BaseType)
+            {
+                alle.Add(t);
+            }
+
+            alle.AddRange(type.AllInterfaces);
+            var klasse = type.ToDisplayString();
+            var fout = alle
+                .Where(s => EersteHostOptie(s) is { } optie && !HostOptieToegestaan(klasse, HttpWit.Implementeert, optie))
+                .Select(s => s.ToDisplayString())
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToList();
+            if (fout.Count > 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_hostOptie, plek, klasse + " : " + string.Join(", ", fout)));
+            }
         }
 
         /// <summary>De naam van wat in de HTTP-laag verboden is, of null als deze operatie daar niet onder valt.</summary>

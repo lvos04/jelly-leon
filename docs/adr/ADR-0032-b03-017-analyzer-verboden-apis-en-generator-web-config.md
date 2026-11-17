@@ -37,6 +37,10 @@
   argumenten van een actie), een netwerkclient mag alleen in een benoemde transportklasse (de lijst is leeg), en
   `ConfigurationBinder.Bind`/`Get`, `TypeDescriptor` met `PropertyDescriptor.SetValue`, `DispatchProxy`, System.Linq.Expressions
   en `Unsafe` zijn omwegen (JL0002). De grenzen staan eerlijk onder "Grenzen". Zie "HTTP-laag en netwerk".
+  Bijgewerkt 2026-11-17 na herreview 8 (S-G1-17 herstelronde 9, R-HARDE-EIS-18 en -19; besluit van de regisseur, optie A): de
+  browser als tussenpersoon staat onder "Dreigingsmodel" en "Grenzen". Een ingebedde webbron vraagt alleen eigen paden via een
+  fail-closed `vraag()`, een antwoord dat de browser doorstuurt (redirect, Location-kop, 3xx) is JL0001, en elk optietype van de
+  host (zoals `JsonOptions`, ook als typeargument en als eigen `IPostConfigureOptions<T>`) is JL0001 met een lege witte lijst.
 - **Werkpakket:** B03-017; raakt de HARDE EIS (kijkgeschiedenis, bibliotheek, metadata en gebruikersgegevens blijven
   behouden) en JLT-65.
 - **Bewijs:** `plugins/JellyLeon/tests/…/Analyzer/VerbodenApiAnalyzerTests.cs` (xunit), de proefassembly
@@ -214,8 +218,8 @@ namespace (ook `Core.Storage`, `Core.Secrets` en `Core.Werker`):
    werkt (`Use`, `UseMiddleware`, `Map`, `MapWhen`, `UseWhen`, `Run`, `UseRouting`, `MapGet`, …).
 3. **De instellingen die voor alle routes gelden**: elk lid van `MvcOptions` (filters, conventies, waardebronnen, binders,
    formatters), `ApplicationPartManager`, `AuthorizationOptions` en `AuthorizationBuilder` (een policy toevoegen of vervangen, de
-   standaard- of terugvalpolicy), `AuthenticationOptions` en `AuthenticationBuilder` (een schema of het standaardschema). De
-   registratie (`Configure<T>`, `AddMvc`, `AddAuthorization`) is een typenaam; het lid in de lambda telt.
+   standaard- of terugvalpolicy), `AuthenticationOptions` en `AuthenticationBuilder` (een schema of het standaardschema). Het lid
+   in de lambda telt; sinds herstelronde 9 is ook de registratie `Configure<T>` met zo'n optietype JL0001 (punt 9).
 4. **Elk lid** (ook lezen, behalve een constante) van een type uit Microsoft.AspNetCore.Authentication, .Authorization,
    .Routing (ook `RouteValueDictionary` en de endpoints van de server), .Http.Features (`IHttpRequestFeature.Path` zetten gaat
    langs `HttpRequest` heen), .Rewrite, .Mvc.ApplicationModels, .Mvc.ApplicationParts, .Mvc.Infrastructure, .Mvc.Abstractions
@@ -230,7 +234,33 @@ namespace (ook `Core.Storage`, `Core.Secrets` en `Core.Werker`):
    `Query`, `Body`, `RouteValues`, …), `HttpContext` (`User`, `RequestServices`, `Items`, …) of `IHttpContextAccessor` zetten.
 7. **De verzoekkoppen**: `HttpRequest.Headers` mag alleen rechtstreeks gelezen worden (een kop, een getypeerde kop lezen,
    `TryGetValue`, `ContainsKey`). Een kop zetten, `Append`, `Remove`, de koppen in een variabele opslaan of doorgeven is JL0001.
-   De antwoordkoppen (`HttpResponse.Headers`) vallen er niet onder.
+   De antwoordkoppen (`HttpResponse.Headers`) vallen er niet onder, behalve de kop Location (punt 8).
+8. **Een antwoord dat de browser doorstuurt** (sinds herstelronde 9, R-HARDE-EIS-18; eigen melding "stuurt de browser door"), in
+   elke namespace, zonder witte lijst: elk lid of elke aanmaak van een type uit Microsoft.AspNetCore of Microsoft.Net.Http.Headers
+   waarvan de naam van het lid of van het type `Redirect`, `Location`, `Created` of `Accepted` bevat (`Redirect`,
+   `RedirectPreserveMethod`, `RedirectPermanentPreserveMethod`, `LocalRedirect…`, `RedirectTo…PreserveMethod`,
+   `HttpResponse.Redirect(…, preserveMethod: true)`, `Results.Redirect`, `RedirectResult` en `PreserveMethod`,
+   `IHeaderDictionary.Location`, `HeaderNames.Location`, `Created…`, `Accepted…`), een constante `StatusCodes.Status3…`, een
+   constante statuscode van 300 tot en met 399 op een eigenschap `StatusCode` of een parameter `statusCode` (`StatusCode = 307`,
+   `StatusCode(308)`, `new StatusCodeResult(307)`), en de tekst `Location` als constante (hoofdletters tellen niet, ook
+   samengesteld of met `nameof`; zo krijgt ook een eigen woordenboek of `JlResult.Headers` die kop niet). Niet alleen de varianten
+   "PreserveMethod": Chrome volgde in een proef (2026-11-17, eigen stand-in op loopback) bij `DELETE` een 301, 302, 307 en 308
+   met `DELETE` en hetzelfde Authorization-token, en een 303 met `GET` en hetzelfde token. Daarbij weigert `JlResult` bij het
+   draaien een 3xx-status voordat er iets geschreven is (fail-closed). De plugin gebruikt geen van deze.
+9. **De instellingen van de host** (sinds herstelronde 9, R-HARDE-EIS-19; eigen melding "gebruikt een instelling van de host"), in
+   elke namespace: elk type uit Microsoft.AspNetCore (met alles eronder) waarvan de naam op `Options` eindigt, plus
+   `Microsoft.Extensions.Hosting.HostOptions`. Daaronder vallen `Mvc.JsonOptions` (de JSON-invoer van elke serveractie),
+   `Http.Json.JsonOptions`, `ApiBehaviorOptions`, `ForwardedHeadersOptions`, `KestrelServerOptions`, `MvcOptions`,
+   `AuthorizationOptions` en `AuthenticationOptions`. JL0001 is: elk lid ervan (ook lezen, ook aanmaken, ook van een type dat
+   ervan afleidt), elke aanroep of elk type met zo'n type als typeargument (`Configure<JsonOptions>`, `PostConfigure<JsonOptions>`,
+   `Configure<T>(configuratie)` en `AddOptions<T>().Bind(…)`, die zonder één lid binden, `IOptions<JsonOptions>.Value`,
+   `new ConfigureOptions<T>(…)`, `typeof(IConfigureOptions<JsonOptions>)`), en een eigen type dat zo'n type implementeert of ervan
+   afleidt, ook als typeargument (`IConfigureOptions<T>`, `IPostConfigureOptions<T>`, `IConfigureNamedOptions<T>`). Behalve wat
+   op `Regels.HostOptieWitteLijst` staat (per klasse); **die lijst is leeg** en een test eist dat. Aanleiding (herreview 8):
+   `PostConfigure<JsonOptions>` met een eigen converter gaf geen JL-fout, en bij het draaien kreeg een actie met de handtekening van
+   `PlaystateController.ReportPlaybackStopped` `PositionTicks` 360000000000000000 in plaats van 36000000000. Een `PostConfigure`
+   komt na de instelling van de server (`AddJellyfinApi`, met `Converters.Clear()`), een gewone `Configure` ervoor. In de serverbron
+   zet `UserDataManager.UpdatePlayState` het item dan bij elke stop- of voortgangsmelding op gezien en wist het hervatpunt.
 
 Attributen op eigen code (`[Authorize]`, `[Route]`) tellen niet: die gelden alleen voor die code.
 
@@ -260,7 +290,14 @@ koppen, routewaarden, gebruiker, endpoint, een actie in het proces, sockets, web
 tegenvormen; ook in `Core.Storage`), `.WitteLijst_GeldtPerKlasseEnPerLid`, `.Netwerk_TransportlijstIsLeegEnElkeClientIsOveralJL0001`,
 `.Tabellen_ElkTypeEnLidBestaat`, `.WitteLijst_ElkeRegelStaatInAdr0032`, de runtime-test van de spike in een echte host (Kestrel op
 loopback; methode, pad, query, Authorization, body en routewaarde blijven gelijk, en 413 op een te groot verzoek aan een pluginpad
-bewijst dat de spike in de pijplijn zit) en de proefregels in `VerbodenAanroepen.cs`.
+bewijst dat de spike in de pijplijn zit) en de proefregels in `VerbodenAanroepen.cs`. Sinds herstelronde 9 ook
+`BrowserEnHostOptiesTests.Doorsturen_RedirectsLocationEn3xxZijnOveralJL0001` (30 vormen, met toegestane tegenvormen, ook in
+`Core.Http` en `Core.Storage`), `.HostOpties_ElkLidTypeargumentEnImplementatieIsJL0001` (14 vormen),
+`.Tabellen_WitteLijstLeegEnElkTypeBestaat`, `BrowserTussenpersoonTests.JlResult_WeigertEen3xxStatus` en de runtime-test
+`HostOptiesDraaienTests.Vormen_GevenElkJL0001_MaarZonderAnalyzerWijzigtPostConfigureHetArgumentVanEenServeractie`: dezelfde bron geeft
+met de analyzer op elke vorm JL0001, en zonder analyzer in een echte host (Kestrel op loopback, de JSON-instelling van de server
+letterlijk, eerst de registratie van de plugin) komt bij `PostConfigure<JsonOptions>` en bij een eigen `IPostConfigureOptions`
+360000000000000000 aan in plaats van 36000000000, en bij een gewone `Configure` 36000000000.
 
 #### Wat JL0001 bewaakt
 
@@ -544,6 +581,24 @@ vormen, buiten en binnen `Core.Storage`, plus de toegestane reflectie) en, voor 
 herreview 7 en de varianten, buiten en binnen `Core.Storage`). Ook die gebruikt de plugin niet (grep op `ConfigurationBinder`,
 `TypeDescriptor`, `DispatchProxy`, `System.Linq.Expressions` en `Unsafe` in `plugins/JellyLeon/src`, en de pluginbouw).
 
+**De browser als tussenpersoon** (sinds herstelronde 9, herreview 8, R-HARDE-EIS-18). Niet alle plugincode draait in het
+serverproces. Een ingebedde webbron (nu alleen `Configuration/configPage.html`, via `PluginPageInfo.EmbeddedResourcePath`) draait
+in de browser van de beheerder, en `ApiClient.fetch` zet daar het token van de beheerder op elk verzoek; met `?userId=` kan dat ook
+een andere gebruiker raken. Ook een antwoord van een eigen actie kan de browser laten handelen: een browser volgt een 301, 302, 307
+of 308 met dezelfde methode en hetzelfde token naar elke route van de server (bijvoorbeeld `DELETE /UserPlayedItems/<bibliotheek>`,
+dat voor die gebruiker de kijkgegevens van de hele bibliotheek wist). De analyzer ziet alleen C#; daarom:
+
+- een ingebedde webbron vraagt alleen eigen paden: één functie `vraag()`, die als eerste opdracht elk pad buiten `media/v1/` en
+  `connector/v1/` (alleen kleine letters, cijfers en `-` per segment; dus geen `..`, `%`, `\`, `?` of `#`) en elke andere methode
+  weigert vóór `ApiClient.fetch`. `BrowserTussenpersoonTests.ElkeIngebeddeWebbron_VraagtAlleenEigenPaden` controleert elke
+  manifestbron van de plugin (ook een bron die er later bij komt; alleen `.html` en `.js` zijn toegestaan): elke `vraag(…)` begint
+  met een letterlijk eigen pad, `ApiClient` alleen met `fetch` en `getUrl` (elk precies één keer, in `vraag()`), en geen `fetch(`,
+  `XMLHttpRequest`, `$.ajax`, `<script src>`, locatiewissel, ander lid van `window`, HTML invoegen of element met een adres.
+  `BrowserTussenpersoonTests.Configuratiepagina_VraagWeigertElkAnderPadVoorApiClientFetch` toetst de eerste opdracht en het patroon;
+  `tools/jelly-leon/tests/test_config_pagina.py` voert de echte pagina in Node uit (alle knoppen vragen alleen eigen paden, en
+  `vraag()` weigert vreemde paden zonder verzoek);
+- een antwoord dat de browser doorstuurt is JL0001 (zie "HTTP-laag en netwerk", punt 8), en `JlResult` weigert een 3xx-status.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:
@@ -676,10 +731,27 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   server, de gebruiker of de argumenten van een serveractie te wijzigen zijn; het is een opsomming, geen witte lijst van heel
   ASP.NET Core. Wat hij niet dekt: het antwoord van de server (koppen, status en body van een antwoord zetten mag, de plugin
   schrijft zo zijn eigen antwoorden), een lid dat alleen leest (`HttpRequest.Path`, `Query`, `Form`, `IHttpContextAccessor`
-  lezen), attributen op eigen code, de instellingen van Kestrel, doorgestuurde koppen en andere hosting (geen kijkgegevens), en
-  een netwerkclient buiten System.Net.Http, .Sockets, .WebSockets en .Quic en buiten `WebClient`/`WebRequest` (bijvoorbeeld
+  lezen) en attributen op eigen code (zie de grens over een eigen route hieronder). De instellingen van de host (Kestrel,
+  doorgestuurde koppen, JSON en andere optietypen van ASP.NET Core) zijn sinds herstelronde 9 wel JL0001, op naam: een
+  instelling van de host die niet op `Options` eindigt en geen `HostOptions` is (bijvoorbeeld een eigen `IServer`, `IHostLifetime`
+  of `IHostedService`), valt er niet onder. Ook niet gedekt: een netwerkclient buiten System.Net.Http, .Sockets, .WebSockets en .Quic en buiten `WebClient`/`WebRequest` (bijvoorbeeld
   `SmtpClient`, `Ping`). Een klasse op de witte lijst van de HTTP-laag heeft alleen het genoemde lid of uitbreidingspunt; wat zij
   daarbinnen doet (de spike roept na de controle `volgende(http)` aan) bewaakt de runtime-test van de spike, niet de analyzer.
+- **Een eigen route boven een serverroute** (herreview 8, grens 5): attributen op eigen code tellen in de analyzer niet, dus
+  `[HttpDelete("/UserPlayedItems/{id}")]` of een route met een hogere voorrang zou een serverroute kunnen overnemen. Dat de zin
+  "die gelden alleen voor die code" voor routes klopt, rust op tests, niet op de analyzer:
+  `RoutetabelTests.ElkeActie_LooptViaDePipelineEnKomtOvereenMetDeTabel` eist dat elke eigen actie `[JlRoute]` draagt en dat het
+  pad gelijk is aan de routetabel, `RoutetabelTests.ElkeRoute_BestaatPreciesEenKeer` eist dat elk pad met `/media/v1/` of
+  `/connector/v1/` begint, en `VersionControllerTests.Routes_MatchPublishedOpenApi` dekt `JellyLeonVersionController`. Geen
+  serverroute begint met `media` of `connector`.
+- **De browser als tussenpersoon** (herreview 8, R-HARDE-EIS-18; zie "Dreigingsmodel"): wat blijft, is wat de controle van de
+  webbronnen niet als tekst ziet. Een pad dat bij het draaien wordt samengesteld, houdt `vraag()` tegen; een omweg die opzettelijk
+  langs de tekstcontrole gaat (bijvoorbeeld een naam die uit stukken wordt samengesteld) valt buiten het dreigingsmodel. Een eigen
+  actie die HTML of script als antwoord geeft, draait in de browser op de herkomst van de server; de plugin geeft alleen JSON
+  (`JlResult`), maar de analyzer verbiedt een ander inhoudstype niet. Een kopnaam die pas bij het draaien ontstaat, ziet de
+  analyzer niet; zonder 3xx volgt de browser geen omleiding, en `JlResult` weigert een 3xx. De **webplugins van jelly-leon-web**
+  (zie "4. Generator voor de web-`config.json`", `jlHook`) draaien ook in de browser met het token van de gebruiker en vallen in dezelfde categorie, maar horen
+  bij een andere repo; daar hoort dezelfde vraag (alleen eigen paden, geen andere API-client).
 - Ongewijzigd (herreview 7, grens 5): een tweede assembly of een pakket dat zelf schrijft (zie de eerste grens), een kindproces
   uit `Core.Werker` (zie de grens daarover hierboven en ADR-0035), een koppeling die tussen de controle en het openen ontstaat (TOCTOU) en een
   harde koppeling (zie de padgrens hierboven).

@@ -713,7 +713,8 @@ internal static class Regels
     /// De instellingen van de HTTP-laag die voor alle routes van de server gelden: elk lid is JL0001 (een filter, conventie,
     /// waardebron, binder of formatter toevoegen; een policy of schema toevoegen, vervangen of als standaard zetten; de
     /// onderdelen met controllers wijzigen). Plugincode komt hier via <c>Configure&lt;T&gt;</c>, <c>AddMvc</c>,
-    /// <c>AddAuthorization</c> of <c>AddAuthentication</c>; die registratie zelf is een typenaam, het lid telt.
+    /// <c>AddAuthorization</c> of <c>AddAuthentication</c>; het lid telt, en sinds herstelronde 9 ook <c>Configure&lt;T&gt;</c>
+    /// met een optietype van de host als typeargument (zie <see cref="HostOptieNamespaces"/>).
     /// </summary>
     public static readonly ImmutableArray<string> HttpOptieTypen = ImmutableArray.Create(
         "Microsoft.AspNetCore.Mvc.MvcOptions",
@@ -780,6 +781,62 @@ internal static class Regels
         new HttpWit("Microsoft.AspNetCore.Builder.UseExtensions", "Use", PluginNamespace + ".Core.Http.JlStartupFilterSpike"),
         // Het attribuut op de eigen acties dat de ene pipeline laat lopen (nooit een globaal filter: MvcOptions is JL0001).
         new HttpWit("Microsoft.AspNetCore.Mvc.Filters.IAsyncActionFilter", HttpWit.Implementeert, PluginNamespace + ".Core.Http.JlRouteAttribute"));
+
+    /// <summary>
+    /// De browser als tussenpersoon (R-HARDE-EIS-18, S-G1-17 herstelronde 9): een antwoord dat de browser doorstuurt. Elk lid
+    /// van een type uit <see cref="DoorstuurNamespaces"/> waarvan de naam van het lid of van het type een van deze woorden
+    /// bevat, is JL0001, ook een constante en ook aanmaken: een redirect (<c>Redirect</c>, <c>RedirectPreserveMethod</c>,
+    /// <c>LocalRedirect…</c>, <c>RedirectTo…</c>, <c>HttpResponse.Redirect</c>, <c>Results.Redirect</c>, <c>RedirectResult</c>,
+    /// <c>StatusCodes.Status307TemporaryRedirect</c>), de kop Location (<c>IHeaderDictionary.Location</c>,
+    /// <c>HeaderNames.Location</c>) en de antwoorden die een Location-kop zetten (<c>Created…</c>, <c>Accepted…</c>). Een
+    /// browser volgt 301, 302, 307 en 308 bij DELETE en PUT met dezelfde methode en hetzelfde Authorization-token (gemeten met
+    /// Chrome), dus niet alleen de varianten "PreserveMethod".
+    /// </summary>
+    public static readonly ImmutableArray<string> DoorstuurWoorden = ImmutableArray.Create("Redirect", "Location", "Created", "Accepted");
+
+    /// <summary>De namespaces waarvoor <see cref="DoorstuurWoorden"/> en <see cref="DoorstuurStatusLeden"/> gelden (met alles eronder).</summary>
+    public static readonly ImmutableArray<string> DoorstuurNamespaces = ImmutableArray.Create("Microsoft.AspNetCore", "Microsoft.Net.Http.Headers");
+
+    /// <summary>De statuscodes 3xx als constante (<c>StatusCodes.Status301MovedPermanently</c>, …): het voorvoegsel van het lid.</summary>
+    public static readonly ImmutableArray<(string Type, string Voorvoegsel)> DoorstuurStatusLeden = ImmutableArray.Create(("Microsoft.AspNetCore.Http.StatusCodes", "Status3"));
+
+    /// <summary>
+    /// Een kopnaam die een antwoord doorstuurt: deze tekst als constante (hoofdletters tellen niet, ook samengesteld uit
+    /// constanten) is overal JL0001. Zo kan ook een eigen antwoordtype (<c>JlResult.Headers</c>) geen Location-kop krijgen.
+    /// </summary>
+    public static readonly ImmutableArray<string> DoorstuurKoppen = ImmutableArray.Create("Location");
+
+    /// <summary>
+    /// Een statuscode 300 tot en met 399 als constante, gezet op een eigenschap met deze naam of meegegeven aan een parameter met
+    /// deze naam, van een type uit <see cref="DoorstuurNamespaces"/> (<c>HttpResponse.StatusCode = 307</c>,
+    /// <c>StatusCode(308)</c>, <c>new StatusCodeResult(307)</c>, <c>new ObjectResult(x) { StatusCode = 307 }</c>), is JL0001.
+    /// </summary>
+    public static readonly ImmutableArray<string> DoorstuurStatusNamen = ImmutableArray.Create("StatusCode", "statusCode");
+
+    /// <summary>
+    /// De instellingen van de host (R-HARDE-EIS-19, S-G1-17 herstelronde 9): elk type uit deze namespaces (met alles eronder)
+    /// waarvan de naam op <see cref="HostOptieAchtervoegsel"/> eindigt, plus <see cref="HostOptieTypen"/>. Ze gelden voor alle
+    /// routes en acties van de server: <c>Mvc.JsonOptions</c> (de JSON-invoer van elke serveractie), <c>Http.Json.JsonOptions</c>,
+    /// <c>ApiBehaviorOptions</c>, <c>ForwardedHeadersOptions</c>, <c>KestrelServerOptions</c>, <c>MvcOptions</c>, … Elk lid
+    /// (ook lezen, ook aanmaken), elke aanroep of elk type met zo'n type als typeargument (<c>Configure&lt;JsonOptions&gt;</c>,
+    /// <c>PostConfigure&lt;JsonOptions&gt;</c>, <c>AddOptions&lt;T&gt;().Bind</c>, <c>IOptions&lt;JsonOptions&gt;.Value</c>,
+    /// <c>typeof(IConfigureOptions&lt;JsonOptions&gt;)</c>) en elk eigen type dat zo'n type implementeert of ervan afleidt, ook
+    /// als typeargument (<c>IConfigureOptions&lt;T&gt;</c>, <c>IPostConfigureOptions&lt;T&gt;</c>,
+    /// <c>IConfigureNamedOptions&lt;T&gt;</c>), is JL0001, behalve wat op <see cref="HostOptieWitteLijst"/> staat.
+    /// </summary>
+    public static readonly ImmutableArray<string> HostOptieNamespaces = ImmutableArray.Create("Microsoft.AspNetCore");
+
+    public const string HostOptieAchtervoegsel = "Options";
+
+    /// <summary>Instellingen van de host buiten <see cref="HostOptieNamespaces"/> (metadatanaam).</summary>
+    public static readonly ImmutableArray<string> HostOptieTypen = ImmutableArray.Create("Microsoft.Extensions.Hosting.HostOptions");
+
+    /// <summary>
+    /// De witte lijst van de instellingen van de host, per klasse (zoals <see cref="HttpWitteLijst"/>; bij "implementeert" is
+    /// <see cref="HttpWit.Type"/> het optietype). Leeg: de plugin gebruikt geen optietype van de host. Een regel komt er alleen
+    /// op met een eigen ADR.
+    /// </summary>
+    public static readonly ImmutableArray<HttpWit> HostOptieWitteLijst = ImmutableArray<HttpWit>.Empty;
 
     /// <summary>
     /// Netwerkclients (R-HARDE-EIS-17, besluit punt 2): elk lid van een type uit deze namespaces (ook aanmaken, ook een eigen

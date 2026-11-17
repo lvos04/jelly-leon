@@ -690,7 +690,9 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
         public static void Registreer(IServiceCollection diensten, HttpContext http, ClaimsIdentity identiteit, Claim claim)
         {
             diensten.AddTransient<IStartupFilter, Omzetter>();
-            diensten.Configure<MvcOptions>(o => o.Filters.Add(new Omleiden())); // VERWACHT: JL0001
+            // Sinds herstelronde 9 is de registratie met een optietype van de host zelf ook JL0001: twee regels, elk één melding.
+            diensten.Configure<MvcOptions>( // VERWACHT: JL0001
+                o => o.Filters.Add(new Omleiden())); // VERWACHT: JL0001
             diensten.AddTransient<IClaimsTransformation, AndereGebruiker>();
             http.Request.Headers["Authorization"] = "x"; // VERWACHT: JL0001
             http.User = new ClaimsPrincipal(); // VERWACHT: JL0001
@@ -739,6 +741,67 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             var doel = Expression.Constant(iets); // VERWACHT: JL0002
             _ = Expression.Call(doel, methode); // VERWACHT: JL0002
             Unsafe.As<Schaduw>(sessie).LastPlaybackCheckIn = DateTime.MinValue; // VERWACHT: JL0002
+        }
+    }
+}
+
+// Herstelronde 9 (S-G1-17; R-HARDE-EIS-18 en -19 van herreview 8): een antwoord dat de browser doorstuurt (een redirect, de
+// kop Location of een 3xx-status; de browser volgt die met dezelfde methode en het token van de gebruiker) en de instellingen
+// van de host (een optietype van ASP.NET Core of HostOptions: elk lid, als typeargument en als eigen implementatie).
+namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+{
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Extensions.Hosting;
+    using Microsoft.Extensions.Options;
+
+    public sealed class Doorsturen : ControllerBase
+    {
+        public IActionResult A(string id) => RedirectPreserveMethod("/UserPlayedItems/" + id); // VERWACHT: JL0001
+        public IActionResult B() => Redirect("/UserPlayedItems/x"); // VERWACHT: JL0001
+        public IActionResult C() => new RedirectResult("/x", false, true); // VERWACHT: JL0001
+        public IActionResult D() => StatusCode(307); // VERWACHT: JL0001
+        public IActionResult E() => Created("/UserPlayedItems/x", null); // VERWACHT: JL0001
+
+        public void F(HttpContext http)
+        {
+            http.Response.Redirect("/x", false, true); // VERWACHT: JL0001
+            http.Response.Headers.Location = "/UserPlayedItems/x"; // VERWACHT: JL0001
+            http.Response.Headers["location"] = "/x"; // VERWACHT: JL0001
+            http.Response.StatusCode = 308; // VERWACHT: JL0001
+
+            // Toegestaan: een gewone status en een andere kop.
+            http.Response.StatusCode = 404;
+            http.Response.Headers["ETag"] = "x";
+        }
+    }
+
+    public sealed class TicksAlsSeconden : JsonConverter<long>
+    {
+        public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetInt64() * 10_000_000;
+
+        public override void Write(Utf8JsonWriter writer, long value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
+    }
+
+    public sealed class JsonInstellingen : IPostConfigureOptions<Microsoft.AspNetCore.Mvc.JsonOptions> // VERWACHT: JL0001
+    {
+        public void PostConfigure(string name, Microsoft.AspNetCore.Mvc.JsonOptions options)
+        {
+        }
+    }
+
+    public static class HostOpties
+    {
+        public static void Registreer(IServiceCollection diensten, IOptions<HostOptions> host)
+        {
+            diensten.PostConfigure<Microsoft.AspNetCore.Mvc.JsonOptions>( // VERWACHT: JL0001
+                o => o.JsonSerializerOptions.Converters.Add(new TicksAlsSeconden())); // VERWACHT: JL0001
+            diensten.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o => { }); // VERWACHT: JL0001
+            diensten.Configure<ApiBehaviorOptions>(o => { }); // VERWACHT: JL0001
+            var opties = host.Value; // VERWACHT: JL0001
+            _ = opties.ShutdownTimeout; // VERWACHT: JL0001
         }
     }
 }

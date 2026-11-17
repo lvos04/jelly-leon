@@ -67,6 +67,14 @@ internal sealed class JlResult : IActionResult
 
     public async Task ExecuteResultAsync(ActionContext context)
     {
+        // Fail-closed (R-HARDE-EIS-18, ADR-0032): een pluginantwoord stuurt de browser nooit door. Een browser volgt een 3xx
+        // (ook 301 en 302 bij DELETE of PUT) met dezelfde methode en hetzelfde token naar elke route van de server. Zonder
+        // 3xx volgt hij geen omleiding; de kopnaam zelf is in plugincode al een bouwfout (JL0001). Weigeren vóór er iets is geschreven.
+        if (Status is >= 300 and <= 399)
+        {
+            throw new InvalidOperationException("Een pluginantwoord mag de browser niet doorsturen (status " + Status.ToString(System.Globalization.CultureInfo.InvariantCulture) + ").");
+        }
+
         var response = context.HttpContext.Response;
         response.StatusCode = Status;
         foreach (var (naam, waarde) in Headers)

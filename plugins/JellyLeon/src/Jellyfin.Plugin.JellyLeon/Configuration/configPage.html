@@ -56,7 +56,14 @@
 
             function meld(tekst) { pagina.querySelector('#jlMelding').textContent = tekst; }
 
+            // Fail-closed (R-HARDE-EIS-18, ADR-0032, kop "Dreigingsmodel"): deze pagina draait met het token van de beheerder en
+            // vraagt alleen de eigen paden van Jelly Leon. Elk ander pad en elke andere methode wordt geweigerd voordat er een
+            // verzoek vertrekt.
+            var EIGEN_PAD = /^(?:media|connector)\/v1\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/;
+            var METHODEN = ['GET', 'POST', 'PUT', 'DELETE'];
+
             function vraag(methode, pad, body, ifMatch) {
+                if (typeof pad !== 'string' || !EIGEN_PAD.test(pad) || METHODEN.indexOf(methode) < 0) { throw new Error('Geweigerd: geen eigen pad van Jelly Leon.'); }
                 var headers = { 'Accept': 'application/json' };
                 if (methode === 'PUT' || methode === 'DELETE') { headers['Idempotency-Key'] = uuid(); }
                 if (ifMatch) { headers['If-Match'] = ifMatch; }
