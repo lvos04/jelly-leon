@@ -135,3 +135,33 @@ def test_missing_capamb_line_is_reported_not_silently_accepted():
 def test_healthcheck_rights_include_permitted_and_ambient_capabilities():
     leftover = status("cat", 90, 0, capprm="0000000000000001")
     assert image_lifecycle.healthcheck_problems(leftover, root_start=True) == ["cat(90) CapPrm=0000000000000001"]
+
+
+def test_custom_user_weigering_controleert_eigenaar_en_lege_map(tmp_path, monkeypatch):
+    life = object.__new__(image_lifecycle.Lifecycle)
+    life.work, life.cache, life.media, life.steps = tmp_path, tmp_path / "cache", tmp_path / "media", []
+    oproepen = []
+    monkeypatch.setattr(life, "expect_refusal", lambda *args, **kwargs: oproepen.append(kwargs))
+    life.expect_custom_user_refusal()
+    assert oproepen[0]["expected_text"] == f"/config is van gebruiker {image_lifecycle.os.getuid()}, niet van 568:"
+    assert life.steps[-1]["geslaagd"]
+
+
+def test_custom_user_weigering_merkt_nieuwe_inhoud_op(tmp_path, monkeypatch):
+    life = object.__new__(image_lifecycle.Lifecycle)
+    life.work, life.cache, life.media, life.steps = tmp_path, tmp_path / "cache", tmp_path / "media", []
+
+    def onveilig(*args, **kwargs):
+        (tmp_path / "config-niet-van-568" / "onverwacht").write_text("niet toegestaan")
+
+    monkeypatch.setattr(life, "expect_refusal", onveilig)
+    life.expect_custom_user_refusal()
+    assert not life.steps[-1]["geslaagd"]
+
+
+def test_custom_user_weigering_merkt_rechtenwijziging_op(tmp_path, monkeypatch):
+    life = object.__new__(image_lifecycle.Lifecycle)
+    life.work, life.cache, life.media, life.steps = tmp_path, tmp_path / "cache", tmp_path / "media", []
+    monkeypatch.setattr(life, "expect_refusal", lambda *args, **kwargs: (tmp_path / "config-niet-van-568").chmod(0o777))
+    life.expect_custom_user_refusal()
+    assert not life.steps[-1]["geslaagd"]

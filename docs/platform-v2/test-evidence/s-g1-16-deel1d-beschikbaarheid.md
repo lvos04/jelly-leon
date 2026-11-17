@@ -53,8 +53,8 @@ De zandbak toont systeemouders als eigenaar 65534; daarom draaien de drie shellt
 gepinde Python-container zonder netwerk, als gewone gebruiker, met alleen de repo en eigen tijdelijke proefmap gemount.
 De overige forktooltests draaien lokaal. Er worden geen bestaande tests overgeslagen of afgezwakt.
 
-Lokaal gemeten: 340 plugintests zonder overgeslagen tests; 302 forktooltests plus de 49 geïsoleerde shelltests,
-samen 351 zonder overgeslagen tests. De negatieve analyzerbouw faalt op precies de 323 verwachte verboden aanroepen;
+Lokaal gemeten: 340 plugintests zonder overgeslagen tests; 305 forktooltests plus de 49 geïsoleerde shelltests,
+samen 354 zonder overgeslagen tests. De negatieve analyzerbouw faalt op precies de 323 verwachte verboden aanroepen;
 `analyzer_proef.py` controleert dat er geen andere bouwfouten meetellen. Alle bestaande opslagtests blijven onderdeel
 van de pluginsuite. De tijdelijke mutatie liet alle 11 hostproeven falen; de herstelde registratie is weer groen.
 
@@ -63,3 +63,15 @@ lokale imagebouw. De synthetische serverproefroute is geen bewijs voor afspelen 
 beeld-, upgrade-, terugzet- en compatibiliteitsproeven blijven daarvoor de simulatieketen.
 De NAS-rechten, NFSv4-ACL's, echte Emby en accounts zijn niet getest. Geen nieuwe veiligheidsuitzondering en geen
 wijziging van de twee door B1 afgebakende restgrenzen.
+
+## Afstemming van de echte levenscyclusproef
+
+De eerste CI-run (`44177618186`, commit `5ea8f33c0`) mat 36/37: Custom User met een vreemde eigenaar stopte correct,
+maar de proef verwachtte nog de latere tekst "niet schrijfbaar". De vervroegde opslagcontrole meldt nu eerder de
+verkeerde eigenaar. De proef verwacht die specifieke eigenaarweigering en blijft eisen dat de container met een
+foutcode stopt en de mediamap gelijk blijft. Daarbovenop bewaakt een extra controle dat de vreemde configmap leeg
+blijft en eigenaar, groep en rechten gelijk blijven. Geen weigering of bewaarcontrole is versoepeld.
+`test_image_lifecycle_processes.py` toetst deze extra controle met een ongewijzigde map en negatieve gevallen voor
+nieuw aangemaakte inhoud en veranderde rechten. De drie nieuwe tests waren eerst rood en zijn daarna groen.
+De vervolgproeven uit die rode imagejob waren overgeslagen en tellen niet als bewijs; de hele keten wordt opnieuw
+op de eindcommit uitgevoerd.

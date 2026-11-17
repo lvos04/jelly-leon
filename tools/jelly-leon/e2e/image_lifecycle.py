@@ -478,6 +478,26 @@ class Lifecycle:
         self.helper_sh(f"printf 'fork_version={own}\\n' > /werk/config/{DATAMAP_VERSION}")
         return ok
 
+    def expect_custom_user_refusal(self) -> None:
+        # Custom User 568 met een dataset die (nog) niet van 568 is: melden en stoppen, nooit stil doorstarten (§2.2).
+        foreign_config = self.work / "config-niet-van-568"
+        foreign_config.mkdir(mode=0o755)
+        voor = foreign_config.stat()
+        self.expect_refusal(
+            "Custom User 568 met een /config die niet van 568 is",
+            mounts=[f"{foreign_config}:/config", f"{self.cache}:/cache", f"{self.media}:/media/muziek:ro"],
+            env=[],
+            extra=["--user", f"{APP_UID}:{APP_UID}"],
+            expected_text=f"/config is van gebruiker {voor.st_uid}, niet van {APP_UID}:",
+        )
+        na = foreign_config.stat()
+        self.add(
+            "Custom User: vreemde /config blijft leeg met dezelfde eigenaar en rechten",
+            voor.st_uid != APP_UID and (voor.st_uid, voor.st_gid, voor.st_mode) == (na.st_uid, na.st_gid, na.st_mode)
+            and not any(foreign_config.iterdir()),
+            f"eigenaar {voor.st_uid} → {na.st_uid}; modus {oct(voor.st_mode & 0o7777)} → {oct(na.st_mode & 0o7777)}",
+        )
+
     def media_fingerprint(self) -> list[tuple[str, int, int, int]]:
         result = []
         for path in sorted(self.media.rglob("*")):
@@ -631,16 +651,7 @@ class Lifecycle:
             command=["--datadir", "/jl-data"],
             expected_text="opdrachtregeloptie '--datadir'",
         )
-        # Custom User 568 met een dataset die (nog) niet van 568 is: melden en stoppen, nooit stil doorstarten (§2.2).
-        foreign_config = self.work / "config-niet-van-568"
-        foreign_config.mkdir(mode=0o755)
-        self.expect_refusal(
-            "Custom User 568 met een /config die niet van 568 is",
-            mounts=[f"{foreign_config}:/config", f"{self.cache}:/cache", f"{self.media}:/media/muziek:ro"],
-            env=[],
-            extra=["--user", f"{APP_UID}:{APP_UID}"],
-            expected_text=f"/config is niet schrijfbaar voor gebruiker {APP_UID}:{APP_UID}",
-        )
+        self.expect_custom_user_refusal()
         self.expect_shared_config_refusal()
         return bool(self.steps) and all(step["geslaagd"] for step in self.steps)
 
