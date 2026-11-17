@@ -67,15 +67,19 @@ public class VerbodenApiAnalyzerTests
                 sporen.SaveMediaStreams(item, Array.Empty<MediaBrowser.Model.Entities.MediaStream>(), CancellationToken.None);
                 mensen.UpdatePeople(item, Array.Empty<MediaBrowser.Controller.Entities.PersonInfo>());
                 _ = mensen.DeleteOrphanedCredits();
-                _ = voorkeuren.ListItemDisplayPreferences(gebruiker, "web");
-                _ = hoofdstukken.GetChapters(item);
-                _ = sporen.GetMediaStreamLanguages(MediaBrowser.Model.Entities.MediaStreamType.Audio);
-                _ = mensen.GetPeopleNames(new InternalPeopleQuery());
+                /*WL*/ _ = voorkeuren.ListItemDisplayPreferences(gebruiker, "web");
+                /*WL*/ _ = hoofdstukken.GetChapters(item);
+                /*WL*/ _ = sporen.GetMediaStreamLanguages(MediaBrowser.Model.Entities.MediaStreamType.Audio);
+                /*WL*/ _ = mensen.GetPeopleNames(new InternalPeopleQuery());
             }
             """);
 
-        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        var alles = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        var gevonden = alles.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
 
+        // Sinds herstelronde 7 geven de leesregels ook JL0001: lezen van de server-ABI buiten de witte lijst (/*WL*/).
+        Assert.Equal(4, AnalyzerHarnas.WlRegels(bron).Count);
+        Assert.Equal(AnalyzerHarnas.WlRegels(bron), AnalyzerHarnas.WlGevonden(alles));
         Assert.Equal(7, gevonden.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
         Assert.Equal(7, gevonden.Select(b => b.Regel).Distinct().Count());
@@ -166,7 +170,8 @@ public class VerbodenApiAnalyzerTests
     /// <summary>
     /// R-HARDE-EIS-1 (S-G1-17, herstelronde 2): een servertaak starten of de planning ervan wijzigen kan ook via het
     /// taakobject zelf (<c>ITaskManager.ScheduledTasks</c> of <c>IApplicationHost.GetExports</c>). Dat is net zo goed
-    /// JL0001; lezen (naam, staat, standaardplanning) blijft toegestaan. Vóór het herstel gaf deze bron geen bevinding.
+    /// JL0001. Lezen (naam, staat, standaardplanning) gaf geen melding; sinds herstelronde 7 is het JL0001 buiten de witte
+    /// lijst van de server-ABI (/*WL*/). Vóór het herstel gaf deze bron geen bevinding.
     /// </summary>
     [Fact]
     public async Task ServertaakViaHetTaakobject_IsJL0001()
@@ -178,25 +183,29 @@ public class VerbodenApiAnalyzerTests
                 MediaBrowser.Model.Tasks.IScheduledTaskWorker werker,
                 MediaBrowser.Common.IApplicationHost host)
             {
-                await taken.ScheduledTasks[0].ScheduledTask.ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001
-                taken.ScheduledTasks[0].Triggers = Array.Empty<MediaBrowser.Model.Tasks.TaskTriggerInfo>(); // JL0001
-                taken.ScheduledTasks[0].ReloadTriggerEvents(); // JL0001
+                /*WL*/ await taken.ScheduledTasks[0].ScheduledTask.ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001
+                /*WL*/ taken.ScheduledTasks[0].Triggers = Array.Empty<MediaBrowser.Model.Tasks.TaskTriggerInfo>(); // JL0001
+                /*WL*/ taken.ScheduledTasks[0].ReloadTriggerEvents(); // JL0001
                 await taak.ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001
                 Func<IProgress<double>, CancellationToken, System.Threading.Tasks.Task> later = taak.ExecuteAsync; // JL0001
-                werker.Triggers = werker.Triggers; // JL0001
-                foreach (var t in host.GetExports<MediaBrowser.Model.Tasks.IScheduledTask>(false)) { await t.ExecuteAsync(new Progress<double>(), CancellationToken.None); } // JL0001
+                /*WL*/ werker.Triggers = werker.Triggers; // JL0001
+                /*WL*/ foreach (var t in host.GetExports<MediaBrowser.Model.Tasks.IScheduledTask>(false)) { await t.ExecuteAsync(new Progress<double>(), CancellationToken.None); } // JL0001
                 _ = later;
-                _ = taak.GetDefaultTriggers();
-                _ = taak.Name + taak.Key + taak.Category;
-                _ = werker.Name + werker.State + werker.Id;
-                _ = werker.Triggers.Count;
-                _ = taken.ScheduledTasks.Count;
+                /*WL*/ _ = taak.GetDefaultTriggers();
+                /*WL*/ _ = taak.Name + taak.Key + taak.Category;
+                /*WL*/ _ = werker.Name + werker.State + werker.Id;
+                /*WL*/ _ = werker.Triggers.Count;
+                /*WL*/ _ = taken.ScheduledTasks.Count;
             }
             """);
         var verwacht = bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0001", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
 
-        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        var alles = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        var gevonden = alles.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
 
+        // Sinds herstelronde 7: lezen van de server-ABI (ScheduledTasks, GetExports, naam en staat) is JL0001 buiten de witte lijst.
+        Assert.Equal(10, AnalyzerHarnas.WlRegels(bron).Count);
+        Assert.Equal(AnalyzerHarnas.WlRegels(bron), AnalyzerHarnas.WlGevonden(alles));
         Assert.Equal(7, verwacht.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
@@ -208,7 +217,8 @@ public class VerbodenApiAnalyzerTests
     /// <summary>
     /// R-HARDE-EIS-7 (S-G1-17, herstelronde 2): leden die via IChannelManager kanaalitems aanmaken, verversen of wissen
     /// (en daarbij de UserData van verdwenen kanaalitems verplaatsen) zijn JL0001, net als die leden van IChannelManager
-    /// zelf. De bibliotheek lezen kan via ILibraryManager.GetItemList. Vóór het herstel gaf deze bron geen bevinding.
+    /// zelf. De bibliotheek lezen kan via ILibraryManager.GetItemList, sinds herstelronde 7 alleen in een klasse waarvoor dat
+    /// lid op de witte lijst van de server-ABI staat (hier niet: /*WL*/). Vóór het herstel gaf deze bron geen bevinding.
     /// Herstelronde 3 (basistype-grens): GetChildren en GetRecursiveChildren zijn ook op Folder verboden, zodat een
     /// variabele van het basistype (<c>Folder f1 = seizoen</c>) de regel niet omzeilt; vóór dat herstel gaven die vijf
     /// regels geen bevinding.
@@ -228,12 +238,12 @@ public class VerbodenApiAnalyzerTests
                 MediaBrowser.Controller.Entities.TV.Series serie,
                 User gebruiker)
             {
-                var opties = new MediaBrowser.Controller.Dto.DtoOptions();
-                _ = await live.GetRecordingsAsync(new MediaBrowser.Model.LiveTv.RecordingQuery(), opties); // JL0001
+                /*WL*/ var opties = new MediaBrowser.Controller.Dto.DtoOptions();
+                /*WL*/ _ = await live.GetRecordingsAsync(new MediaBrowser.Model.LiveTv.RecordingQuery(), opties); // JL0001
                 _ = await live.GetRecordingFoldersAsync(gebruiker); // JL0001
-                _ = weergaven.GetLatestItems(new MediaBrowser.Model.Querying.LatestItemsQuery(), opties); // JL0001
-                _ = map.GetItems(new InternalItemsQuery(gebruiker)); // JL0001
-                _ = map.GetItemList(new InternalItemsQuery(gebruiker)); // JL0001
+                /*WL*/ _ = weergaven.GetLatestItems(new MediaBrowser.Model.Querying.LatestItemsQuery(), opties); // JL0001
+                /*WL*/ _ = map.GetItems(new InternalItemsQuery(gebruiker)); // JL0001
+                /*WL*/ _ = map.GetItemList(new InternalItemsQuery(gebruiker)); // JL0001
                 _ = map.GetChildCount(gebruiker); // JL0001
                 _ = map.GetRecursiveChildCount(gebruiker); // JL0001
                 _ = seizoen.GetEpisodes(); // JL0001
@@ -248,18 +258,23 @@ public class VerbodenApiAnalyzerTests
                 Folder f1 = seizoen; _ = f1.GetChildren(gebruiker, true); // JL0001
                 Folder f2 = weergave; _ = f2.GetRecursiveChildren(gebruiker, null, out _); // JL0001
                 Folder f3 = lijst; _ = f3.GetRecursiveChildren(); // JL0001
-                _ = live.IsEnabledForUser(gebruiker);
-                _ = weergaven.GetUserViews(new MediaBrowser.Model.Library.UserViewQuery { User = gebruiker });
-                _ = lib.GetItemList(new InternalItemsQuery(gebruiker) { Parent = map });
-                _ = lib.GetItemsResult(new InternalItemsQuery(gebruiker) { Parent = map });
-                _ = serie.GetEpisodes(gebruiker, opties, false);
-                _ = seizoen.Name;
+                /*WL*/ _ = live.IsEnabledForUser(gebruiker);
+                /*WL*/ _ = weergaven.GetUserViews(new MediaBrowser.Model.Library.UserViewQuery { User = gebruiker });
+                /*WL*/ _ = lib.GetItemList(new InternalItemsQuery(gebruiker) { Parent = map });
+                /*WL*/ _ = lib.GetItemsResult(new InternalItemsQuery(gebruiker) { Parent = map });
+                /*WL*/ _ = serie.GetEpisodes(gebruiker, opties, false);
+                /*WL*/ _ = seizoen.Name;
             }
             """);
         var verwacht = bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst)).Where(r => r.tekst.EndsWith("// JL0001", StringComparison.Ordinal)).Select(r => r.Regel).ToList();
 
-        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        var alles = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        var gevonden = alles.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
 
+        // Sinds herstelronde 7: ook de leesregels en het aanmaken van servertypen (DtoOptions, de query's) zijn JL0001 buiten de
+        // witte lijst; ILibraryManager.GetItemList staat voor deze klasse niet op de lijst.
+        Assert.Equal(11, AnalyzerHarnas.WlRegels(bron).Count);
+        Assert.Equal(AnalyzerHarnas.WlRegels(bron), AnalyzerHarnas.WlGevonden(alles));
         Assert.Equal(19, verwacht.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel));
@@ -289,7 +304,7 @@ public class VerbodenApiAnalyzerTests
 
             namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             {
-                public class Taak : IScheduledTask
+                /*WL*/ public class Taak : IScheduledTask
                 {
                     public string Name => Naam();
                     public string Key => "JellyLeonProef";
@@ -322,19 +337,19 @@ public class VerbodenApiAnalyzerTests
                     }
                 }
 
-                public sealed class AfgeleideTaak : Taak
+                /*WL*/ public sealed class AfgeleideTaak : Taak
                 {
                     public Task Start() => ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001 ExecuteAsync
                 }
 
-                public sealed class Overschreven : Taak
+                /*WL*/ public sealed class Overschreven : Taak
                 {
                     public override Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken) => base.ExecuteAsync(progress, cancellationToken); // JL0001 ExecuteAsync
 
                     public Task Start() => ExecuteAsync(null!, default); // JL0001 ExecuteAsync
                 }
 
-                public sealed class Uitdrukkelijk : IScheduledTask
+                /*WL*/ public sealed class Uitdrukkelijk : IScheduledTask
                 {
                     public string Name => "U";
                     public string Key => "U";
@@ -350,11 +365,11 @@ public class VerbodenApiAnalyzerTests
                     public Task Start() => ((IScheduledTask)this).ExecuteAsync(new Progress<double>(), CancellationToken.None); // JL0001 ExecuteAsync
                 }
 
-                public class Werker : IScheduledTaskWorker
+                /*WL*/ public class Werker : IScheduledTaskWorker
                 {
                     public event EventHandler<GenericEventArgs<double>> TaskProgress { add { } remove { } }
                     public IScheduledTask ScheduledTask => new Taak();
-                    public TaskResult LastExecutionResult => new TaskResult();
+                    /*WL*/ public TaskResult LastExecutionResult => new TaskResult();
                     public string Name => "W";
                     public string Description => "W";
                     public string Category => "W";
@@ -368,7 +383,7 @@ public class VerbodenApiAnalyzerTests
                     public void Dispose() { }
                 }
 
-                public sealed class OverschrevenWerker : Werker
+                /*WL*/ public sealed class OverschrevenWerker : Werker
                 {
                     public override IReadOnlyList<TaskTriggerInfo> Triggers { get => Array.Empty<TaskTriggerInfo>(); set { } }
                     public override void ReloadTriggerEvents() { }
@@ -397,8 +412,13 @@ public class VerbodenApiAnalyzerTests
             .Select(r => (r.Regel, Lid: r.Raak.Groups[1].Value))
             .ToList();
 
-        var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+        var alles = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+        var gevonden = alles.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
 
+        // Sinds herstelronde 7 (R-HARDE-EIS-16): IScheduledTask en IScheduledTaskWorker staan (nog) niet op de witte lijst van
+        // uitbreidingspunten, dus elke klasse die ze implementeert of ervan afleidt is JL0001; ook new TaskResult (servertype).
+        Assert.Equal(7, AnalyzerHarnas.WlRegels(Bron).Count);
+        Assert.Equal(AnalyzerHarnas.WlRegels(Bron), AnalyzerHarnas.WlGevonden(alles));
         Assert.Equal(11, verwacht.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.ServerSchrijf, b.Id));
         Assert.Equal(verwacht.Select(v => v.Regel), gevonden.Select(b => b.Regel));
@@ -420,7 +440,7 @@ public class VerbodenApiAnalyzerTests
     /// tegenproeven) een bevinding. Sinds herstelronde 5 (R-HARDE-EIS-12) geven de drie regels die met de context een
     /// Entity Framework-lid gebruiken (<c>Database</c>, <c>ExecuteDeleteAsync</c>, <c>SaveChanges</c>) daarnaast JL0002:
     /// dat is databasetoegang buiten Core.Storage. De regels met alleen leden van de dienst zelf (<c>PurgeDatabase</c>,
-    /// <c>RestoreBackupFast</c>) blijven zonder tweede melding.
+    /// <c>RestoreBackupFast</c>) gaven geen tweede melding; sinds herstelronde 7 geven ze JL0001 (witte lijst van de server-ABI).
     /// </summary>
     [Fact]
     public async Task DatabasedienstVanDeServer_ElkGebruikVanDeTypenaamIsJL0003()
@@ -441,7 +461,7 @@ public class VerbodenApiAnalyzerTests
 
             namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             {
-                public class DbTaak : IScheduledTask
+                /*WL*/ public class DbTaak : IScheduledTask
                 {
                     private readonly IJellyfinDatabaseProvider _db; // JL0003
 
@@ -457,17 +477,17 @@ public class VerbodenApiAnalyzerTests
 
                     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
                     {
-                        _db.DbContextFactory!.CreateDbContext().Database.ExecuteSqlRaw("DELETE FROM UserData"); // JL0002
-                        await _db.DbContextFactory!.CreateDbContext().UserData.ExecuteDeleteAsync(cancellationToken); // JL0002
-                        DbContext c = _db.DbContextFactory!.CreateDbContext();
+                        /*WL*/ _db.DbContextFactory!.CreateDbContext().Database.ExecuteSqlRaw("DELETE FROM UserData"); // JL0002
+                        /*WL*/ await _db.DbContextFactory!.CreateDbContext().UserData.ExecuteDeleteAsync(cancellationToken); // JL0002
+                        /*WL*/ DbContext c = _db.DbContextFactory!.CreateDbContext();
                         c.SaveChanges(); // JL0002
-                        await _db.PurgeDatabase(_db.DbContextFactory!.CreateDbContext(), null);
-                        await _db.RestoreBackupFast("sleutel", cancellationToken);
-                        await _db.RunScheduledOptimisation(cancellationToken);
-                        await _db.RefreshStatistics(cancellationToken);
-                        var v = _db.DbContextFactory!.CreateDbContext(); // JL0003
+                        /*WL*/ await _db.PurgeDatabase(_db.DbContextFactory!.CreateDbContext(), null);
+                        /*WL*/ await _db.RestoreBackupFast("sleutel", cancellationToken);
+                        /*WL*/ await _db.RunScheduledOptimisation(cancellationToken);
+                        /*WL*/ await _db.RefreshStatistics(cancellationToken);
+                        /*WL*/ var v = _db.DbContextFactory!.CreateDbContext(); // JL0003
                         JellyfinDbContext n = v; // JL0003
-                        var f = _db.DbContextFactory; // JL0003
+                        /*WL*/ var f = _db.DbContextFactory; // JL0003
                         _ = n;
                         _ = f;
                     }
@@ -505,9 +525,13 @@ public class VerbodenApiAnalyzerTests
         var alles = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
         var gevonden = alles.Where(b => b.Id == Regels.ServerDatabase).ToList();
 
+        // Sinds herstelronde 7 geeft elk lid van de dienst (en de taak zelf, IScheduledTask) daarnaast JL0001: de server-ABI is
+        // een witte lijst, en IJellyfinDatabaseProvider staat daar nergens op.
+        Assert.Equal(10, AnalyzerHarnas.WlRegels(Bron).Count);
+        Assert.Equal(AnalyzerHarnas.WlRegels(Bron), AnalyzerHarnas.WlGevonden(alles));
         Assert.Equal(14, verwacht.Count);
         Assert.Equal(3, verwachtEf.Count);
-        Assert.All(alles, b => Assert.Contains(b.Id, new[] { Regels.ServerDatabase, Regels.BestandSchrijf }));
+        Assert.All(alles.Where(b => !AnalyzerHarnas.IsWitteLijst(b)), b => Assert.Contains(b.Id, new[] { Regels.ServerDatabase, Regels.BestandSchrijf }));
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel).Distinct());
         Assert.Equal(verwachtEf, alles.Where(b => b.Id == Regels.BestandSchrijf).Select(b => b.Regel));
         Assert.Contains(gevonden, b => b.Tekst.Contains("'Jellyfin.Database.Implementations.IJellyfinDatabaseProvider'", StringComparison.Ordinal));
@@ -541,7 +565,7 @@ public class VerbodenApiAnalyzerTests
                 {
                     public void Sqlitefabriek(IApplicationPaths paden)
                     {
-                        var pad = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
+                        /*WL*/ var pad = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
                         using var c = SqliteFactory.Instance.CreateConnection(); c.ConnectionString = "Data Source=" + pad; c.Open(); // JL0002
                         using var cmd = c.CreateCommand(); cmd.CommandText = "DELETE FROM UserData"; cmd.ExecuteNonQuery(); // JL0002
                         using var bron = SqliteFactory.Instance.CreateDataSource("Data Source=" + pad); // JL0002
@@ -573,8 +597,12 @@ public class VerbodenApiAnalyzerTests
         var verwacht = Bron.Split('\n').Select((tekst, index) => (Regel: index + 1, Raak: Regex.Match(tekst, @"// (JL\d{4})$")))
             .Where(r => r.Raak.Success).Select(r => (r.Regel, Id: r.Raak.Groups[1].Value)).ToList();
 
-        var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+        var alles = await AnalyzerHarnas.AnalyseerAsync(Bron, null, TestContext.Current.CancellationToken);
+        var gevonden = alles.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
 
+        // Sinds herstelronde 7: IApplicationPaths.DataPath staat voor deze klasse niet op de witte lijst (JL0001).
+        Assert.Equal(AnalyzerHarnas.WlRegels(Bron), AnalyzerHarnas.WlGevonden(alles));
+        Assert.Single(AnalyzerHarnas.WlRegels(Bron));
         Assert.Equal(11, verwacht.Count);
         Assert.Equal(verwacht, gevonden.Select(b => (b.Regel, b.Id)).Distinct());
         Assert.Contains(gevonden, b => b.Tekst.Contains("'Microsoft.Data.Sqlite.SqliteFactory.Instance'", StringComparison.Ordinal));
@@ -734,11 +762,11 @@ public class VerbodenApiAnalyzerTests
 
                     public async Task Slip(IApplicationPaths paden, IPluginManager plugins, IXmlSerializer xml, ITranscodeManager transcode, StreamState staat, string bron)
                     {
-                        var db = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
-                        _ = plugins.RemovePlugin(new LocalPlugin(paden.DataPath, true, new PluginManifest())); // BCL-NEE JL0002
+                        /*WL*/ var db = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
+                        /*WL*/ _ = plugins.RemovePlugin(new LocalPlugin(paden.DataPath, true, new PluginManifest())); // BCL-NEE JL0002
                         xml.SerializeToFile(new object(), db); // BCL-NEE JL0002
-                        ZipFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // BCL JL0002
-                        TarFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // BCL JL0002
+                        /*WL*/ ZipFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // BCL JL0002
+                        /*WL*/ TarFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // BCL JL0002
                         using (var w = XmlWriter.Create(db)) { } // BCL JL0002
                         new XDocument().Save(db); // BCL JL0002
                         new DataSet().WriteXml(db); // BCL JL0002
@@ -763,9 +791,16 @@ public class VerbodenApiAnalyzerTests
         var verwacht = Gemarkeerd(buiten, " JL0002");
         var nergens = Gemarkeerd(buiten, "// BCL-NEE JL0002");
 
-        var gevonden = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
-        var inOpslag = await AnalyzerHarnas.AnalyseerAsync(Bron("Jellyfin.Plugin.JellyLeon.Core.Storage"), null, TestContext.Current.CancellationToken);
+        var alles = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
+        var allesInOpslag = await AnalyzerHarnas.AnalyseerAsync(Bron("Jellyfin.Plugin.JellyLeon.Core.Storage"), null, TestContext.Current.CancellationToken);
+        var gevonden = alles.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
+        var inOpslag = allesInOpslag.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
 
+        // Sinds herstelronde 7, ook in Core.Storage: DataPath en new PluginManifest staan voor deze klasse niet op de witte
+        // lijst van de server-ABI (JL0001).
+        Assert.Equal(4, AnalyzerHarnas.WlRegels(buiten).Count);
+        Assert.Equal(AnalyzerHarnas.WlRegels(buiten), AnalyzerHarnas.WlGevonden(alles));
+        Assert.Equal(AnalyzerHarnas.WlRegels(buiten), AnalyzerHarnas.WlGevonden(allesInOpslag));
         Assert.Equal(14, verwacht.Length);
         Assert.Equal(5, nergens.Length);
         Assert.All(gevonden, b => Assert.Equal(Regels.BestandSchrijf, b.Id));
@@ -878,14 +913,20 @@ public class VerbodenApiAnalyzerTests
         Assert.Equal(24, verwacht.Count);
         Assert.All(gevonden, b => Assert.Equal(Regels.BestandSchrijf, b.Id));
         Assert.Equal(verwacht, gevonden.Select(b => b.Regel).Distinct());
-        Assert.Empty(inOpslag);
+
+        // In Core.Storage geldt de bestandsregel niet, de witte lijst van de server-ABI wel (herstelronde 7):
+        // FormattingStreamWriter komt uit Jellyfin.Extensions en staat voor deze klasse niet op de lijst.
+        var serverAbi = Assert.Single(inOpslag);
+        Assert.True(AnalyzerHarnas.IsWitteLijst(serverAbi));
+        Assert.Contains("'Jellyfin.Extensions.FormattingStreamWriter..ctor'", serverAbi.Tekst, StringComparison.Ordinal);
     }
 
     /// <summary>
     /// R-HARDE-EIS-13 (S-G1-17 herstelronde 6): de server-ABI die zelf een bestand schrijft, wist of verplaatst of een proces
     /// start, gevonden met de padscan van de plugin-ABI en de bronscan van de server (ADR-0032, kop "Bestanden (JL0002)").
     /// Nergens toegestaan: ook niet in Core.Storage, want de server doet het langs de padgrens heen. De leesleden ernaast
-    /// blijven toegestaan. <c>BaseItemExtensions.SetImagePath</c> wijzigt een item en is JL0001.
+    /// gaven geen melding; sinds herstelronde 7 zijn ze JL0001 (witte lijst van de server-ABI, gemarkeerd met /*WL*/).
+    /// <c>BaseItemExtensions.SetImagePath</c> wijzigt een item en is JL0001.
     /// </summary>
     [Fact]
     public async Task ServerAbiDieZelfSchrijftOfStart_IsNergensToegestaan()
@@ -927,50 +968,50 @@ public class VerbodenApiAnalyzerTests
                         IImageProcessor beelden, IImageEncoder beeldencoder, IClientEventLogger log, IListingsProvider gids, ITunerHost tuner,
                         ILiveStream live, BaseItem item, Stream stroom, CancellationToken stop)
                     {
-                        _ = plugins.RemovePlugin(plugins.GetPlugin(Guid.Empty)!); // JL0002
-                        _ = plugins.SaveManifest(new PluginManifest(), pad); // JL0002
-                        _ = plugins.Plugins;
-                        installatie.UninstallPlugin(new LocalPlugin(pad, true, new PluginManifest())); // JL0002
+                        /*WL*/ _ = plugins.RemovePlugin(plugins.GetPlugin(Guid.Empty)!); // JL0002
+                        /*WL*/ _ = plugins.SaveManifest(new PluginManifest(), pad); // JL0002
+                        /*WL*/ _ = plugins.Plugins;
+                        /*WL*/ installatie.UninstallPlugin(new LocalPlugin(pad, true, new PluginManifest())); // JL0002
                         paden.CreateAndCheckMarker(pad, "x"); // JL0002
-                        _ = paden.DataPath;
+                        /*WL*/ _ = paden.DataPath;
                         xml.SerializeToFile(new object(), pad); // JL0002
-                        _ = xml.DeserializeFromFile(typeof(object), pad);
+                        /*WL*/ _ = xml.DeserializeFromFile(typeof(object), pad);
                         using var a = AsyncFile.Create(pad); // JL0002
                         using var b = AsyncFile.OpenWrite(pad); // JL0002
-                        using var c = AsyncFile.OpenRead(pad);
+                        /*WL*/ using var c = AsyncFile.OpenRead(pad);
                         snelkoppeling.Create(pad, pad); // JL0002
-                        _ = snelkoppeling.Resolve(pad);
+                        /*WL*/ _ = snelkoppeling.Resolve(pad);
                         FileSystemHelper.DeleteFile(bestandssysteem, pad, NullLogger.Instance); // JL0002
-                        _ = FileSystemHelper.ResolveLinkTarget(pad);
+                        /*WL*/ _ = FileSystemHelper.ResolveLinkTarget(pad);
                         FileHelper.CreateEmpty(pad); // JL0002
                         mappen.Move(pad, pad); // JL0002
-                        _ = mappen.GetFiles(pad);
+                        /*WL*/ _ = mappen.GetFiles(pad);
                         await opslaan.SaveAsync(item, stop); // JL0002
-                        _ = await leverancier.GetMetadata(new MovieInfo(), stop); // JL0002
+                        /*WL*/ _ = await leverancier.GetMetadata(new MovieInfo(), stop); // JL0002
                         _ = await afbeeldingen.GetImage(item, ImageType.Primary, stop); // JL0002
-                        _ = afbeeldingen.Supports(item);
+                        /*WL*/ _ = afbeeldingen.Supports(item);
                         await transcode.KillTranscodingJobs("x", null, _ => true); // JL0002
-                        var job = transcode.GetTranscodingJob("x");
+                        /*WL*/ var job = transcode.GetTranscodingJob("x");
                         job!.Path = pad; // JL0002
                         _ = new TranscodingJob(NullLogger<TranscodingJob>.Instance); // JL0002
                         using var d = new ProgressiveFileStream(pad, job, transcode); // JL0002
                         await encoder.ConvertImage(pad, pad); // JL0002
                         _ = await encoder.GetMediaInfo(null!, stop); // JL0002
-                        _ = encoder.SupportsEncoder("x");
+                        /*WL*/ _ = encoder.SupportsEncoder("x");
                         _ = await ondertitels.GetSubtitles(item, "x", 0, "srt", 0, 0, false, stop); // JL0002
                         await bijlagen.ExtractAllAttachments(pad, null!, stop); // JL0002
                         _ = hulp.GetInputArgument(taak, null!, "ts"); // JL0002
                         beelden.CreateImageCollage(null!, null); // JL0002
-                        _ = beelden.GetImageDimensions(pad);
+                        /*WL*/ _ = beelden.GetImageDimensions(pad);
                         _ = beeldencoder.EncodeImage(pad, DateTime.UtcNow, pad, false, null, 90, null!, ImageFormat.Jpg); // JL0002
                         _ = await log.WriteDocumentAsync("x", "1", stroom); // JL0002
                         _ = FfProbeKeyframeExtractor.GetKeyframeData(pad, pad); // JL0002
                         _ = await gids.GetChannels(null!, stop); // JL0002
                         _ = await tuner.GetChannels(false, stop); // JL0002
                         await live.Open(stop); // JL0002
-                        _ = live.GetStream();
+                        /*WL*/ _ = live.GetStream();
                         item.SetImagePath(ImageType.Primary, pad); // JL0001
-                        _ = item.GetImagePath(ImageType.Primary);
+                        /*WL*/ _ = item.GetImagePath(ImageType.Primary);
                     }
                 }
             }
@@ -982,9 +1023,16 @@ public class VerbodenApiAnalyzerTests
         var buiten = Bron(Modules + ".Proef");
         var opslag = Bron("Jellyfin.Plugin.JellyLeon.Core.Storage");
 
-        var gevonden = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
-        var inOpslag = await AnalyzerHarnas.AnalyseerAsync(opslag, null, TestContext.Current.CancellationToken);
+        var alles = await AnalyzerHarnas.AnalyseerAsync(buiten, null, TestContext.Current.CancellationToken);
+        var allesInOpslag = await AnalyzerHarnas.AnalyseerAsync(opslag, null, TestContext.Current.CancellationToken);
+        var gevonden = alles.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
+        var inOpslag = allesInOpslag.Where(b => !AnalyzerHarnas.IsWitteLijst(b)).ToList();
 
+        // Sinds herstelronde 7 zijn ook de leesleden ernaast JL0001, overal: de server-ABI is een witte lijst per klasse en
+        // geen van deze leden staat er voor deze klasse op (ook het aanmaken van PluginManifest en MovieInfo niet).
+        Assert.Equal(17, AnalyzerHarnas.WlRegels(buiten).Count);
+        Assert.Equal(AnalyzerHarnas.WlRegels(buiten), AnalyzerHarnas.WlGevonden(alles));
+        Assert.Equal(AnalyzerHarnas.WlRegels(opslag), AnalyzerHarnas.WlGevonden(allesInOpslag));
         Assert.Equal(31, Verwacht(buiten).Length);
         Assert.Equal(Verwacht(buiten), gevonden.Select(b => (b.Regel, b.Id)).Distinct());
         Assert.Equal(Verwacht(opslag), inOpslag.Select(b => (b.Regel, b.Id)).Distinct());
@@ -1130,16 +1178,22 @@ public class VerbodenApiAnalyzerTests
         Assert.Equal(new[] { Regels.BestandSchrijf }, gevonden);
     }
 
+    /// <summary>
+    /// Bestanden lezen en processen bekijken mag overal. Lezen van de server-ABI mag sinds herstelronde 7 (besluit regisseur,
+    /// R-HARDE-EIS-14) alleen nog via de witte lijst per klasse (ADR-0032, kop "Server-ABI: witte lijst"): in een moduleklasse
+    /// zonder regel op die lijst is elk leeslid van de server JL0001, ook GetVirtualFolders (dat staat alleen voor
+    /// Core.BibliotheekMappen op de lijst).
+    /// </summary>
     [Fact]
-    public async Task LezenMagOveral()
+    public async Task LezenVanBestandenMagOveral_LezenVanDeServerAlleenViaDeWitteLijst()
     {
         var bron = AnalyzerHarnas.Klasse(Modules + ".Quality", "Lezer", """
             public void M(string pad, ILibraryManager lib, IUserDataManager gegevens, IUserManager gebruikers, User gebruiker, BaseItem item)
             {
-                _ = lib.GetItemById(Guid.Empty);
-                _ = lib.GetVirtualFolders();
-                _ = gegevens.GetUserData(gebruiker, item);
-                _ = gebruikers.GetUserById(Guid.Empty);
+                /*WL*/ _ = lib.GetItemById(Guid.Empty);
+                /*WL*/ _ = lib.GetVirtualFolders();
+                /*WL*/ _ = gegevens.GetUserData(gebruiker, item);
+                /*WL*/ _ = gebruikers.GetUserById(Guid.Empty);
                 _ = File.Exists(pad) ? File.ReadAllBytes(pad).Length : 0;
                 using var a = File.OpenRead(pad);
                 _ = Directory.EnumerateFiles(pad);
@@ -1148,7 +1202,11 @@ public class VerbodenApiAnalyzerTests
             }
             """);
 
-        Assert.Empty(await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken));
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+
+        Assert.All(gevonden, b => Assert.True(AnalyzerHarnas.IsWitteLijst(b), b.Tekst));
+        Assert.Equal(4, AnalyzerHarnas.WlRegels(bron).Count);
+        Assert.Equal(AnalyzerHarnas.WlRegels(bron), AnalyzerHarnas.WlGevonden(gevonden));
     }
 
     [Fact]

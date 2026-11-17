@@ -58,6 +58,10 @@ internal sealed class Uitzonderingen
         {
             Fouten.Add((regel, "voor deze API bestaat geen uitzondering (nergens toegestaan): databasetoegang hoort alleen in Core.Storage"));
         }
+        else if (regelId == Regels.BestandSchrijf && typeRegel is null && Regels.BestandVolledigTypen.Contains(type))
+        {
+            Fouten.Add((regel, "voor deze API bestaat geen uitzondering (nergens toegestaan): WebClient, WebRequest en de trace-laag horen alleen in Core.Storage en Core.Secrets"));
+        }
         else if (regelId == Regels.BestandSchrijf && typeRegel is null && Regels.IsBestandTypenaam(type))
         {
             Fouten.Add((regel, "voor deze API bestaat geen uitzondering (nergens toegestaan): buiten Core.Storage en Core.Secrets alleen de witte lijst van de bestandsnamespaces en File, Directory, FileInfo/DirectoryInfo of IFileSystem per klasse"));

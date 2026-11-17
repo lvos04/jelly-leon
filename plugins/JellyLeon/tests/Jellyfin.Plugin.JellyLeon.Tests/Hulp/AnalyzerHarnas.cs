@@ -55,6 +55,31 @@ internal static class AnalyzerHarnas
             .ToList();
     }
 
+    /// <summary>
+    /// Waar als de bevinding van de witte lijst van de server-ABI komt (herstelronde 7: een lid buiten de witte lijst, een
+    /// eigenschap of veld van een servertype zetten, of een uitbreidingspunt buiten de lijst). Oudere tests toetsen de
+    /// specifieke regels apart en eisen daarnaast precies op welke regels deze bevindingen vallen (markering <c>/*WL*/</c>).
+    /// </summary>
+    public static bool IsWitteLijst((int Regel, string Id, string Tekst) bevinding) =>
+        bevinding.Id == Regels.ServerSchrijf
+        && (bevinding.Tekst.Contains("niet op de witte lijst staat", StringComparison.Ordinal)
+            || bevinding.Tekst.Contains("zet een eigenschap of veld van een servertype", StringComparison.Ordinal)
+            || bevinding.Tekst.Contains("uit de server-ABI; de server zoekt", StringComparison.Ordinal));
+
+    /// <summary>
+    /// De regelnummers met de markering <c>/*WL*/</c>: daar (en alleen daar) verwacht de test een bevinding van de witte lijst
+    /// van de server-ABI, naast wat de andere markeringen op die regel vragen.
+    /// </summary>
+    public static IReadOnlyList<int> WlRegels(string bron) =>
+        bron.Split('\n').Select((tekst, index) => (Regel: index + 1, tekst))
+            .Where(r => r.tekst.Contains("/*WL*/", StringComparison.Ordinal))
+            .Select(r => r.Regel)
+            .ToList();
+
+    /// <summary>De regels met een bevinding van de witte lijst van de server-ABI, oplopend en zonder dubbele.</summary>
+    public static IReadOnlyList<int> WlGevonden(IEnumerable<(int Regel, string Id, string Tekst)> bevindingen) =>
+        bevindingen.Where(IsWitteLijst).Select(b => b.Regel).Distinct().OrderBy(r => r).ToList();
+
     /// <summary>Proefcode in één klasse; <paramref name="ruimte"/> bepaalt welke regels gelden.</summary>
     public static string Klasse(string ruimte, string klasse, string romp) => $$"""
         using System;

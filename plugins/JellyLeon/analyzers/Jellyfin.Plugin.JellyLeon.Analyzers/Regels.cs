@@ -111,6 +111,58 @@ internal sealed class BestandWit
         !Behalve.Contains(lid) && Leden.Any(v => v == "*" || TypeRegel.IsVoorvoegsel(v, lid));
 }
 
+/// <summary>
+/// Eén regel van de witte lijst van de server-ABI (ADR-0032, kop "Server-ABI: witte lijst"): één lezend lid van een
+/// servertype in precies één klasse van de plugin (de buitenste klasse, met volledige naam). Een eigenschap of veld van
+/// een servertype zetten staat nooit op deze lijst; alleen bij een aanmaak (lid ".ctor") mogen de genoemde eigenschappen
+/// in de objectinitialisatie van precies dat nieuwe object.
+/// </summary>
+internal sealed class ServerWit
+{
+    public ServerWit(string type, string lid, string klasse, params string[] initialisatie)
+    {
+        Type = type;
+        Lid = lid;
+        Klasse = klasse;
+        Initialisatie = initialisatie;
+    }
+
+    /// <summary>Metadatanaam van het servertype dat het lid declareert (bij een generiek type met `1).</summary>
+    public string Type { get; }
+
+    /// <summary>Naam van het lid (alle overloads); ".ctor" is aanmaken.</summary>
+    public string Lid { get; }
+
+    /// <summary>Volledige naam van de buitenste klasse van de plugin waarin het gebruik mag.</summary>
+    public string Klasse { get; }
+
+    /// <summary>Alleen bij ".ctor": eigenschappen die in de objectinitialisatie van het nieuwe object gezet mogen worden.</summary>
+    public IReadOnlyList<string> Initialisatie { get; }
+}
+
+/// <summary>
+/// Eén regel van de witte lijst van uitbreidingspunten (ADR-0032, kop "Server-ABI: witte lijst"): een servertype dat een
+/// type van de plugin mag implementeren of ervan afleiden, alleen in precies deze namespace (niet eronder).
+/// </summary>
+internal sealed class UitbreidingWit
+{
+    public UitbreidingWit(string type, string ruimte, string? typeargument = null)
+    {
+        Type = type;
+        Ruimte = ruimte;
+        Typeargument = typeargument;
+    }
+
+    /// <summary>Metadatanaam van het servertype (bij een generiek type met `1).</summary>
+    public string Type { get; }
+
+    /// <summary>De namespace van het plugintype (exact).</summary>
+    public string Ruimte { get; }
+
+    /// <summary>Optioneel: het enige toegestane typeargument (metadatanaam), bijvoorbeeld bij IEventConsumer&lt;T&gt;.</summary>
+    public string? Typeargument { get; }
+}
+
 /// <summary>De tabellen van de analyzer. Wijzigen kan alleen hier, in één bestand, en hoort in ADR-0032.</summary>
 internal static class Regels
 {
@@ -260,7 +312,6 @@ internal static class Regels
         // een JIT-profiel met een zelfgekozen naam. Buiten de opslagnamespaces JL0002, zonder uitzondering.
         new TypeRegel(BestandSchrijf, "System.Data.DataSet", false, false, "WriteXml"),
         new TypeRegel(BestandSchrijf, "System.Data.DataTable", false, false, "WriteXml"),
-        new TypeRegel(BestandSchrijf, "System.Net.WebClient", false, false, "DownloadFile"),
         new TypeRegel(BestandSchrijf, "System.Runtime.ProfileOptimization", true, false),
         // De server-ABI die zelf een bestand schrijft, wist of verplaatst of een proces start (R-HARDE-EIS-13; ADR-0032,
         // kop "Bestanden (JL0002)"): nergens, ook niet in Core.Storage, want de server doet het langs de padgrens heen.
@@ -321,7 +372,6 @@ internal static class Regels
     /// bestandsnamespaces (zie <see cref="BestandWitteLijst"/>).
     /// </summary>
     public static readonly ImmutableArray<(string RegelId, string Type, bool AlleenMetPad, bool Nergens)> Aanmaak = ImmutableArray.Create(
-        (BestandSchrijf, "System.Diagnostics.TextWriterTraceListener", true, false),
         (BestandSchrijf, "System.Resources.ResourceWriter", true, false),
         (BestandSchrijf, "MediaBrowser.Common.Plugins.LocalPlugin", false, true),
         (BestandSchrijf, "MediaBrowser.Controller.Streaming.ProgressiveFileStream", false, true),
@@ -456,4 +506,121 @@ internal static class Regels
         "MediaBrowser.Controller.Persistence.IItemQueryHelpers");
 
     public static readonly ImmutableArray<string> ServerDatabaseNamen = ImmutableArray.Create("jellyfin.db", "library.db");
+
+    /// <summary>
+    /// BCL-typen die buiten de opslagnamespaces helemaal JL0002 zijn: elk lid (ook lezen), elk event en het aanmaken, ook van
+    /// een type dat ervan afleidt (R-HARDE-EIS-15, S-G1-17 herstelronde 7). <c>WebClient</c> en <c>WebRequest</c> (met
+    /// <c>FileWebRequest</c>) schrijven met een file:-adres in elk bestand (UploadData, OpenWrite, PUT met GetRequestStream).
+    /// De trace-laag schrijft via een listener in een zelfgekozen bestand (<c>DefaultTraceListener.LogFileName</c>):
+    /// listeners aanmaken of instellen, de lijsten met listeners en het schrijven via Trace, TraceSource en Debug mogen
+    /// alleen in de opslaglaag. Geen uitzondering per klasse.
+    /// </summary>
+    public static readonly ImmutableArray<string> BestandVolledigTypen = ImmutableArray.Create(
+        "System.Net.WebClient",
+        "System.Net.WebRequest",
+        "System.Diagnostics.TraceListener",
+        "System.Diagnostics.TraceListenerCollection",
+        "System.Diagnostics.Trace",
+        "System.Diagnostics.TraceSource",
+        "System.Diagnostics.Debug");
+
+    /// <summary>
+    /// De server-ABI (R-HARDE-EIS-14/-16, S-G1-17 herstelronde 7): elk type uit deze namespaces of uit een assembly met zo'n
+    /// naam, behalve de eigen plugin (<see cref="PluginNamespace"/>). Elk gebruik van een lid ervan (aanroepen, als
+    /// methodegroep nemen, een eigenschap of veld lezen of zetten, een event, aanmaken, een operator) is JL0001, behalve
+    /// wat op <see cref="ServerAbiWitteLijst"/> staat; een implementatie of afleiding is JL0001, behalve wat op
+    /// <see cref="UitbreidingWitteLijst"/> staat. Een constante (ook een enumwaarde) lezen mag altijd: de compiler zet de
+    /// waarde in de plugin, er draait geen servercode.
+    /// </summary>
+    public static readonly ImmutableArray<string> ServerAbiNamespaces = ImmutableArray.Create("MediaBrowser", "Jellyfin", "Emby");
+
+    /// <summary>
+    /// De witte lijst van de server-ABI: alleen lezende leden die de plugin op 2026-11-17 echt gebruikt (vastgesteld met de
+    /// bouw van de plugin zonder deze lijst), elk in precies één klasse. De motivatie per lid staat in ADR-0032, kop
+    /// "Server-ABI: witte lijst"; een test eist dat elk lid daar genoemd wordt. Eén uitzondering op "alleen lezen", met
+    /// reden in de ADR: <c>BasePlugin&lt;T&gt;.SaveConfiguration</c> in <c>PluginModuleSwitches</c> (de officiële route voor de
+    /// eigen schakelaars; het pad ligt vast, zie <see cref="PluginConfigLeden"/>).
+    /// </summary>
+    public static readonly ImmutableArray<ServerWit> ServerAbiWitteLijst = ImmutableArray.Create(
+        // De pluginklasse: de basisconstructor en de configuratiepagina (een nieuw object, alleen in zijn initialisatie gevuld).
+        new ServerWit("MediaBrowser.Common.Plugins.BasePlugin`1", ".ctor", PluginNamespace + ".Plugin"),
+        new ServerWit("MediaBrowser.Model.Plugins.PluginPageInfo", ".ctor", PluginNamespace + ".Plugin", "Name", "DisplayName", "EmbeddedResourcePath"),
+        // De eigen schrijfmappen afleiden uit de paden van de server.
+        new ServerWit("MediaBrowser.Common.Configuration.IApplicationPaths", "DataPath", PluginNamespace + ".PluginServiceRegistrator"),
+        new ServerWit("MediaBrowser.Common.Configuration.IApplicationPaths", "CachePath", PluginNamespace + ".PluginServiceRegistrator"),
+        // Versie en naam van de server tonen (B03-001).
+        new ServerWit("MediaBrowser.Common.IApplicationHost", "ApplicationVersionString", PluginNamespace + ".Api.JellyLeonVersionController"),
+        new ServerWit("MediaBrowser.Common.IApplicationHost", "Name", PluginNamespace + ".Api.JellyLeonVersionController"),
+        // De mediamappen van de bibliotheek (alleen-lezencontrole van de mount).
+        new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetVirtualFolders", PluginNamespace + ".Core.BibliotheekMappen"),
+        new ServerWit("MediaBrowser.Model.Entities.VirtualFolderInfo", "Locations", PluginNamespace + ".Core.BibliotheekMappen"),
+        // De sessiecontrole van de pluginroutes.
+        new ServerWit("MediaBrowser.Controller.Net.IAuthService", "Authenticate", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
+        new ServerWit("MediaBrowser.Controller.Net.AuthorizationInfo", "IsApiKey", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
+        new ServerWit("MediaBrowser.Controller.Net.AuthorizationInfo", "IsAuthenticated", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
+        new ServerWit("MediaBrowser.Controller.Net.AuthorizationInfo", "User", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
+        new ServerWit("Jellyfin.Database.Implementations.Entities.User", "Id", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
+        new ServerWit("Jellyfin.Data.UserEntityExtensions", "HasPermission", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
+        // Kind-signalen van een gebruiker (alleen tellen en kijken of er een grens is).
+        new ServerWit("Jellyfin.Database.Implementations.Entities.User", "MaxParentalRatingScore", PluginNamespace + ".Core.Privacy.KidPolicy"),
+        new ServerWit("Jellyfin.Database.Implementations.Entities.User", "AccessSchedules", PluginNamespace + ".Core.Privacy.KidPolicy"),
+        new ServerWit("Jellyfin.Data.UserEntityExtensions", "GetPreference", PluginNamespace + ".Core.Privacy.KidPolicy"),
+        // Een verwijderde gebruiker: alleen het ID, om de eigen gegevens te wissen.
+        new ServerWit("Jellyfin.Data.Events.GenericEventArgs`1", "Argument", PluginNamespace + ".Core.Privacy.UserDeletedConsumer"),
+        new ServerWit("Jellyfin.Database.Implementations.Entities.User", "Id", PluginNamespace + ".Core.Privacy.UserDeletedConsumer"),
+        // De eigen moduleschakelaars (de officiële route; het pad ligt vast, zie PluginConfigLeden). De enige schrijvende regel.
+        new ServerWit("MediaBrowser.Common.Plugins.BasePlugin`1", "Configuration", PluginNamespace + ".Core.Modules.PluginModuleSwitches"),
+        new ServerWit("MediaBrowser.Common.Plugins.BasePlugin`1", "SaveConfiguration", PluginNamespace + ".Core.Modules.PluginModuleSwitches"),
+        // De planner telt de kijksessies (pauze bij afspelen).
+        new ServerWit("MediaBrowser.Controller.Session.ISessionManager", "PlaybackStart", PluginNamespace + ".Core.Planner.ServerSessies"),
+        new ServerWit("MediaBrowser.Controller.Session.ISessionManager", "PlaybackStopped", PluginNamespace + ".Core.Planner.ServerSessies"),
+        new ServerWit("MediaBrowser.Controller.Session.ISessionManager", "Sessions", PluginNamespace + ".Core.Planner.ServerSessies"),
+        new ServerWit("MediaBrowser.Controller.Session.SessionInfo", "NowPlayingItem", PluginNamespace + ".Core.Planner.ServerSessies"),
+        new ServerWit("MediaBrowser.Controller.Session.SessionInfo", "TranscodingInfo", PluginNamespace + ".Core.Planner.ServerSessies"),
+        new ServerWit("MediaBrowser.Model.Session.TranscodingInfo", "IsVideoDirect", PluginNamespace + ".Core.Planner.ServerSessies"),
+        new ServerWit("MediaBrowser.Model.Session.TranscodingInfo", "HardwareAccelerationType", PluginNamespace + ".Core.Planner.ServerSessies"),
+        // Module Devices: welke apparaten hoe afspelen (eigen tabel, geen kijkgegevens van de server).
+        new ServerWit("MediaBrowser.Controller.Session.ISessionManager", "PlaybackStart", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Session.ISessionManager", "PlaybackStopped", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Library.PlaybackProgressEventArgs", "Users", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Library.PlaybackProgressEventArgs", "Session", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Library.PlaybackProgressEventArgs", "DeviceId", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Library.PlaybackProgressEventArgs", "MediaSourceId", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Library.PlaybackProgressEventArgs", "PlaySessionId", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Session.SessionInfo", "Id", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Session.SessionInfo", "PlayState", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Controller.Session.SessionInfo", "TranscodingInfo", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Model.Session.TranscodingInfo", "IsVideoDirect", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Model.Session.TranscodingInfo", "HardwareAccelerationType", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("MediaBrowser.Model.Session.PlayerStateInfo", "PlayMethod", PluginNamespace + ".Modules.Devices.DevicesListener"),
+        new ServerWit("Jellyfin.Database.Implementations.Entities.User", "Id", PluginNamespace + ".Modules.Devices.DevicesListener"));
+
+    /// <summary>
+    /// De witte lijst van uitbreidingspunten: welke servertypen een type van de plugin mag implementeren of ervan afleiden,
+    /// per namespace (exact). De server zoekt zulke typen zelf in de pluginassembly (GetExports) of krijgt ze via de
+    /// registratie, en roept ze aan zonder dat plugincode iets aanroept (bijvoorbeeld een IResolverIgnoreRule die de
+    /// bibliotheekscan items laat wissen). Elke andere implementatie of afleiding is JL0001. Later bewust uit te breiden,
+    /// elk met een eigen ADR: IScheduledTask (planner) en IMediaSegmentProvider (alleen in Modules.Segments, B03-07x).
+    /// Microsoft-typen (IHostedService, IStartupFilter) zijn geen server-ABI en vallen niet onder deze regel.
+    /// </summary>
+    public static readonly ImmutableArray<UitbreidingWit> UitbreidingWitteLijst = ImmutableArray.Create(
+        new UitbreidingWit("MediaBrowser.Common.Plugins.BasePlugin`1", PluginNamespace),
+        new UitbreidingWit("MediaBrowser.Model.Plugins.IHasWebPages", PluginNamespace),
+        new UitbreidingWit("MediaBrowser.Controller.Plugins.IPluginServiceRegistrator", PluginNamespace),
+        new UitbreidingWit("MediaBrowser.Model.Plugins.BasePluginConfiguration", PluginNamespace + ".Configuration"),
+        new UitbreidingWit("MediaBrowser.Controller.Events.IEventConsumer`1", PluginNamespace + ".Core.Privacy", "Jellyfin.Data.Events.Users.UserDeletedEventArgs"));
+
+    /// <summary>
+    /// De leden van <c>BasePlugin&lt;T&gt;</c> die bepalen waar de server de pluginconfiguratie schrijft
+    /// (R-HARDE-EIS-14a): <c>ConfigurationFilePath = Path.Combine(PluginConfigurationsPath, ConfigurationFileName)</c>, en
+    /// al <c>Configuration</c> lezen laat de server bij een leesfout <c>SaveConfiguration</c> doen. Een override (of een
+    /// expliciete implementatie van het interfacelid) is JL0002, nergens.
+    /// </summary>
+    public static readonly ImmutableArray<string> PluginConfigLeden = ImmutableArray.Create("ConfigurationFileName", "SaveConfiguration", "UpdateConfiguration", "Configuration");
+
+    /// <summary>Waar als de namespace of de assembly bij de server-ABI hoort (niet de eigen plugin).</summary>
+    public static bool IsServerAbi(string ruimte, string? assembly) =>
+        !InNamespace(ruimte, ImmutableArray.Create(PluginNamespace))
+        && (InNamespace(ruimte, ServerAbiNamespaces)
+            || (assembly is not null && !assembly.StartsWith(PluginNamespace, StringComparison.Ordinal) && ServerAbiNamespaces.Any(n => assembly == n || assembly.StartsWith(n + ".", StringComparison.Ordinal))));
 }

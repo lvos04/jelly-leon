@@ -30,6 +30,42 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         true,
         customTags: WellKnownDiagnosticTags.NotConfigurable);
 
+    private static readonly DiagnosticDescriptor _serverAbi = new(
+        Regels.ServerSchrijf,
+        "Server-ABI alleen via de witte lijst",
+        "'{0}' is een lid van de server-ABI dat in deze klasse niet op de witte lijst staat (ADR-0032, kop \"Server-ABI: witte lijst\": alleen lezende leden die de plugin echt gebruikt, per klasse)",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    private static readonly DiagnosticDescriptor _serverToewijzing = new(
+        Regels.ServerSchrijf,
+        "Een eigenschap of veld van een servertype zetten is verboden",
+        "'{0}' zet een eigenschap of veld van een servertype; de server kan het object zelf opslaan of erop handelen (zoals SessionInfo.NowPlayingItem of RestoreBackupPath); dat mag nergens",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    private static readonly DiagnosticDescriptor _serverUitbreiding = new(
+        Regels.ServerSchrijf,
+        "Uitbreidingspunt van de server buiten de witte lijst",
+        "'{0}' implementeert of erft '{1}' uit de server-ABI; de server zoekt zulke typen zelf op en roept ze aan. Alleen de uitbreidingspunten op de witte lijst mogen, elk in zijn eigen namespace (ADR-0032).",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    private static readonly DiagnosticDescriptor _pluginConfig = new(
+        Regels.BestandSchrijf,
+        "Het pad van de pluginconfiguratie mag niet worden verlegd",
+        "'{0}' verlegt of vervangt waar de server de pluginconfiguratie schrijft (ConfigurationFilePath); de server schrijft dan zelf op een gekozen pad. Dat mag nergens in plugincode.",
+        Categorie,
+        DiagnosticSeverity.Error,
+        true,
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
     private static readonly DiagnosticDescriptor _bestandSchrijf = new(
         Regels.BestandSchrijf,
         "Bestanden schrijven mag alleen via de opslaglaag",
@@ -95,7 +131,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(_serverSchrijf, _bestandSchrijf, _serverBestand, _omweg, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
+        ImmutableArray.Create(_serverSchrijf, _serverAbi, _serverToewijzing, _serverUitbreiding, _pluginConfig, _bestandSchrijf, _serverBestand, _omweg, _databaseToegang, _serverDatabase, _procesStart, _ongeldigeUitzondering);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -141,6 +177,30 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             OperationKind.FieldReference,
             OperationKind.EventReference,
             OperationKind.ObjectCreation);
+        context.RegisterOperationAction(
+            toestand.VolledigVerboden,
+            OperationKind.Invocation,
+            OperationKind.MethodReference,
+            OperationKind.PropertyReference,
+            OperationKind.FieldReference,
+            OperationKind.EventReference,
+            OperationKind.ObjectCreation);
+        context.RegisterOperationAction(
+            toestand.ServerAbi,
+            OperationKind.Invocation,
+            OperationKind.MethodReference,
+            OperationKind.PropertyReference,
+            OperationKind.FieldReference,
+            OperationKind.EventReference,
+            OperationKind.ObjectCreation,
+            OperationKind.Binary,
+            OperationKind.Unary,
+            OperationKind.Conversion,
+            OperationKind.CompoundAssignment,
+            OperationKind.Increment,
+            OperationKind.Decrement);
+        context.RegisterSymbolAction(toestand.Uitbreiding, SymbolKind.NamedType);
+        context.RegisterSymbolAction(toestand.PluginConfig, SymbolKind.Method, SymbolKind.Property);
         context.RegisterOperationAction(toestand.XmlSchrijven, OperationKind.Invocation, OperationKind.MethodReference, OperationKind.ObjectCreation);
         context.RegisterOperationAction(toestand.NativeAanroep, OperationKind.Invocation, OperationKind.MethodReference);
         context.RegisterOperationAction(
@@ -203,6 +263,12 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         private readonly List<INamedTypeSymbol> _databaseTypen = new();
         private readonly List<INamedTypeSymbol> _databaseTypenExact = new();
         private readonly List<INamedTypeSymbol> _verbindingTypen = new();
+        private readonly List<INamedTypeSymbol> _volledig = new();
+        private readonly List<(INamedTypeSymbol Type, ServerWit Wit)> _serverWit = new();
+        private readonly List<(INamedTypeSymbol Type, UitbreidingWit Wit, INamedTypeSymbol? Argument)> _uitbreidingWit = new();
+        private readonly INamedTypeSymbol? _streamOpties;
+        private readonly INamedTypeSymbol? _basisPlugin;
+        private readonly INamedTypeSymbol? _pluginConfiguratie;
         private readonly IAssemblySymbol _eigen;
         private readonly Uitzonderingen _uitzonderingen;
 
@@ -210,6 +276,36 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         {
             _uitzonderingen = uitzonderingen;
             _eigen = compilatie.Assembly;
+            _streamOpties = compilatie.GetTypeByMetadataName("System.IO.FileStreamOptions");
+            _basisPlugin = compilatie.GetTypeByMetadataName("MediaBrowser.Common.Plugins.BasePlugin`1");
+            _pluginConfiguratie = compilatie.GetTypeByMetadataName("MediaBrowser.Common.Plugins.IHasPluginConfiguration");
+            foreach (var naam in Regels.BestandVolledigTypen)
+            {
+                if (compilatie.GetTypeByMetadataName(naam) is { } type)
+                {
+                    _volledig.Add(type);
+                }
+            }
+
+            foreach (var wit in Regels.ServerAbiWitteLijst)
+            {
+                if (compilatie.GetTypeByMetadataName(wit.Type) is { } type)
+                {
+                    _serverWit.Add((type, wit));
+                }
+            }
+
+            foreach (var wit in Regels.UitbreidingWitteLijst)
+            {
+                if (compilatie.GetTypeByMetadataName(wit.Type) is { } type)
+                {
+                    var argument = wit.Typeargument is null ? null : compilatie.GetTypeByMetadataName(wit.Typeargument);
+                    if (wit.Typeargument is null || argument is not null)
+                    {
+                        _uitbreidingWit.Add((type, wit, argument));
+                    }
+                }
+            }
             foreach (var regel in Regels.Typen)
             {
                 if (compilatie.GetTypeByMetadataName(regel.Type) is { } type)
@@ -447,6 +543,13 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 return true;
             }
 
+            // Een constructor met FileStreamOptions opent een bestand met een zelfgekozen modus en toegang (Truncate, Create,
+            // ReadWrite), ook bij een lezer als StreamReader: nooit op de witte lijst (R-HARDE-EIS, herreview 6).
+            if (constructor is not null && _streamOpties is not null && constructor.Parameters.Any(p => SymbolEqualityComparer.Default.Equals(p.Type, _streamOpties)))
+            {
+                return false;
+            }
+
             foreach (var (witType, wit) in _wit)
             {
                 if (constructor is not null)
@@ -540,6 +643,330 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             }
 
             context.ReportDiagnostic(Diagnostic.Create(_bestandSchrijf, context.Operation.Syntax.GetLocation(), methode.MethodKind == MethodKind.Constructor ? "new " + type.ToDisplayString() : type.ToDisplayString() + "." + methode.Name));
+        }
+
+        /// <summary>
+        /// JL0002 (R-HARDE-EIS-15): buiten de opslagnamespaces is elk gebruik van <see cref="Regels.BestandVolledigTypen"/>
+        /// verboden, ook lezen en ook van een type dat ervan afleidt: <c>WebClient</c> en <c>WebRequest</c> (met een
+        /// file:-adres schrijven ze in elk bestand) en de trace-laag (een listener schrijft in een zelfgekozen bestand).
+        /// </summary>
+        public void VolledigVerboden(OperationAnalysisContext context)
+        {
+            var (lid, type, constructor) = LidEnType(context.Operation);
+            if (lid is null || type is null || InNamespace(context.ContainingSymbol, Regels.OpslagNamespaces))
+            {
+                return;
+            }
+
+            for (var t = type; t is not null; t = t.BaseType)
+            {
+                if (_volledig.Any(v => SymbolEqualityComparer.Default.Equals(t.OriginalDefinition, v)))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(_bestandSchrijf, context.Operation.Syntax.GetLocation(), Naam(t, lid, constructor)));
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Het lid, het type waarop het werkt en (bij aanmaken of een basisconstructor) de constructor.</summary>
+        private static (ISymbol? Lid, INamedTypeSymbol? Type, IMethodSymbol? Constructor) LidEnType(IOperation operatie)
+        {
+            switch (operatie)
+            {
+                case IInvocationOperation { TargetMethod.MethodKind: MethodKind.Constructor } basis:
+                    return (basis.TargetMethod, basis.TargetMethod.ContainingType, basis.TargetMethod);
+                case IInvocationOperation aanroep:
+                    var methode = aanroep.TargetMethod.ReducedFrom ?? aanroep.TargetMethod;
+                    return (methode, methode.ContainingType, null);
+                case IMethodReferenceOperation verwijzing:
+                    var bedoeld = verwijzing.Method.ReducedFrom ?? verwijzing.Method;
+                    return (bedoeld, bedoeld.ContainingType, null);
+                case IPropertyReferenceOperation eigenschap:
+                    return (eigenschap.Property, eigenschap.Property.ContainingType, null);
+                case IFieldReferenceOperation veld:
+                    return (veld.Field, veld.Field.ContainingType, null);
+                case IEventReferenceOperation gebeurtenis:
+                    return (gebeurtenis.Event, gebeurtenis.Event.ContainingType, null);
+                case IObjectCreationOperation aanmaak:
+                    var gemaakt = aanmaak.Type as INamedTypeSymbol;
+                    return ((ISymbol?)aanmaak.Constructor ?? gemaakt, gemaakt, aanmaak.Constructor);
+                default:
+                    return (null, null, null);
+            }
+        }
+
+        /// <summary>
+        /// JL0001 server-ABI (R-HARDE-EIS-14 en -16, S-G1-17 herstelronde 7): elk gebruik van een lid van een servertype
+        /// (MediaBrowser.*, Jellyfin.* behalve de eigen plugin, Emby.*) is verboden, behalve wat in deze klasse op
+        /// <see cref="Regels.ServerAbiWitteLijst"/> staat. Een eigenschap of veld van een servertype zetten is altijd verboden,
+        /// behalve in de objectinitialisatie van een aanmaak die op de witte lijst staat. Een constante (ook een enumwaarde)
+        /// lezen mag. Wat een andere regel al meldt of vrijgeeft (de bewaakte typen, de server-ABI die zelf schrijft,
+        /// databasetoegang, bestanden, de naam van de serverdatabase), meldt deze regel niet nog eens.
+        /// </summary>
+        public void ServerAbi(OperationAnalysisContext context)
+        {
+            var operatie = context.Operation;
+            ISymbol? lid;
+            var geschreven = false;
+            switch (operatie)
+            {
+                case IInvocationOperation aanroep:
+                    lid = aanroep.TargetMethod.ReducedFrom ?? aanroep.TargetMethod;
+                    break;
+                case IMethodReferenceOperation verwijzing:
+                    lid = verwijzing.Method.ReducedFrom ?? verwijzing.Method;
+                    break;
+                case IPropertyReferenceOperation eigenschap:
+                    lid = eigenschap.Property;
+                    geschreven = IsGeschreven(eigenschap);
+                    break;
+                case IFieldReferenceOperation veld:
+                    if (veld.Field.IsConst)
+                    {
+                        return;
+                    }
+
+                    lid = veld.Field;
+                    geschreven = IsGeschreven(veld);
+                    break;
+                case IEventReferenceOperation gebeurtenis:
+                    lid = gebeurtenis.Event;
+                    break;
+                case IObjectCreationOperation aanmaak:
+                    lid = (ISymbol?)aanmaak.Constructor ?? aanmaak.Type;
+                    break;
+                case IBinaryOperation binair:
+                    lid = binair.OperatorMethod;
+                    break;
+                case IUnaryOperation unair:
+                    lid = unair.OperatorMethod;
+                    break;
+                case IConversionOperation omzetting:
+                    lid = omzetting.OperatorMethod;
+                    break;
+                case ICompoundAssignmentOperation samengesteld:
+                    lid = samengesteld.OperatorMethod;
+                    break;
+                case IIncrementOrDecrementOperation ophoging:
+                    lid = ophoging.OperatorMethod;
+                    break;
+                default:
+                    return;
+            }
+
+            var type = lid as INamedTypeSymbol ?? lid?.ContainingType;
+            if (lid is null || type is null || !IsServertype(type) || DoorEenAndereRegel(context, lid, type, geschreven))
+            {
+                return;
+            }
+
+            var naam = type.OriginalDefinition.ToDisplayString() + "." + (lid is INamedTypeSymbol ? ".ctor" : lid.Name);
+            var klasse = BuitensteType(context.ContainingSymbol)?.ToDisplayString();
+            if (geschreven)
+            {
+                if (!InitialisatieToegestaan(operatie, klasse))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(_serverToewijzing, operatie.Syntax.GetLocation(), naam));
+                }
+
+                return;
+            }
+
+            var lidnaam = lid is INamedTypeSymbol ? ".ctor" : lid.Name;
+            if (!_serverWit.Any(w => w.Wit.Lid == lidnaam && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, w.Type)))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_serverAbi, operatie.Syntax.GetLocation(), naam));
+            }
+        }
+
+        /// <summary>Waar als het type bij de server-ABI hoort (niet de eigen assembly of de eigen namespace).</summary>
+        private bool IsServertype(INamedTypeSymbol type)
+        {
+            var origineel = type.OriginalDefinition;
+            return !SymbolEqualityComparer.Default.Equals(origineel.ContainingAssembly, _eigen)
+                && Regels.IsServerAbi(origineel.ContainingNamespace?.ToDisplayString() ?? string.Empty, origineel.ContainingAssembly?.Identity.Name);
+        }
+
+        /// <summary>Waar als de operatie een eigenschap of veld schrijft (toewijzing, ++/--, ref/out, deconstructie).</summary>
+        private static bool IsGeschreven(IOperation verwijzing)
+        {
+            var ouder = verwijzing.Parent;
+            switch (ouder)
+            {
+                case IAssignmentOperation toewijzing:
+                    return ReferenceEquals(toewijzing.Target, verwijzing);
+                case IIncrementOrDecrementOperation:
+                    return true;
+                case IArgumentOperation argument:
+                    return argument.Parameter?.RefKind is RefKind.Ref or RefKind.Out;
+            }
+
+            var hier = verwijzing;
+            while (ouder is ITupleOperation)
+            {
+                hier = ouder;
+                ouder = ouder.Parent;
+            }
+
+            return ouder is IDeconstructionAssignmentOperation deconstructie && ReferenceEquals(deconstructie.Target, hier);
+        }
+
+        /// <summary>
+        /// Waar als een andere regel deze operatie al meldt of vrijgeeft: een verboden lid van een bewaakt type (ook het zetten
+        /// van een eigenschap daarvan), een aanmaak uit <see cref="Regels.Aanmaak"/>, een aanmaak die de bestandsregel meldt,
+        /// databasetoegang of een operatie die de naam van een databasetype van de server noemt (JL0003).
+        /// </summary>
+        private bool DoorEenAndereRegel(OperationAnalysisContext context, ISymbol lid, INamedTypeSymbol type, bool geschreven)
+        {
+            // Methode() ziet alleen aanroepen en methodegroepen, Eigenschap() alleen het zetten van een eigenschap.
+            var methode = context.Operation is IInvocationOperation or IMethodReferenceOperation;
+            foreach (var (bewaakt, regel) in _typen)
+            {
+                if (LidVan(lid, bewaakt) is { } naam && (geschreven ? lid is IPropertySymbol : methode && regel.IsVerboden(naam)))
+                {
+                    return true;
+                }
+            }
+
+            if (lid is IMethodSymbol { MethodKind: MethodKind.Constructor } constructor)
+            {
+                foreach (var (aanmaakType, _, alleenMetPad, _) in _aanmaak)
+                {
+                    if (HoortBij(type, aanmaakType) && (!alleenMetPad || constructor.Parameters.FirstOrDefault()?.Type.SpecialType == SpecialType.System_String))
+                    {
+                        return true;
+                    }
+                }
+
+                if (EersteBestandstype(type) is { } bestand && !InNamespace(context.ContainingSymbol, Regels.OpslagNamespaces)
+                    && !BestandToegestaan(bestand, constructor, constructor, false))
+                {
+                    return true;
+                }
+            }
+
+            return MeldtDatabasetoegang(context, out _) || NoemtServerdatabase(context.Operation);
+        }
+
+        /// <summary>
+        /// Waar als een eigenschap wordt gezet in de objectinitialisatie (<c>new T { P = … }</c>) van een aanmaak die in deze
+        /// klasse op de witte lijst staat, en de eigenschap bij die aanmaak genoemd is.
+        /// </summary>
+        private bool InitialisatieToegestaan(IOperation operatie, string? klasse)
+        {
+            if (operatie is not IPropertyReferenceOperation { Instance: IInstanceReferenceOperation { ReferenceKind: InstanceReferenceKind.ImplicitReceiver } } eigenschap
+                || eigenschap.Parent is not ISimpleAssignmentOperation { Parent: IObjectOrCollectionInitializerOperation { Parent: IObjectCreationOperation aanmaak } }
+                || aanmaak.Type is not INamedTypeSymbol gemaakt)
+            {
+                return false;
+            }
+
+            return _serverWit.Any(w => w.Wit.Lid == ".ctor" && w.Wit.Klasse == klasse
+                && SymbolEqualityComparer.Default.Equals(gemaakt.OriginalDefinition, w.Type)
+                && w.Wit.Initialisatie.Contains(eigenschap.Property.Name));
+        }
+
+        /// <summary>
+        /// JL0001 uitbreidingspunten (R-HARDE-EIS-16): een type van de plugin dat een servertype implementeert of ervan
+        /// afleidt, moet daarvoor op <see cref="Regels.UitbreidingWitteLijst"/> staan, in precies zijn namespace. Wat een
+        /// toegestaan servertype zelf meebrengt (de interfaces van <c>BasePlugin&lt;T&gt;</c>) mag mee; een servertype dat het
+        /// plugintype zelf (opnieuw) noemt, moet er zelf op staan. Ook via een eigen tussentype (een eigen interface of
+        /// basisklasse) telt het servertype mee.
+        /// </summary>
+        public void Uitbreiding(SymbolAnalysisContext context)
+        {
+            var type = (INamedTypeSymbol)context.Symbol;
+            if (type.IsImplicitlyDeclared || type.Locations.FirstOrDefault(l => l.IsInSource) is not { } plek)
+            {
+                return;
+            }
+
+            var ruimte = type.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+            var alle = new List<INamedTypeSymbol>();
+            for (var t = type.BaseType; t is not null; t = t.BaseType)
+            {
+                alle.Add(t);
+            }
+
+            alle.AddRange(type.AllInterfaces);
+            var server = alle.Where(IsServertype).ToList();
+            if (server.Count == 0)
+            {
+                return;
+            }
+
+            var toegestaan = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+            foreach (var s in server.Where(s => Uitbreidbaar(s, ruimte)))
+            {
+                toegestaan.Add(s);
+                for (var t = s.BaseType; t is not null; t = t.BaseType)
+                {
+                    toegestaan.Add(t);
+                }
+
+                foreach (var i in s.AllInterfaces)
+                {
+                    toegestaan.Add(i);
+                }
+            }
+
+            var direct = new List<INamedTypeSymbol>(type.Interfaces);
+            if (type.BaseType is { } basis)
+            {
+                direct.Add(basis);
+            }
+
+            var fout = server.Where(s => !toegestaan.Contains(s))
+                .Concat(direct.Where(d => IsServertype(d) && !Uitbreidbaar(d, ruimte)))
+                .Select(s => s.ToDisplayString())
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToList();
+            if (fout.Count > 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_serverUitbreiding, plek, type.ToDisplayString(), string.Join(", ", fout)));
+            }
+        }
+
+        private bool Uitbreidbaar(INamedTypeSymbol servertype, string ruimte) =>
+            _uitbreidingWit.Any(w => w.Wit.Ruimte == ruimte
+                && SymbolEqualityComparer.Default.Equals(servertype.OriginalDefinition, w.Type)
+                && (w.Argument is null || (servertype.TypeArguments.Length == 1 && SymbolEqualityComparer.Default.Equals(servertype.TypeArguments[0], w.Argument))));
+
+        /// <summary>
+        /// JL0002 (R-HARDE-EIS-14a): een override van <c>BasePlugin&lt;T&gt;.ConfigurationFileName</c>,
+        /// <c>SaveConfiguration</c> of <c>UpdateConfiguration</c>, of een expliciete implementatie van een lid van
+        /// <c>IHasPluginConfiguration</c>, verlegt waar de server de pluginconfiguratie schrijft (al bij het lezen van
+        /// <c>Configuration</c>). Nergens toegestaan.
+        /// </summary>
+        public void PluginConfig(SymbolAnalysisContext context)
+        {
+            var lid = context.Symbol;
+            if (lid.IsImplicitlyDeclared || lid.Locations.FirstOrDefault(l => l.IsInSource) is not { } plek)
+            {
+                return;
+            }
+
+            for (var o = Overschreven(lid); o is not null; o = Overschreven(o))
+            {
+                if (_basisPlugin is not null && SymbolEqualityComparer.Default.Equals(o.ContainingType?.OriginalDefinition, _basisPlugin) && Regels.PluginConfigLeden.Contains(o.Name))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(_pluginConfig, plek, "override " + o.ContainingType!.OriginalDefinition.ToDisplayString() + "." + o.Name));
+                    return;
+                }
+            }
+
+            var expliciet = lid switch
+            {
+                IMethodSymbol m => m.ExplicitInterfaceImplementations.Cast<ISymbol>(),
+                IPropertySymbol p => p.ExplicitInterfaceImplementations.Cast<ISymbol>(),
+                _ => Enumerable.Empty<ISymbol>(),
+            };
+            if (_pluginConfiguratie is not null
+                && expliciet.FirstOrDefault(i => SymbolEqualityComparer.Default.Equals(i.ContainingType?.OriginalDefinition, _pluginConfiguratie) && Regels.PluginConfigLeden.Contains(i.Name)) is { } geraakt)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(_pluginConfig, plek, geraakt.ContainingType.ToDisplayString() + "." + geraakt.Name));
+            }
         }
 
         /// <summary>

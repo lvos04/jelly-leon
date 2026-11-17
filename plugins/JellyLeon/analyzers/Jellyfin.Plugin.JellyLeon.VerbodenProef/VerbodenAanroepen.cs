@@ -1,6 +1,8 @@
 // Proefcode voor de analyzer van verboden API's (ADR-0032).
 // Elke regel met de markering "VERWACHT: JLxxxx" moet precies die bouwfout geven; geen enkele andere regel mag een
 // JL-fout geven. Dit bestand wordt nooit geleverd en nooit uitgevoerd: het bestaat alleen om de build te laten falen.
+// Sinds herstelronde 7 (S-G1-17) is de server-ABI een witte lijst per klasse: ook lezen van een servertype is JL0001 buiten
+// die lijst, dus de leesregels hieronder staan ook gemarkeerd. Elke regel geeft precies één melding.
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -43,7 +45,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             item.AddStudio("x"); // VERWACHT: JL0001
             Func<BaseItem, BaseItem, MediaBrowser.Controller.Library.ItemUpdateType, CancellationToken, Task> omweg = lib.UpdateItemAsync; // VERWACHT: JL0001
             _ = omweg;
-            _ = lib.GetItemById(Guid.Empty);
+            _ = lib.GetItemById(Guid.Empty); // VERWACHT: JL0001
             // Heet "Get…", maar maakt in upstream een item of map aan als die ontbreekt: ook verboden.
             _ = lib.GetOrCreatePerson("x"); // VERWACHT: JL0001
             _ = lib.GetGenre("x"); // VERWACHT: JL0001
@@ -56,11 +58,11 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             // Een eigenschap van een serverobject zetten is ook schrijven: het item is gedeeld met de cache van de server.
             item.Name = "x"; // VERWACHT: JL0001
             item.IsLocked = true; // VERWACHT: JL0001
-            _ = item.Name;
-            _ = lib.GetPerson("x");
-            _ = lib.GetGenreId("x");
-            _ = repo.RetrieveItem(Guid.Empty);
-            _ = await repo.ItemExistsAsync(Guid.Empty);
+            _ = item.Name; // VERWACHT: JL0001
+            _ = lib.GetPerson("x"); // VERWACHT: JL0001
+            _ = lib.GetGenreId("x"); // VERWACHT: JL0001
+            _ = repo.RetrieveItem(Guid.Empty); // VERWACHT: JL0001
+            _ = await repo.ItemExistsAsync(Guid.Empty); // VERWACHT: JL0001
         }
 
         public void Kijkgeschiedenis(IUserDataManager gegevens, User gebruiker, BaseItem item, UserItemData stand)
@@ -68,7 +70,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             gegevens.SaveUserData(gebruiker, item, stand, default, CancellationToken.None); // VERWACHT: JL0001
             gegevens.UpdatePlayState(item, stand, null); // VERWACHT: JL0001
             gegevens.ResetPlaybackStreamSelections(gebruiker, item); // VERWACHT: JL0001
-            _ = gegevens.GetUserData(gebruiker, item);
+            _ = gegevens.GetUserData(gebruiker, item); // VERWACHT: JL0001
         }
 
         public async Task Metadata(IProviderManager aanbieders, ISubtitleManager ondertitels, IMediaSegmentManager segmenten, BaseItem item, CancellationToken stop)
@@ -77,8 +79,8 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             await aanbieders.RefreshFullItem(item, null, stop); // VERWACHT: JL0001
             await ondertitels.DeleteSubtitles(item, 0); // VERWACHT: JL0001
             await segmenten.DeleteSegmentAsync(Guid.Empty); // VERWACHT: JL0001
-            _ = segmenten.HasSegments(Guid.Empty);
-            _ = ondertitels.GetSupportedProviders(item);
+            _ = segmenten.HasSegments(Guid.Empty); // VERWACHT: JL0001
+            _ = ondertitels.GetSupportedProviders(item); // VERWACHT: JL0001
         }
 
         public async Task Beheer(IUserManager gebruikers, ISessionManager sessies, IDeviceManager apparaten, IServerConfigurationManager instellingen, IConfigurationManager basis, IPlaylistManager lijsten, ICollectionManager collecties, User gebruiker)
@@ -95,10 +97,10 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = await collecties.GetCollectionsFolder(true); // VERWACHT: JL0001
             _ = lijsten.GetPlaylistsFolder(); // VERWACHT: JL0001
             _ = await sessies.GetSessionByAuthenticationToken("t", "d", "e"); // VERWACHT: JL0001
-            _ = gebruikers.GetUserById(Guid.Empty);
-            _ = apparaten.GetDevice("d");
-            _ = instellingen.GetConfiguration("k");
-            _ = lijsten.GetPlaylists(Guid.Empty);
+            _ = gebruikers.GetUserById(Guid.Empty); // VERWACHT: JL0001
+            _ = apparaten.GetDevice("d"); // VERWACHT: JL0001
+            _ = instellingen.GetConfiguration("k"); // VERWACHT: JL0001
+            _ = lijsten.GetPlaylists(Guid.Empty); // VERWACHT: JL0001
         }
 
         // Overige diensten die zelf in jellyfin.db schrijven (R-HARDE-EIS-1, S-G1-17): nergens toegestaan.
@@ -124,37 +126,37 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = voorkeuren.GetItemDisplayPreferences(Guid.Empty, Guid.Empty, "web"); // VERWACHT: JL0001
             voorkeuren.UpdateDisplayPreferences(p); // VERWACHT: JL0001
             voorkeuren.SetCustomItemDisplayPreferences(Guid.Empty, Guid.Empty, "web", null); // VERWACHT: JL0001
-            _ = voorkeuren.ListItemDisplayPreferences(Guid.Empty, "web");
+            _ = voorkeuren.ListItemDisplayPreferences(Guid.Empty, "web"); // VERWACHT: JL0001
             await hoofdstukken.DeleteChaptersAsync(Guid.Empty, stop); // VERWACHT: JL0001
             hoofdstukken.SaveChapters(Guid.Empty, null); // VERWACHT: JL0001
-            _ = hoofdstukken.GetChapters(Guid.Empty);
+            _ = hoofdstukken.GetChapters(Guid.Empty); // VERWACHT: JL0001
             await hoofdstukbeheer.DeleteChapterDataAsync(Guid.Empty, stop); // VERWACHT: JL0001
             hoofdstukbeheer.SaveChapters(item, null); // VERWACHT: JL0001
-            _ = hoofdstukbeheer.Supports(item);
+            _ = hoofdstukbeheer.Supports(item); // VERWACHT: JL0001
             sporen.SaveMediaStreams(Guid.Empty, null, stop); // VERWACHT: JL0001
-            _ = sporen.GetMediaStreamLanguages(default);
+            _ = sporen.GetMediaStreamLanguages(default); // VERWACHT: JL0001
             bijlagen.SaveMediaAttachments(Guid.Empty, null, stop); // VERWACHT: JL0001
             mensen.UpdatePeople(Guid.Empty, null); // VERWACHT: JL0001
             _ = mensen.DeleteOrphanedCredits(); // VERWACHT: JL0001
-            _ = mensen.GetPeopleNames(null);
+            _ = mensen.GetPeopleNames(null); // VERWACHT: JL0001
             await keyframes.SaveKeyframeDataAsync(Guid.Empty, null, stop); // VERWACHT: JL0001
             await keyframebeheer.DeleteKeyframeDataAsync(Guid.Empty, stop); // VERWACHT: JL0001
-            _ = keyframebeheer.GetKeyframeData(Guid.Empty);
+            _ = keyframebeheer.GetKeyframeData(Guid.Empty); // VERWACHT: JL0001
             await trickplay.DeleteTrickplayDataAsync(Guid.Empty, stop); // VERWACHT: JL0001
             await trickplay.SaveTrickplayInfo(null); // VERWACHT: JL0001
-            _ = await trickplay.GetTrickplayResolutions(Guid.Empty);
+            _ = await trickplay.GetTrickplayResolutions(Guid.Empty); // VERWACHT: JL0001
             koppelingen.UpsertLinkedChild(Guid.Empty, Guid.Empty, default); // VERWACHT: JL0001
             _ = koppelingen.RerouteLinkedChildren(Guid.Empty, Guid.Empty); // VERWACHT: JL0001
-            _ = koppelingen.GetLinkedChildrenIds(Guid.Empty);
+            _ = koppelingen.GetLinkedChildrenIds(Guid.Empty); // VERWACHT: JL0001
             await extern_.DeleteExternalItemDataAsync(item, stop); // VERWACHT: JL0001
             await activiteit.CreateAsync(null); // VERWACHT: JL0001
             await activiteit.CleanAsync(DateTime.MinValue); // VERWACHT: JL0001
             await sleutels.CreateApiKey("x"); // VERWACHT: JL0001
             await sleutels.DeleteApiKey("x"); // VERWACHT: JL0001
-            _ = await sleutels.GetApiKeys();
+            _ = await sleutels.GetApiKeys(); // VERWACHT: JL0001
             await backup.RestoreBackupAsync("x"); // VERWACHT: JL0001
             backup.ScheduleRestoreAndRestartServer("x"); // VERWACHT: JL0001
-            _ = await backup.EnumerateBackups();
+            _ = await backup.EnumerateBackups(); // VERWACHT: JL0001
         }
 
         // Diensten die via een andere server-API schrijven, verversen of een servertaak starten: nergens toegestaan.
@@ -189,14 +191,14 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             taken.QueueScheduledTask(null, null); // VERWACHT: JL0001
             bewaker.ReportFileSystemChanged("x"); // VERWACHT: JL0001
             _ = await metadata.RefreshMetadata(item, null, stop); // VERWACHT: JL0001
-            _ = metadata.CanRefresh(item);
+            _ = metadata.CanRefresh(item); // VERWACHT: JL0001
             _ = await bronnen.GetPlaybackMediaSources(item, gebruiker, true, false, stop); // VERWACHT: JL0001
-            _ = bronnen.GetStaticMediaSources(item, false, null);
+            _ = bronnen.GetStaticMediaSources(item, false, null); // VERWACHT: JL0001
             await songteksten.DeleteLyricsAsync(nummer); // VERWACHT: JL0001
-            _ = await songteksten.GetLyricsAsync(nummer, stop);
+            _ = await songteksten.GetLyricsAsync(nummer, stop); // VERWACHT: JL0001
             _ = await kanalen.GetChannelItemsInternal(null, null, stop); // VERWACHT: JL0001
             await kanalen.DeleteItem(item); // VERWACHT: JL0001
-            _ = kanalen.GetChannel("x");
+            _ = kanalen.GetChannel("x"); // VERWACHT: JL0001
             await livetv.CancelTimer("x"); // VERWACHT: JL0001
             await gids.RefreshGuide(null, stop); // VERWACHT: JL0001
             opnames.CancelRecording("x", null); // VERWACHT: JL0001
@@ -208,12 +210,13 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             events.Publish(EventArgs.Empty); // VERWACHT: JL0001
             // Een servertaak via het taakobject zelf starten of de planning ervan wijzigen (S-G1-17, herstelronde 2).
             await taak.ExecuteAsync(null, stop); // VERWACHT: JL0001
-            taken.ScheduledTasks[0].Triggers = null; // VERWACHT: JL0001
-            taken.ScheduledTasks[0].ReloadTriggerEvents(); // VERWACHT: JL0001
-            _ = taak.GetDefaultTriggers();
-            _ = taken.ScheduledTasks[0].Triggers;
+            var werkers = taken.ScheduledTasks; // VERWACHT: JL0001
+            werkers[0].Triggers = null; // VERWACHT: JL0001
+            werkers[0].ReloadTriggerEvents(); // VERWACHT: JL0001
+            _ = taak.GetDefaultTriggers(); // VERWACHT: JL0001
+            _ = werkers[0].Triggers; // VERWACHT: JL0001
             // Leesleden die via IChannelManager kanaalitems aanmaken, verversen of wissen.
-            var opties = new MediaBrowser.Controller.Dto.DtoOptions();
+            var opties = new MediaBrowser.Controller.Dto.DtoOptions(); // VERWACHT: JL0001
             _ = await livetv.GetRecordingsAsync(null, opties); // VERWACHT: JL0001
             _ = await livetv.GetRecordingFoldersAsync(gebruiker); // VERWACHT: JL0001
             _ = weergaven.GetLatestItems(null, opties); // VERWACHT: JL0001
@@ -227,9 +230,9 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = weergave.GetRecursiveChildren(gebruiker, null, out _); // VERWACHT: JL0001
             _ = lijst.GetChildren(gebruiker, true, null); // VERWACHT: JL0001
             _ = Playlist.GetPlaylistItems(null, gebruiker, opties); // VERWACHT: JL0001
-            _ = livetv.IsEnabledForUser(gebruiker);
+            _ = livetv.IsEnabledForUser(gebruiker); // VERWACHT: JL0001
             _ = map.GetChildren(gebruiker, true); // VERWACHT: JL0001
-            _ = serie.GetEpisodes(gebruiker, opties, false);
+            _ = serie.GetEpisodes(gebruiker, opties, false); // VERWACHT: JL0001
         }
 
         public void Bestanden(string pad, IFileSystem bestandssysteem)
@@ -311,7 +314,8 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _db = db;
             _ = diensten.GetService<IJellyfinDatabaseProvider>(); // VERWACHT: JL0003
             _ = typeof(IJellyfinDatabaseProvider); // VERWACHT: JL0003
-            var fabriek = _db.DbContextFactory; // VERWACHT: JL0003
+            var fabriek = // VERWACHT: JL0003
+                _db.DbContextFactory; // VERWACHT: JL0001
             _ = fabriek;
             _ = diensten.GetService<IServiceProvider>();
         }
@@ -341,7 +345,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
 
         public async Task Verbinding(MediaBrowser.Common.Configuration.IApplicationPaths paden, IServiceProvider diensten, SqliteConnection gekregen, DbCommand opdracht, object iets, CancellationToken stop)
         {
-            var pad = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
+            var pad = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db")); // VERWACHT: JL0001
             using var a = SqliteFactory.Instance.CreateConnection(); // VERWACHT: JL0002
             a.ConnectionString = "Data Source=" + pad; // VERWACHT: JL0002
             a.Open(); // VERWACHT: JL0002
@@ -451,12 +455,14 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
 
         public static async Task SlippendeRoutes(IApplicationPaths paden, IPluginManager plugins, IXmlSerializer xml, ITranscodeManager transcode, StreamState staat, string bron)
         {
-            var db = Path.Combine(paden.DataPath, string.Concat("jellyfin", ".db"));
-            var plugin = new LocalPlugin(paden.DataPath, true, new PluginManifest()); // VERWACHT: JL0002
+            var map = paden.DataPath; // VERWACHT: JL0001
+            var db = Path.Combine(map, string.Concat("jellyfin", ".db"));
+            var manifest = new PluginManifest(); // VERWACHT: JL0001
+            var plugin = new LocalPlugin(map, true, manifest); // VERWACHT: JL0002
             _ = plugins.RemovePlugin(plugin); // VERWACHT: JL0002
             xml.SerializeToFile(new object(), db); // VERWACHT: JL0002
-            ZipFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // VERWACHT: JL0002
-            TarFile.ExtractToDirectory(bron, paden.DataPath, overwriteFiles: true); // VERWACHT: JL0002
+            ZipFile.ExtractToDirectory(bron, map, overwriteFiles: true); // VERWACHT: JL0002
+            TarFile.ExtractToDirectory(bron, map, overwriteFiles: true); // VERWACHT: JL0002
             using (var w = XmlWriter.Create(db)) // VERWACHT: JL0002
             {
                 _ = w;
@@ -499,8 +505,8 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
                 new XDocument(new XElement("x")).Save(h);
             }
 
-            _ = AsyncFile.OpenRead(pad);
-            _ = paden.GetAttachmentPath("x", "y");
+            _ = AsyncFile.OpenRead(pad); // VERWACHT: JL0001
+            _ = paden.GetAttachmentPath("x", "y"); // VERWACHT: JL0001
         }
 
         public static void Omwegen(string pad, object iets, MethodInfo methode, Delegate d)
@@ -527,5 +533,99 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             _ = typeof(Bestandsroutes).Assembly.GetName().Version;
             _ = iets.GetType().Name;
         }
+    }
+}
+
+// Herstelronde 7 (S-G1-17; R-HARDE-EIS-14, -15 en -16): de server-ABI als witte lijst per klasse, toewijzen aan een servertype,
+// uitbreidingspunten per namespace, de configuratieroute van BasePlugin<T>, WebClient/WebRequest/trace en StreamReader met
+// FileStreamOptions.
+namespace Jellyfin.Plugin.JellyLeon.Configuration
+{
+    public class PluginConfiguration : MediaBrowser.Model.Plugins.BasePluginConfiguration
+    {
+    }
+}
+
+namespace Jellyfin.Plugin.JellyLeon
+{
+    using MediaBrowser.Common.Plugins;
+    using MediaBrowser.Model.Plugins;
+    using MediaBrowser.Model.Serialization;
+
+    // De echte pluginklasse met één verkeerde regel (route -14a); de basisconstructor en de configuratiepagina staan op de
+    // witte lijst van deze klasse.
+    public class Plugin : BasePlugin<Configuration.PluginConfiguration>, IHasWebPages
+    {
+        public Plugin(IApplicationPaths paden, IXmlSerializer xml)
+            : base(paden, xml)
+        {
+        }
+
+        public override string Name => "Jelly Leon";
+
+        public override string ConfigurationFileName => "jellyfin.xml"; // VERWACHT: JL0002
+
+        public System.Collections.Generic.IEnumerable<PluginPageInfo> GetPages()
+        {
+            yield return new PluginPageInfo { Name = "x", DisplayName = "x", EmbeddedResourcePath = "x" };
+            yield return new PluginPageInfo { EnableInMainMenu = true }; // VERWACHT: JL0001
+        }
+    }
+}
+
+namespace Jellyfin.Plugin.JellyLeon.Core
+{
+    // De witte lijst geldt per klasse: in deze klasse mag precies GetVirtualFolders, een ander lid niet.
+    public class BibliotheekMappen
+    {
+        public void M(ILibraryManager lib)
+        {
+            _ = lib.GetVirtualFolders();
+            _ = lib.GetItemById(Guid.Empty); // VERWACHT: JL0001
+        }
+    }
+}
+
+namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+{
+    using System.Net;
+    using MediaBrowser.Controller;
+    using MediaBrowser.Controller.Resolvers;
+
+    public class ServerAbiWitteLijst
+    {
+        public void Lezen(ILibraryManager lib, SessionInfo s, IServerApplicationHost host, IApplicationPaths paden, Jellyfin.Plugin.JellyLeon.Plugin plugin, string naam)
+        {
+            _ = lib.GetVirtualFolders(); // VERWACHT: JL0001
+            s.NowPlayingItem = null; // VERWACHT: JL0001
+            var pad = paden.BackupPath; // VERWACHT: JL0001
+            host.RestoreBackupPath = naam; // VERWACHT: JL0001
+            _ = host.GetExports<ILibraryPostScanTask>(); // VERWACHT: JL0001
+            plugin.SaveConfiguration(); // VERWACHT: JL0001
+            // Toegestaan: een constante of enumwaarde en een typenaam.
+            _ = Jellyfin.Database.Implementations.Enums.PermissionKind.IsAdministrator;
+            _ = typeof(ILibraryManager);
+            _ = pad;
+        }
+
+#pragma warning disable SYSLIB0014
+        public void Schrijvers(Uri doel, string pad, FileStreamOptions opties)
+        {
+            using var w = new WebClient(); // VERWACHT: JL0002
+            var r = WebRequest.Create(doel); // VERWACHT: JL0002
+            r.Method = "PUT"; // VERWACHT: JL0002
+            Trace.WriteLine("x"); // VERWACHT: JL0002
+            var l = new DefaultTraceListener(); // VERWACHT: JL0002
+            l.LogFileName = pad; // VERWACHT: JL0002
+            using var lezer = new StreamReader(pad, opties); // VERWACHT: JL0002
+            using var gewoon = new StreamReader(pad);
+        }
+#pragma warning restore SYSLIB0014
+    }
+
+    // Een uitbreidingspunt buiten de witte lijst: de server zou deze regel zelf bij elke scan gebruiken.
+    public class Negeerregel : IResolverIgnoreRule // VERWACHT: JL0001
+    {
+        public bool ShouldIgnore(FileSystemMetadata fileInfo, BaseItem parent) => true;
     }
 }
