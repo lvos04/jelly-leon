@@ -435,6 +435,48 @@ public sealed class OpslagTests : IDisposable
     }
 
     /// <summary>
+    /// R-HARDE-EIS-12 (S-G1-17, herstelronde 5): de verbinding die <see cref="JlDatabase.Met{T}"/> aan Core of een module
+    /// geeft, bereikt met SQL geen ander databasebestand. <c>ATTACH</c> en <c>VACUUM INTO</c> (dat intern ook een database
+    /// koppelt) worden geweigerd, ook met een pad dat pas bij het draaien ontstaat; <c>load_extension</c> staat uit.
+    /// jellyfin.db blijft byte-gelijk en naast de serverdatabase ontstaat geen bestand. Vóór het herstel koppelde de
+    /// eerste opdracht jellyfin.db gewoon (en kon een module daarna <c>DELETE FROM s.UserData</c> doen).
+    /// </summary>
+    [Fact]
+    public void Database_EigenVerbindingKoppeltGeenAnderDatabasebestand()
+    {
+        var paden = _h.Dienst<JlPaths>();
+        var data = Path.GetDirectoryName(paden.DataRoot)!;
+        var serverDb = MaakServerDb(data);
+        var voor = File.ReadAllBytes(serverDb);
+        var db = new JlDatabase(paden, Path.Combine(paden.DataRoot, "proef", "proef.db"), ["CREATE TABLE jl_proef(a INTEGER);"]);
+        Assert.Equal(0, db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM jl_proef")));
+        var servermapVoor = Directory.GetFileSystemEntries(data).Order(StringComparer.Ordinal).ToList();
+        var nieuw = Path.Combine(data, string.Concat("kopie", ".db"));
+        var eigenKopie = Path.Combine(paden.DataRoot, "proef", "kopie.db");
+
+        foreach (var (sql, pad) in new[]
+        {
+            ("ATTACH DATABASE $p AS s", serverDb),
+            ("ATTACH DATABASE $p AS s", nieuw),
+            ("ATTACH DATABASE $p AS s", eigenKopie),
+            ("VACUUM INTO $p", nieuw),
+            ("SELECT load_extension($p)", Path.Combine(data, "x.so")),
+        })
+        {
+            var fout = Assert.Throws<JlException>(() => db.Met(v => JlDatabase.Voer(v, sql, ("$p", pad))));
+            Assert.Equal("storage_unavailable", fout.Code);
+        }
+
+        Assert.Equal(voor, File.ReadAllBytes(serverDb));
+        Assert.Equal(servermapVoor, Directory.GetFileSystemEntries(data).Order(StringComparer.Ordinal).ToList());
+        Assert.False(File.Exists(eigenKopie));
+
+        // Tegenproef: dezelfde verbinding werkt gewoon op het eigen bestand.
+        db.Met(v => JlDatabase.Voer(v, "INSERT INTO jl_proef VALUES(1)"));
+        Assert.Equal(1, db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM jl_proef")));
+    }
+
+    /// <summary>
     /// Bewaakt een aanname uit ADR-0032 (proef H8r van de herreview): SQLite opent zelf geen <c>-wal</c>, <c>-shm</c> of
     /// <c>-journal</c> dat een symbolische koppeling is (fout 14, SQLITE_CANTOPEN), ook buiten JlDatabase. Verandert dat
     /// bij een upgrade van SQLite, dan faalt deze test en hoort de padgrens opnieuw beoordeeld te worden. Per opdracht,

@@ -14,7 +14,9 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Storage;
 /// Alleen een bestand binnen de eigen mappen (<see cref="JlPaths.MagSchrijven"/>, ook na het volgen van symbolische
 /// koppelingen): elk ander pad, zoals de database van de server, weigert de constructor voordat er iets geopend of
 /// aangemaakt is, en elke opening controleert het opnieuw (HARDE EIS, ADR-0032). Dat geldt ook voor de bestanden die
-/// SQLite ernaast schrijft (<c>-wal</c>, <c>-shm</c>, <c>-journal</c>).
+/// SQLite ernaast schrijft (<c>-wal</c>, <c>-shm</c>, <c>-journal</c>). Een verbinding van dit type kan geen tweede database
+/// koppelen (<c>ATTACH</c>, <c>VACUUM INTO</c>); buiten Core.Storage is elke andere weg naar een databaseverbinding een
+/// bouwfout (JL0002, ADR-0032).
 /// </summary>
 internal sealed class JlDatabase
 {
@@ -152,6 +154,7 @@ internal sealed class JlDatabase
         verbinding.Open();
         try
         {
+            SluitKoppelenUit(verbinding);
             Voer(verbinding, "PRAGMA busy_timeout=5000;");
 
             // Verwijderde rijen worden met nullen overschreven: anders blijft de inhoud (bijvoorbeeld een account-ID na
@@ -170,6 +173,23 @@ internal sealed class JlDatabase
         {
             verbinding.Dispose();
             throw;
+        }
+    }
+
+    /// <summary>
+    /// De verbinding gaat via <see cref="Met{T}"/> naar Core en de modules. Met SQL mag die geen ander databasebestand bereiken
+    /// (R-HARDE-EIS-12, ADR-0032): <c>ATTACH</c> koppelt elk pad, ook een pad dat pas bij het draaien ontstaat, en
+    /// <c>VACUUM INTO</c> koppelt intern ook. Daarom mag deze verbinding geen enkele database koppelen
+    /// (<c>SQLITE_LIMIT_ATTACHED</c> = 0); daarna wordt de grens teruggelezen. Gaat dat mis, dan gaat de verbinding dicht
+    /// (503 storage_unavailable), nooit open met koppelen aan. De limiet geldt per verbinding en is alleen via SQLitePCL te
+    /// wijzigen, en dat is buiten Core.Storage een bouwfout (JL0002).
+    /// </summary>
+    private static void SluitKoppelenUit(SqliteConnection verbinding)
+    {
+        _ = SQLitePCL.raw.sqlite3_limit(verbinding.Handle, SQLitePCL.raw.SQLITE_LIMIT_ATTACHED, 0);
+        if (SQLitePCL.raw.sqlite3_limit(verbinding.Handle, SQLitePCL.raw.SQLITE_LIMIT_ATTACHED, -1) != 0)
+        {
+            throw new IOException("Koppelen van een tweede database is niet uit te zetten; verbinding gesloten.");
         }
     }
 
