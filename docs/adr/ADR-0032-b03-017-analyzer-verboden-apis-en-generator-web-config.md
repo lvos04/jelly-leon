@@ -18,6 +18,13 @@
   `Core.Secrets`), de niet-generieke `DbContextOptions` van de server resolven of injecteren is JL0003, en een verbinding
   van `JlDatabase` kan geen tweede database koppelen. De volledige lijst van gevonden wegen en de grenzen staan onder
   "Databasetoegang (JL0002)".
+  Bijgewerkt 2026-11-17 na herreview 5 (S-G1-17 herstelronde 6, R-HARDE-EIS-13): ook bestanden zijn nu generiek geregeld,
+  op namespace- en typeniveau in plaats van een opsomming. Buiten de opslagnamespaces is elk gebruik van een type uit
+  System.IO (met de subnamespaces, zoals Compression, MemoryMappedFiles, Pipes en IsolatedStorage), System.Formats.Tar en
+  de bestandslaag van Visual Basic JL0002, behalve een kleine witte lijst; daarbij de schrijvende delen van System.Xml en
+  System.Data. De server-ABI die zelf een bestand schrijft, wist of verplaatst of een proces start, is nergens toegestaan
+  (ook niet in `Core.Storage`). P/Invoke, `unsafe`, reflectie die een lid aanroept of een type uit een tekst haalt, code
+  laden en `dynamic` zijn overal JL0002. Het dreigingsmodel staat nu uitdrukkelijk onder "Dreigingsmodel".
 - **Werkpakket:** B03-017; raakt de HARDE EIS (kijkgeschiedenis, bibliotheek, metadata en gebruikersgegevens blijven
   behouden) en JLT-65.
 - **Bewijs:** `plugins/JellyLeon/tests/…/Analyzer/VerbodenApiAnalyzerTests.cs` (xunit), de proefassembly
@@ -46,9 +53,9 @@ configureerbaar (`NotConfigurable`): een `.editorconfig`, `NoWarn` of `#pragma` 
 | Regel | Verboden | Waar wel |
 |---|---|---|
 | **JL0001** | schrijvende server-API. Per interface geldt "alles verboden behalve lezen" (voorvoegsels `Get`, `Find`, `Query`, `Is`, `Has`, `Can`, `To`, alleen als heel woord: `CanRefresh` is lezen, `CancelTimer` niet): `ILibraryManager`, `IItemRepository`, `IItemPersistenceService`, `IPlaylistManager`, `ICollectionManager` (ook `GetCollectionsFolder`, want die kan aanmaken), `IUserManager`, `IDeviceManager`, `IUserDataManager`, `IProviderManager`, `ISubtitleManager`, `IMediaSegmentManager`, `ISessionManager`, `IServerConfigurationManager`/`IConfigurationManager`, plus de diensten uit "Wat JL0001 bewaakt" hieronder; op `BaseItem` en afgeleiden de wijzigende methoden (`Update*`, `Delete*`, `Refresh*`, `Save*`, `Add*`, `Remove*`, `Set*`, `Swap*`, `Changed*`, `Mark*`, `Validate*`). Ook het schrijven van een eigenschap (toewijzing, `++`, `--`) op een bewaakt type telt: `item.Name = …` op een `BaseItem` is JL0001. Bij een bewaakte interface tellen van een eigen klasse die de interface implementeert alleen de leden die een lid van die interface implementeren (zie "Wat JL0001 bewaakt") | bibliotheek, opslag van items, afspeellijsten, collecties, gebruikers, apparaten en alle diensten uit "Wat JL0001 bewaakt": **nergens**. De overige alleen in één met naam genoemde klasse per API (witte lijst) |
-| **JL0002** | bestanden schrijven, verplaatsen of verwijderen: `System.IO.File` en `Directory` (alles behalve lezen), wijzigende methoden en eigenschappen van `FileInfo`/`DirectoryInfo`, `new FileStream`, `new StreamWriter(pad)`, wijzigende methoden van `IFileSystem`. Daarnaast **databasetoegang**: elke operatie die een databaseverbinding of -bron oplevert of gebruikt (`new SqliteConnection`, `SqliteFactory`, `DbProviderFactory`/`DbProviderFactories`, `DbDataSource`, `IDbConnection`, SQLitePCL en de bouwers van Entity Framework Core; zie "Databasetoegang (JL0002)") | bestanden: alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API. Databasetoegang: **alleen in `Core.Storage`** (`JlDatabase`), geen uitzondering mogelijk |
+| **JL0002** | **bestanden**: elk gebruik van een type uit System.IO (met alle subnamespaces), System.Formats.Tar en Microsoft.VisualBasic.FileIO (plus `Microsoft.VisualBasic.FileSystem`), behalve de kleine witte lijst (padbewerking, lezen, en een stroom of lezer/schrijver die de code al heeft); het schrijvende deel van System.Xml/System.Xml.Linq (`Save`, `WriteTo`, `WriteContentTo`, `Transform`, `Serialize` en een XmlWriter maken, met een pad of stroom), `DataSet`/`DataTable.WriteXml*`, `WebClient.DownloadFile*`, `TextWriterTraceListener`/`ResourceWriter` met een pad en `ProfileOptimization`; wijzigende methoden van `IFileSystem` (zie "Bestanden (JL0002)"). **Server-ABI die zelf schrijft of een proces start** (`IPluginManager`, `new LocalPlugin`, `IXmlSerializer.SerializeTo…`, `ITranscodeManager`, `IMediaEncoder` en de rest van de lijst onder "Bestanden (JL0002)"). **Omwegen**: P/Invoke, `unsafe`, `NativeLibrary`/`Marshal`, reflectie die een lid aanroept of een type uit een tekst haalt, code laden, `Activator`, `dynamic`, System.Reflection.Emit (zie "Dreigingsmodel"). Daarnaast **databasetoegang**: elke operatie die een databaseverbinding of -bron oplevert of gebruikt (`new SqliteConnection`, `SqliteFactory`, `DbProviderFactory`/`DbProviderFactories`, `DbDataSource`, `IDbConnection`, SQLitePCL en de bouwers van Entity Framework Core; zie "Databasetoegang (JL0002)") | bestanden: alleen in `Core.Storage` en `Core.Secrets` (die bewaken de schrijfgrens `<DataPath>/jelly-leon/**` en `/cache/jelly-leon/**` zelf); `File`/`Directory`/`FileInfo`/`DirectoryInfo`/`IFileSystem`-methoden daarnaast in één genoemde klasse per API; voor de andere bestandsleden bestaat geen uitzondering. Server-ABI die zelf schrijft en de omwegen: **nergens**, ook niet in `Core.Storage`, geen uitzondering. Databasetoegang: **alleen in `Core.Storage`** (`JlDatabase`), geen uitzondering mogelijk |
 | **JL0003** | de database van de server: elk gebruik van de typenaam `JellyfinDbContext`, `IJellyfinDatabaseProvider` (een dienst in de container van de server: `DbContextFactory` geeft een context, `PurgeDatabase` wist elke tabel en `RestoreBackupFast` overschrijft `jellyfin.db`), `IEntityFrameworkCoreLockingBehavior` of `IItemQueryHelpers` (die twee nemen een context als argument), en van een type dat er een implementeert of ervan afleidt. Elk gebruik is: een parameter, een veld, een lokale variabele, `GetService<T>`, `typeof`, een alias, een typeargument (`IDbContextFactory<JellyfinDbContext>`), een elementtype en `var` dat naar zo'n type verwijst (`var f = provider.DbContextFactory`). Ook de niet-generieke `Microsoft.EntityFrameworkCore.DbContextOptions` (precies dat type, niet een afgeleid type) is JL0003 bij elk gebruik van de naam: na `AddPooledDbContextFactory<JellyfinDbContext>` staat hij in de container van de server en draagt hij de verbindingstekst van `jellyfin.db` (resolven met `GetRequiredService<DbContextOptions>()`, injecteren als parameter, `typeof`). Zonder die naam krijgt plugincode de dienst niet: de container geeft hem alleen op type, en volgens een scan van de plugin-ABI is `IJellyfinDatabaseProvider.DbContextFactory` het enige publieke lid dat een context of een fabriek ervan teruggeeft (herhaald in herstelronde 5 met een scan over alle compile-assets: zie "Databasetoegang (JL0002)"). Verder elke tekst met `jellyfin.db` of `library.db` (hoofdletters tellen niet). "Tekst" is elke letterlijke tekst, elke UTF-8-tekst (`"…"u8`), elke constante (ook uit een andere assembly, en de constante waarde van een omzetting: `(char)46` en `(char)0x2E` zijn een punt, `(int)'.'` is geen tekst) en elke samenstelling met `+` of `$"…"`, ook een optelling van UTF-8-teksten (`"jellyfin"u8 + ".db"u8`): de bekende stukken die direct op elkaar volgen worden aaneengeschreven (`"jellyfin" + ".db"`, `Naam + ".db"` met een constante, `$"{map}/jellyfin.d" + "b"`, `$"{map}/{Naam}.db"`); een uitlijning `{x,n}` met een bekend stuk vult met spaties aan tot \|n\| tekens (n positief ervoor, negatief erna; een kortere n vult niets aan, dus `$"jellyfin{".db",3}"` is JL0003); een stuk dat pas bij het draaien bekend is, breekt de reeks | **nergens**, geen uitzondering mogelijk |
-| **JL0004** | processen starten (`Process.Start`, `new Process`, `new ProcessStartInfo`) | alleen in `Core.Werker` (de werkerbewaker van B03-018); geen uitzondering per klasse |
+| **JL0004** | processen starten (`Process.Start`, `new Process`, `new ProcessStartInfo`, `Microsoft.VisualBasic.Interaction.Shell`). Het besluit van herstelronde 6 noemt processen starten bij JL0002; de regel blijft JL0004, want die is strenger (ook in `Core.Storage` en `Core.Secrets` verboden) en houdt de werkerbewaker van B03-018 in `Core.Werker` mogelijk. Een proces dat de server start (`ITranscodeManager.StartFfMpeg`, `IMediaEncoder`, de keyframe-extractors) is JL0002 (server-ABI) | alleen in `Core.Werker` (de werkerbewaker van B03-018); geen uitzondering per klasse |
 | **JL0009** | een ongeldige regel in de witte lijst | — |
 
 Verboden is "aanroepen én ernaar verwijzen": een methodegroep (`Action<string> f = File.Delete`) telt als aanroep.
@@ -74,6 +81,10 @@ bij de verboden leden), `ILiveTvManager`, `IGuideManager`, `IRecordingsManager`,
 `ITunerHostManager`, `IQuickConnect` (een aanmelding goedkeuren), `IAuthenticationProvider` en
 `IPasswordResetProvider` (wachtwoorden) en `IEventManager` (een serverevent publiceren laat de server zelf schrijven,
 bijvoorbeeld in het activiteitenlog). Voor geen van deze typen bestaat een uitzondering.
+
+Sinds herstelronde 6 ook `BaseItemExtensions` (alles behalve lezen): `SetImagePath` en `DeepCopy` naar een bestaand item
+wijzigen een item van de server net als de `Set…`-leden van `BaseItem` zelf, maar staan in een eigen statische klasse
+(gevonden met de padscan onder "Bestanden (JL0002)"). `GetImagePath`, `HasImage` en `HasChanged` zijn lezen.
 
 Een servertaak start ook via het taakobject zelf, niet alleen via `ITaskManager`: `ITaskManager.ScheduledTasks` en
 `IApplicationHost.GetExports<IScheduledTask>()` geven dat object. Daarom zijn ook `IScheduledTask` (`ExecuteAsync`;
@@ -157,8 +168,8 @@ gedelegeerde) en op namen met sqlite, connection, database, dbcontext, datasourc
 | De opties van de server | `GetRequiredService<DbContextOptions>()`, een parameter `DbContextOptions`, `typeof(DbContextOptions)`; `IDbContextOptions` | JL0003; `IDbContextOptions` JL0002 |
 | De databasedienst van de server | `JellyfinDbContext`, `IJellyfinDatabaseProvider` (`DbContextFactory`, `PurgeDatabase`, `RestoreBackupFast`), `IEntityFrameworkCoreLockingBehavior`, `IItemQueryHelpers`, `DescendantQueryHelper` en `JellyfinQueryHelperExtensions` (vragen een context) | JL0003 op de naam |
 | Generiek ophalen | `GetService<T>`, `GetRequiredService<T>`, `IApplicationHost.Resolve<T>`/`GetExports<T>`, `ActivatorUtilities.CreateInstance<T>`, `Activator.CreateInstance<T>` met een databasetype | JL0002 (of JL0003 bij een servertype) |
-| Als object ophalen | `GetService(typeof(…))`, `ServiceDescriptor.ImplementationInstance`, `Activator.CreateInstance(Type)` | `typeof` en de omzetting naar een databasetype zijn JL0002; zonder die twee blijft het een object |
-| Bestanden van de server | `jellyfin.db` kopiëren, verplaatsen of overschrijven | JL0002 (bestanden), JL0003 (de naam) |
+| Als object ophalen | `GetService(typeof(…))`, `ServiceDescriptor.ImplementationInstance`, `Activator.CreateInstance(Type)`, `Type.GetType("…")` | `typeof` en de omzetting naar een databasetype zijn JL0002; zonder die twee blijft het een object. Sinds herstelronde 6 zijn `Activator` en `Type.GetType(tekst)` zelf JL0002 (omweg, zie "Dreigingsmodel") |
+| Bestanden van de server | `jellyfin.db` kopiëren, verplaatsen, overschrijven of wissen, ook met een naam die pas bij het draaien ontstaat | JL0002 (de bestandsregel op namespace- en typeniveau en de server-ABI, zie "Bestanden (JL0002)"), JL0003 (een bekende naam) |
 | Teksten uit de configuratie | `IConfiguration.GetConnectionString`, `CustomDatabaseOptions.ConnectionString` | geen verbinding zonder een van de wegen hierboven |
 
 Buiten de databasetypen noemt alleen Jellyfin.Database.Implementations/MediaBrowser.Controller (de typen van JL0003) en
@@ -166,7 +177,147 @@ System.Data.Common (`…Connection` van een opdracht of transactie) een database
 ASP.NET Core geeft een verbinding terug of geeft er een aan een terugroep. Tests:
 `VerbodenApiAnalyzerTests.DatabaseverbindingBuitenDeOpslag_ProevenH15EnH16_IsJL0002OfJL0003` (de vormen van proef H15 en
 H16 van herreview 4), `.Databasetoegang_ElkeWegIsBuitenCoreStorageJL0002` (elke weg hierboven; dezelfde bron in
-`Core.Storage` geeft niets, in `Core.Secrets` hetzelfde als in een module) en de proefregels in `VerbodenAanroepen.cs`.
+`Core.Storage` geeft geen databasemelding, alleen de omweg `Activator.CreateInstance`; in `Core.Secrets` hetzelfde als in
+een module) en de proefregels in `VerbodenAanroepen.cs`.
+
+#### Bestanden (JL0002)
+
+Sinds herstelronde 6 (R-HARDE-EIS-13) is de bestandsgrens net zo generiek als de databasegrens: geen opsomming van
+schrijvende methoden meer, maar een regel op namespace en type. Aanleiding: proef SlippendeRoutes van herreview 5. Buiten
+`Core.Storage` konden tien regels `jellyfin.db` als bestand overschrijven of wissen zonder één JL-fout: `ZipFile`- en
+`TarFile.ExtractToDirectory` met overschrijven, `XmlWriter.Create`, `XDocument.Save`, `DataSet.WriteXml`, `MemoryMappedFile`,
+`IPluginManager.RemovePlugin(new LocalPlugin(<data>, …))` (de server wist de map recursief), `IXmlSerializer.SerializeToFile`,
+`ITranscodeManager.StartFfMpeg` (de server start ffmpeg op een gekozen uitvoerpad) en `[DllImport] unlink`. Elke regel
+geeft nu JL0002 (test `VerbodenApiAnalyzerTests.SlippendeBestandsroutes_ProefHerreview5_ElkeRegelIsJL0002`, de vorm van de
+proef; op f7df40d2b gaf hij alleen de tegenproef).
+
+**De regel.** Buiten de opslagnamespaces (`Core.Storage`, `Core.Secrets`) is elk lid van een type uit **System.IO** (met alle
+subnamespaces: Compression, MemoryMappedFiles, Pipes, IsolatedStorage, Enumeration), **System.Formats.Tar** en
+**Microsoft.VisualBasic.FileIO** (plus het type `Microsoft.VisualBasic.FileSystem`) JL0002: aanroepen, als methodegroep nemen,
+een eigenschap of veld lezen of zetten, een event, en het aanmaken. Een eigen of upstream-type dat van zo'n type afleidt, telt
+bij aanmaken als het eerste bestandstype in zijn keten (`new FormattingStreamWriter(pad, …)` uit Jellyfin.Extensions telt als
+`new StreamWriter(pad)`), en een aanroep van de basisconstructor (`: base(pad)`) ook. Alleen wat op de witte lijst staat mag:
+
+| Type | Mag buiten de opslaglaag |
+|---|---|
+| `Path` | alle leden behalve `GetTempFileName` (die maakt een leeg bestand aan) |
+| `File`, `Directory` | de leesleden (`Exists`, `Read…`, `OpenRead`, `OpenText`, `Get…`; `Enumerate…` bij `Directory`), zoals voorheen; per klasse een uitzondering (witte lijst, hoofdstuk 2) |
+| `FileSystemInfo` (`FileInfo`, `DirectoryInfo`) | aanmaken met een pad, een eigenschap lezen, de leesleden (`OpenRead`, `OpenText`, `Get…`, `Enumerate…`, `Refresh`); zetten van een eigenschap is JL0002 |
+| `Stream` en elk afgeleid type | elk lid (lezen of schrijven op een stroom die de code al heeft); zelf aanmaken alleen `MemoryStream` en `BufferedStream` (ook een type dat daarvan afleidt). Een ander type dat van `Stream` afleidt aanmaken (een eigen type, of een upstream-stroom die zelf bestanden opent zoals `ProgressiveFileStream` of `FileBufferingReadStream`) is JL0002 buiten de opslaglaag |
+| `TextReader`/`TextWriter` en afgeleiden, `BinaryReader`/`BinaryWriter` | elk lid; aanmaken: `StreamReader` (lezen), `StringReader`, `StringWriter`, `BinaryReader`/`BinaryWriter` en `StreamWriter` alleen zonder tekst (pad) als parameter (ook een type dat daarvan afleidt) |
+| elke enum en elke uitzondering uit die namespaces | alles (`FileMode.Create`, `new IOException`, vangen) |
+
+Waarom schrijven op een stroom mag: een stroom naar een bestand krijgen is zelf al JL0002 (`File.Open…`/`Create`/`OpenWrite`,
+`FileInfo.Open…`, `new FileStream`, `new StreamWriter(pad)`, `RandomAccess`, `File.OpenHandle`, `MemoryMappedFile`,
+`IsolatedStorageFile`, een named pipe, `AsyncFile.Create`/`OpenWrite`, `Activator.CreateInstance(typeof(FileStream), …)`), en
+de plugin schrijft zijn HTTP-antwoorden zo (`response.Body.WriteAsync`). Een `FileStream` uit `File.OpenRead` is alleen-lezen.
+
+Daarnaast, buiten de opslagnamespaces, de schrijvende delen buiten System.IO: in **System.Xml** en **System.Xml.Linq** elk lid
+dat `Save`, `WriteTo`, `WriteContentTo`, `Transform` of `Serialize` heet (als heel woord) met een pad (tekst) of stroom als
+parameter, en een XmlWriter maken met een pad of stroom (`XmlWriter.Create(pad)`, `new XmlTextWriter(pad, …)`; met een
+`StringBuilder`, `TextWriter` of `XmlWriter` mag het, die naar een bestand krijgen is al JL0002); **`DataSet`/`DataTable`
+`WriteXml…`** (alle varianten); en de BCL-schrijvers die de scan hieronder vond: `WebClient.DownloadFile…`,
+`TextWriterTraceListener` (en afgeleiden) en `ResourceWriter` met een pad, en `ProfileOptimization` (schrijft een JIT-profiel
+met een zelfgekozen naam in een zelfgekozen map, volgens de documentatie van .NET; niet gemeten).
+
+De plugin bouwt hiermee zonder één JL-fout. Het huidige gebruik buiten de opslaglaag valt helemaal binnen de witte lijst,
+zonder verhuizing of gedragswijziging: `Core.Planner.CgroupMarge` (`File.Exists`, `File.ReadAllText`, `File.ReadLines`,
+`Path.Combine`), `Core.Media.MountCheck` (`File.Exists`, `File.ReadAllLines`, `Path.GetFullPath`),
+`Core.Connector.ConnectorService` (`new DirectoryInfo`, `Exists`, `GetFiles`, `Length`, `LastWriteTimeUtc`), `Core.Http.JlPipeline`
+(`Stream.ReadAsync`, `new MemoryStream`) en `Core.Http.JlResult` (`response.Body.WriteAsync`).
+
+**Server-ABI die zelf schrijft of een proces start: nergens.** Die loopt langs de padgrens van `Core.Storage` heen (de server
+opent het pad zelf), dus hier helpt ook de opslaglaag niet: JL0002 in elke namespace, zonder uitzondering. Gevonden met twee
+scans (wegwerptests buiten de repo): (1) een **padscan** over elk publiek lid van de compile-assets van de plugin
+(MediaBrowser.Common, .Controller, .Model, Jellyfin.Data, .Database.Implementations, .Extensions, .MediaEncoding.Keyframes,
+Emby.Naming, ICU4N, J2N, NEbml, Polly, Diacritics: 1686 publieke typen) op een tekstparameter met een padnaam (path, file,
+folder, dir, output, target, dest, location, root, uri), een bestandsobject (`FileSystemMetadata`, `FileInfo`, `LocalPlugin`,
+`SafeFileHandle`) of een stroom als resultaat: 361 treffers, waarvan 250 methoden of constructors; (2) een **bronscan** van
+de server (elke plek met `File.`/`Directory.`-schrijven, `new FileStream`, `AsyncFile.Create`, `XmlWriter.Create`,
+`SerializeToFile`, de schrijvende `IFileSystem`-leden of een processtart), teruggeleid naar het publieke lid. Opgenomen
+(JL0002, nergens):
+
+| Type | Verboden | Waarom |
+|---|---|---|
+| `IPluginManager` | alles behalve lezen (`GetPlugin`, `Plugins`) | `RemovePlugin` wist `LocalPlugin.Path` recursief; `SaveManifest`/`PopulateManifest` schrijven een manifest op een gekozen pad; `ImportPluginFrom`, `Enable`/`Disable`/`FailPlugin` schrijven het manifest; `LoadAssemblies`/`CreatePlugins` laden code |
+| `LocalPlugin` | aanmaken | de constructor neemt elk pad zonder controle; samen met `RemovePlugin`/`UninstallPlugin` een recursieve wis |
+| `IInstallationManager` | alles behalve lezen (`Get…`, `FilterPackages`) | `UninstallPlugin` wist de pluginmap, `InstallPackage` wist en pakt een zip uit |
+| `IApplicationPaths` | alles behalve lezen (de padeigenschappen) | `CreateAndCheckMarker` maakt een map en een markeerbestand op een gekozen pad; `MakeSanityCheckOrThrow` doet dat in de mappen van de server |
+| `IXmlSerializer` | alles behalve `Deserialize…` | `SerializeToFile` doet `new FileStream(pad, FileMode.Create)` |
+| `AsyncFile` | `Create`, `OpenWrite` (`OpenRead` mag) | geven een schrijfbare `FileStream` op een gekozen pad |
+| `IShortcutHandler` | `Create` (`Resolve` mag) | schrijft een snelkoppelingsbestand op een gekozen pad |
+| `FileSystemHelper` | `DeleteFile`, `DeleteEmptyFolders` (`Get…`, `Resolve…` mag) | wissen op een gekozen pad |
+| `Jellyfin.Extensions.FileHelper` | alles (`CreateEmpty`) | maakt een bestand aan of **maakt het leeg** (`FileMode.Create`) |
+| `IDirectoryService` | alles behalve lezen en `Invalidate` | `Move` doet `Directory.Move` |
+| `IMetadataSaver` | alles behalve lezen (`IsEnabledFor`, `GetSavePath`) | `SaveAsync` schrijft nfo/xml naast de media |
+| `IMetadataProvider`, `IImageProvider` (en elke leverancier die ervan afleidt) | alles behalve `Supports…`, `GetSupported…`, `Is…`, `Has…`, `Can…`, `To…` | `GetMetadata`/`GetImages` schrijven de cache (AudioDb, Omdb, StudioImages), `GetImage` haalt via ffmpeg een afbeelding uit een bestand, `FetchAsync` wijzigt het item en schrijft een collage |
+| `ITranscodeManager` | alles behalve lezen (`GetTranscodingJob`) | `StartFfMpeg` start ffmpeg op een gekozen uitvoerpad en argumenten; `KillTranscodingJobs`, `OnTranscodeEndRequest` wissen de bestanden van een taak |
+| `TranscodingJob` | aanmaken, een eigenschap zetten, alles behalve lezen | de server wist bij het stoppen `job.Path`: een eigen taak of een gewijzigd pad wist een gekozen bestand |
+| `TranscodingSegmentCleaner`, `ProgressiveFileStream` | aanmaken (en alle leden van de cleaner) | wissen segmenten van een meegegeven taak; de stroom roept bij het sluiten `OnTranscodeEndRequest` aan met een meegegeven taak |
+| `IMediaEncoder` | alles behalve lezen (`Get…`, `Supports…`, `EscapeSubtitleFilterPath`), en ook `GetMediaInfo` | `ConvertImage` (uitvoerpad), `Extract…Image…`, `GenerateConcatConfig` (schrijft op een gekozen pad), `SetFFmpegPath`; `GetMediaInfo` start ffprobe |
+| `ISubtitleEncoder`, `IAttachmentExtractor`, `EncodingHelper` | alles | halen met ffmpeg ondertitels en bijlagen uit en schrijven de cache; `EncodingHelper.GetInputArgument` schrijft een concat-bestand |
+| `IImageProcessor`, `IImageEncoder` | alles behalve lezen (`Get…`, `Supports…`) | `ProcessImage`, `CreateImageCollage` (uitvoerpad in de opties), `EncodeImage` (uitvoerpad), `CreateSplashscreen`, `CreateTrickplayTile` |
+| `IClientEventLogger` | alles | schrijft een logbestand (`WriteDocumentAsync`) |
+| `FfProbeKeyframeExtractor`, `FfToolKeyframeExtractor` | alles | `GetKeyframeData(ffProbePath, …)` start een **zelfgekozen programma** (langs JL0004 heen) |
+| `IListingsProvider`, `ITunerHost`, `ILiveStream` | alles (`ILiveStream`: behalve lezen, `GetStream` mag) | schrijven gids- en kanaalcaches en tijdelijke opnamebestanden |
+
+Gemotiveerd niet opgenomen (scan-treffers die niets schrijven of al bewaakt zijn): Emby.Naming (alleen padnamen ontleden),
+`MimeTypes`, `ContainerHelper`, `ConditionProcessor`/`StreamBuilder`, `EncodingJobInfo.GetMimeType`, `PathHelper`,
+`IPathManager` (bouwen alleen een pad), `GetInternalMetadataPath`/`GetMappedPath` (rekenen), `ImageProcessingOptions`,
+`Playlist.IsPlaylistFile`, `ItemResolveArgs`, `IServerApplicationHost.Expand/ReverseVirtualPath`, de constructors van
+DTO's en entiteiten (`ImageInfo`, `Artwork`, `Library`, `MediaFile`, `MediaPathInfo`, `FileSystemEntryInfo`, `VideoFileInfo`:
+alleen in het geheugen; opslaan kan alleen via de context, JL0003); lezen: `IBlurayExaminer.GetDiscInfo`,
+`MatroskaKeyframeExtractor`, `StreamExtensions.IsFileIdenticalAsync`, `IXmlSerializer.Deserialize…`, de `DirectoryService`-leesleden,
+ICU4N (ingebedde gegevens), NEbml (schrijft naar een meegegeven stroom), J2N, Polly, Diacritics; `IImageEncoder.GetImageSize`
+en `IImageProcessor.GetImageDimensions` maken hooguit een eigen tijdelijke kopie met een naam van de server.
+`ISimilarItemsManager` schrijft zijn cache in de cachemap met een naam uit het item-ID (net als bij elke opvraging van een
+gewone client) en `ISchedulesDirectService.GetAvailableCountries` haalt alleen over het netwerk op. Al bewaakt: `IFileSystem`
+(JL0002 hierboven), `CollectionFolder.SaveLibraryOptions` en de `Set…`/`Delete…`/`Swap…`-leden van `BaseItem` (JL0001),
+`ILibraryManager`, `ILibraryMonitor`, `ITrickplayManager.CreateTiles`, `IBackupService`, `IProviderManager.SaveImage`,
+`ISubtitleManager`, `ILyricManager`, `IChapterManager`, `IMediaSourceManager` en de live-tv-beheerders (JL0001; voor
+`IProviderManager` alleen een uitzondering per API met een eigen ADR). De officiële route voor de **eigen**
+plugininstellingen (`BasePlugin<T>.SaveConfiguration`/`UpdateConfiguration`) blijft toegestaan: de server schrijft dan
+alleen `plugins/configurations/<assembly>.xml`; `BasePlugin.SetAttributes` (de server roept hem bij het laden aan) zet alleen
+paden in het geheugen.
+
+De BCL-scan (dezelfde aanpak over de gedeelde frameworks, alleen leden buiten de bestandsnamespaces met een schrijvende naam
+en een padparameter: 377 treffers) leverde de BCL-schrijvers hierboven op (`WebClient`, de trace-listeners, `ResourceWriter`,
+`ProfileOptimization`, Visual Basic) en `Microsoft.VisualBasic.Interaction.Shell` (JL0004). Niet opgenomen: lezen
+(`X509Certificate2` uit een bestand, `PhysicalFileProvider`, de configuratiebronnen, `FileVersionInfo`), Windows-only
+(`EventLogSession.ExportLog`, `IPersistFile`), tijdelijke bestanden met een willekeurige naam
+(`FileBufferingReadStream`/`WriteStream`) en `SmtpClient` met een ophaalmap (een `<guid>.eml`).
+
+Tests: `VerbodenApiAnalyzerTests.SlippendeBestandsroutes_ProefHerreview5_ElkeRegelIsJL0002` (de tien routes; in `Core.Storage`
+blijven alleen de server-ABI en P/Invoke JL0002), `.Bestandsnamespaces_ElkGebruikBuitenDeWitteLijstIsJL0002` (24 vormen
+buiten de witte lijst en de toegestane tegenvormen; in `Core.Storage` niets), `.ServerAbiDieZelfSchrijftOfStart_IsNergensToegestaan`
+(31 vormen, ook in `Core.Storage`, met de leesleden ernaast), de ongeldige uitzonderingsregels en de proefregels in
+`VerbodenAanroepen.cs`.
+
+#### Dreigingsmodel
+
+De analyzer beschermt de HARDE EIS tegen **fouten in onze eigen plugincode**: een module die per ongeluk een bestand op een
+verkeerde plek schrijft, een server-API gebruikt die zelf schrijft, of een databaseverbinding opent. Hij is **geen zandbak**
+en geen verdediging tegen kwaadaardige code: wie de grens opzettelijk wil omzeilen, kan dat met een tweede assembly of een
+pakket dat zelf schrijft. Binnen dat model zijn de omwegen die triviaal te verbieden zijn nu verboden, **nergens toegestaan**
+(ook niet in `Core.Storage`, geen uitzondering), met JL0002 en de melding "omzeilt de bouwgrens":
+
+- native code: een methode met `[DllImport]`, `[LibraryImport]` of `extern` (de declaratie en elke aanroep), `unsafe` (op
+  een type, lid, lokale functie, blok of using-alias; pointers, `fixed` en functiewijzers `delegate*` kunnen alleen daarin
+  bestaan), `NativeLibrary` en `Marshal`;
+- reflectie die een lid aanroept of een type uit een tekst haalt: `MethodBase.Invoke` (ook `ConstructorInfo.Invoke`),
+  `MethodInfo`/`Delegate.CreateDelegate`, `PropertyInfo`/`FieldInfo.SetValue`/`GetValue`, `EventInfo.Add`/`RemoveEventHandler`,
+  `Type.InvokeMember`, `Type.GetType` en `Assembly.GetType`, `Delegate.DynamicInvoke`, `LambdaExpression.Compile`;
+- code laden of maken: `Assembly.Load…`/`LoadFrom`/`LoadFile`/`UnsafeLoadFrom`/`CreateInstance`, `AssemblyLoadContext`,
+  `AppDomain.Load`/`ExecuteAssembly`/`CreateInstance…`, System.Reflection.Emit;
+- een object van een willekeurig type maken: `Activator`, `ActivatorUtilities`;
+- `dynamic` (een lid, aanroep, index of aanmaak die pas bij het draaien wordt gebonden).
+
+De plugin gebruikt geen van deze (gecontroleerd met grep en met de build: geen `DllImport`, `LibraryImport`, `unsafe`,
+`delegate*`, `Marshal`, `NativeLibrary`, `Activator`, `dynamic` of `Assembly.Load` in `plugins/JellyLeon/src`), dus er is geen
+uitzondering nodig. Wat de plugin wel aan reflectie gebruikt blijft toegestaan, omdat het alleen metadata leest: de versie en
+de kenmerken van de eigen assembly (`Assembly.GetName`, `GetCustomAttributes`), `typeof(…).Namespace`, `GetType().Name` en
+`GetService(typeof(…))`. Test: `VerbodenApiAnalyzerTests.Omwegen_NativeCodeReflectieEnDynamic_ZijnNergensToegestaan` (23
+vormen, buiten en binnen `Core.Storage`, plus de toegestane reflectie).
 
 ### 2. Witte lijst: één API in één klasse
 
@@ -175,7 +326,9 @@ H16 van herreview 4), `.Databasetoegang_ElkeWegIsBuitenCoreStorageJL0002` (elke 
 `Jellyfin.Plugin.JellyLeon.Modules` liggen. Een regel die niet past (onbekende API, een API die nergens mag, een klasse
 buiten de modules, een dubbele regel, een verkeerde vorm) is zelf een bouwfout en staat niets toe. Zo volgt de lijst de
 tabel uit het plan: F3 krijgt straks precies `ResetPlaybackStreamSelections`/`SaveUserData` in `SelectionGuard`,
-`QueueRefresh` in `PublishTransaction` en `File.Delete` in `Depublisher`; Quality krijgt niets.
+`QueueRefresh` in `PublishTransaction` en `File.Delete` in `Depublisher`; Quality krijgt niets. Voor JL0002 kan een
+uitzondering alleen op `File`, `Directory`, `FileInfo`/`DirectoryInfo` en `IFileSystem`; een ander lid uit de
+bestandsnamespaces, de server-ABI die zelf schrijft, een omweg en databasetoegang kennen er geen (JL0009).
 
 **Stand golf 1: de lijst is leeg.** Kern, Devices en Quality bouwen zonder één uitzondering. Elke latere regel hoort
 bij een taak uit het plan en een eigen ADR.
@@ -183,7 +336,7 @@ bij een taak uit het plan en een eigen ADR.
 ### 3. Drie soorten bewijs
 
 1. **De plugin bouwt** met de analyzer aan: er staat geen verboden aanroep in.
-2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 176 verboden aanroepen, elk gemarkeerd met
+2. **De proefassembly faalt**: `VerbodenAanroepen.cs` bevat 213 verboden aanroepen, elk gemarkeerd met
    `// VERWACHT: JLxxxx`, afgewisseld met toegestane leesaanroepen. `analyzer_proef.py` bouwt het project echt en eist
    dat precies de gemarkeerde regels die bouwfout geven, dat geen enkele andere regel een JL-fout geeft en dat de build
    om geen andere reden faalt. De proefassembly staat bewust niet in de solution.
@@ -208,11 +361,13 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
 
 ## Grenzen (eerlijk)
 
-- Een analyzer is **geen zandbak**. Reflectie, `dynamic`, eigen P/Invoke of een tweede assembly ziet hij niet. Voor
-  databasetoegang betekent dat: een type uit een tekst (`Type.GetType("…SqliteConnection, …")`) met `Activator` of
-  `GetService(Type)` geeft alleen een object; dat als verbinding gebruiken kan dan alleen via reflectie of `dynamic`, of
-  eigen P/Invoke naar de SQLite-bibliotheek (`DllImport`, `NativeLibrary` met functiewijzers). Dat valt buiten de
-  analyzer. Daarom
+- Een analyzer is **geen zandbak** (zie "Dreigingsmodel"): hij beschermt tegen fouten in onze eigen code, niet tegen
+  opzet. Reflectie die een lid aanroept, `dynamic`, eigen P/Invoke, `unsafe`, code laden en `Activator` zijn sinds
+  herstelronde 6 JL0002, maar wat hij niet ziet blijft: een **tweede assembly** of een **pakket** dat zelf een bestand
+  schrijft (elke nieuwe `PackageReference` van de plugin hoort daarom in een review; nu alleen de plugin-ABI en
+  Microsoft.Data.Sqlite.Core), een servertype dat van een type buiten de lijst wordt opgehaald en zonder naam gebruikt, en
+  een bestandsschrijver in de BCL buiten de bestandsnamespaces die de scan niet vond (de scan zocht op schrijvende namen
+  met een padparameter; zie "Bestanden (JL0002)"). Daarom
   blijven de andere lagen bestaan: de schrijfgrens in `Core.Storage` tijdens het draaien (`InternalWriteScope` voor
   bestanden en `JlDatabase` voor SQLite weigeren elk pad buiten `<DataPath>/jelly-leon/**`, `/cache/jelly-leon/**` en
   `/run/jelly-leon/**` (`JlPaths.MagSchrijven`), voordat er iets geopend of aangemaakt is), de alleen-lezen mediamount,
@@ -222,7 +377,7 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   (`_db.PurgeDatabase(…)`), geven zelf geen tweede melding. Gebruiken ze daarbij een lid van Entity Framework Core
   (`….CreateDbContext().Database.ExecuteSqlRaw(…)`, `SaveChanges`), dan is die regel sinds herstelronde 5 wel JL0002
   (databasetoegang). Wie de dienst zonder de naam ophaalt (reflectie,
-  `GetService(Type)` met een type uit een tekst, `dynamic`), valt onder de eerste grens hierboven; de padgrens van
+  `GetService(Type)` met een type uit een tekst, `dynamic`), is sinds herstelronde 6 JL0002 (omweg); de padgrens van
   `JlDatabase` helpt daar niet, want de server opent zijn eigen database. Test:
   `VerbodenApiAnalyzerTests.DatabasedienstVanDeServer_ElkGebruikVanDeTypenaamIsJL0003` (de vorm van proef H12).
 - De padgrens kijkt naar het pad zoals het er staat én naar het echte pad: elke symbolische koppeling (het bestand zelf
@@ -243,11 +398,14 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   openen ontstaat, en een harde koppeling (zelfde bestand onder twee namen). De plugin maakt zelf geen koppelingen en
   de entrypoint alleen mappen.
 - JL0003 ziet een naam die pas bij het draaien ontstaat niet: een variabele, `string.Concat`, `StringBuilder`, een
-  waarde uit de configuratie. Daarvoor is de padgrens van `JlDatabase` er; `jellyfin.db` en `library.db` liggen buiten
-  de eigen mappen. Dat houdt alleen omdat elke verbinding via `JlDatabase` loopt: elke andere weg naar een verbinding is
-  buiten `Core.Storage` JL0002 (zie "Databasetoegang (JL0002)"), en de verbinding van `JlDatabase` kan met SQL geen
-  tweede database koppelen (`ATTACH`, `VACUUM INTO`). Code in `Core.Storage` zelf valt niet onder JL0002 en hoort daarom
-  alleen `JlDatabase` en `InternalWriteScope` te bevatten.
+  waarde uit de configuratie. Daarvoor is de padgrens van `JlDatabase` en `InternalWriteScope` er; `jellyfin.db` en
+  `library.db` liggen buiten de eigen mappen. Dat houdt alleen omdat elke verbinding via `JlDatabase` loopt en elk
+  bestand via de opslaglaag wordt geschreven: elke andere weg naar een verbinding is buiten `Core.Storage` JL0002 (zie
+  "Databasetoegang (JL0002)"), elk ander bestandslid buiten de witte lijst ook (zie "Bestanden (JL0002)"), de server-ABI
+  die zelf schrijft is nergens toegestaan, en de verbinding van `JlDatabase` kan met SQL geen tweede database koppelen
+  (`ATTACH`, `VACUUM INTO`). Code in `Core.Storage` en `Core.Secrets` zelf valt niet onder de bestandsregel (wel onder de
+  server-ABI- en omwegregel) en hoort daarom alleen de opslaglaag te bevatten (`JlDatabase`, `CoreDatabase`, `JlPaths`,
+  `InternalWriteScope`, `SecretStore`).
 - Hij bewaakt methoden **en** het schrijven van eigenschappen op elk bewaakt type: `item.Name = …` op een `BaseItem` is
   JL0001 (proefregels in `VerbodenAanroepen.cs`), omdat een `BaseItem` gedeeld is met de cache van de server en de
   server het item later zelf kan opslaan. Eigenschappen van **entiteiten** die een server-API teruggeeft (`User`,
