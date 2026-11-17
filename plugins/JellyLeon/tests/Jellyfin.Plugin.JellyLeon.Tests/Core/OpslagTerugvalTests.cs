@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -275,7 +276,7 @@ public sealed class OpslagTerugvalTests : IDisposable
 
     private sealed class ProefLog : ILoggerProvider, ILogger
     {
-        public List<string> Regels { get; } = [];
+        public ConcurrentQueue<string> Regels { get; } = new();
 
         public ILogger CreateLogger(string categoryName) => this;
 
@@ -287,10 +288,7 @@ public sealed class OpslagTerugvalTests : IDisposable
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            lock (Regels)
-            {
-                Regels.Add(formatter(state, exception));
-            }
+            Regels.Enqueue(formatter(state, exception));
         }
     }
 }
