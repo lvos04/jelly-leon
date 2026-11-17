@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -9,10 +10,12 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Http;
 
 /// <summary>
 /// Koppelt een actie aan haar regel in de routetabel en laat de ene pipeline lopen. Elke actie van de plugin draagt
-/// dit attribuut (een test bewaakt dat); fouten worden altijd een antwoord uit de foutcatalogus.
+/// dit attribuut (een test bewaakt dat); fouten worden altijd een antwoord uit de foutcatalogus. Het zet ook de
+/// <see cref="DoorstuurWacht"/> op het verzoek: een antwoord dat de browser zou doorsturen (3xx of Location), van welk type
+/// resultaat ook, wordt bij het draaien de vaste fout 503 (R-HARDE-EIS-20).
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter
+public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter, IAsyncAlwaysRunResultFilter
 {
     /// <summary>Initializes a new instance of the <see cref="JlRouteAttribute"/> class.</summary>
     /// <param name="id">De ID van de route in de routetabel.</param>
@@ -28,6 +31,7 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var http = context.HttpContext;
+        DoorstuurWacht.Bewaak(http);
         var traceId = Guid.NewGuid().ToString();
         var pipeline = http.RequestServices.GetRequiredService<JlPipeline>();
         JlContext jl;
@@ -49,6 +53,25 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter
 
         http.Items[JlContext.Sleutel] = jl;
         var uitgevoerd = await next().ConfigureAwait(false);
+        if (DoorstuurWacht.IsGeweigerd(http))
+        {
+            // De actie schreef zelf een doorsturend antwoord en de wacht hield het tegen (503 zonder body, en de schrijfactie
+            // gaf daarom een fout): geen tweede antwoord schrijven, het blijft bij de vaste fout.
+            uitgevoerd.ExceptionHandled = true;
+            uitgevoerd.Result = new EmptyResult();
+            try
+            {
+                // Een serverfout geeft de Idempotency-Key weer vrij.
+                pipeline.Rond(jl, JlResult.Fout(Fouten.AfhankelijkheidOnbeschikbaar("jelly-leon"), traceId));
+            }
+            catch (JlException)
+            {
+                // Het antwoord ligt al vast (503); een fout bij het vrijgeven verandert dat niet.
+            }
+
+            return;
+        }
+
         if (uitgevoerd.Exception is JlException actiefout)
         {
             uitgevoerd.ExceptionHandled = true;
@@ -72,6 +95,23 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter
             {
                 uitgevoerd.Result = JlResult.Fout(fout, traceId);
             }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task OnResultExecutionAsync(ResultExecutingContext context, ResultExecutionDelegate next)
+    {
+        var uitgevoerd = await next().ConfigureAwait(false);
+        if (DoorstuurWacht.IsGeweigerd(context.HttpContext))
+        {
+            // Het resultaat schreef een doorsturend antwoord met body; de wacht hield het tegen (503 zonder body) en de
+            // schrijfactie gaf daarom een fout. Die fout hoort bij de weigering.
+            uitgevoerd.ExceptionHandled = true;
+        }
+        else if (await DoorstuurWacht.WeigerAsync(context.HttpContext).ConfigureAwait(false) && uitgevoerd.Exception is not null)
+        {
+            // Een fout bij een doorsturend antwoord zonder body: het antwoord is nu de vaste fout uit de foutcatalogus.
+            uitgevoerd.ExceptionHandled = true;
         }
     }
 }

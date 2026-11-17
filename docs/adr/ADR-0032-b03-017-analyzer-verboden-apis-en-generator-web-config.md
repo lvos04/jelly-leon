@@ -41,6 +41,12 @@
   browser als tussenpersoon staat onder "Dreigingsmodel" en "Grenzen". Een ingebedde webbron vraagt alleen eigen paden via een
   fail-closed `vraag()`, een antwoord dat de browser doorstuurt (redirect, Location-kop, 3xx) is JL0001, en elk optietype van de
   host (zoals `JsonOptions`, ook als typeargument en als eigen `IPostConfigureOptions<T>`) is JL0001 met een lege witte lijst.
+  Bijgewerkt 2026-11-17 na herreview 9 (S-G1-17 herstelronde 10, R-HARDE-EIS-20; besluit van de regisseur, optie A): een eigen
+  actie kon de browser nog doorsturen met een status uit een variabele en de kopnaam uit System.Net, zonder één JL-fout. Nu
+  weigert de wacht tegen doorsturen (`DoorstuurWacht`) bij het draaien elk antwoord met een 3xx of een kop Location, ongeacht het
+  type resultaat: op elke actie met `[JlRoute]`, en met de spike op elk pluginpad. System.Net valt onder punt 8 (ook elke
+  3xx-waarde van `HttpStatusCode`). De zin onder "Grenzen" over een kopnaam die pas bij het draaien ontstaat is gecorrigeerd, en
+  er staan twee grenzen bij: een open generieke registratie van de optie-infrastructuur en `fetch` zonder `fetch(` in een webbron.
 - **Werkpakket:** B03-017; raakt de HARDE EIS (kijkgeschiedenis, bibliotheek, metadata en gebruikersgegevens blijven
   behouden) en JLT-65.
 - **Bewijs:** `plugins/JellyLeon/tests/…/Analyzer/VerbodenApiAnalyzerTests.cs` (xunit), de proefassembly
@@ -245,8 +251,21 @@ namespace (ook `Core.Storage`, `Core.Secrets` en `Core.Werker`):
    `StatusCode(308)`, `new StatusCodeResult(307)`), en de tekst `Location` als constante (hoofdletters tellen niet, ook
    samengesteld of met `nameof`; zo krijgt ook een eigen woordenboek of `JlResult.Headers` die kop niet). Niet alleen de varianten
    "PreserveMethod": Chrome volgde in een proef (2026-11-17, eigen stand-in op loopback) bij `DELETE` een 301, 302, 307 en 308
-   met `DELETE` en hetzelfde Authorization-token, en een 303 met `GET` en hetzelfde token. Daarbij weigert `JlResult` bij het
-   draaien een 3xx-status voordat er iets geschreven is (fail-closed). De plugin gebruikt geen van deze.
+   met `DELETE` en hetzelfde Authorization-token, en een 303 met `GET` en hetzelfde token. Sinds herstelronde 10 (herreview 9,
+   R-HARDE-EIS-20) valt ook System.Net (met alles eronder) onder deze regel: `HttpResponseHeader.Location` (het BCL-equivalent van
+   `HeaderNames.Location`), en elke waarde van 300 tot en met 399 van `HttpStatusCode` (`Regels.DoorstuurStatusEnums`), ook
+   `Found`, `SeeOther` en `MultipleChoices`, waarvan de naam geen van de woorden bevat. Wat de analyzer niet ziet, is een status of
+   kopnaam die pas bij het draaien ontstaat (`StatusCode((int)status)` met `status` uit een variabele, `int code = 307`, een
+   samengestelde kopnaam). Daarvoor is er een tweede laag bij het draaien, fail-closed. `JlResult` weigert een 3xx-status voordat
+   er iets geschreven is. De **wacht tegen doorsturen** (`Core.Http.DoorstuurWacht`) kijkt naar het antwoord zelf, vlak voordat de
+   koppen vertrekken (`Response.OnStarting`), ongeacht het type resultaat (`StatusCodeResult`, `ObjectResult`, `RedirectResult`,
+   zelf geschreven). `JlRouteAttribute` zet die wacht op elke eigen actie en is daarvoor ook resultaatfilter; de spike van ADR-0033
+   zet hem op elk pluginpad als die aan staat. Een status van 300 tot en met 399 of een kop Location wordt de vaste fout 503
+   `dependency_unavailable` met `Cache-Control: no-store`, zonder Location en zonder de body van de actie: als JSON uit de
+   foutcatalogus als de actie nog niets schreef, anders zonder body (de wacht zet Content-Length 0, Kestrel weigert daarom de body
+   van de actie voordat de koppen vertrekken, en neemt daarna geen tweede body aan). Alleen de wacht mag `HeaderNames.Location`
+   gebruiken, en alleen als argument van `ContainsKey` of `Remove` op `HttpResponse.Headers` (`Regels.DoorstuurWitteLijst`, zie de
+   tabel hieronder); zetten, toevoegen of teruggeven blijft ook daar JL0001. De plugin gebruikt geen van deze vormen.
 9. **De instellingen van de host** (sinds herstelronde 9, R-HARDE-EIS-19; eigen melding "gebruikt een instelling van de host"), in
    elke namespace: elk type uit Microsoft.AspNetCore (met alles eronder) waarvan de naam op `Options` eindigt, plus
    `Microsoft.Extensions.Hosting.HostOptions`. Daaronder vallen `Mvc.JsonOptions` (de JSON-invoer van elke serveractie),
@@ -264,13 +283,18 @@ namespace (ook `Core.Storage`, `Core.Secrets` en `Core.Werker`):
 
 Attributen op eigen code (`[Authorize]`, `[Route]`) tellen niet: die gelden alleen voor die code.
 
-Witte lijst van de HTTP-laag (`Regels.HttpWitteLijst`, per klasse; `HttpLaagTests.WitteLijst_ElkeRegelStaatInAdr0032` eist dat
-elke regel in deze tabel staat). Een plugin zonder deze lijst gebouwd gaf precies deze drie meldingen:
+Witte lijst van de HTTP-laag (`Regels.HttpWitteLijst`, per klasse) en, sinds herstelronde 10, van punt 8
+(`Regels.DoorstuurWitteLijst`); `HttpLaagTests.WitteLijst_ElkeRegelStaatInAdr0032` eist dat elke regel in deze tabel staat. Een plugin zonder beide
+lijsten gebouwd gaf precies vijf meldingen (gemeten in herstelronde 10): `IStartupFilter` en `Use` in de spike, één melding op
+`JlRouteAttribute` (met `IAsyncActionFilter` en `IAsyncAlwaysRunResultFilter` samen) en de twee regels met `HeaderNames.Location`
+in `DoorstuurWacht` (`ContainsKey` en `Remove`):
 
 | Type | Lid | Klasse (onder `Jellyfin.Plugin.JellyLeon`) | Motivatie |
 |---|---|---|---|
 | `IStartupFilter` | implementeert | `Core.Http.JlStartupFilterSpike` | De spike van ADR-0033 (standaard uit): een laag vóór routing en authenticatie die alleen een verzoek van meer dan 1 MiB aan `/media/v1` of `/connector/v1` met 413 weigert. Alle andere verzoeken gaan ongewijzigd door; `StartupFilterSpikeTests.In_een_echte_host_komt_een_verzoek_buiten_de_pluginpaden_ongewijzigd_aan` legt dat vast. |
 | `UseExtensions` | `Use` | `Core.Http.JlStartupFilterSpike` | De ene middleware van de spike in de pijplijn zetten; `Map`, `UseMiddleware` en andere leden blijven ook in deze klasse JL0001. |
+| `IAsyncAlwaysRunResultFilter` | implementeert | `Core.Http.JlRouteAttribute` | Sinds herstelronde 10: hetzelfde attribuut als resultaatfilter, alleen op de eigen acties. Na het resultaat schrijft de wacht tegen doorsturen de vaste fout als het antwoord een 3xx of Location had; een antwoord dat niet doorstuurt gaat ongewijzigd door (`DoorstuurWachtTests`). |
+| `HeaderNames` | `Location` | `Core.Http.DoorstuurWacht` | Punt 8 (`Regels.DoorstuurWitteLijst`, sinds herstelronde 10): alleen als argument van `ContainsKey` of `Remove` op `HttpResponse.Headers`, om de kop te zien en weg te halen. Zetten, toevoegen, teruggeven, een ander woordenboek en de verzoekkoppen blijven ook in deze klasse JL0001 (`BrowserEnHostOptiesTests.Doorsturen_SystemNetIsJL0001_EnAlleenDeWachtMagLocationZienEnWeghalen`). |
 | `IAsyncActionFilter` | implementeert | `Core.Http.JlRouteAttribute` | Het attribuut op de eigen acties dat de ene pipeline laat lopen. Het werkt alleen op de acties die het dragen; een globaal filter vraagt `MvcOptions` en is JL0001. |
 
 **Netwerkclients (JL0001, eigen melding "is een netwerkclient").** Elk lid van een type uit System.Net.Http (ook
@@ -297,7 +321,13 @@ bewijst dat de spike in de pijplijn zit) en de proefregels in `VerbodenAanroepen
 `HostOptiesDraaienTests.Vormen_GevenElkJL0001_MaarZonderAnalyzerWijzigtPostConfigureHetArgumentVanEenServeractie`: dezelfde bron geeft
 met de analyzer op elke vorm JL0001, en zonder analyzer in een echte host (Kestrel op loopback, de JSON-instelling van de server
 letterlijk, eerst de registratie van de plugin) komt bij `PostConfigure<JsonOptions>` en bij een eigen `IPostConfigureOptions`
-360000000000000000 aan in plaats van 36000000000, en bij een gewone `Configure` 36000000000.
+360000000000000000 aan in plaats van 36000000000, en bij een gewone `Configure` 36000000000. Sinds herstelronde 10 ook
+`BrowserEnHostOptiesTests.Doorsturen_SystemNetIsJL0001_EnAlleenDeWachtMagLocationZienEnWeghalen` (18 vormen: de vorm van herreview 9,
+System.Net en de grenzen van de uitzondering voor de wacht), de runtime-tests
+`DoorstuurWachtTests.ElkDoorsturendAntwoordVanEenEigenActie_WordtInDeEchtePipelineDeVasteFout` en
+`.MetDeSpike_WordtElkDoorsturendAntwoordOpEenPluginpadDeVasteFout_EnDaarbuitenNiets` (Kestrel op loopback, het echte
+`JlRouteAttribute` en de echte `JlPipeline`; de vorm van herreview 9 en varianten met elk type resultaat; een tegenproef zonder
+wacht geeft in dezelfde host 307 met Location) en `RoutetabelTests.ElkeController_LooptViaDeWacht_BehalveDeEneVersieactie`.
 
 #### Wat JL0001 bewaakt
 
@@ -597,7 +627,9 @@ dat voor die gebruiker de kijkgegevens van de hele bibliotheek wist). De analyze
   `BrowserTussenpersoonTests.Configuratiepagina_VraagWeigertElkAnderPadVoorApiClientFetch` toetst de eerste opdracht en het patroon;
   `tools/jelly-leon/tests/test_config_pagina.py` voert de echte pagina in Node uit (alle knoppen vragen alleen eigen paden, en
   `vraag()` weigert vreemde paden zonder verzoek);
-- een antwoord dat de browser doorstuurt is JL0001 (zie "HTTP-laag en netwerk", punt 8), en `JlResult` weigert een 3xx-status.
+- een antwoord dat de browser doorstuurt is JL0001 (zie "HTTP-laag en netwerk", punt 8). Bij het draaien weigert `JlResult` een
+  3xx-status, en sinds herstelronde 10 weigert de wacht tegen doorsturen (`DoorstuurWacht`) elk antwoord met een 3xx of een kop
+  Location op een eigen actie, ongeacht het type resultaat (met de spike aan op elk pluginpad).
 
 ### 2. Witte lijst: één API in één klasse
 
@@ -734,7 +766,13 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   lezen) en attributen op eigen code (zie de grens over een eigen route hieronder). De instellingen van de host (Kestrel,
   doorgestuurde koppen, JSON en andere optietypen van ASP.NET Core) zijn sinds herstelronde 9 wel JL0001, op naam: een
   instelling van de host die niet op `Options` eindigt en geen `HostOptions` is (bijvoorbeeld een eigen `IServer`, `IHostLifetime`
-  of `IHostedService`), valt er niet onder. Ook niet gedekt: een netwerkclient buiten System.Net.Http, .Sockets, .WebSockets en .Quic en buiten `WebClient`/`WebRequest` (bijvoorbeeld
+  of `IHostedService`), valt er niet onder. Ook een **open generieke registratie** van de optie-infrastructuur ziet de regel niet
+  (herreview 9): `AddSingleton(typeof(IPostConfigureOptions<>), typeof(Alles<>))`, net zo `typeof(IConfigureOptions<>)`,
+  `typeof(IOptionsFactory<>)` of een Microsoft-klasse als `ConfigureFromConfigurationOptions<>`, noemt geen optietype en raakt toch
+  elk optietype van de host. Zonder reflectie of `dynamic` (beide JL0002) kan zo'n `Alles<T>` geen lid van `JsonOptions` wijzigen;
+  een fabriek die `new T()` teruggeeft, zet wel alle instellingen terug naar de standaard (niet bij het draaien beproefd). De plugin
+  gebruikt het niet en er is geen schrijfpad gevonden; dichten (bijvoorbeeld JL0001 op `typeof` van een open generiek
+  optie-interface) hoort bij S-G1-16. Ook niet gedekt: een netwerkclient buiten System.Net.Http, .Sockets, .WebSockets en .Quic en buiten `WebClient`/`WebRequest` (bijvoorbeeld
   `SmtpClient`, `Ping`). Een klasse op de witte lijst van de HTTP-laag heeft alleen het genoemde lid of uitbreidingspunt; wat zij
   daarbinnen doet (de spike roept na de controle `volgende(http)` aan) bewaakt de runtime-test van de spike, niet de analyzer.
 - **Een eigen route boven een serverroute** (herreview 8, grens 5): attributen op eigen code tellen in de analyzer niet, dus
@@ -748,8 +786,16 @@ Stand golf 1: geen eigen webplugins; de `config.json` van de image is byte-gelij
   webbronnen niet als tekst ziet. Een pad dat bij het draaien wordt samengesteld, houdt `vraag()` tegen; een omweg die opzettelijk
   langs de tekstcontrole gaat (bijvoorbeeld een naam die uit stukken wordt samengesteld) valt buiten het dreigingsmodel. Een eigen
   actie die HTML of script als antwoord geeft, draait in de browser op de herkomst van de server; de plugin geeft alleen JSON
-  (`JlResult`), maar de analyzer verbiedt een ander inhoudstype niet. Een kopnaam die pas bij het draaien ontstaat, ziet de
-  analyzer niet; zonder 3xx volgt de browser geen omleiding, en `JlResult` weigert een 3xx. De **webplugins van jelly-leon-web**
+  (`JlResult`), maar de analyzer verbiedt een ander inhoudstype niet. Een status of kopnaam die pas bij het draaien ontstaat (een
+  variabele, een samengestelde naam), ziet de analyzer niet. Dat dekt sinds herstelronde 10 (herreview 9, R-HARDE-EIS-20)
+  de wacht tegen doorsturen bij het draaien, niet alleen `JlResult`: elk antwoord met een 3xx of een kop Location op een actie met
+  `[JlRoute]` wordt 503, van welk type resultaat ook (zie "HTTP-laag en netwerk", punt 8); met de spike aan geldt dat op elk
+  pluginpad. Wat de wacht niet ziet: een eigen actie zonder `[JlRoute]`. De enige is `JellyLeonVersionController.GetVersion` (een
+  vast 200-antwoord met JSON); `RoutetabelTests.ElkeController_LooptViaDeWacht_BehalveDeEneVersieactie` faalt bij elke andere
+  controller of actie zonder `[JlRoute]`. De tekstcontrole van de webbronnen herkent `fetch` alleen als `fetch(` (herreview 9):
+  `fetch.call(…)`, `fetch.apply(…)` en `var f = fetch; f(…)` komen erdoor. Zo'n verzoek draagt geen token van de gebruiker (dat is
+  alleen via `ApiClient` bereikbaar, en `ApiClient` buiten `fetch` en `getUrl` is een testfout); er is geen schrijfpad gevonden.
+  Dichten hoort bij S-G1-12 (webbronnen en de Hub-koppeling). De **webplugins van jelly-leon-web**
   (zie "4. Generator voor de web-`config.json`", `jlHook`) draaien ook in de browser met het token van de gebruiker en vallen in dezelfde categorie, maar horen
   bij een andere repo; daar hoort dezelfde vraag (alleen eigen paden, geen andere API-client).
 - Ongewijzigd (herreview 7, grens 5): een tweede assembly of een pakket dat zelf schrijft (zie de eerste grens), een kindproces

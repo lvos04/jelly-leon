@@ -268,7 +268,8 @@ public class HttpLaagTests
 
     /// <summary>
     /// De witte lijst van de HTTP-laag geldt per klasse en per lid of uitbreidingspunt: de spike (JlStartupFilterSpike) mag een
-    /// IStartupFilter zijn en Use aanroepen, JlRouteAttribute mag IAsyncActionFilter zijn. Dezelfde code in een andere klasse,
+    /// IStartupFilter zijn en Use aanroepen, JlRouteAttribute mag IAsyncActionFilter en (sinds herstelronde 10, de wacht tegen
+    /// doorsturen) IAsyncAlwaysRunResultFilter zijn. Dezelfde code in een andere klasse,
     /// een ander lid in de genoemde klasse (Map, UseMiddleware), een ander uitbreidingspunt (IActionFilter) en een geneste klasse
     /// zijn JL0001.
     /// </summary>
@@ -296,9 +297,11 @@ public class HttpLaagTests
                 }
 
                 [AttributeUsage(AttributeTargets.Method)]
-                public sealed class {{attribuut}} : Attribute, IAsyncActionFilter // ANDERE-KLASSE
+                public sealed class {{attribuut}} : Attribute, IAsyncActionFilter, IAsyncAlwaysRunResultFilter // ANDERE-KLASSE
                 {
                     public Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next) => next();
+
+                    public Task OnResultExecutionAsync(ResultExecutingContext context, ResultExecutionDelegate next) => next();
                 }
 
                 [AttributeUsage(AttributeTargets.Method)]
@@ -445,6 +448,9 @@ public class HttpLaagTests
             .Concat(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.NetwerkTypen)
             .Concat(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.HttpVerbodenLeden.Select(v => v.Type))
             .Concat(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.HttpWitteLijst.Select(w => w.Type))
+            .Concat(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.DoorstuurWitteLijst.Select(w => w.Type))
+            .Concat(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.DoorstuurStatusEnums)
+            .Append(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.DoorstuurWitKoppen)
             .Append("Microsoft.AspNetCore.Http.HttpRequest")
             .Distinct(StringComparer.Ordinal)
             .ToList();
@@ -453,7 +459,7 @@ public class HttpLaagTests
         Assert.All(typen, naam => Assert.True(compilatie.GetTypeByMetadataName(naam) is not null, "onbekend type: " + naam));
         Assert.All(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.HttpVerbodenLeden, v => Assert.True(compilatie.GetTypeByMetadataName(v.Type)!.GetMembers(v.Lid).Length > 0, "onbekend lid: " + v.Type + "." + v.Lid));
         Assert.All(
-            Jellyfin.Plugin.JellyLeon.Analyzers.Regels.HttpWitteLijst.Where(w => w.Lid != HttpWit.Implementeert),
+            Jellyfin.Plugin.JellyLeon.Analyzers.Regels.HttpWitteLijst.Concat(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.DoorstuurWitteLijst).Where(w => w.Lid != HttpWit.Implementeert),
             w => Assert.True(compilatie.GetTypeByMetadataName(w.Type)!.GetMembers(w.Lid).Length > 0, "onbekend lid: " + w.Type + "." + w.Lid));
 
         // Elke namespace bevat typen in deze SDK (een verhuisde namespace zou de regel stil uitzetten).
@@ -469,7 +475,10 @@ public class HttpLaagTests
         Assert.All(namespaces, n => Assert.Contains(n, bekend));
     }
 
-    /// <summary>Elke regel van de witte lijst van de HTTP-laag staat met motivatie in ADR-0032 (kop "HTTP-laag en netwerk").</summary>
+    /// <summary>
+    /// Elke regel van de witte lijst van de HTTP-laag en van punt 8 (doorsturen, sinds herstelronde 10) staat met motivatie in
+    /// ADR-0032 (kop "HTTP-laag en netwerk").
+    /// </summary>
     [Fact]
     public async Task WitteLijst_ElkeRegelStaatInAdr0032()
     {
@@ -477,7 +486,7 @@ public class HttpLaagTests
         var tabel = adr.Split('\n').Where(r => r.StartsWith("| `", StringComparison.Ordinal)).ToList();
 
         Assert.Contains("#### HTTP-laag en netwerk", adr, StringComparison.Ordinal);
-        foreach (var wit in Jellyfin.Plugin.JellyLeon.Analyzers.Regels.HttpWitteLijst)
+        foreach (var wit in Jellyfin.Plugin.JellyLeon.Analyzers.Regels.HttpWitteLijst.Concat(Jellyfin.Plugin.JellyLeon.Analyzers.Regels.DoorstuurWitteLijst))
         {
             var kort = wit.Type.Split('.').Last();
             var klasse = wit.Klasse.Substring("Jellyfin.Plugin.JellyLeon.".Length);

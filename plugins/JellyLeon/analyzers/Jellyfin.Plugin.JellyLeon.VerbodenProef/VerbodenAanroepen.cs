@@ -772,6 +772,15 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
             http.Response.Headers["location"] = "/x"; // VERWACHT: JL0001
             http.Response.StatusCode = 308; // VERWACHT: JL0001
 
+            // Herstelronde 10 (R-HARDE-EIS-20): de kopnaam en de status uit System.Net, en de kop Location weghalen buiten de
+            // wacht tegen doorsturen (DoorstuurWacht). Een status uit een variabele ziet de analyzer niet; die weigert de wacht
+            // bij het draaien (DoorstuurWachtTests).
+            http.Response.Headers[System.Net.HttpResponseHeader.Location.ToString()] = "/UserPlayedItems/x"; // VERWACHT: JL0001
+            var status = http.Request.Method == "DELETE" ? System.Net.HttpStatusCode.TemporaryRedirect : System.Net.HttpStatusCode.OK; // VERWACHT: JL0001
+            _ = System.Net.HttpStatusCode.Found; // VERWACHT: JL0001
+            http.Response.Headers.Remove(Microsoft.Net.Http.Headers.HeaderNames.Location); // VERWACHT: JL0001
+            http.Response.StatusCode = (int)status;
+
             // Toegestaan: een gewone status en een andere kop.
             http.Response.StatusCode = 404;
             http.Response.Headers["ETag"] = "x";

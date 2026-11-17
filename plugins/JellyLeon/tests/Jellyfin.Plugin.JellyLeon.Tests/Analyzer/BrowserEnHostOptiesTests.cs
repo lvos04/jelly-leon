@@ -101,6 +101,102 @@ public class BrowserEnHostOptiesTests
     }
 
     /// <summary>
+    /// R-HARDE-EIS-20 (herreview 9, herstelronde 10): de vorm van de herreview (de status uit een variabele met een waarde uit
+    /// System.Net, en de kopnaam via <c>HttpResponseHeader.Location.ToString()</c>) en de varianten met System.Net zijn nu
+    /// JL0001: de kop Location uit System.Net en elke 3xx-waarde van <c>HttpStatusCode</c>, ook als de naam geen van de woorden
+    /// bevat (<c>Found</c>, <c>SeeOther</c>). Een status uit een variabele zonder zo'n waarde ziet de analyzer niet; die weigert de
+    /// wacht bij het draaien (<c>DoorstuurWachtTests</c>). De witte lijst van punt 8 geldt alleen in <c>Core.Http.DoorstuurWacht</c>
+    /// en alleen voor <c>HeaderNames.Location</c> als argument van <c>ContainsKey</c> of <c>Remove</c> op de antwoordkoppen: zetten,
+    /// toevoegen, teruggeven, een ander woordenboek, de tekst "Location" en een 3xx blijven daar JL0001, en elders is ook kijken
+    /// en weghalen JL0001.
+    /// </summary>
+    [Fact]
+    public async Task Doorsturen_SystemNetIsJL0001_EnAlleenDeWachtMagLocationZienEnWeghalen()
+    {
+        const string Bron = """
+            using System.Collections.Generic;
+            using System.Net;
+            using Microsoft.AspNetCore.Http;
+            using Microsoft.AspNetCore.Mvc;
+            using Microsoft.Net.Http.Headers;
+
+            namespace Jellyfin.Plugin.JellyLeon.Modules.Proef
+            {
+                public sealed class Verplaats : ControllerBase
+                {
+                    public IActionResult A(string id, bool verplaatst)
+                    {
+                        var status = verplaatst ? HttpStatusCode.TemporaryRedirect : HttpStatusCode.OK; // JL0001
+                        Response.Headers[HttpResponseHeader.Location.ToString()] = "/UserPlayedItems/" + id; // JL0001
+                        return StatusCode((int)status);
+                    }
+
+                    public void B(HttpContext http)
+                    {
+                        http.Response.StatusCode = (int)HttpStatusCode.Found; // JL0001
+                        _ = HttpStatusCode.SeeOther; // JL0001
+                        _ = HttpStatusCode.MultipleChoices; // JL0001
+                        _ = HttpStatusCode.PermanentRedirect; // JL0001
+                        var kop = new WebHeaderCollection { [HttpResponseHeader.Location] = "/x" }; // JL0001
+                        http.Response.Headers.Append(HttpResponseHeader.Location.ToString(), "/x"); // JL0001
+                        http.Response.Headers.Remove(HeaderNames.Location); // JL0001
+                        _ = http.Response.Headers.ContainsKey(HeaderNames.Location); // JL0001
+                        _ = kop;
+
+                        // Toegestaan: een gewone status uit System.Net en een andere kop. Een status uit een variabele ziet de
+                        // analyzer niet; die weigert de wacht bij het draaien.
+                        http.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                        _ = HttpStatusCode.OK;
+                        http.Response.Headers[HttpResponseHeader.ETag.ToString()] = "x";
+                        var code = 300 + http.Request.Path.Value!.Length;
+                        http.Response.StatusCode = code;
+                    }
+                }
+            }
+
+            namespace Jellyfin.Plugin.JellyLeon.Core.Http
+            {
+                internal static class DoorstuurWacht
+                {
+                    public static bool Kijk(HttpResponse a) => a.Headers.ContainsKey(HeaderNames.Location);
+
+                    public static bool Weg(HttpResponse a) => a.Headers.Remove(HeaderNames.Location);
+
+                    public static void Zet(HttpResponse a) => a.Headers[HeaderNames.Location] = "/x"; // JL0001
+
+                    public static void Voeg(HttpResponse a) => a.Headers.Append(HeaderNames.Location, "/x"); // JL0001
+
+                    public static string Naam() => HeaderNames.Location; // JL0001
+
+                    public static bool Elders(Dictionary<string, string> d) => d.Remove(HeaderNames.Location); // JL0001
+
+                    public static bool Tekst(HttpResponse a) => a.Headers.Remove("Location"); // JL0001
+
+                    public static void Status(HttpResponse a) => a.StatusCode = 307; // JL0001
+
+                    public static bool Verzoek(HttpRequest v) => v.Headers.ContainsKey(HeaderNames.Location); // JL0001
+                }
+            }
+
+            namespace Jellyfin.Plugin.JellyLeon.Core.Http.Elders
+            {
+                internal static class DoorstuurWacht
+                {
+                    public static bool Weg(HttpResponse a) => a.Headers.Remove(HeaderNames.Location); // JL0001
+                }
+            }
+            """;
+
+        var stop = TestContext.Current.CancellationToken;
+        Assert.Empty(AnalyzerHarnas.Compileer(Bron).GetDiagnostics(stop).Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+        var gevonden = await AnalyzerHarnas.AnalyseerAsync(Bron, null, stop);
+
+        Assert.Equal(Verwacht(Bron), gevonden.Select(b => (b.Regel, b.Id)).ToHashSet());
+        Assert.Equal(18, Verwacht(Bron).Count);
+        Assert.All(gevonden, b => Assert.Contains("stuurt de browser door", b.Tekst, StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// R-HARDE-EIS-19: elk lid van een optietype van de host (ook lezen en aanmaken), elke registratie met zo'n type als
     /// typeargument (ook binden vanuit de configuratie, dat raakt geen lid), <c>IOptions&lt;T&gt;.Value</c>, <c>typeof</c>, en elk
     /// eigen type dat zo'n type implementeert of ervan afleidt (ook als typeargument van IConfigureOptions,
@@ -264,6 +360,20 @@ public class BrowserEnHostOptiesTests
         Assert.Contains("stuurt de browser door", http, StringComparison.Ordinal);
         Assert.Contains("instellingen van de host", http, StringComparison.Ordinal);
         Assert.Contains("PostConfigure<JsonOptions>", http, StringComparison.Ordinal);
+
+        // Herstelronde 10 (R-HARDE-EIS-20): de oude zin gold alleen voor JlResult en een constante status; nu dekt de wacht
+        // tegen doorsturen de 3xx en de kop Location bij het draaien. Plus de twee grenzen uit herreview 9.
+        Assert.DoesNotContain("zonder 3xx volgt de browser geen omleiding", adr, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("DoorstuurWacht", http, StringComparison.Ordinal);
+        Assert.Contains("System.Net", http, StringComparison.Ordinal);
+        Assert.Contains("DoorstuurWacht", dreiging, StringComparison.Ordinal);
+        Assert.Contains("wacht tegen doorsturen", grenzen, StringComparison.Ordinal);
+        Assert.Contains("JellyLeonVersionController.GetVersion", grenzen, StringComparison.Ordinal);
+        Assert.Contains("open generieke registratie", grenzen, StringComparison.Ordinal);
+        Assert.Contains("typeof(IPostConfigureOptions<>)", grenzen, StringComparison.Ordinal);
+        Assert.Contains("S-G1-16", grenzen, StringComparison.Ordinal);
+        Assert.Contains("fetch.call(…)", grenzen, StringComparison.Ordinal);
+        Assert.Contains("S-G1-12", grenzen, StringComparison.Ordinal);
     }
 
     /// <summary>Verwachte (regel, code)-paren: elke JLxxxx na "//" op een regel.</summary>

@@ -8,6 +8,8 @@ using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Xunit;
 
@@ -123,6 +125,35 @@ public sealed class RoutetabelTests
             var antwoord = await h.RoepHub(id, h.Hub.Token(h.Klok.Nu, "admin"));
             Assert.Equal((501, "capability_unavailable"), (antwoord.Status, antwoord.Code));
         }
+    }
+
+    /// <summary>
+    /// R-HARDE-EIS-20 (S-G1-17 herstelronde 10): de wacht tegen doorsturen (<c>DoorstuurWacht</c>) staat op elke actie met
+    /// [JlRoute]. Daarom: elke controller die MVC in de plugin vindt (ook een POCO-controller zonder <c>ControllerBase</c>) is een
+    /// <c>ControllerBase</c> die <see cref="ElkeActie_LooptViaDePipelineEnKomtOvereenMetDeTabel"/> nagaat, en de enige eigen actie
+    /// zonder [JlRoute] is <c>JellyLeonVersionController.GetVersion</c> (een vast 200-antwoord met JSON). Een nieuwe actie daar
+    /// zou buiten de wacht vallen; deze test faalt dan.
+    /// </summary>
+    [Fact]
+    public void ElkeController_LooptViaDeWacht_BehalveDeEneVersieactie()
+    {
+        var onderdelen = new ApplicationPartManager();
+        onderdelen.ApplicationParts.Add(new AssemblyPart(typeof(Plugin).Assembly));
+        onderdelen.FeatureProviders.Add(new ControllerFeatureProvider());
+        var gevonden = new ControllerFeature();
+        onderdelen.PopulateFeature(gevonden);
+
+        Assert.NotEmpty(gevonden.Controllers);
+        Assert.All(gevonden.Controllers, c => Assert.True(typeof(ControllerBase).IsAssignableFrom(c), c.FullName + " is geen ControllerBase"));
+        var versie = typeof(JellyLeonVersionController).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(m => !m.IsSpecialName)
+            .ToList();
+        var enige = Assert.Single(versie);
+        Assert.Equal(nameof(JellyLeonVersionController.GetVersion), enige.Name);
+        Assert.Equal(typeof(ActionResult<ForkVersionInfo>), enige.ReturnType);
+        Assert.Equal(
+            gevonden.Controllers.Select(c => c.AsType()).Where(c => c != typeof(JellyLeonVersionController)).OrderBy(c => c.FullName, StringComparer.Ordinal),
+            Acties().Select(a => a.Controller).Distinct().OrderBy(c => c.FullName, StringComparer.Ordinal));
     }
 
     [Fact]

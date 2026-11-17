@@ -341,6 +341,7 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
         private readonly List<(INamedTypeSymbol Type, HttpWit Wit)> _hostWit = new();
         private readonly List<INamedTypeSymbol> _hostOptieTypen = new();
         private readonly List<(INamedTypeSymbol Type, string Voorvoegsel)> _doorstuurStatus = new();
+        private readonly List<(INamedTypeSymbol Type, HttpWit Wit)> _doorstuurWit = new();
         private readonly List<INamedTypeSymbol> _netwerkTypen = new();
         private readonly INamedTypeSymbol? _verzoek;
         private readonly INamedTypeSymbol? _streamOpties;
@@ -392,6 +393,14 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                 if (compilatie.GetTypeByMetadataName(naam) is { } type)
                 {
                     _doorstuurStatus.Add((type, voorvoegsel));
+                }
+            }
+
+            foreach (var wit in Regels.DoorstuurWitteLijst)
+            {
+                if (compilatie.GetTypeByMetadataName(wit.Type) is { } type)
+                {
+                    _doorstuurWit.Add((type, wit));
                 }
             }
 
@@ -1146,7 +1155,11 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
             if (Doorsturen(operatie, lid, type, constructor) is { } doorsturen)
             {
-                context.ReportDiagnostic(Diagnostic.Create(_doorsturen, operatie.Syntax.GetLocation(), doorsturen));
+                if (!DoorstuurToegestaan(operatie, lid, klasse))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(_doorsturen, operatie.Syntax.GetLocation(), doorsturen));
+                }
+
                 return;
             }
 
@@ -1178,6 +1191,13 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
                     return naam;
                 }
 
+                // Een 3xx-waarde van de statusenum (HttpStatusCode.Found, .SeeOther, .TemporaryRedirect, …; R-HARDE-EIS-20).
+                if (lid is IFieldSymbol { HasConstantValue: true } veld && Regels.DoorstuurStatusEnums.Contains(declarerend.ToDisplayString())
+                    && veld.ConstantValue is int code && code >= 300 && code <= 399)
+                {
+                    return naam;
+                }
+
                 if (lid is IPropertySymbol eigenschap && Regels.DoorstuurStatusNamen.Contains(eigenschap.Name)
                     && operatie.Parent is IAssignmentOperation toewijzing && ReferenceEquals(toewijzing.Target, operatie) && Is3xx(toewijzing.Value))
                 {
@@ -1202,6 +1222,18 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
 
             return null;
         }
+
+        /// <summary>
+        /// Waar als dit lid in deze klasse op <see cref="Regels.DoorstuurWitteLijst"/> staat én alleen gelezen wordt als argument
+        /// van <see cref="Regels.DoorstuurWitAanroepen"/> op de koppen van een antwoord (kijken of weghalen, nooit zetten).
+        /// </summary>
+        private bool DoorstuurToegestaan(IOperation operatie, ISymbol lid, string? klasse) =>
+            operatie is IFieldReferenceOperation or IPropertyReferenceOperation
+            && _doorstuurWit.Any(w => w.Wit.Lid == lid.Name && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(lid.ContainingType?.OriginalDefinition, w.Type))
+            && operatie.Parent is IArgumentOperation { Parent: IInvocationOperation aanroep }
+            && Regels.DoorstuurWitAanroepen.Contains(aanroep.TargetMethod.Name)
+            && aanroep.Instance is IPropertyReferenceOperation { Property.Name: "Headers" } koppen
+            && koppen.Property.ContainingType?.OriginalDefinition.ToDisplayString() == Regels.DoorstuurWitKoppen;
 
         private static bool IsDoorstuurType(INamedTypeSymbol type) =>
             Regels.InNamespace(type.ContainingNamespace?.ToDisplayString() ?? string.Empty, Regels.DoorstuurNamespaces);

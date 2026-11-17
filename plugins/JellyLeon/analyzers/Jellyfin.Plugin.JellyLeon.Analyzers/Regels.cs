@@ -780,7 +780,10 @@ internal static class Regels
         new HttpWit("Microsoft.AspNetCore.Hosting.IStartupFilter", HttpWit.Implementeert, PluginNamespace + ".Core.Http.JlStartupFilterSpike"),
         new HttpWit("Microsoft.AspNetCore.Builder.UseExtensions", "Use", PluginNamespace + ".Core.Http.JlStartupFilterSpike"),
         // Het attribuut op de eigen acties dat de ene pipeline laat lopen (nooit een globaal filter: MvcOptions is JL0001).
-        new HttpWit("Microsoft.AspNetCore.Mvc.Filters.IAsyncActionFilter", HttpWit.Implementeert, PluginNamespace + ".Core.Http.JlRouteAttribute"));
+        new HttpWit("Microsoft.AspNetCore.Mvc.Filters.IAsyncActionFilter", HttpWit.Implementeert, PluginNamespace + ".Core.Http.JlRouteAttribute"),
+        // Hetzelfde attribuut ook als resultaatfilter, alleen op de eigen acties: na het resultaat schrijft de wacht tegen
+        // doorsturen (DoorstuurWacht, R-HARDE-EIS-20) de vaste fout als het antwoord een 3xx of Location had.
+        new HttpWit("Microsoft.AspNetCore.Mvc.Filters.IAsyncAlwaysRunResultFilter", HttpWit.Implementeert, PluginNamespace + ".Core.Http.JlRouteAttribute"));
 
     /// <summary>
     /// De browser als tussenpersoon (R-HARDE-EIS-18, S-G1-17 herstelronde 9): een antwoord dat de browser doorstuurt. Elk lid
@@ -794,8 +797,35 @@ internal static class Regels
     /// </summary>
     public static readonly ImmutableArray<string> DoorstuurWoorden = ImmutableArray.Create("Redirect", "Location", "Created", "Accepted");
 
-    /// <summary>De namespaces waarvoor <see cref="DoorstuurWoorden"/> en <see cref="DoorstuurStatusLeden"/> gelden (met alles eronder).</summary>
-    public static readonly ImmutableArray<string> DoorstuurNamespaces = ImmutableArray.Create("Microsoft.AspNetCore", "Microsoft.Net.Http.Headers");
+    /// <summary>
+    /// De namespaces waarvoor <see cref="DoorstuurWoorden"/> en <see cref="DoorstuurStatusLeden"/> gelden (met alles eronder).
+    /// Sinds herstelronde 10 (R-HARDE-EIS-20) ook System.Net: <c>HttpResponseHeader.Location</c> is het BCL-equivalent van
+    /// <c>HeaderNames.Location</c>, en <c>HttpStatusCode.TemporaryRedirect</c> en elke andere 3xx-waarde uit
+    /// <see cref="DoorstuurStatusEnums"/> is JL0001 (ook <c>Found</c>, <c>SeeOther</c> en <c>MultipleChoices</c>, waarvan de naam
+    /// geen van de woorden bevat).
+    /// </summary>
+    public static readonly ImmutableArray<string> DoorstuurNamespaces = ImmutableArray.Create("Microsoft.AspNetCore", "Microsoft.Net.Http.Headers", "System.Net");
+
+    /// <summary>De statusenums waarvan elke waarde van 300 tot en met 399 JL0001 is, ook als de naam geen van de woorden bevat.</summary>
+    public static readonly ImmutableArray<string> DoorstuurStatusEnums = ImmutableArray.Create("System.Net.HttpStatusCode");
+
+    /// <summary>
+    /// De witte lijst van punt 8 (R-HARDE-EIS-20, herstelronde 10): een lid dat anders "stuurt de browser door" geeft, in precies
+    /// één klasse, en alleen als argument van een aanroep uit <see cref="DoorstuurWitAanroepen"/> op de antwoordkoppen
+    /// (<see cref="DoorstuurWitKoppen"/>). Zo kan de wacht tegen doorsturen de kop Location zien en weghalen, maar nergens zetten.
+    /// </summary>
+    public static readonly ImmutableArray<HttpWit> DoorstuurWitteLijst = ImmutableArray.Create(
+        new HttpWit("Microsoft.Net.Http.Headers.HeaderNames", "Location", PluginNamespace + ".Core.Http.DoorstuurWacht"));
+
+    /// <summary>De aanroepen waarin een lid van <see cref="DoorstuurWitteLijst"/> als argument mag staan: kijken en weghalen.</summary>
+    public static readonly ImmutableArray<string> DoorstuurWitAanroepen = ImmutableArray.Create("ContainsKey", "Remove");
+
+    /// <summary>
+    /// Het type waarvan de eigenschap <c>Headers</c> de ontvanger moet zijn van een aanroep uit <see cref="DoorstuurWitAanroepen"/>:
+    /// de koppen van het antwoord (<c>antwoord.Headers.Remove(HeaderNames.Location)</c>), niet die van het verzoek of een ander
+    /// woordenboek.
+    /// </summary>
+    public const string DoorstuurWitKoppen = "Microsoft.AspNetCore.Http.HttpResponse";
 
     /// <summary>De statuscodes 3xx als constante (<c>StatusCodes.Status301MovedPermanently</c>, …): het voorvoegsel van het lid.</summary>
     public static readonly ImmutableArray<(string Type, string Voorvoegsel)> DoorstuurStatusLeden = ImmutableArray.Create(("Microsoft.AspNetCore.Http.StatusCodes", "Status3"));
