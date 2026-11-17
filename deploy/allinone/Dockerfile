@@ -87,6 +87,8 @@ LABEL org.opencontainers.image.title="Jelly Leon" \
       io.github.lvos04.jelly-leon.web.source="https://github.com/lvos04/jelly-leon-web" \
       io.github.lvos04.jelly-leon.web.revision="${WEB_REF}"
 # url/documentation overschrijven die van de basisimage (jellyfin.org): geen schijn van een officiële release (ADR-0004).
+# /config en /cache zijn in de basisimage 0777; een tmpfs of nieuw Docker-volume neemt die modus over. Daarom 0755: de
+# start weigert een voor groep of anderen beschrijfbare opslagmap (ADR-0032, "Opslagdreigingen, deel 1c").
 # Upstream-server en -web uit de basisimage vervangen door de fork-build (ffmpeg en drivers blijven).
 RUN rm -rf /jellyfin
 COPY --from=server /out/server /jellyfin
@@ -100,7 +102,7 @@ RUN set -eu; \
     chmod 0755 /usr/local/bin/jelly-leon-entrypoint /usr/local/bin/jelly-leon-healthcheck; \
     printf '%s\n' "${FORK_VERSION}" > /usr/share/doc/jelly-leon/VERSION; \
     printf 'server %s\nweb %s\n' "${VCS_REF}" "${WEB_REF}" > /usr/share/doc/jelly-leon/SOURCE_REVISIONS; \
-    mkdir -p /config /cache; chown 568:568 /config /cache; \
+    mkdir -p /config /cache; chown 568:568 /config /cache; chmod 0755 /config /cache; \
     test -x /jellyfin/jellyfin; test -f /jellyfin/jellyfin-web/index.html; test -x /usr/lib/jellyfin-ffmpeg/ffmpeg
 EXPOSE 8096
 VOLUME ["/config", "/cache"]

@@ -35,6 +35,12 @@ Maak (of laat de Hub maken) twee eigen datasets met preset **Apps**:
 Rechten hoef je niet aan te passen: bij de eerste start maakt de container gebruiker `568` (apps) eigenaar van
 **alleen** `/config` en `/cache`. Mediamappen worden nooit gewijzigd.
 
+Geef in de datasetrechten geen schrijfrecht aan de groep, aan anderen of aan andere gebruikers of apps. De container
+weigert te starten (en wijzigt dan niets) als `/config`, `/cache` of een map waarin hij schrijft voor groep of anderen
+beschrijfbaar is, een symbolische koppeling is of na de eerste start niet van `568` is: anders kan een andere gebruiker
+de start via een koppeling laten schrijven in bijvoorbeeld de database met kijkgegevens (ADR-0032, deel 1c). Welke rechten
+de preset **Apps** precies zet, is op de echte NAS nog niet gemeten (NIET GEVALIDEERD).
+
 Ontbreekt de opslagregel voor `/config` of `/cache`, dan zou Docker stilletjes een anoniem volume aanmaken (de database
 staat dan niet op je dataset en verdwijnt bij verwijderen). De container **weigert dan te starten** en meldt welke
 opslagregel ontbreekt.
@@ -156,6 +162,9 @@ vóór de controle van `/health` naar 568 zonder capabilities (ADR-0014). Je hoe
 | `FOUT: opdrachtregeloptie '--datadir' …` (of `--configdir`, `--cachedir`, `--logdir`, `--webdir`) | Veld Entrypoint/Command leegmaken. |
 | `geen /dev/dri-apparaten: transcoderen alleen via CPU` | Geen fout. Zet GPU pas aan na meting (D08). |
 | `FOUT: deze datamap is al gestart door Jelly Leon <x>, nieuwer dan deze image (<y>)` | Je zette alleen de image terug na een update. Zet de config-snapshot van vóór die update mee terug, of kies weer de nieuwere tag (zie *Updaten en terugdraaien*). Er is niets gewijzigd. |
+| `FOUT: … is voor groep of anderen beschrijfbaar (modus …)` | De dataset of een map erin is te ruim gedeeld. *Datasets* → de dataset → *Permissions* → *Edit*: schrijfrecht voor groep, anderen en extra ACL-regels uit, ook voor de onderliggende mappen; eigenaar apps (568). Er is niets gewijzigd. |
+| `FOUT: … is een symbolische koppeling` | Controleer bij de app (*Edit* → *Storage*) dat `/config` en `/cache` op de eigen datasets staan; zet anders de snapshot van de config-dataset terug (*Datasets* → *Snapshots*) of vraag hulp via de Hub. Er is niets gewijzigd. |
+| `FOUT: … is van gebruiker <x>, niet van 568` | *Datasets* → de dataset → *Permissions* → *Edit*: maak apps (568) eigenaar, ook van de onderliggende mappen. Er is niets gewijzigd. |
 | `FOUT: … datamap-versie is onleesbaar` | Het bestand `jelly-leon/datamap-versie` in de config-dataset is beschadigd: zet de snapshot van de config-dataset terug. |
 | Poort bezet bij opslaan | Andere Host Port kiezen; Container Port blijft `8096`. |
 | `FOUT: /config is niet schrijfbaar voor gebruiker 568:568 (Custom User in het formulier)` | Custom User staat aan maar de dataset is (nog) niet van 568: zet Custom User uit (de container regelt het eigenaarschap zelf) of maak de dataset eerst van 568. |

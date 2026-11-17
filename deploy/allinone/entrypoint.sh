@@ -18,6 +18,11 @@
 #    update verdwijnen en de startwizard weer anoniem openstaan (fail-closed, review P0-afronding).
 #  * Start de container al als niet-root (Custom User), dan wordt niets gewijzigd behalve de eigen pluginmap; zijn
 #    /config of /cache niet schrijfbaar, dan een NL-fout; daarna no_new_privs (setpriv) vóór de server start.
+#  * Opslaggrens (ADR-0032, deel 1c): vóór elke schrijfactie (als root vóór de eigenaarswissel, als app-gebruiker vóór
+#    het vastleggen) weigert de start een data- of cachemap, een ouder daarvan, jelly-leon/ of plugins/ die een
+#    symbolische koppeling is of voor groep of anderen beschrijfbaar; als app-gebruiker ook een map van een andere
+#    eigenaar. NL-melding, er is niets gewijzigd. Anders kan een andere gebruiker de start via een koppeling laten
+#    schrijven in bijvoorbeeld de database met kijkgegevens.
 #  * De meegeleverde Jelly Leon-plugin wordt in <datamap>/plugins/JellyLeon_<versie> gezet; andere plugins blijven
 #    onaangeroerd. Geen geheimen, geen netwerkaanroepen, geen shell voor iets anders dan deze start.
 #  * Downgradeweigering (B03-014, JLT-61 b): <datamap>/jelly-leon/datamap-versie onthoudt de hoogste forkversie die de
@@ -154,7 +159,9 @@ record_datamap_version() {
     [ "$recorded" = "$own" ] && return 0
   fi
   mkdir -p "$DATA_DIR/jelly-leon" || fail "$DATA_DIR/jelly-leon kan niet worden aangemaakt"
-  tmp="$DATAMAP_VERSION_FILE.tmp.$$"
+  assert_private_dir "$DATA_DIR/jelly-leon" "$(id -u)"
+  # Exclusief nieuw, willekeurige naam, 0600: een vooraf gelegde koppeling op een voorspelbare naam wordt nooit gevolgd.
+  tmp=$(mktemp "$DATAMAP_VERSION_FILE.tmp.XXXXXXXXXX") || fail "$DATAMAP_VERSION_FILE kan niet worden geschreven"
   if ! {
     printf '# Hoogste Jelly Leon-versie die deze datamap heeft gestart (downgradeweigering, JLT-61 b). Niet bewerken.\n'
     printf 'fork_version=%s\n' "$own"
@@ -163,6 +170,43 @@ record_datamap_version() {
     fail "$DATAMAP_VERSION_FILE kan niet worden geschreven"
   fi
   log "datamap-versie vastgelegd: $own"
+}
+
+# Opslaggrens (ADR-0032, "Opslagdreigingen, deel 1c"): een map waarin de start schrijft of eigenaarschap doorgeeft, mag
+# geen symbolische koppeling zijn en niet voor groep of anderen beschrijfbaar; met $2 (de app-gebruiker) moet hij ook
+# van die gebruiker zijn. Anders kan een andere gebruiker of app er een koppeling neerleggen waarlangs de start een ander
+# bestand overschrijft, zoals de database met kijkgegevens. Met $3 (een ouder) mag ook root eigenaar zijn en mag een
+# map met sticky-bit (zoals /tmp) voor iedereen beschrijfbaar zijn: daarin kan niemand anders de eigen map vervangen.
+# Leest alleen.
+assert_private_dir() {
+  if [ -L "$1" ]; then
+    fail "$1 is een symbolische koppeling: daarlangs kan de start buiten de eigen opslag schrijven, bijvoorbeeld in de database met kijkgegevens. Er is niets gewijzigd. Controleer in TrueNAS bij de app (Edit → Storage) dat /config en /cache op de eigen datasets staan; zet anders de snapshot van de config-dataset van vóór de wijziging terug (Datasets → Snapshots) of vraag hulp via de Hub"
+  fi
+  [ -e "$1" ] || return 0
+  perm=$(stat -c '%a' -- "$1")
+  owner=$(stat -c '%u' -- "$1")
+  if [ $((0$perm & 022)) -ne 0 ] && { [ -z "${3:-}" ] || [ $((0$perm & 01000)) -eq 0 ]; }; then
+    fail "$1 is voor groep of anderen beschrijfbaar (modus $perm): een andere gebruiker of app kan daar een koppeling neerleggen waarlangs de start een ander bestand overschrijft, bijvoorbeeld de database met kijkgegevens. Er is niets gewijzigd. Zet in TrueNAS bij Datasets → de dataset van deze map → Permissions → Edit de schrijfrechten voor groep, anderen en extra ACL-regels uit, ook voor de onderliggende mappen (alleen de eigenaar apps, 568, schrijft), en start de app opnieuw"
+  fi
+  if [ -n "${2:-}" ] && [ "$owner" != "$2" ] && { [ -z "${3:-}" ] || [ "$owner" != 0 ]; }; then
+    fail "$1 is van gebruiker $owner, niet van $2: die gebruiker kan de map vervangen of er een koppeling in neerleggen. Er is niets gewijzigd. Maak in TrueNAS bij Datasets → de dataset van deze map → Permissions → Edit de gebruiker apps (568) eigenaar, ook van de onderliggende mappen, en start de app opnieuw"
+  fi
+}
+
+# De data- en cachemap met hun ouders tot / (die komt uit de image), en de mappen waarin de start zelf schrijft.
+# $1 = de app-gebruiker; leeg als root vóór de eenmalige eigenaarswissel.
+assert_private_storage() {
+  for top in "$DATA_DIR" "$CACHE_DIR"; do
+    assert_private_dir "$top" "${1:-}"
+    parent=$(dirname -- "$top")
+    while [ "${#parent}" -gt 1 ]; do # stopt bij / (en bij . voor een relatief pad)
+      assert_private_dir "$parent" "${1:-}" ouder
+      parent=$(dirname -- "$parent")
+    done
+  done
+  for dir in "$DATA_DIR/jelly-leon" "$DATA_DIR/plugins" "$DATA_DIR"/plugins/JellyLeon_*; do
+    assert_private_dir "$dir" "${1:-}"
+  done
 }
 
 assert_not_downgrade
@@ -182,6 +226,7 @@ install_plugins() {
     log "waarschuwing: $DATA_DIR/plugins niet schrijfbaar; Jelly Leon-plugin niet bijgewerkt"
     return 0
   fi
+  assert_private_dir "$DATA_DIR/plugins" "$(id -u)"
   for src in "$BUNDLED_PLUGINS"/JellyLeon_*; do
     [ -d "$src" ] || continue
     name=$(basename "$src")
@@ -196,7 +241,8 @@ install_plugins() {
       fi
     done
     if ! cmp -s "$src/Jellyfin.Plugin.JellyLeon.dll" "$DATA_DIR/plugins/$name/Jellyfin.Plugin.JellyLeon.dll" 2>/dev/null; then
-      if mkdir -p "$DATA_DIR/plugins/$name" && cp "$src/Jellyfin.Plugin.JellyLeon.dll" "$DATA_DIR/plugins/$name/"; then
+      if mkdir -p "$DATA_DIR/plugins/$name" && assert_private_dir "$DATA_DIR/plugins/$name" "$(id -u)" \
+        && cp "$src/Jellyfin.Plugin.JellyLeon.dll" "$DATA_DIR/plugins/$name/"; then
         log "Jelly Leon-plugin $name geïnstalleerd"
       else
         log "waarschuwing: Jelly Leon-plugin $name kon niet worden geïnstalleerd (zie GET /media/v1/version)"
@@ -212,6 +258,7 @@ if [ "$(id -u)" != "0" ]; then
   if [ "${JELLY_LEON_ENTRYPOINT_STAGE:-}" = "app" ] && [ "$nnp" = "1" ]; then
     log "draait als $(id -u):$(id -g) (groepen $(id -G | tr ' ' ',')), zonder capabilities, no_new_privs"
     unset JELLY_LEON_ENTRYPOINT_STAGE
+    assert_private_storage "$(id -u)"
     record_datamap_version
     install_plugins
     exec /jellyfin/jellyfin "$@"
@@ -234,6 +281,8 @@ fi
 for dir in "$DATA_DIR" "$CACHE_DIR"; do
   assert_owned_mount "$dir"
 done
+# Vóór de eigenaarswissel: een gedeelde map of koppeling weigeren zonder iets te wijzigen (eigenaar pas als app-gebruiker).
+assert_private_storage
 
 for dir in "$DATA_DIR" "$CACHE_DIR"; do
   owner=$(stat -c '%u' "$dir")

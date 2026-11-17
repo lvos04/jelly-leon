@@ -2,7 +2,8 @@
 """Levenscyclustest van de alles-in-één image (Sim-getest met Docker; GEEN echte NAS, geen TrueNAS-formulier).
 
 Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas/CUSTOM_APP.md doet:
-  1. lege host-mappen voor /config en /cache (eigenaar = aanroeper, niet 568) en media alleen-lezen;
+  1. lege host-mappen voor /config en /cache (eigenaar = aanroeper, niet 568; modus 0755 zoals een correcte dataset)
+     en media alleen-lezen; vooraf: /config en /cache in de image zijn 568:568 0755, ook /cache als tmpfs (S-G1-16);
   2. container starten zoals het formulier: als root (geen Custom User), niet privileged, geen extra capabilities,
      geen host-netwerk, alleen poort 8096 gepubliceerd;
   3. wachten tot de Docker-healthcheck van de image `healthy` meldt;
@@ -28,7 +29,10 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
      - /config als tmpfs (opslagtype tmpfs in het formulier: database weg na elke herstart, startwizard weer open);
      - JELLYFIN_CONFIG_DIR in de container zelf (instellingen weg bij elke update);
      - een padoptie (`--datadir`) in het veld Command;
-     - Custom User 568 met een /config die niet van 568 is (NL-melding, nooit stil doorstarten).
+     - Custom User 568 met een /config die niet van 568 is (NL-melding, nooit stil doorstarten);
+     - /config voor iedereen beschrijfbaar (0777) met een koppeling van een andere gebruiker (deze testgebruiker,
+       niet 568) op de tijdelijke naam van de start naar een synthetische serverdatabase: geweigerd vóór de
+       eigenaarswissel, database byte-gelijk (S-G1-16 deel 1c, ADR-0032).
   9. downgradeweigering (B03-014, JLT-61 b): na de eerste start staat de forkversie van de image in
      /config/jelly-leon/datamap-versie; een datamap die al door een nieuwere Jelly Leon is gestart (gesimuleerd met een
      hogere datamap-versie, want een nieuwere image bestaat nog niet) wordt geweigerd met een NL-melding, zonder dat er
@@ -510,9 +514,45 @@ class Lifecycle:
         self.remove(name)
 
     # ------------------------------------------------------------------ verloop
+    def check_storage_modes(self) -> bool:
+        """S-G1-16 deel 1c: /config en /cache in de image zijn 568:568 0755, ook /cache als tmpfs (die neemt de modus van
+        de imagemap over; de basisimage heeft 0777 en de start weigert een voor groep of anderen beschrijfbare map)."""
+        image = docker("run", "--rm", "--network", "none", "--entrypoint", "stat", self.args.image,
+                       "-c", "%u:%g %a", "/config", "/cache", check=False).stdout.split()
+        tmpfs = docker("run", "--rm", "--network", "none", "--tmpfs", "/cache", "--entrypoint", "stat", self.args.image,
+                       "-c", "%a", "/cache", check=False).stdout.strip()
+        ok = image == ["568:568", "755", "568:568", "755"] and tmpfs == "755"
+        return self.add("opslagmappen in de image 568:568 0755 (ook /cache als tmpfs)", ok, f"image {image}; tmpfs {tmpfs}")
+
+    def expect_shared_config_refusal(self) -> bool:
+        """S-G1-16 deel 1c, actor (b): een andere gebruiker (deze testgebruiker, niet 568) legt in een te ruim gedeelde
+        /config vóór de start een koppeling op de tijdelijke naam van de start (PID 1) naar de serverdatabase. De start
+        weigert vóór de eigenaarswissel; de synthetische database blijft byte-gelijk."""
+        shared = self.work / "config-gedeeld"
+        (shared / "data").mkdir(parents=True)
+        (shared / "jelly-leon").mkdir()
+        database = shared / "data" / "jellyfin.db"
+        database.write_bytes(b"SQLite format 3\x00synthetische kijkgegevens")
+        (shared / "jelly-leon" / "datamap-versie.tmp.1").symlink_to("../data/jellyfin.db")
+        shared.chmod(0o777)
+        (shared / "jelly-leon").chmod(0o777)
+        before = database.read_bytes()
+        self.expect_refusal(
+            "/config voor anderen beschrijfbaar, koppeling van een andere gebruiker naar de serverdatabase",
+            mounts=[f"{shared}:/config", f"{self.cache}:/cache", f"{self.media}:/media/muziek:ro"],
+            env=[],
+            expected_text="/config is voor groep of anderen beschrijfbaar (modus 777)",
+        )
+        ok = database.read_bytes() == before and shared.stat().st_uid == os.getuid()
+        return self.add("gedeelde /config: serverdatabase byte-gelijk, geen eigenaarswissel", ok, f"eigenaar {shared.stat().st_uid}")
+
     def run(self) -> bool:
         for directory in (self.config, self.cache, self.media):
             directory.mkdir(parents=True)
+        # Zoals een correcte dataset: alleen de eigenaar schrijft (de umask van de testmachine telt niet mee).
+        self.config.chmod(0o755)
+        self.cache.chmod(0o755)
+        self.check_storage_modes()
         subprocess.run([sys.executable, str(MAKE_MEDIA), str(self.media)], check=True, capture_output=True)
         media_before = self.media_fingerprint()
         try:
@@ -601,6 +641,7 @@ class Lifecycle:
             extra=["--user", f"{APP_UID}:{APP_UID}"],
             expected_text=f"/config is niet schrijfbaar voor gebruiker {APP_UID}:{APP_UID}",
         )
+        self.expect_shared_config_refusal()
         return bool(self.steps) and all(step["geslaagd"] for step in self.steps)
 
     def cleanup(self) -> bool:

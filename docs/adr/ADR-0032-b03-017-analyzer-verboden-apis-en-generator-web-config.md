@@ -651,9 +651,10 @@ foutenmodel, geen veiligheidsuitzondering. Bronnen: `deploy/allinone/Dockerfile`
   568:568, zonder capabilities en met `no_new_privs`; Custom User gebruikt de gekozen gebruiker. Een ander proces
   met dezelfde effectieve gebruiker kan de serverdatabase rechtstreeks wijzigen. Dat is actor **(a)**:
   de padcontrole vormt binnen die identiteit geen OS-beveiligingsgrens. Dat rechtvaardigt geen schrijfroute in de plugin.
+  (Correctie deel 1c: dat geldt alleen als dat proces ook de serverdata ziet; zie "Opslagdreigingen, deel 1c".)
 - De runtimebasis is zonder server en zonder netwerk geïnspecteerd: `/config` en `/cache` zijn daar root:root 0777;
   `/` en `/run` root:root 0755, `/tmp` root:root 1777. De fork-Dockerfile geeft de twee opslagmappen aan 568:568,
-  maar verandert hun modus niet. Een mount heeft de eigenaar, modus en ACL van de aangeleverde opslag.
+  maar verandert hun modus niet (tot deel 1c: nu 0755). Een mount heeft de eigenaar, modus en ACL van de aangeleverde opslag.
   Het entrypoint geeft bij de eerste start eigenaarschap door, maar trekt groeps-/wereldschrijfrechten niet in.
   Onderliggende nieuwe mappen hadden de proces-umask; `SecretStore` maakte alleen de geheimenmap expliciet 0700.
 - Actor **(b)** omvat een andere gebruiker/proces die door groepsrechten, wereldschrijfrechten of een ACL in een
@@ -721,7 +722,8 @@ uitsluitend in gegenereerde kopieën; de plugin bevat geen proefhaken. Beide res
 OS-gebruiker als de server en schrijven in vooraf particuliere, eigen mappen. Zij zijn daarmee in de uitgevoerde
 proeven actor (a): die gebruiker kan het buitenbestand al rechtstreeks schrijven. Voor de gecontroleerde huidige
 configuratie-, ZIP- en maproutes is geen bereikbare aanmaak door een minder bevoegde actor aangetoond. Dat is geen
-bewijs dat elke mogelijke externe hersteller betrouwbaar is.
+bewijs dat elke mogelijke externe hersteller betrouwbaar is. (Correctie deel 1c: dit gold voor de plugin; de start van de
+container had wél een weg van soort (b), nu hersteld. Zie "Opslagdreigingen, deel 1c".)
 
 Een native `fstat` op de geopende database kan `st_nlink > 1` weigeren; een descriptor-gebonden open met bijvoorbeeld
 `openat2` en RESOLVE_BENEATH/NO_SYMLINKS kan het wisselen van ouders tijdens openen voorkomen. Alleen een linkaantal
@@ -734,6 +736,73 @@ vooraf bestaande en extern teruggezette opslag niet is vastgesteld, is deel 1b *
 van soort (b) blijft blokkerend en vraagt herstel, nooit alleen een tekstuele uitzondering.
 
 De echte NAS, Emby en accounts zijn niet benaderd.
+
+#### Opslagdreigingen, deel 1c (start van de container, 2026-11-17)
+
+Bronbasis: `6c1deb9a79552575b9e88fb322d0a25f47b8a124`. Deel 1b beoordeelde de plugin. De start van de container
+(`deploy/allinone/entrypoint.sh`) schrijft eerder in dezelfde datamap en had een weg van soort (b).
+
+**Gevonden weg (b): blokkerend, hersteld.** `record_datamap_version` schreef met `>` naar
+`"$DATAMAP_VERSION_FILE.tmp.$$"`. In de container is de start PID 1 (`exec setpriv … "$SELF"` houdt de PID), dus de
+naam was altijd `datamap-versie.tmp.1`, en `>` volgt een symbolische koppeling. Wie in `/config` of `/config/jelly-leon`
+mag schrijven zonder de app-gebruiker te zijn, legt vóór de start een koppeling op die naam; de start schrijft als 568 in
+het doel, bijvoorbeeld `/config/data/jellyfin.db`, en `mv` maakt van de koppeling `datamap-versie`. Gemeten met de echte
+entrypoint als PID 1 in de gepinde runtime-basis, `/config` 0777 van een andere gebruiker (uid 1000; de app is 568): de
+synthetische serverdatabase is overschreven, en de eenmalige `chown -R` als root nam eerst ook de bestanden van de
+aanvaller over. Werkelijke situaties: (1) een dataset of hostpad dat de gebruiker te ruim deelt (0777, schrijfrecht voor
+de groep, een ACL-regel voor een andere gebruiker of app); (2) de image zelf: `/config` en `/cache` zijn in de basisimage
+0777 en de fork-Dockerfile wijzigde alleen de eigenaar. Een tmpfs of nieuw Docker-volume neemt de modus van de imagemap
+over (gemeten: `--tmpfs /cache` en een benoemd volume op de basisimage gaven 0777; een tmpfs op een nieuw pad 1777), dus
+ook de gedocumenteerde tmpfs-`/cache` was 0777. Het entrypoint maakt zelf geen te ruime map: de container-umask is 0022.
+
+**Herstel, zonder native aanroep en zonder uitzondering.**
+- `assert_private_storage` weigert vóór elke schrijfactie (als root vóór de eenmalige eigenaarswissel, als app-gebruiker
+  vóór het vastleggen van de versie en vóór de pluginmap) een data- of cachemap, een ouder daarvan, `jelly-leon/`,
+  `plugins/` of `plugins/JellyLeon_*` die een symbolische koppeling is of voor groep of anderen beschrijfbaar; als
+  app-gebruiker ook een map van een andere eigenaar. Een ouder mag van root zijn, en voor iedereen beschrijfbaar alleen
+  met sticky-bit (zoals `/tmp`). Na `mkdir` van `jelly-leon/`, `plugins/` en `plugins/JellyLeon_<versie>` volgt dezelfde
+  controle vóór het schrijven. De melding is Nederlands, zegt "Er is niets gewijzigd" en noemt wat in TrueNAS na te kijken
+  is (Datasets → Permissions, de opslag van de app, een snapshot of de Hub); geen terminalstappen.
+- Het tijdelijke bestand komt van `mktemp`: exclusief nieuw, willekeurige naam, 0600.
+- De Dockerfile zet `/config` en `/cache` op 0755.
+
+Tests: `tools/jelly-leon/tests/test_entrypoint_opslaggrens.py` leest de functies en de tweede fase letterlijk uit het
+entrypoint en voert ze met dash uit: de koppelingsproef van deel 1b, gedeelde en gekoppelde mappen, een vreemde eigenaar,
+en twee gevallen waarin een correcte installatie blijft starten. Op de oude code waren 11 van de 13 rood; de twee
+startgevallen waren op oud en nieuw groen. `tools/jelly-leon/e2e/image_lifecycle.py`, `check_storage_modes` en
+`expect_shared_config_refusal`, draait in de CI-job image met de echte image; de testgebruiker is daar de andere gebruiker.
+
+**Gevolg voor een bestaande installatie.** Een correcte installatie (map van de app-gebruiker, geen schrijfrecht voor groep
+of anderen) start ongewijzigd, ook met tmpfs-`/cache` (gemeten met de echte entrypoint en in de tests). Een weigering
+wijzigt niets; hooguit blijft een lege map staan die de start zelf net maakte en die een te ruime modus kreeg (bijvoorbeeld
+door ACL-overerving). De plugin weigert dezelfde mappen al sinds deel 1b; dat gebeurt in de constructor van `JlPaths`,
+waarvan een hosted service afhangt, zodat de hele server stopt met een Engelse foutmelding. De start meldt het nu eerder en
+in het Nederlands. **Niet vastgesteld, alleen op de echte NAS te meten:** welke modusbits de preset Apps uit
+`deploy/truenas/CUSTOM_APP.md` geeft, en hoe het opslagtype tmpfs van TrueNAS de modus zet. Geeft de preset schrijfrecht
+voor de groep, dan weigeren start en plugin elke installatie volgens dat document. Verder ziet `stat` alleen modusbits: bij
+een NFSv4-ACL telt een extra regel voor een benoemde gebruiker niet mee in de modus, dus zo'n ACL met schrijfrecht ziet de
+controle niet. Beide horen bij de NAS-test en het besluit hieronder.
+
+**Correctie op de redenering voor actor (a).** Deel 1b stelt dat een proces met dezelfde gebruiker de serverdatabase ook
+rechtstreeks kan wijzigen. Dat klopt alleen als dat proces ook de serverdata ziet. Op TrueNAS draaien apps standaard als
+568; een andere app met alleen een submap van de config-dataset gemount, heeft dezelfde gebruiker maar niet dezelfde
+toegang. Per restgrens:
+- `hardlink-database` blijft actor (a). Een harde koppeling kan niet over mounts heen (link(2): EXDEV; gemeten: "Invalid
+  cross-device link" met alleen de eigen map gemount), en met `fs.protected_hardlinks=1` (gemeten op de bouwmachine; op de
+  NAS onbekend) alleen naar een bestand dat de aanvaller zelf mag schrijven. Wie de koppeling naar de serverdatabase kan
+  leggen, kan die database dus ook rechtstreeks schrijven. Niet onder (a) valt een terugzetting die een archief met harde
+  koppelingen uit een onbetrouwbare bron terugzet (deel 1b, "Aanvoer van soort (b)").
+- `padwissel-bestand` valt niet volledig onder (a). Een app met dezelfde gebruiker en alleen een deel van de pluginmap
+  gemount, kan daarin een map tussen controle en openen vervangen door een symbolische koppeling met een pad uit de
+  servercontainer. De plugin maakt dan een leeg bestand met willekeurige naam in een map die die app zelf niet ziet. Er
+  wordt niets overschreven (CreateNew) en de controle na openen weigert de bewerking; de lege ingang blijft staan.
+  Bereikbaar alleen als een beheerder een deel van de Jelly Leon-config in een andere app mount.
+
+Een native controle zou toevoegen: `fstat` op de geopende database met weigering bij `st_nlink > 1`, en openen gebonden
+aan een mapdescriptor (`openat2` met RESOLVE_BENEATH en RESOLVE_NO_SYMLINKS), zodat een wissel tijdens het openen
+faalt. SQLite opent zijn naastbestanden zelf op naam; dat blijft ook dan buiten zo'n binding. Er is geen native controle
+en geen uitzondering gebouwd; de HARDE EIS is niet verlaagd. Of deze twee grenzen het foutenmodel formeel afbakenen, is
+een besluit van de regisseur.
 
 ### 2. Witte lijst: één API in één klasse
 
