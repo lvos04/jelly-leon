@@ -849,6 +849,66 @@ het foutenmodel; geen herstel in dit deel. Alleen eigen snapshots of back-ups te
 Jelly Leon-config aan een andere app koppelen. Dit besluit wordt nog aan de gebruiker voorgelegd. B2 blijft strikt:
 rechten en ACL-werking op de echte NAS moeten door de gebruiker worden gemeten. Geen NAS, Emby of accounts benaderd.
 
+#### Opslagdreigingen, deel 1e (installatiebestanden en startbestanden, 2026-11-17)
+
+Bronbasis: `6525d9819e51579e03e62c6847d37cb45ec2fec9`. Herstel van R-TECH-1 en R-TECH-2 uit de technische review over
+deel 1 t/m 1d; beide eerst herhaald en rood gezien.
+
+**Start van de container (R-TECH-1).** `assert_private_storage` controleerde de mappen, niet de bestanden erin. Was de
+bestaande plugin-DLL een koppeling naar `/config/data/jellyfin.db`, dan las `cmp` en schreef `cp` erdoorheen: gemeten met
+de hele entrypoint in een netwerkloze wegwerpcontainer op de gepinde runtime-image, als Custom User én als root (na de
+eigenaarswissel), was de synthetische serverdatabase overschreven; een harde koppeling gaf hetzelfde, een FIFO liet `cmp`
+wachten. Herstel: `assert_private_storage` (als root vóór de eigenaarswissel en vóór de eerste versielezing, als
+app-gebruiker vóór het vastleggen van de versie) weigert in elke `plugins/JellyLeon_*` elke ingang die geen gewoon bestand
+met één naam is (symbolische of harde koppeling, map, FIFO, ander bijzonder bestand), met een Nederlandse melding en zonder
+iets te wijzigen. Dat dekt ook `meta.json`, dat de server zelf bij de start leest en zo nodig schrijft
+(`PluginManager.SaveManifest`, `File.WriteAllText` volgt een koppeling). De DLL komt daarna als nieuw bestand naast het
+doel (`mktemp`) en wordt hernoemd (`mv -f -T`): ook zonder die weigering wordt een bestaande ingang vervangen, nooit
+beschreven. Elke andere lees- of schrijfactie van de start is nagelopen:
+
+| Plek | Bevinding |
+|---|---|
+| `datamap-versie` lezen (`assert_not_downgrade`) en schrijven (`record_datamap_version`) | geen nieuw gat: koppeling, FIFO en bijzonder bestand worden sinds deel 1d vóór het lezen geweigerd; schrijven via `mktemp` en hernoemen (deel 1c) vervangt een (harde) koppeling |
+| oude `JellyLeon_*`-mappen (`rm -rf`) | `rm` volgt geen koppeling; nu ook daar alleen gewone bestanden (strenger, geen gat) |
+| DLL vergelijken en plaatsen, `meta.json` van de server | **gat, hersteld** (hierboven) |
+| eigenaarswissel `chown -R` als root | GNU `chown -R` volgt standaard (`-P`) geen koppeling; de weigering staat er nu vóór |
+| `CONFIG_DIR`, `/proc/self/mountinfo`, `/proc/self/status`, `/dev/dri`, image-`VERSION` | alleen mountcontrole of lezen buiten de gebruikersopslag; geen gat |
+| generator van de web-`config.json` | draait alleen bij de imagebouw (Dockerfile, webfase), nooit bij de start |
+| `healthcheck.sh` | leest alleen `/proc/self/status` en vraagt `/health` op; schrijft niets |
+
+**Plugin (R-TECH-2).** De terugval van deel 1d ving alleen de weigering van `JlPaths` op. `core/core.db` als koppeling,
+`core.db` 0660 of `core/` 0770 lieten `Host.StartAsync` falen in `JlDatabase.EisEigenPlek` via `OpslagDienst<T>`. Nu neemt
+`PluginOpslag` in dezelfde eenmalige beslissing, vóór elke afhankelijke dienst of achtergrondtaak, elke database van Core
+en van elke module (de lijst met moduleschakelaars) mee: `JlDatabase.EisVeiligBijStart` voert precies de controle van de
+constructor uit (eigen plek, geen koppeling, de vier namen inclusief `-wal`, `-shm`, `-journal`, mappen tot de wortel,
+groeps-/wereldschrijfrecht) en daarnaast de bestaande eigendomsproef van de mappen ook op elk bestaand bestand
+(`JlPaths.EisEigenBestand`: dezelfde modus terugzetten; ctime kan veranderen). Een weigering doet wat deel 1d doet: alleen
+de plugin uit, geen schrijfactie, niets geopend, geen reparatie, één vaste melding, 503/401/403, pas weer aan na een
+herstart met veilige opslag. De strengheid van de controles, de analyzer en zijn lege uitzonderingslijst zijn ongewijzigd;
+geen native aanroep. De geheimenmap hoort niet bij de start (pas bij gebruik gelezen) en zit dus niet in de beslissing.
+
+**Later dan de start.** Nagelopen: verzoek, achtergrondtaak, gebeurtenis van de server, afsluiten. Twee plekken konden een
+ruwe fout in de server gooien en zijn hersteld. (1) `EventManager.PublishInternal` van de server maakt alle
+`IEventConsumer<UserDeletedEventArgs>` aan vóór zijn try/catch; de fabriek haalde `PrivacyService` op en daarmee elke
+module. Een opslagfout gaf de server dan een fout bij het verwijderen van een gebruiker (`UserManager.DeleteUserAsync`
+publiceert na het wissen in de database) en sloeg de eigen afhandelaars van de server (activiteitenlog, melding) over. `UserDeletedConsumer` haalt de dienst nu pas in `OnEvent` op (binnen de foutafhandeling van de server).
+(2) `SecretStore` gaf weigeringen ruw door, en de Devices-listener vangt alleen `JlException`: een fout in een
+sessiegebeurtenis brak dan de aanroep van de overige luisteraars van de server af (`EventHelper` roept ze als één
+multicast aan). `SecretStore` maakt van een opslagfout nu 503 `storage_unavailable`, net als `JlDatabase.Met`; een
+onveilige Hub-pin geeft zo 503 uit de foutcatalogus in plaats van een ruwe 500. De planner en de MediaGuard-poller vangen
+al elke fout; afsluiten opent geen opslag. (3) `JlRouteAttribute` maakte de pijplijn buiten zijn foutafhandeling aan: na een
+opslagwijziging tijdens het draaien gaf het eerste verzoek een ruwe 500 uit een weigerende constructor (gemeten met een
+Hub-route). Het aanmaken valt nu binnen dezelfde try; zo'n weigering wordt 503 `storage_unavailable`. **Restgrenzen
+(gemeld, geen uitzondering):** wie met dezelfde gebruiker tussen de eenmalige beslissing en de constructors (dezelfde
+start) een bestand verwisselt, kan de constructor nog laten weigeren (actor (a), zoals B1). Een FIFO op een databasenaam
+is in beheerde code niet te herkennen; SQLite faalt dan bij het lezen (503). B1 en B2 blijven ongewijzigd.
+
+Bewijs: `test_entrypoint_opslaggrens.py` (acht soorten pluginbestanden, de rootfase vóór de eigenaarswissel, plaatsen
+zonder volgen, correcte installatie), de levenscyclus van de echte image in CI (`expect_plugin_link_refusal`, als root en
+als Custom User) en `OpslagTerugvalTests` (de drie hostproeven van de review plus elk naastbestand, onveilige moduledirs,
+een moduledatabase als koppeling, een bestand van een andere eigenaar, en het latere moment). Uitvoering en tegenproeven:
+`docs/platform-v2/test-evidence/s-g1-16-deel1e-startbestanden.md`.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:
