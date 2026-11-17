@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Microsoft.AspNetCore.Mvc;
@@ -57,15 +58,17 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter, IAsyncAlwa
             }
         }
 
-        var pipeline = http.RequestServices.GetRequiredService<JlPipeline>();
+        JlPipeline pipeline;
         JlContext jl;
         try
         {
+            // Ook het aanmaken: na een opslagwijziging tijdens het draaien weigert een constructor (ADR-0032, deel 1e).
+            pipeline = http.RequestServices.GetRequiredService<JlPipeline>();
             jl = await pipeline.BereidVoorAsync(http, RouteTable.Zoek(Id), traceId).ConfigureAwait(false);
         }
-        catch (JlException fout)
+        catch (Exception fout) when (fout is JlException or IOException or UnauthorizedAccessException)
         {
-            context.Result = JlResult.Fout(fout, traceId);
+            context.Result = JlResult.Fout(fout as JlException ?? Fouten.OpslagOnbeschikbaar(), traceId);
             return;
         }
 

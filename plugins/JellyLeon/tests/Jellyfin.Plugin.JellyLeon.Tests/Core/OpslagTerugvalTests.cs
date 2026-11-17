@@ -11,10 +11,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.JellyLeon.Core;
 using Jellyfin.Plugin.JellyLeon.Core.Connector;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Jellyfin.Plugin.JellyLeon.Core.Hub;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
+using Jellyfin.Plugin.JellyLeon.Core.Secrets;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
 using MediaBrowser.Common.Configuration;
@@ -58,12 +61,23 @@ public sealed class OpslagTerugvalTests : IDisposable
     [InlineData("ouder-groep")]
     [InlineData("ouder-anderen")]
     [InlineData("ouder-koppeling")]
+    [InlineData("core-koppeling")] // De drie hostproeven van R-TECH-2 (deel 1e) ...
+    [InlineData("core-groep")]
+    [InlineData("submap-groep")]
+    [InlineData("wal-koppeling")] // ... en elk naastbestand van SQLite,
+    [InlineData("shm-koppeling")]
+    [InlineData("journal-koppeling")]
+    [InlineData("wal-groep")]
+    [InlineData("modulemap-koppeling")] // een onveilige map dieper in de boom die de start opent,
+    [InlineData("modulemap-groep")]
+    [InlineData("moduledb-koppeling")]
+    [InlineData("core-eigenaar")] // en een bestand van een andere eigenaar.
     public async Task OnveiligeOpslag_HostStartDoorAllePluginroutesDichtEnNietsGeschreven(string geval)
     {
         var (data, cache) = Opzet(geval);
         var voor = Boom(_map);
-        var vreemd = Environment.GetEnvironmentVariable("JL_VREEMDE_OPSLAG");
-        var vreemdVoor = geval == "eigenaar" ? Boom(vreemd!) : null;
+        var vreemd = geval is "eigenaar" or "core-eigenaar" ? data : null;
+        var vreemdVoor = vreemd is null ? null : Boom(vreemd);
         using var host = Host(data, cache);
         var stop = TestContext.Current.CancellationToken;
         await host.StartAsync(stop); // Oude registratie gooit hier: de HELE host startte niet.
@@ -121,11 +135,7 @@ public sealed class OpslagTerugvalTests : IDisposable
         }
 
         // Een nieuwe host bepaalt de opslagtoestand opnieuw; alle normale achtergrondtaken mogen weer starten.
-        _sessies.SetupAdd(s => s.PlaybackStart += It.IsAny<EventHandler<PlaybackProgressEventArgs>>());
-        _sessies.SetupAdd(s => s.PlaybackStopped += It.IsAny<EventHandler<PlaybackStopEventArgs>>());
-        _sessies.SetupRemove(s => s.PlaybackStart -= It.IsAny<EventHandler<PlaybackProgressEventArgs>>());
-        _sessies.SetupRemove(s => s.PlaybackStopped -= It.IsAny<EventHandler<PlaybackStopEventArgs>>());
-        _sessies.SetupGet(s => s.Sessions).Returns([]);
+        SessiesToegestaan();
         using var herstart = Host(data, cache);
         await herstart.StartAsync(stop);
         try
@@ -141,6 +151,64 @@ public sealed class OpslagTerugvalTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task NaDeStart_OnveiligeOpslagGooitGeenRuweFoutNaarDeServer()
+    {
+        var stop = TestContext.Current.CancellationToken;
+        var data = Maak(Path.Combine(_map, "data"));
+        var cache = Maak(Path.Combine(_map, "cache"));
+        var eigen = Maak(Path.Combine(data, "jelly-leon"));
+        var kijk = Path.Combine(_map, "kijkgegevens.db");
+        await File.WriteAllTextAsync(kijk, "synthetische kijkgegevens", stop);
+        SessiesToegestaan();
+        using var host = Host(data, cache);
+        await host.StartAsync(stop);
+        try
+        {
+            Assert.True(host.Services.GetRequiredService<PluginOpslag>().Beschikbaar);
+            // Na de start worden een nog niet geopende moduledatabase, het zout van de pseudoniemen en de Hub-pin koppelingen.
+            File.CreateSymbolicLink(Path.Combine(Maak(Path.Combine(eigen, "quality")), "quality.db"), kijk);
+            var geheimen = Maak(Path.Combine(eigen, "secrets"));
+            File.CreateSymbolicLink(Path.Combine(geheimen, "opaque-id.salt"), kijk);
+            File.CreateSymbolicLink(Path.Combine(geheimen, "hub-pin.json"), kijk);
+
+            // Zoals EventManager.PublishInternal van de server: eerst alle afhandelaars aanmaken, buiten zijn foutafhandeling;
+            // daarna elke OnEvent binnen zijn try/catch. Het aanmaken mag dus niets openen.
+            using var scope = host.Services.CreateScope();
+            var afhandelaars = scope.ServiceProvider.GetServices<IEventConsumer<UserDeletedEventArgs>>().ToList();
+            foreach (var afhandelaar in afhandelaars)
+            {
+                _ = await Record.ExceptionAsync(() => afhandelaar.OnEvent(new UserDeletedEventArgs(new User("proef", "standaard", "standaard"))));
+            }
+
+            // Pseudoniem bij een sessiegebeurtenis van de server (Devices-listener vangt alleen JlException): 503, geen ruwe fout.
+            Assert.Equal("storage_unavailable", Assert.Throws<JlException>(() => host.Services.GetRequiredService<SecretStore>().OpaakId("sessie", "proef")).Code);
+            // Hub-pin via een koppeling: de route antwoordt met 503 uit de foutcatalogus (JlRouteAttribute), geen ruwe fout.
+            Assert.Equal("storage_unavailable", Assert.Throws<JlException>(() => host.Services.GetRequiredService<HubPin>().Huidig).Code);
+            var hubRoute = RouteTable.Alle.First(r => r.Auth == JlAuth.Hub);
+            using var client = Client(host);
+            using var verzoek = new HttpRequestMessage(new HttpMethod(hubRoute.Methode), hubRoute.Pad.Replace("{slug}", "devices", StringComparison.Ordinal).Replace("{id}", "proef", StringComparison.Ordinal));
+            using var antwoord = await client.SendAsync(verzoek, stop);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, antwoord.StatusCode);
+            Assert.Equal("storage_unavailable", (string?)JsonNode.Parse(await antwoord.Content.ReadAsStringAsync(stop))!["code"]);
+        }
+        finally
+        {
+            await host.StopAsync(stop);
+        }
+
+        Assert.Equal("synthetische kijkgegevens", await File.ReadAllTextAsync(kijk, stop));
+    }
+
+    private void SessiesToegestaan()
+    {
+        _sessies.SetupAdd(s => s.PlaybackStart += It.IsAny<EventHandler<PlaybackProgressEventArgs>>());
+        _sessies.SetupAdd(s => s.PlaybackStopped += It.IsAny<EventHandler<PlaybackStopEventArgs>>());
+        _sessies.SetupRemove(s => s.PlaybackStart -= It.IsAny<EventHandler<PlaybackProgressEventArgs>>());
+        _sessies.SetupRemove(s => s.PlaybackStopped -= It.IsAny<EventHandler<PlaybackStopEventArgs>>());
+        _sessies.SetupGet(s => s.Sessions).Returns([]);
+    }
+
     private (string Data, string Cache) Opzet(string geval)
     {
         var ouder = Maak(Path.Combine(_map, "ouder"));
@@ -154,6 +222,11 @@ public sealed class OpslagTerugvalTests : IDisposable
         // Dit koppelingsdoel mag zelfs nooit als pin gelezen worden; er is geen uitvoerbare sleutel of echt account.
         Maak(Path.Combine(eigenData, "secrets"));
         File.CreateSymbolicLink(Path.Combine(eigenData, "secrets", "hub-pin.json"), Path.Combine(buiten, "kijkgegevens.db"));
+        if (OnveiligStartbestand(eigenData, Path.Combine(buiten, "kijkgegevens.db"), geval))
+        {
+            return (data, cache);
+        }
+
         if (geval == "eigenaar")
         {
             // Gewone tijdelijke map, in de testvoorbereiding door een wegwerpcontainer van een andere UID gemaakt.
@@ -161,6 +234,16 @@ public sealed class OpslagTerugvalTests : IDisposable
             Assert.True(Directory.Exists(data));
             // Bewaak de echte eigendomsfout: een read-only mount of ontbrekende fixture is geen vervangend bewijs.
             Assert.Contains("niet van de eigen gebruiker", Assert.Throws<UnauthorizedAccessException>(() => new JlPaths(data, cache)).Message, StringComparison.Ordinal);
+        }
+        else if (geval == "core-eigenaar")
+        {
+            // Eigen, veilige mappen met daarin core/core.db (0644) van een andere UID, in de testvoorbereiding gemaakt in een
+            // wegwerpcontainer zonder netwerk. Alleen het bestand is vreemd; de wortelmappen keurt JlPaths goed.
+            data = Environment.GetEnvironmentVariable("JL_VREEMDE_KERN") ?? throw new InvalidOperationException("JL_VREEMDE_KERN ontbreekt; maak eerst de tijdelijke eigenaarfixture.");
+            var db = Path.Combine(data, "jelly-leon", "core", "core.db");
+            _ = new JlPaths(data, cache);
+            Assert.Equal((UnixFileMode)420, File.GetUnixFileMode(db));
+            Assert.Throws<UnauthorizedAccessException>(() => File.SetUnixFileMode(db, (UnixFileMode)420));
         }
         else if (geval.EndsWith("koppeling", StringComparison.Ordinal))
         {
@@ -175,6 +258,51 @@ public sealed class OpslagTerugvalTests : IDisposable
         }
 
         return (data, cache);
+    }
+
+    /// <summary>Deel 1e (R-TECH-2): veilige wortelmappen, maar een onveilig bestand of een onveilige submap die de start opent.</summary>
+    private static bool OnveiligStartbestand(string eigenData, string kijk, string geval)
+    {
+        var kern = Path.Combine(eigenData, "core");
+        var db = Path.Combine(kern, "core.db");
+        switch (geval)
+        {
+            case "core-koppeling":
+                File.CreateSymbolicLink(Path.Combine(Maak(kern), "core.db"), kijk);
+                return true;
+            case "core-groep":
+                Bestand(Path.Combine(Maak(kern), "core.db"), (UnixFileMode)432);
+                return true;
+            case "submap-groep":
+                File.SetUnixFileMode(Maak(kern), (UnixFileMode)504);
+                return true;
+            case "wal-koppeling" or "shm-koppeling" or "journal-koppeling":
+                Bestand(Path.Combine(Maak(kern), "core.db"), (UnixFileMode)384);
+                File.CreateSymbolicLink(db + "-" + geval.Split('-')[0], kijk);
+                return true;
+            case "wal-groep":
+                Bestand(Path.Combine(Maak(kern), "core.db"), (UnixFileMode)384);
+                Bestand(db + "-wal", (UnixFileMode)432);
+                return true;
+            case "modulemap-koppeling":
+                // Devices opent zijn database bij de start (via de listener); de map wijst naar buiten.
+                Directory.CreateSymbolicLink(Path.Combine(eigenData, "devices"), Path.GetDirectoryName(kijk)!);
+                return true;
+            case "modulemap-groep":
+                File.SetUnixFileMode(Maak(Path.Combine(eigenData, "quality")), (UnixFileMode)504);
+                return true;
+            case "moduledb-koppeling":
+                File.CreateSymbolicLink(Path.Combine(Maak(Path.Combine(eigenData, "quality")), "quality.db"), kijk);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static void Bestand(string pad, UnixFileMode modus)
+    {
+        File.WriteAllBytes(pad, []);
+        File.SetUnixFileMode(pad, modus);
     }
 
     private async Task ControleerRoutes(HttpClient client, CancellationToken stop)

@@ -227,6 +227,33 @@ internal sealed class JlPaths
         }
     }
 
+    /// <summary>
+    /// Een bestaand bestand is van de procesgebruiker: dezelfde eigendomsproef als bij de mappen (dezelfde modus
+    /// terugzetten; zonder CAP_FOWNER kan alleen de eigenaar dat). Alleen na <see cref="EisVeiligBestand"/>, dat een
+    /// koppeling al weigert.
+    /// </summary>
+    internal static void EisEigenBestand(string pad)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("Controle van de eigenaar van een opslagbestand vereist Linux.");
+        }
+
+        if (!File.Exists(pad))
+        {
+            return;
+        }
+
+        try
+        {
+            File.SetUnixFileMode(pad, File.GetUnixFileMode(pad));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new UnauthorizedAccessException("Een opslagbestand van Jelly Leon is niet van de eigen gebruiker; start geweigerd.");
+        }
+    }
+
     /// <summary>Controleert de geopende bestandsnaam en modus vóór de eerste schrijf- of leeshandeling.</summary>
     internal void EisGeopendBestand(FileStream stroom, string pad)
     {

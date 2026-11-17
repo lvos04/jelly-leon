@@ -96,7 +96,7 @@ public sealed class PrivacyTests : IDisposable
         Assert.NotEmpty(Vindplaatsen(weg.Id));
         Assert.NotEmpty(RuweVindplaatsen(weg.Id));
 
-        await new UserDeletedConsumer(privacy, NullLogger<UserDeletedConsumer>.Instance).OnEvent(new UserDeletedEventArgs(weg));
+        await new UserDeletedConsumer(() => privacy, NullLogger<UserDeletedConsumer>.Instance).OnEvent(new UserDeletedEventArgs(weg));
 
         Assert.Equal(0, privacy.TelGebruiker(weg.Id));
         Assert.Empty(Vindplaatsen(weg.Id));

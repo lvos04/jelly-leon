@@ -65,7 +65,7 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IMediaMappen, BibliotheekMappen>();
         serviceCollection.AddSingleton<ConnectorService>();
         serviceCollection.AddScoped<IEventConsumer<UserDeletedEventArgs>>(sp => new UserDeletedConsumer(
-            sp.GetRequiredService<PluginOpslag>().Beschikbaar ? sp.GetRequiredService<PrivacyService>() : null,
+            sp.GetRequiredService<PluginOpslag>().Beschikbaar ? sp.GetRequiredService<PrivacyService> : null,
             sp.GetRequiredService<ILogger<UserDeletedConsumer>>()));
         serviceCollection.AddSingleton<DevicesListener>();
         serviceCollection.AddHostedService<OpslagDienst<DevicesListener>>();

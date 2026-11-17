@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json.Nodes;
+using Jellyfin.Plugin.JellyLeon.Configuration;
 using Jellyfin.Plugin.JellyLeon.Core.Connector;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
@@ -9,8 +11,9 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyLeon.Core;
 
 /// <summary>
-/// Eenmalige opslagbeslissing voor deze serverstart. Een weigering schakelt alleen de plugin uit; er volgt geen
-/// hercontrole of reparatie tijdens het draaien. De strenge constructor van JlPaths blijft de opslaggrens bewaken.
+/// Eenmalige opslagbeslissing voor deze serverstart: de eigen wortelmappen (JlPaths) en elke database met haar
+/// naastbestanden en mappen (JlDatabase). Een weigering schakelt alleen de plugin uit; er volgt geen hercontrole of
+/// reparatie tijdens het draaien. De strenge constructors van JlPaths en JlDatabase blijven de opslaggrens bewaken.
 /// </summary>
 internal sealed class PluginOpslag
 {
@@ -26,7 +29,15 @@ internal sealed class PluginOpslag
     {
         try
         {
-            _paden = new JlPaths(data, cache);
+            var paden = new JlPaths(data, cache);
+            // Deel 1e: in dezelfde beslissing, vóór elke afhankelijke dienst, ook elke database van Core en van elke module
+            // (de lijst met moduleschakelaars), met de bestanden die SQLite ernaast schrijft en hun mappen.
+            foreach (var db in new PluginConfiguration().Schakelaars().Select(s => paden.ModuleDb(s.Slug)).Prepend(paden.CoreDb))
+            {
+                JlDatabase.EisVeiligBijStart(paden, db);
+            }
+
+            _paden = paden;
         }
         catch (Exception fout) when (fout is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {

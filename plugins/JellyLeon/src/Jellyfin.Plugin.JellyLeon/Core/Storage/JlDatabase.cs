@@ -130,6 +130,19 @@ internal sealed class JlDatabase
     }
 
     /// <summary>
+    /// De eenmalige opslagbeslissing bij de serverstart (ADR-0032, deel 1e): dezelfde eisen als de constructor en elke
+    /// opening, plus de eigendomsproef op het bestaande bestand en elk bestaand naastbestand. Opent en maakt niets.
+    /// </summary>
+    internal static void EisVeiligBijStart(JlPaths paden, string pad)
+    {
+        EisEigenPlek(paden, pad);
+        foreach (var suffix in _naastBestanden)
+        {
+            JlPaths.EisEigenBestand(pad + suffix);
+        }
+    }
+
+    /// <summary>
     /// Het bestand en wat SQLite ernaast schrijft, liggen (ook na het volgen van koppelingen) in een eigen map. SQLite zet
     /// <c>-wal</c>, <c>-shm</c> en <c>-journal</c> naast het echte bestand: is <paramref name="pad"/> zelf een koppeling
     /// (a.db -&gt; b.db), dan naast b.db. Daarom telt elk naastbestand naast de opgegeven naam én naast het echte pad.
