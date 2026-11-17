@@ -40,13 +40,13 @@ from jl_common import DEFAULT_REPO_ROOT  # noqa: E402
 
 BRON_REPO = "lvos04/ai-server-manager"
 #: Commit van ai-server-manager waaruit de kopieën komen (contracts 1.3 incl. de review-correcties RV1–RV13,
-#: ADR-0027/ADR-0028 daar; dezelfde bron-commit als in de andere repos).
-BRON_COMMIT = "02b119cb84be9a307a88532f6692ea8a4bcb12f1"
+#: ADR-0027/ADR-0028 daar, en de aanvulling C-12, ADR-0031 daar; dezelfde bron-commit als in de andere repos).
+BRON_COMMIT = "e88a290c9ad5fef4acf498d05ad3414395a4fcb5"
 BRON_BRANCH = "ccr-c133d7a0-kuz1cv"
 #: Pad (gelijk in bron en kopie) → sha256 van de bron op BRON_COMMIT.
 KOPIEEN: dict[str, str] = {
-    "docs/platform-v2/PLATFORM_CONTRACTEN.md": "15b30cf17f91b606451ef9c41f02327076ef76ce655ee94e40e3538106962310",
-    "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md": "f0a2352ddb27088ae668013501c62a1eaaf879efe742a2d4422ffe8d33b43466",
+    "docs/platform-v2/PLATFORM_CONTRACTEN.md": "4712dd62c837c2f2594fa4152a925464f6f7481e898473660f09607cc113c511",
+    "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md": "b5ebba073a8fe8beb715d58e6760feae38e33ad445956d107e64840133dd7924",
 }
 #: Historiekopieën: pad → (eigen bron-commit, sha256). Nooit bijwerken; alleen bewaken dat ze niet lokaal wijzigen.
 HISTORIE: dict[str, tuple[str, str]] = {

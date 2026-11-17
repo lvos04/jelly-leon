@@ -4,6 +4,7 @@ blad en de vaste validatiewaarden (meerdere gescheiden door "; "), nooit `Gereed
 
 Nieuw in 1.3 en hier bewaakt:
 - validatiewaarden `Intel-iGPU-getest (ontwikkelmachine)` en `Niet getest` (die laatste alleen bij `Niet gestart`);
+- aanvulling C-12 (C12-6): `NIET GEVALIDEERD (echte Hub)`; de vaste lijst is precies de tabel van §11;
 - een lege `validatie` is nooit toegestaan;
 - elke `NIET GEVALIDEERD (…)` die in `blokkade` staat, staat ook in `validatie`;
 - contractpunten (`C1.3-<code>`, `C1.2-<code>`) en reviews (`REVIEW-jelly-leon-<onderwerp>`) mogen een eigen regel hebben,
@@ -37,6 +38,7 @@ NOT_GENERAL = {
     "NIET GEVALIDEERD (hardware)",
     "NIET GEVALIDEERD (account)",
     "NIET GEVALIDEERD (Mac/Xcode)",
+    "NIET GEVALIDEERD (echte Hub)",  # aanvulling C-12 (C12-6), melding uit deze repo (S-G1-17)
 }
 VALIDATION = {
     "Sim-getest",
@@ -128,6 +130,31 @@ def test_b_and_jlt_ids_in_evidence_are_excel_rows_of_this_repo():
     tasks = {task["ID"] for task in json.loads(EXCEL_TAKEN.read_text(encoding="utf-8"))}
     unknown = [item["id"] for item in _items() if item["id"].startswith(("B", "JLT-")) and item["id"] not in tasks]
     assert unknown == []
+
+
+def test_fixed_validation_list_is_the_table_of_section_11():
+    """De vaste lijst volgt het contract: een waarde erbij of eraf zonder contracttekst is rood (C12-6: echte Hub)."""
+    text = (REPO / "docs" / "platform-v2" / "PLATFORM_CONTRACTEN.md").read_text(encoding="utf-8")
+    begin = text.index("## 11. Bewijs en Excel")
+    section = text[begin : text.index("## 12.", begin)]
+    in_table: set[str] = set()
+    for raw in section.splitlines():
+        line = raw.strip()
+        if line.startswith("| `"):
+            in_table.update(re.findall(r"`([^`]+)`", line.split(" | ")[0]))
+    fixed = VALIDATION | VALIDATION_TEST
+    assert in_table == fixed, f"verschil met contract §11: {sorted(in_table ^ fixed)}"
+    hub = {
+        "id": "B03-001",
+        "status": "Bezig",
+        "validatie": "Unit-getest; NIET GEVALIDEERD (echte Hub)",
+        "bewijs": "x",
+        "blokkade": "Hub-koppeling alleen met de simulator: NIET GEVALIDEERD (echte Hub)",
+        "opmerking": "",
+        "repo": "jelly-leon",
+        "bijgewerkt": "2026-11-17",
+    }
+    assert problems(hub) == []
 
 
 def test_contract_points_exist_in_the_copied_conformity_list():
