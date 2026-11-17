@@ -165,3 +165,32 @@ def test_custom_user_weigering_merkt_rechtenwijziging_op(tmp_path, monkeypatch):
     monkeypatch.setattr(life, "expect_refusal", lambda *args, **kwargs: (tmp_path / "config-niet-van-568").chmod(0o777))
     life.expect_custom_user_refusal()
     assert not life.steps[-1]["geslaagd"]
+
+
+def _pluginlife(tmp_path, monkeypatch, refusal):
+    life = object.__new__(image_lifecycle.Lifecycle)
+    life.work, life.media, life.steps = tmp_path, tmp_path / "media", []
+    life.args = type("Args", (), {"image": "proef"})()
+    monkeypatch.setattr(image_lifecycle, "docker", lambda *a, **k: image_lifecycle.subprocess.CompletedProcess(a, 0, "JellyLeon_0.1.0.0\n", ""))
+    monkeypatch.setattr(life, "expect_refusal", refusal)
+    return life
+
+
+def test_pluginkoppeling_weigering_root_en_custom_user(tmp_path, monkeypatch):
+    oproepen = []
+    life = _pluginlife(tmp_path, monkeypatch, lambda *args, **kwargs: oproepen.append(kwargs))
+    assert life.expect_plugin_link_refusal()
+    assert [o["extra"] for o in oproepen] == [[], ["--user", f"{image_lifecycle.os.getuid()}:{image_lifecycle.os.getgid()}"]]
+    assert all(o["expected_text"] == "is geen gewoon bestand zonder koppeling" for o in oproepen)
+    dll = tmp_path / "pluginkoppeling-root" / "config" / "plugins" / "JellyLeon_0.1.0.0" / "Jellyfin.Plugin.JellyLeon.dll"
+    assert dll.is_symlink() and str(dll.readlink()) == "/config/data/jellyfin.db"
+
+
+def test_pluginkoppeling_weigering_merkt_een_overschreven_database_op(tmp_path, monkeypatch):
+    def overschrijf(label, **kwargs):
+        config = Path(kwargs["mounts"][0].split(":")[0])
+        (config / "data" / "jellyfin.db").write_bytes(b"synthetische plugin")
+
+    life = _pluginlife(tmp_path, monkeypatch, overschrijf)
+    assert not life.expect_plugin_link_refusal()
+    assert not life.steps[-1]["geslaagd"] and not life.steps[-2]["geslaagd"]

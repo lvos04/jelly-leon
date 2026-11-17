@@ -32,7 +32,10 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
      - Custom User 568 met een /config die niet van 568 is (NL-melding, nooit stil doorstarten);
      - /config voor iedereen beschrijfbaar (0777) met een koppeling van een andere gebruiker (deze testgebruiker,
        niet 568) op de tijdelijke naam van de start naar een synthetische serverdatabase: geweigerd vóór de
-       eigenaarswissel, database byte-gelijk (S-G1-16 deel 1c, ADR-0032).
+       eigenaarswissel, database byte-gelijk (S-G1-16 deel 1c, ADR-0032);
+     - de bestaande plugin-DLL als koppeling naar een synthetische serverdatabase, als root en als Custom User (deze
+       testgebruiker): geweigerd vóór vergelijken, versie vastleggen, eigenaarswissel of schrijven; /config met database,
+       eigenaren, rechten en koppelingen ongewijzigd (S-G1-16 deel 1e, R-TECH-1, ADR-0032).
   9. downgradeweigering (B03-014, JLT-61 b): na de eerste start staat de forkversie van de image in
      /config/jelly-leon/datamap-versie; een datamap die al door een nieuwere Jelly Leon is gestart (gesimuleerd met een
      hogere datamap-versie, want een nieuwere image bestaat nog niet) wordt geweigerd met een NL-melding, zonder dat er
@@ -67,6 +70,19 @@ APP_UID = "568"
 HEALTHCHECK = "/usr/local/bin/jelly-leon-healthcheck"
 DATAMAP_VERSION = "jelly-leon/datamap-versie"
 WEB_TITLE = b"<title>Jelly Leon</title>"
+
+
+def tree_state(root: Path) -> dict[str, tuple[int, int, int, bytes | str]]:
+    """Elke ingang onder root met modus, eigenaar, groep en inhoud of koppelingsdoel (koppelingen worden niet gevolgd)."""
+    state: dict[str, tuple[int, int, int, bytes | str]] = {}
+    for path in sorted([root, *root.rglob("*")]):
+        st = path.lstat()
+        try:
+            content: bytes | str = os.readlink(path) if path.is_symlink() else path.read_bytes() if path.is_file() else b""
+        except PermissionError:  # bv. na een eigenaarswissel naar 568: niet meer leesbaar, dus gewijzigd
+            content = "<onleesbaar>"
+        state[str(path.relative_to(root))] = (st.st_mode, st.st_uid, st.st_gid, content)
+    return state
 
 
 class AssetParser(html.parser.HTMLParser):
@@ -566,6 +582,40 @@ class Lifecycle:
         ok = database.read_bytes() == before and shared.stat().st_uid == os.getuid()
         return self.add("gedeelde /config: serverdatabase byte-gelijk, geen eigenaarswissel", ok, f"eigenaar {shared.stat().st_uid}")
 
+    def expect_plugin_link_refusal(self) -> bool:
+        """S-G1-16 deel 1e (R-TECH-1): de bestaande plugin-DLL in /config is een koppeling naar de serverdatabase. Als root
+        en als Custom User (deze testgebruiker, eigenaar van de mappen) weigert de start vóór vergelijken, het vastleggen
+        van de versie, de eigenaarswissel of een schrijfactie; database, eigenaren, rechten en koppelingen blijven gelijk."""
+        names = docker("run", "--rm", "--network", "none", "--entrypoint", "/bin/ls", self.args.image,
+                       "/usr/share/jelly-leon/plugins", check=False).stdout.split()
+        ok = self.add("meegeleverde Jelly Leon-pluginmap in de image", len(names) == 1, " ".join(names) or "niet gevonden")
+        for label, extra in (("root", []), ("Custom User", ["--user", f"{os.getuid()}:{os.getgid()}"])):
+            base = self.work / ("pluginkoppeling-" + label.replace(" ", "-").lower())
+            config, cache = base / "config", base / "cache"
+            plugin = config / "plugins" / (names[0] if len(names) == 1 else "JellyLeon_onbekend")
+            for directory in (config / "data", plugin, cache):
+                directory.mkdir(parents=True)
+            for directory in (base, config, config / "data", config / "plugins", plugin, cache):
+                directory.chmod(0o755)
+            database = config / "data" / "jellyfin.db"
+            database.write_bytes(b"SQLite format 3\x00synthetische kijkgegevens")
+            database.chmod(0o644)
+            (plugin / "Jellyfin.Plugin.JellyLeon.dll").symlink_to("/config/data/jellyfin.db")
+            before = tree_state(config)
+            self.expect_refusal(
+                f"plugin-DLL als koppeling naar de serverdatabase ({label})",
+                mounts=[f"{config}:/config", f"{cache}:/cache", f"{self.media}:/media/muziek:ro"],
+                env=[],
+                extra=extra,
+                expected_text="is geen gewoon bestand zonder koppeling",
+            )
+            same = tree_state(config) == before
+            ok = self.add(
+                f"pluginkoppeling ({label}): /config ongewijzigd, serverdatabase byte-gelijk", same,
+                f"modus, eigenaar, inhoud en koppelingen gelijk={same}",
+            ) and ok
+        return ok
+
     def run(self) -> bool:
         for directory in (self.config, self.cache, self.media):
             directory.mkdir(parents=True)
@@ -653,6 +703,7 @@ class Lifecycle:
         )
         self.expect_custom_user_refusal()
         self.expect_shared_config_refusal()
+        self.expect_plugin_link_refusal()
         return bool(self.steps) and all(step["geslaagd"] for step in self.steps)
 
     def cleanup(self) -> bool:

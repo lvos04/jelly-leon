@@ -22,7 +22,9 @@
 #    het vastleggen) weigert de start een data- of cachemap, een ouder daarvan, jelly-leon/ of plugins/ die een
 #    symbolische koppeling is of voor groep of anderen beschrijfbaar; als app-gebruiker ook een map van een andere
 #    eigenaar. NL-melding, er is niets gewijzigd. Anders kan een andere gebruiker de start via een koppeling laten
-#    schrijven in bijvoorbeeld de database met kijkgegevens.
+#    schrijven in bijvoorbeeld de database met kijkgegevens. Deel 1e: ook een bestand in een eigen pluginmap dat geen
+#    gewoon bestand met één naam is, wordt vóór vergelijken, vastleggen, eigenaarswissel of schrijven geweigerd, en de DLL
+#    wordt als nieuw bestand naast het doel geschreven en dan hernoemd (nooit door een bestaande ingang heen).
 #  * De meegeleverde Jelly Leon-plugin wordt in <datamap>/plugins/JellyLeon_<versie> gezet; andere plugins blijven
 #    onaangeroerd. Geen geheimen, geen netwerkaanroepen, geen shell voor iets anders dan deze start.
 #  * Downgradeweigering (B03-014, JLT-61 b): <datamap>/jelly-leon/datamap-versie onthoudt de hoogste forkversie die de
@@ -202,7 +204,8 @@ assert_private_dir() {
   fi
 }
 
-# De data- en cachemap met hun ouders tot / (die komt uit de image), en de mappen waarin de start zelf schrijft.
+# De data- en cachemap met hun ouders tot / (die komt uit de image), de mappen waarin de start zelf schrijft, en elk
+# bestand in een eigen pluginmap (de start vergelijkt en vervangt de DLL; de server schrijft er zelf meta.json).
 # $1 = de app-gebruiker; leeg als root vóór de eenmalige eigenaarswissel.
 assert_private_storage() {
   for top in "$DATA_DIR" "$CACHE_DIR"; do
@@ -216,6 +219,27 @@ assert_private_storage() {
   for dir in "$DATA_DIR/jelly-leon" "$DATA_DIR/plugins" "$DATA_DIR"/plugins/JellyLeon_*; do
     assert_private_dir "$dir" "${1:-}"
   done
+  # Alleen gewone bestanden met één naam (ADR-0032, deel 1e): een symbolische of harde koppeling, map, FIFO of ander
+  # bijzonder bestand zou cmp laten volgen of wachten, of een schrijfactie van start of server naar een ander bestand sturen.
+  for dir in "$DATA_DIR"/plugins/JellyLeon_*; do
+    [ -d "$dir" ] || continue
+    odd=$(find "$dir" -mindepth 1 \( ! -type f -o -links +1 \) -print -quit) \
+      || fail "$dir kan niet worden gecontroleerd. Er is niets gewijzigd. Controleer in TrueNAS bij Datasets → de config-dataset → Permissions → Edit dat de gebruiker apps (568) eigenaar is, en start de app opnieuw"
+    if [ -n "$odd" ]; then
+      fail "$odd is geen gewoon bestand zonder koppeling (een symbolische of harde koppeling, een map of een bijzonder bestand): daarlangs kunnen de start of de server buiten de eigen pluginmap lezen of schrijven, bijvoorbeeld in de database met kijkgegevens. Er is niets gewijzigd. Zet in TrueNAS de snapshot van de config-dataset van vóór de wijziging terug (Datasets → Snapshots) of vraag hulp via de Hub"
+    fi
+  done
+}
+
+# Zet bestand $1 neer als $2 zonder een bestaande ingang te volgen: eerst een nieuw bestand naast het doel (mktemp:
+# exclusief, willekeurige naam), dan hernoemen. Een (harde) koppeling op $2 wordt zo vervangen, nooit beschreven.
+place_file() {
+  tmp=$(mktemp "$2.tmp.XXXXXXXXXX") || return 1
+  if cp "$1" "$tmp" && mv -f -T "$tmp" "$2"; then
+    return 0
+  fi
+  rm -f "$tmp"
+  return 1
 }
 
 assert_not_downgrade
@@ -251,7 +275,7 @@ install_plugins() {
     done
     if ! cmp -s "$src/Jellyfin.Plugin.JellyLeon.dll" "$DATA_DIR/plugins/$name/Jellyfin.Plugin.JellyLeon.dll" 2>/dev/null; then
       if mkdir -p "$DATA_DIR/plugins/$name" && assert_private_dir "$DATA_DIR/plugins/$name" "$(id -u)" \
-        && cp "$src/Jellyfin.Plugin.JellyLeon.dll" "$DATA_DIR/plugins/$name/"; then
+        && place_file "$src/Jellyfin.Plugin.JellyLeon.dll" "$DATA_DIR/plugins/$name/Jellyfin.Plugin.JellyLeon.dll"; then
         log "Jelly Leon-plugin $name geïnstalleerd"
       else
         log "waarschuwing: Jelly Leon-plugin $name kon niet worden geïnstalleerd (zie GET /media/v1/version)"

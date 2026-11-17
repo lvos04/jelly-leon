@@ -8,6 +8,7 @@ De echte image met een andere gebruiker als aanvaller: tools/jelly-leon/e2e/imag
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -19,12 +20,13 @@ SCRIPT = REPO / "deploy" / "allinone" / "entrypoint.sh"
 VERSIE = "12.4.0-jl.0"
 
 
-def fase_twee(tmp: Path, data: Path, cache: Path, *, pauze: bool = False) -> str:
+def fase_twee(tmp: Path, data: Path, cache: Path, *, pauze: bool = False, body: str | None = None) -> str:
     tekst = SCRIPT.read_text(encoding="utf-8")
     # Alle functies van het entrypoint, eenregelig (log, fail) of meerregelig; de rest van het script draait niet.
     functies = "".join(re.findall(r"^[a-z_]+\(\) \{(?: [^\n]*\}\n|\n.*?^\}\n)", tekst, re.MULTILINE | re.DOTALL))
     begin = tekst.index("    unset JELLY_LEON_ENTRYPOINT_STAGE\n") + len("    unset JELLY_LEON_ENTRYPOINT_STAGE\n")
-    body = tekst[begin : tekst.index('    exec /jellyfin/jellyfin "$@"', begin)]
+    if body is None:
+        body = tekst[begin : tekst.index('    exec /jellyfin/jellyfin "$@"', begin)]
     (tmp / "VERSION").write_text(VERSIE + "\n")
     bundel = tmp / "bundel" / "JellyLeon_0.1.0.0"
     bundel.mkdir(parents=True, exist_ok=True)
@@ -212,8 +214,6 @@ def test_downgradecontrole_leest_niet_voor_de_opslaggrens(tmp_path: Path, geval:
     elif geval.startswith("bestand-") and geval != "bestand-fifo":
         versie.symlink_to(doel if geval == "bestand-koppeling" else elders / "ontbreekt")
     else:
-        import os
-
         os.mkfifo(versie)
     tekst = SCRIPT.read_text(encoding="utf-8")
     functies = "".join(re.findall(r"^[a-z_]+\(\) \{(?: [^\n]*\}\n|\n.*?^\}\n)", tekst, re.MULTILINE | re.DOTALL))
@@ -234,3 +234,96 @@ def test_downgradecontrole_leest_niet_voor_de_opslaggrens(tmp_path: Path, geval:
     assert "TrueNAS" in proc.stdout + proc.stderr
     if voor is not None:
         assert boom(tmp_path) == voor
+
+
+KIJKGEGEVENS = b"SQLite format 3\x00synthetische kijkgegevens"
+
+
+@pytest.mark.parametrize(
+    "geval",
+    [
+        "dll-koppeling",  # de proef van R-TECH-1
+        "dll-dode-koppeling",
+        "dll-harde-koppeling",
+        "dll-map",
+        "dll-fifo",
+        "manifest-koppeling",  # meta.json schrijft de server zelf bij de start
+        "manifest-harde-koppeling",
+        "oude-versie-koppeling",
+    ],
+)
+def test_pluginbestand_met_koppeling_weigert_voor_vergelijken_of_schrijven(tmp_path: Path, geval: str) -> None:
+    """R-TECH-1 (deel 1e): een bestaand bestand in een eigen pluginmap dat geen gewoon bestand is of gekoppeld is, wordt
+    geweigerd vóór cmp, het vastleggen van de versie of een schrijfactie; de serverdatabase en de mappen blijven gelijk."""
+    ouder = maak(tmp_path / "ouder")
+    data, cache, buiten = opzet(ouder)
+    plug = maak(maak(data / "plugins") / ("JellyLeon_0.0.9.0" if geval.startswith("oude-") else "JellyLeon_0.1.0.0"))
+    dll, manifest = plug / "Jellyfin.Plugin.JellyLeon.dll", plug / "meta.json"
+    if geval in ("dll-koppeling", "oude-versie-koppeling"):
+        dll.symlink_to(buiten)
+    elif geval == "dll-dode-koppeling":
+        dll.symlink_to(ouder / "ontbreekt.db")
+    elif geval == "dll-harde-koppeling":
+        os.link(buiten, dll)
+    elif geval == "dll-map":
+        maak(dll)
+    elif geval == "dll-fifo":
+        os.mkfifo(dll)  # oud: cmp wacht hierop
+    else:
+        dll.write_bytes(b"oude plugin")
+        if geval == "manifest-koppeling":
+            manifest.symlink_to(buiten)
+        else:
+            os.link(buiten, manifest)
+    voor = boom(ouder)
+    proc = draai(fase_twee(tmp_path, data, cache))
+    assert buiten.read_bytes() == KIJKGEGEVENS, "de start schreef via het pluginbestand in de serverdatabase"
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+    assert "geen gewoon bestand zonder koppeling" in proc.stdout + proc.stderr
+    assert "Er is niets gewijzigd" in proc.stdout + proc.stderr
+    assert boom(ouder) == voor
+
+
+def test_rootfase_weigert_een_gekoppeld_pluginbestand_voor_de_eigenaarswissel(tmp_path: Path) -> None:
+    """Als root vóór `chown -R` (de controle staat daar, zie de volgordetest): niets gewijzigd, ook geen eigenaar."""
+    data, cache, buiten = opzet(tmp_path)
+    (maak(maak(data / "plugins") / "JellyLeon_0.1.0.0") / "Jellyfin.Plugin.JellyLeon.dll").symlink_to(buiten)
+    proc = draai(fase_twee(tmp_path, data, cache, body="assert_private_storage\nprintf 'EIGENAARSWISSEL\\n'\n"))
+    assert proc.returncode != 0
+    assert "EIGENAARSWISSEL" not in proc.stdout
+    assert "geen gewoon bestand zonder koppeling" in proc.stdout + proc.stderr
+
+
+@pytest.mark.parametrize("soort", ["koppeling", "harde-koppeling"])
+def test_plaatsen_volgt_nooit_een_bestaande_ingang(tmp_path: Path, soort: str) -> None:
+    """Ook los van de weigering: de nieuwe DLL ontstaat als nieuw bestand naast het doel en vervangt de ingang zelf."""
+    data, cache, buiten = opzet(tmp_path)
+    doel = maak(maak(data / "plugins") / "JellyLeon_0.1.0.0") / "Jellyfin.Plugin.JellyLeon.dll"
+    if soort == "koppeling":
+        doel.symlink_to(buiten)
+    else:
+        os.link(buiten, doel)
+    bron = tmp_path / "nieuw.dll"
+    bron.write_bytes(b"nieuwe plugin")
+    proc = draai(fase_twee(tmp_path, data, cache, body=f"place_file '{bron}' '{doel}'\n"))
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert buiten.read_bytes() == KIJKGEGEVENS
+    assert not doel.is_symlink() and doel.read_bytes() == b"nieuwe plugin" and doel.stat().st_nlink == 1
+    assert sorted(p.name for p in doel.parent.iterdir()) == [doel.name]
+
+
+@pytest.mark.parametrize("dll", [b"oude plugin", b"synthetische plugin"])
+def test_bestaande_pluginmap_van_deze_versie_blijft_starten(tmp_path: Path, dll: bytes) -> None:
+    """HARDE EIS: een correcte bestaande installatie (gewone DLL en meta.json van de server) start ongewijzigd door."""
+    data, cache, buiten = opzet(tmp_path)
+    plug = maak(maak(data / "plugins") / "JellyLeon_0.1.0.0")
+    (plug / "Jellyfin.Plugin.JellyLeon.dll").write_bytes(dll)
+    (plug / "meta.json").write_text('{"status": "Active"}')
+    proc = draai(fase_twee(tmp_path, data, cache))
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    nieuw = plug / "Jellyfin.Plugin.JellyLeon.dll"
+    assert nieuw.read_bytes() == b"synthetische plugin" and nieuw.stat().st_nlink == 1
+    assert (plug / "meta.json").read_text() == '{"status": "Active"}'
+    assert sorted(p.name for p in plug.iterdir()) == ["Jellyfin.Plugin.JellyLeon.dll", "meta.json"]
+    assert ("geïnstalleerd" in proc.stdout) == (dll != b"synthetische plugin")
+    assert buiten.read_bytes() == KIJKGEGEVENS
