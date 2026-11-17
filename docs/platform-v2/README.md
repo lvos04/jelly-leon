@@ -7,7 +7,8 @@ Bron: uitvoeringspakket `TrueNAS_Home_Platform_V2_VOLLEDIG_2026-11-09.zip` (peil
 Hier staan alleen de eigen B-, I-, A- en promptdocumenten plus de gedeelde architectuur (`00_START`, `01_ARCHITECTUUR`, `05_TESTS`). Het volledige pakket en de Excel staan in `lvos04/ai-server-manager` onder `docs/platform-v2/`.
 
 **Platformcontract:** `PLATFORM_CONTRACTEN.md` (`contracts 1.3`) en `CONTRACT_1.3_CONFORMITEIT.md` zijn byte-gelijke
-kopieën uit `lvos04/ai-server-manager` (bron van waarheid, bron-commit `02b119c`, dezelfde als in de andere repos). Ze
+kopieën uit `lvos04/ai-server-manager` (bron van waarheid): contractkopie byte-gelijk aan `ai-server-manager@e88a290`
+(aanvulling C-12, blijft contracts 1.3; dezelfde als in de andere repos). Ze
 worden hier nooit aangepast; `tools/jelly-leon/contract_drift.py` (CI-job *forkregels*) bewaakt de sha256 en vergelijkt
 online met de bron. `CONTRACT_1.2_CONFORMITEIT.md` blijft als historie staan (byte-gelijk aan bron-commit `8b54f39`, ook
 vastgezet; nooit bijwerken). Wat 1.3 voor deze repo vraagt en wat daarvan in de conformiteitsronde is gedaan:
