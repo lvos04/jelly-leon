@@ -20,7 +20,9 @@ SCRIPT = REPO / "deploy" / "allinone" / "entrypoint.sh"
 VERSIE = "12.4.0-jl.0"
 
 
-def fase_twee(tmp: Path, data: Path, cache: Path, *, pauze: bool = False, body: str | None = None) -> str:
+def fase_twee(
+    tmp: Path, data: Path, cache: Path, *, pauze: bool = False, body: str | None = None, mountinfo: str = "/proc/self/mountinfo"
+) -> str:
     tekst = SCRIPT.read_text(encoding="utf-8")
     # Alle functies van het entrypoint, eenregelig (log, fail) of meerregelig; de rest van het script draait niet.
     functies = "".join(re.findall(r"^[a-z_]+\(\) \{(?: [^\n]*\}\n|\n.*?^\}\n)", tekst, re.MULTILINE | re.DOTALL))
@@ -34,6 +36,7 @@ def fase_twee(tmp: Path, data: Path, cache: Path, *, pauze: bool = False, body: 
     voorwerk = (
         f"set -eu\numask 022\nDATA_DIR='{data}'\nCACHE_DIR='{cache}'\nBUNDLED_PLUGINS='{tmp / 'bundel'}'\n"
         f"IMAGE_VERSION_FILE='{tmp / 'VERSION'}'\nDATAMAP_VERSION_FILE=\"$DATA_DIR/jelly-leon/datamap-versie\"\n"
+        f"MOUNTINFO='{mountinfo}'\n"
     )
     # De pauze staat buiten de productiecode: de proef leest de PID en legt dan pas de koppeling (in de container is $$ 1).
     return voorwerk + functies + ('printf "%s\\n" "$$"\nread -r _\n' if pauze else "") + body
@@ -222,8 +225,8 @@ def test_downgradecontrole_leest_niet_voor_de_opslaggrens(tmp_path: Path, geval:
     gelezen = tmp_path / "onveilig-gelezen"
     # Onderschep de leesaanroep: oud volgt de koppeling of zou op de FIFO wachten. Geen echt blokkerend proces.
     script = (
-        f"set -eu\nDATA_DIR='{data}'\nCACHE_DIR='{cache}'\nIMAGE_VERSION_FILE='{image}'\n"
-        f"DATAMAP_VERSION_FILE='{versie}'\n" + functies
+        f"set -eu\nDATA_DIR='{data}'\nCACHE_DIR='{cache}'\nIMAGE_VERSION_FILE='{image}'\nBUNDLED_PLUGINS='{tmp_path}/geen'\n"
+        f"MOUNTINFO=/proc/self/mountinfo\nDATAMAP_VERSION_FILE='{versie}'\n" + functies
         + f"sed() {{ : > '{gelezen}'; printf 'fork_version={VERSIE}\\n'; }}\n"
         + "assert_not_downgrade\n"
     )
@@ -314,11 +317,16 @@ def test_plaatsen_volgt_nooit_een_bestaande_ingang(tmp_path: Path, soort: str) -
 
 @pytest.mark.parametrize("dll", [b"oude plugin", b"synthetische plugin"])
 def test_bestaande_pluginmap_van_deze_versie_blijft_starten(tmp_path: Path, dll: bytes) -> None:
-    """HARDE EIS: een correcte bestaande installatie (gewone DLL en meta.json van de server) start ongewijzigd door."""
+    """HARDE EIS: een correcte bestaande installatie (gewone DLL en meta.json van de server, de eigen pluginconfiguratie
+    als gewoon bestand) start ongewijzigd door; bestanden van andere plugins in plugins/configurations, ook een
+    koppeling, zijn geen reden om te weigeren (deel 1f)."""
     data, cache, buiten = opzet(tmp_path)
     plug = maak(maak(data / "plugins") / "JellyLeon_0.1.0.0")
     (plug / "Jellyfin.Plugin.JellyLeon.dll").write_bytes(dll)
     (plug / "meta.json").write_text('{"status": "Active"}')
+    conf = maak(data / "plugins" / "configurations")
+    (conf / XML).write_text("<PluginConfiguration />")
+    (conf / "Andere.Plugin.xml").symlink_to(XML)
     proc = draai(fase_twee(tmp_path, data, cache))
     assert proc.returncode == 0, proc.stdout + proc.stderr
     nieuw = plug / "Jellyfin.Plugin.JellyLeon.dll"
@@ -326,4 +334,65 @@ def test_bestaande_pluginmap_van_deze_versie_blijft_starten(tmp_path: Path, dll:
     assert (plug / "meta.json").read_text() == '{"status": "Active"}'
     assert sorted(p.name for p in plug.iterdir()) == ["Jellyfin.Plugin.JellyLeon.dll", "meta.json"]
     assert ("geïnstalleerd" in proc.stdout) == (dll != b"synthetische plugin")
+    assert (conf / XML).read_text() == "<PluginConfiguration />" and (conf / "Andere.Plugin.xml").is_symlink()
     assert buiten.read_bytes() == KIJKGEGEVENS
+
+
+XML = "Jellyfin.Plugin.JellyLeon.xml"
+
+
+@pytest.mark.parametrize(
+    ("geval", "melding"),
+    [
+        ("xml-koppeling", "is geen gewoon bestand met één naam"),  # de proef van R-VEILIG-1
+        ("xml-dode-koppeling", "is geen gewoon bestand met één naam"),
+        ("xml-harde-koppeling", "is geen gewoon bestand met één naam"),
+        ("xml-fifo", "is geen gewoon bestand met één naam"),
+        ("xml-map", "is geen gewoon bestand met één naam"),
+        ("configmap-gedeeld", "voor groep of anderen beschrijfbaar (modus 777)"),
+        ("configmap-koppeling", "is een symbolische koppeling"),
+    ],
+)
+def test_pluginconfiguratie_die_de_server_schrijft_weigert_zonder_wijziging(tmp_path: Path, geval: str, melding: str) -> None:
+    """R-VEILIG-1 (deel 1f): de server leest plugins/configurations/Jellyfin.Plugin.JellyLeon.xml en schrijft er bij een
+    mislukte lezing met FileMode.Create een nieuwe in (volgt een koppeling). Die map en dat bestand vallen nu onder de
+    startgrens; de serverdatabase en elke ingang blijven gelijk."""
+    ouder = maak(tmp_path / "ouder")
+    data, cache, buiten = opzet(ouder)
+    plugins = maak(data / "plugins")
+    if geval == "configmap-koppeling":
+        elders = maak(ouder / "elders")
+        (plugins / "configurations").symlink_to(elders)
+        conf = elders
+    else:
+        conf = maak(plugins / "configurations", 0o777 if geval == "configmap-gedeeld" else 0o755)
+    xml = conf / XML
+    if geval in ("xml-koppeling", "configmap-koppeling"):
+        xml.symlink_to(buiten)
+    elif geval == "xml-dode-koppeling":
+        xml.symlink_to(ouder / "ontbreekt.db")
+    elif geval == "xml-harde-koppeling":
+        os.link(buiten, xml)
+    elif geval == "xml-fifo":
+        os.mkfifo(xml)
+    elif geval == "xml-map":
+        maak(xml)
+    else:
+        xml.write_text("<PluginConfiguration />")
+    voor = boom(ouder)
+    proc = draai(fase_twee(tmp_path, data, cache))
+    uit = proc.stdout + proc.stderr
+    assert buiten.read_bytes() == KIJKGEGEVENS, "de start of de server zou via de pluginconfiguratie schrijven"
+    assert proc.returncode != 0, uit
+    assert melding in uit
+    assert "Er is niets gewijzigd" in uit
+    assert boom(ouder) == voor
+
+
+def test_rootfase_weigert_een_gekoppelde_pluginconfiguratie_voor_de_eigenaarswissel(tmp_path: Path) -> None:
+    data, cache, buiten = opzet(tmp_path)
+    (maak(maak(data / "plugins") / "configurations") / XML).symlink_to(buiten)
+    proc = draai(fase_twee(tmp_path, data, cache, body="assert_private_storage\nprintf 'EIGENAARSWISSEL\\n'\n"))
+    assert proc.returncode != 0
+    assert "EIGENAARSWISSEL" not in proc.stdout
+    assert "is geen gewoon bestand met één naam" in proc.stdout + proc.stderr

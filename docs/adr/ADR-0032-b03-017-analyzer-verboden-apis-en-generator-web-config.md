@@ -909,6 +909,49 @@ als Custom User) en `OpslagTerugvalTests` (de drie hostproeven van de review plu
 een moduledatabase als koppeling, een bestand van een andere eigenaar, en het latere moment). Uitvoering en tegenproeven:
 `docs/platform-v2/test-evidence/s-g1-16-deel1e-startbestanden.md`.
 
+#### Opslagdreigingen, deel 1f (pluginconfiguratie, tmpfs-cache, zelfherstel, ACL-overerving, 2026-11-18)
+
+Bronbasis: `81e9c4a260d32bd71318be851397d970e2602521`. Herstel na de veiligheidsreview (R-VEILIG) en de HARDE-EIS-review
+over deel 1 t/m 1e, met de besluiten van de regisseur van 2026-11-18. Elke bevinding is eerst zelf herhaald en rood gezien.
+
+**Pluginconfiguratie van de server (R-VEILIG-1, blokkerend).** De server leest `plugins/configurations/Jellyfin.Plugin.JellyLeon.xml`
+bij de eerste lezing van de configuratie (`MediaBrowser.Common/Plugins/BasePluginOfT.cs`, `LoadConfiguration`) en schrijft
+er bij een mislukte lezing direct een nieuwe configuratie in (`SaveConfiguration`; `MyXmlSerializer.SerializeToFile` met
+`FileMode.Create` volgt een symbolische koppeling en beschrijft een harde koppeling). Die map en dat bestand vielen buiten
+de startgrens. Herhaald met de hele keten (entrypoint van `81e9c4a26`, stock-server 12.4 op digest, plugin van `81e9c4a26`,
+Custom User, netwerkloos): een andere uid legt in een voor iedereen beschrijfbare `plugins/configurations` de koppeling
+`Jellyfin.Plugin.JellyLeon.xml` → `/config/data/jellyfin.db`; de start ging door, en na `GET /media/v1/modules` begon de
+synthetische serverdatabase (SQLite, 544768 bytes) met `<?xml`. Herstel: `assert_private_storage` (als root vóór de eerste
+versielezing en de eigenaarswissel, als app-gebruiker vóór het vastleggen) neemt `plugins/configurations` op als eigen map
+(geen koppeling, niet voor groep of anderen beschrijfbaar, als app-gebruiker van die gebruiker) en aanvaardt het eigen
+XML-bestand alleen als het ontbreekt of een gewoon bestand met één naam is. Bestanden van andere plugins in die map blijven
+buiten beschouwing (ook een koppeling daar is geen reden om te weigeren). Een weigering wijzigt niets; de melding noemt
+dat het bestand alleen moduleschakelaars bevat en als veilige weg: andere apps zonder toegang tot de config-dataset en
+alleen dit ene bestand laten weghalen. Zelfde keten na herstel: de start weigert, de server start niet, het doel blijft
+byte-gelijk. Dit bestand wordt geweigerd en niet zelf hersteld (besluit van de regisseur, punt 1): het is instelling van de
+gebruiker, niet door de image beheerd.
+
+**Alle lees- en schrijfacties voor of namens de plugin** (start, server en plugin; nagelopen in `entrypoint.sh`,
+`Emby.Server.Implementations/Plugins/PluginManager.cs`, `BasePluginOfT.cs`, `BaseApplicationPaths.cs`,
+`Jellyfin.Api/Controllers/PluginsController.cs` en de opslaglaag van de plugin):
+
+| Plek | Wie en wanneer | Volgt een koppeling? | Bewaking |
+|---|---|---|---|
+| `plugins/` | server: `CreateAndCheckMarker` maakt bij elke start `.jellyfin-plugin` als die ontbreekt (`File.Exists` volgt, `File.Create`); start: `mkdir` | marker: ja | start: map zonder koppeling, niet voor groep of anderen beschrijfbaar, van de app-gebruiker; de marker kan alleen leggen wie in die map schrijft (B1) |
+| `plugins/JellyLeon_<versie>/` | start: `mkdir`, oude versies `rm -rf`; server: `Directory.Delete` van oudere versies en bij verwijderen | nee | start: zoals `plugins/` |
+| `.../Jellyfin.Plugin.JellyLeon.dll` | start: `cmp`, daarna nieuw bestand naast het doel en hernoemen (deel 1e); server: laden | nee | start: alleen gewone bestanden met één naam (deel 1e) |
+| `.../meta.json` | server: `LoadManifest` (`File.ReadAllBytes`) bij elke start; `SaveManifest` (`File.WriteAllText`) bij de eerste start, een versie- of statuswijziging | ja | start: alleen gewone bestanden met één naam (deel 1e) |
+| `.../<afbeelding>` | server: `DownloadImage` alleen voor een plugin uit een catalogus (tijdelijke willekeurige naam, dan `File.Move` met overschrijven); `GET /Plugins/<id>/<versie>/Image` leest alleen een pad binnen de pluginmap | nee | de meegeleverde plugin staat in geen catalogus; lezen alleen van een gewoon bestand in de eigen map |
+| `plugins/configurations/` | server: `Directory.CreateDirectory` bij opslaan | n.v.t. | **start (deel 1f)**: zoals `plugins/` |
+| `plugins/configurations/Jellyfin.Plugin.JellyLeon.xml` | server: lezen bij de eerste lezing (eigen route van de plugin, of de serverroute `GET /Plugins/<id>/Configuration`), schrijven bij een mislukte lezing, bij `POST /Plugins/<id>/Configuration` en bij een moduleschakelaar van de plugin | ja | **start (deel 1f)**: ontbreekt of gewoon bestand met één naam |
+| `<data>/jelly-leon/**` en `<cache>/jelly-leon/**` | plugin (`JlPaths`, `InternalWriteScope`, `JlDatabase`, `SecretStore`) | nee (deel 1b) | plugin; bij weigering alleen de plugin uit (deel 1d en 1e) |
+| `<config>/jelly-leon/datamap-versie` | start: lezen, schrijven via `mktemp` en hernoemen | nee | start (deel 1c en 1d) |
+| serverlog onder `<config>/log` | server, ook voor de meldingen van de plugin (`ILogger`) | eigen logbestanden van de server | geen eigen logbestand van de plugin; meldingen zonder paden of inhoud |
+| overige bestanden onder `/cache` | server (afbeeldingen, transcodes, `CACHEDIR.TAG`, marker) | ja | geen schrijfactie namens de plugin; de start controleert `/cache` zelf |
+
+Geen andere plek: de plugin gebruikt `DataFolderPath` niet, heeft geen eigen logbestand, en de server schrijft voor de plugin
+niets in `/cache`.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:

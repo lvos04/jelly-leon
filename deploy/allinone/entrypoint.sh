@@ -24,7 +24,8 @@
 #    eigenaar. NL-melding, er is niets gewijzigd. Anders kan een andere gebruiker de start via een koppeling laten
 #    schrijven in bijvoorbeeld de database met kijkgegevens. Deel 1e: ook een bestand in een eigen pluginmap dat geen
 #    gewoon bestand met één naam is, wordt vóór vergelijken, vastleggen, eigenaarswissel of schrijven geweigerd, en de DLL
-#    wordt als nieuw bestand naast het doel geschreven en dan hernoemd (nooit door een bestaande ingang heen).
+#    wordt als nieuw bestand naast het doel geschreven en dan hernoemd (nooit door een bestaande ingang heen). Deel 1f:
+#    ook plugins/configurations en daarin Jellyfin.Plugin.JellyLeon.xml (de server leest en schrijft dat bestand).
 #  * De meegeleverde Jelly Leon-plugin wordt in <datamap>/plugins/JellyLeon_<versie> gezet; andere plugins blijven
 #    onaangeroerd. Geen geheimen, geen netwerkaanroepen, geen shell voor iets anders dan deze start.
 #  * Downgradeweigering (B03-014, JLT-61 b): <datamap>/jelly-leon/datamap-versie onthoudt de hoogste forkversie die de
@@ -204,8 +205,9 @@ assert_private_dir() {
   fi
 }
 
-# De data- en cachemap met hun ouders tot / (die komt uit de image), de mappen waarin de start zelf schrijft, en elk
-# bestand in een eigen pluginmap (de start vergelijkt en vervangt de DLL; de server schrijft er zelf meta.json).
+# De data- en cachemap met hun ouders tot / (die komt uit de image), de mappen waarin de start zelf schrijft, de map van
+# de pluginconfiguraties met het eigen bestand daarin (de server schrijft dat), en elk bestand in een eigen pluginmap (de
+# start vergelijkt en vervangt de DLL; de server schrijft er zelf meta.json).
 # $1 = de app-gebruiker; leeg als root vóór de eenmalige eigenaarswissel.
 assert_private_storage() {
   for top in "$DATA_DIR" "$CACHE_DIR"; do
@@ -216,9 +218,15 @@ assert_private_storage() {
       parent=$(dirname -- "$parent")
     done
   done
-  for dir in "$DATA_DIR/jelly-leon" "$DATA_DIR/plugins" "$DATA_DIR"/plugins/JellyLeon_*; do
+  for dir in "$DATA_DIR/jelly-leon" "$DATA_DIR/plugins" "$DATA_DIR/plugins/configurations" "$DATA_DIR"/plugins/JellyLeon_*; do
     assert_private_dir "$dir" "${1:-}"
   done
+  # Deel 1f (R-VEILIG-1): de server leest de eigen pluginconfiguratie en schrijft er bij een mislukte lezing een nieuwe in
+  # (FileMode.Create volgt een koppeling). Bestanden van andere plugins in dezelfde map blijven buiten beschouwing.
+  xml="$DATA_DIR/plugins/configurations/Jellyfin.Plugin.JellyLeon.xml"
+  if [ -L "$xml" ] || { [ -e "$xml" ] && { [ ! -f "$xml" ] || [ "$(stat -c '%h' -- "$xml")" != 1 ]; }; }; then
+    fail "$xml is geen gewoon bestand met één naam (een symbolische of harde koppeling, een map of een bijzonder bestand): daarlangs kan de server bij het lezen of opslaan van de Jelly Leon-instellingen een ander bestand overschrijven, bijvoorbeeld de database met kijkgegevens. Er is niets gewijzigd. Dit bestand bevat alleen de moduleschakelaars van Jelly Leon, geen kijkgegevens. Veilige weg: controleer bij Apps → Edit → Storage van je andere apps dat geen andere app de config-dataset of een map daarin gekoppeld heeft, laat daarna alleen dit ene bestand weghalen (bijvoorbeeld via de Hub; Jelly Leon start dan met standaardinstellingen, alle modules uit) en start de app opnieuw. Zet een snapshot van de config-dataset (Datasets → Snapshots) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan"
+  fi
   # Alleen gewone bestanden met één naam (ADR-0032, deel 1e): een symbolische of harde koppeling, map, FIFO of ander
   # bijzonder bestand zou cmp laten volgen of wachten, of een schrijfactie van start of server naar een ander bestand sturen.
   for dir in "$DATA_DIR"/plugins/JellyLeon_*; do

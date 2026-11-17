@@ -180,10 +180,16 @@ def test_pluginkoppeling_weigering_root_en_custom_user(tmp_path, monkeypatch):
     oproepen = []
     life = _pluginlife(tmp_path, monkeypatch, lambda *args, **kwargs: oproepen.append(kwargs))
     assert life.expect_plugin_link_refusal()
-    assert [o["extra"] for o in oproepen] == [[], ["--user", f"{image_lifecycle.os.getuid()}:{image_lifecycle.os.getgid()}"]]
-    assert all(o["expected_text"] == "is geen gewoon bestand zonder koppeling" for o in oproepen)
+    custom = ["--user", f"{image_lifecycle.os.getuid()}:{image_lifecycle.os.getgid()}"]
+    assert [o["extra"] for o in oproepen] == [[], custom, [], custom]
+    assert [o["expected_text"] for o in oproepen] == ["is geen gewoon bestand zonder koppeling"] * 2 + [
+        "is geen gewoon bestand met één naam"
+    ] * 2
     dll = tmp_path / "pluginkoppeling-root" / "config" / "plugins" / "JellyLeon_0.1.0.0" / "Jellyfin.Plugin.JellyLeon.dll"
-    assert dll.is_symlink() and str(dll.readlink()) == "/config/data/jellyfin.db"
+    xml = tmp_path / "configkoppeling-custom-user" / "config" / "plugins" / "configurations" / "Jellyfin.Plugin.JellyLeon.xml"
+    for koppeling in (dll, xml):
+        assert koppeling.is_symlink() and str(koppeling.readlink()) == "/config/data/jellyfin.db"
+    assert oct((xml.parent.stat().st_mode) & 0o777) == "0o755"
 
 
 def test_pluginkoppeling_weigering_merkt_een_overschreven_database_op(tmp_path, monkeypatch):
@@ -193,4 +199,4 @@ def test_pluginkoppeling_weigering_merkt_een_overschreven_database_op(tmp_path, 
 
     life = _pluginlife(tmp_path, monkeypatch, overschrijf)
     assert not life.expect_plugin_link_refusal()
-    assert not life.steps[-1]["geslaagd"] and not life.steps[-2]["geslaagd"]
+    assert not any(stap["geslaagd"] for stap in life.steps[1:])

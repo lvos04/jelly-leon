@@ -35,7 +35,9 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
        eigenaarswissel, database byte-gelijk (S-G1-16 deel 1c, ADR-0032);
      - de bestaande plugin-DLL als koppeling naar een synthetische serverdatabase, als root en als Custom User (deze
        testgebruiker): geweigerd vóór vergelijken, versie vastleggen, eigenaarswissel of schrijven; /config met database,
-       eigenaren, rechten en koppelingen ongewijzigd (S-G1-16 deel 1e, R-TECH-1, ADR-0032).
+       eigenaren, rechten en koppelingen ongewijzigd (S-G1-16 deel 1e, R-TECH-1, ADR-0032);
+     - de pluginconfiguratie die de server leest en schrijft (plugins/configurations/Jellyfin.Plugin.JellyLeon.xml) als
+       koppeling naar een synthetische serverdatabase, als root en als Custom User: zelfde weigering (deel 1f, R-VEILIG-1).
   9. downgradeweigering (B03-014, JLT-61 b): na de eerste start staat de forkversie van de image in
      /config/jelly-leon/datamap-versie; een datamap die al door een nieuwere Jelly Leon is gestart (gesimuleerd met een
      hogere datamap-versie, want een nieuwere image bestaat nog niet) wordt geweigerd met een NL-melding, zonder dat er
@@ -583,37 +585,45 @@ class Lifecycle:
         return self.add("gedeelde /config: serverdatabase byte-gelijk, geen eigenaarswissel", ok, f"eigenaar {shared.stat().st_uid}")
 
     def expect_plugin_link_refusal(self) -> bool:
-        """S-G1-16 deel 1e (R-TECH-1): de bestaande plugin-DLL in /config is een koppeling naar de serverdatabase. Als root
-        en als Custom User (deze testgebruiker, eigenaar van de mappen) weigert de start vóór vergelijken, het vastleggen
-        van de versie, de eigenaarswissel of een schrijfactie; database, eigenaren, rechten en koppelingen blijven gelijk."""
+        """S-G1-16 deel 1e (R-TECH-1) en 1f (R-VEILIG-1): de bestaande plugin-DLL, of de pluginconfiguratie die de server
+        leest en schrijft (plugins/configurations/Jellyfin.Plugin.JellyLeon.xml), is een koppeling naar de serverdatabase.
+        Als root en als Custom User (deze testgebruiker, eigenaar van de mappen) weigert de start vóór vergelijken, het
+        vastleggen van de versie, de eigenaarswissel of een schrijfactie; database, eigenaren, rechten en koppelingen
+        blijven gelijk."""
         names = docker("run", "--rm", "--network", "none", "--entrypoint", "/bin/ls", self.args.image,
                        "/usr/share/jelly-leon/plugins", check=False).stdout.split()
         ok = self.add("meegeleverde Jelly Leon-pluginmap in de image", len(names) == 1, " ".join(names) or "niet gevonden")
-        for label, extra in (("root", []), ("Custom User", ["--user", f"{os.getuid()}:{os.getgid()}"])):
-            base = self.work / ("pluginkoppeling-" + label.replace(" ", "-").lower())
-            config, cache = base / "config", base / "cache"
-            plugin = config / "plugins" / (names[0] if len(names) == 1 else "JellyLeon_onbekend")
-            for directory in (config / "data", plugin, cache):
-                directory.mkdir(parents=True)
-            for directory in (base, config, config / "data", config / "plugins", plugin, cache):
-                directory.chmod(0o755)
-            database = config / "data" / "jellyfin.db"
-            database.write_bytes(b"SQLite format 3\x00synthetische kijkgegevens")
-            database.chmod(0o644)
-            (plugin / "Jellyfin.Plugin.JellyLeon.dll").symlink_to("/config/data/jellyfin.db")
-            before = tree_state(config)
-            self.expect_refusal(
-                f"plugin-DLL als koppeling naar de serverdatabase ({label})",
-                mounts=[f"{config}:/config", f"{cache}:/cache", f"{self.media}:/media/muziek:ro"],
-                env=[],
-                extra=extra,
-                expected_text="is geen gewoon bestand zonder koppeling",
-            )
-            same = tree_state(config) == before
-            ok = self.add(
-                f"pluginkoppeling ({label}): /config ongewijzigd, serverdatabase byte-gelijk", same,
-                f"modus, eigenaar, inhoud en koppelingen gelijk={same}",
-            ) and ok
+        plugin = Path("plugins") / (names[0] if len(names) == 1 else "JellyLeon_onbekend")
+        cases = (
+            ("plugin-DLL", "pluginkoppeling", plugin / "Jellyfin.Plugin.JellyLeon.dll", "is geen gewoon bestand zonder koppeling"),
+            ("pluginconfiguratie", "configkoppeling", Path("plugins/configurations/Jellyfin.Plugin.JellyLeon.xml"),
+             "is geen gewoon bestand met één naam"),
+        )
+        for what, folder, rel, text in cases:
+            for label, extra in (("root", []), ("Custom User", ["--user", f"{os.getuid()}:{os.getgid()}"])):
+                base = self.work / (folder + "-" + label.replace(" ", "-").lower())
+                config, cache = base / "config", base / "cache"
+                for directory in (config / "data", config / rel.parent, cache):
+                    directory.mkdir(parents=True)
+                for directory in (base, config, config / "data", cache, *[config / p for p in rel.parents if p != Path(".")]):
+                    directory.chmod(0o755)
+                database = config / "data" / "jellyfin.db"
+                database.write_bytes(b"SQLite format 3\x00synthetische kijkgegevens")
+                database.chmod(0o644)
+                (config / rel).symlink_to("/config/data/jellyfin.db")
+                before = tree_state(config)
+                self.expect_refusal(
+                    f"{what} als koppeling naar de serverdatabase ({label})",
+                    mounts=[f"{config}:/config", f"{cache}:/cache", f"{self.media}:/media/muziek:ro"],
+                    env=[],
+                    extra=extra,
+                    expected_text=text,
+                )
+                same = tree_state(config) == before
+                ok = self.add(
+                    f"{folder} ({label}): /config ongewijzigd, serverdatabase byte-gelijk", same,
+                    f"modus, eigenaar, inhoud en koppelingen gelijk={same}",
+                ) and ok
         return ok
 
     def run(self) -> bool:
