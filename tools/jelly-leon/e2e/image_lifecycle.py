@@ -25,7 +25,9 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
      smoketest `herstart` → elk proces 568, CapEff/CapPrm/CapAmb 0, NoNewPrivs 1 (de image zet no_new_privs zelf,
      §2.2; CapBnd mag dan de Docker-standaardset zijn), ook de healthcheck; daarna /cache als tmpfs zoals het formulier
      hem rendert (alleen size), als root en als Custom User 568: healthy, rooktest, plugin aan (modules 200, geen
-     opslagmelding; S-G1-16 deel 1f, BN-1);
+     opslagmelding; S-G1-16 deel 1f, BN-1); daarna de teruggevallen plugin met de echte server (data/jelly-leon 0775):
+     server gezond, afspelen en kijkgegevens werken, pluginroutes 503/401/403, Hub 401, gebruiker verwijderen 204, één
+     opslagmelding, de plugin schrijft niets; na herstel en herstart plugin aan en kijkgegevens gelijk (deel 1f, R-HARDE-EIS-4);
   8. negatieve tests (fail-closed): de container weigert te starten en de mediamap blijft onaangeroerd bij
      - geen opslagregel voor /cache (anoniem Docker-volume);
      - JELLYFIN_CACHE_DIR naar de mediamap (root zou anders `chown -R` op de media doen);
@@ -596,6 +598,73 @@ class Lifecycle:
             return str(body.get("AccessToken", "")), str((body.get("User") or {}).get("Id", ""))
         return "", ""
 
+    def plugin_storage_state(self) -> str:
+        """Elke ingang van de eigen opslag van de plugin (data en cache) met soort, modus, eigenaar, grootte, mtime en sha256."""
+        return self.helper_sh(
+            "cd /werk && find config/data/jelly-leon cache/jelly-leon -printf '%p %y %m %U:%G %s %T@\\n' 2>/dev/null | sort; "
+            "find config/data/jelly-leon cache/jelly-leon -type f -exec sha256sum {} + 2>/dev/null | sort"
+        )
+
+    def check_storage_fallback(self, first: dict) -> bool:
+        """S-G1-16 deel 1f (R-HARDE-EIS-4; B3 uit deel 1d) met de echte server: de eigen pluginopslag is onveilig
+        (data/jelly-leon 0775). De server blijft gezond, afspelen en kijkgegevens werken, de pluginroutes geven 503 (anoniem
+        401, onbevoegd 403, Hub 401), een gebruiker verwijderen werkt, de plugin schrijft niets en meldt het één keer; na
+        herstel en herstart is de plugin weer aan en zijn de kijkgegevens gelijk. Rood als de plugin terugvalt naar de oude
+        registratie (dan start de server niet)."""
+        self.remove(self.name)
+        self.helper_sh("mkdir -p /werk/config/data/jelly-leon && chown 568:568 /werk/config/data/jelly-leon "
+                       "&& chmod 0775 /werk/config/data/jelly-leon")
+        before = self.plugin_storage_state()
+        self.start()
+        if not self.wait_healthy("eigen pluginopslag onveilig"):
+            return False
+        item, user = first["item_id"], first["gebruiker_id"]
+        admin, _ = self.login(*SMOKE_ADMIN)
+        hub, _ = self.login(*SMOKE_HUB)
+        status, body = self.api("GET", "/media/v1/modules", admin)
+        code = body.get("code") if isinstance(body, dict) else None
+        checks = {
+            "pluginroute beheerder 503 storage_unavailable": status == 503 and code == "storage_unavailable",
+            "pluginroute anoniem 401": self.api("GET", "/media/v1/modules")[0] == 401,
+            "pluginroute onbevoegd 403": bool(hub) and self.api("GET", "/media/v1/modules", hub)[0] == 403,
+            "Hub-route zonder Hub-token 401": self.api("GET", "/connector/v1/health")[0] == 401,
+        }
+        played = self.api("POST", f"/UserPlayedItems/{item}?userId={user}", admin)[0]
+        favorite = self.api("POST", f"/UserFavoriteItems/{item}?userId={user}", admin)[0]
+        resume = self.api("POST", f"/UserItems/{item}/UserData?userId={user}", admin, {"PlaybackPositionTicks": 25000000})[0]
+        data = self.user_data(admin, item, user)
+        checks["kijkgegevens zetten en lezen (gezien, favoriet, hervatpunt)"] = (played, favorite, resume) == (200, 200, 200) and data == (
+            True, True, 25000000)
+        auth = {"Authorization": stock_client_smoke.auth_value(stock_client_smoke.CLIENTS["web"], admin)}
+        stream = stock_client_smoke.Client(f"http://127.0.0.1:{self.port}").request("GET", f"/Audio/{item}/stream?static=true", headers=auth)
+        checks["afspelen (statische stream)"] = stream[0] == 200 and len(stream[2]) > 0
+        status, nieuw = self.api("POST", "/Users/New", admin, {"Name": "jl-terugval-proef", "Password": "jl-terugval-niet-geheim"})
+        new_id = nieuw.get("Id") if isinstance(nieuw, dict) else None
+        checks["gebruiker verwijderen werkt"] = bool(new_id) and self.api("DELETE", f"/Users/{new_id}", admin)[0] == 204
+        warnings = self.logs(self.name, 5000).count("alleen de plugin is uitgeschakeld")
+        checks["precies één opslagmelding"] = warnings == 1
+        self.remove(self.name)
+        checks["plugin schreef niets in de eigen opslag"] = self.plugin_storage_state() == before
+        ok = self.add("teruggevallen plugin met de echte server", all(checks.values()),
+                      "; ".join(f"{naam}={'ja' if goed else 'NEE'}" for naam, goed in checks.items()))
+        self.helper_sh("chmod 0755 /werk/config/data/jelly-leon")
+        self.start()
+        if not self.wait_healthy("eigen pluginopslag hersteld"):
+            return False
+        admin, _ = self.login(*SMOKE_ADMIN)
+        modules = self.api("GET", "/media/v1/modules", admin)[0]
+        same = self.user_data(admin, item, user) == data
+        ok = self.add("na herstel en herstart: plugin aan, kijkgegevens gelijk", modules == 200 and same,
+                      f"GET /media/v1/modules {modules}; gezien/favoriet/hervatpunt gelijk={same}") and ok
+        self.remove(self.name)
+        return ok
+
+    def user_data(self, token: str, item: str, user: str) -> tuple[object, object, object]:
+        """(gezien, favoriet, hervatpunt) van één item voor één gebruiker."""
+        _, body = self.api("GET", f"/UserItems/{item}/UserData?userId={user}", token)
+        body = body if isinstance(body, dict) else {}
+        return body.get("Played"), body.get("IsFavorite"), body.get("PlaybackPositionTicks")
+
     def check_tmpfs_cache_starts(self, first: dict) -> bool:
         """S-G1-16 deel 1f (BN-1, R-HARDE-EIS-1): /cache als tmpfs zoals het TrueNAS-formulier hem rendert (alleen size; hier
         4096 MiB, want de server eist 2 GiB vrij), als root en als Custom User 568: healthy, rooktest, en de plugin is niet
@@ -768,6 +837,7 @@ class Lifecycle:
             self.check_all_processes("Custom User 568:568", root_start=False)
             self.check_healthcheck("Custom User 568:568", root_start=False)
             self.check_tmpfs_cache_starts(first)
+            self.check_storage_fallback(first)
             self.add("mediamap onaangeroerd", self.media_fingerprint() == media_before, "eigenaar/rechten ongewijzigd")
         finally:
             self.remove(self.name)

@@ -264,3 +264,64 @@ def test_tmpfs_cache_start_als_root_en_custom_user(tmp_path, monkeypatch):
 def test_tmpfs_cache_start_merkt_terugval_of_uitval_op(tmp_path, monkeypatch, status, log, healthy):
     life, _ = _tmpfslife(tmp_path, monkeypatch, status=status, log=log, healthy=healthy)
     assert not life.check_tmpfs_cache_starts({"item_id": "i", "gebruiker_id": "g"})
+
+
+def _terugvallife(tmp_path, monkeypatch, *, schrijft=False, modules_status=503, meldingen=1):
+    life = object.__new__(image_lifecycle.Lifecycle)
+    life.work, life.steps, life.name, life.port = tmp_path, [], "jl", 1
+    staat = {"n": 0, "veilig": False}
+
+    def helper_sh(script):
+        if "chmod 0755" in script:
+            staat["veilig"] = True
+        if "find config/data/jelly-leon" in script:
+            staat["n"] += 1
+            return "config/data/jelly-leon d 775" + (" nieuw" if schrijft and staat["n"] > 1 else "")
+        return ""
+
+    kijk = {}
+
+    def api(method, path, token=None, body=None):
+        if path == "/media/v1/modules":
+            if token is None:
+                return 401, None
+            if token == "hub":
+                return 403, None
+            return (200, {}) if staat["veilig"] else (modules_status, {"code": "storage_unavailable"})
+        if path == "/connector/v1/health":
+            return 401, None
+        if path.startswith(("/UserPlayedItems", "/UserFavoriteItems")) or (method == "POST" and "/UserData" in path):
+            kijk[path.split("/")[1]] = True
+            return 200, None
+        if "/UserData" in path:
+            return 200, {"Played": True, "IsFavorite": True, "PlaybackPositionTicks": 25000000}
+        if path == "/Users/New":
+            return 200, {"Id": "nieuw"}
+        if method == "DELETE":
+            return 204, None
+        return 404, None
+
+    monkeypatch.setattr(life, "helper_sh", helper_sh)
+    monkeypatch.setattr(life, "api", api)
+    monkeypatch.setattr(life, "login", lambda user, ww: ("hub", "h") if user == image_lifecycle.SMOKE_HUB[0] else ("admin", "a"))
+    monkeypatch.setattr(life, "logs", lambda *a, **k: "Jelly Leon: ... alleen de plugin is uitgeschakeld\n" * meldingen)
+    monkeypatch.setattr(life, "start", lambda *a, **k: None)
+    monkeypatch.setattr(life, "remove", lambda *a, **k: None)
+    monkeypatch.setattr(life, "wait_healthy", lambda label: True)
+    monkeypatch.setattr(image_lifecycle.stock_client_smoke.Client, "request", lambda self, m, p, **k: (200, {}, b"wav"))
+    return life
+
+
+def test_terugvalproef_met_echte_server_slaagt_als_alles_klopt(tmp_path, monkeypatch):
+    life = _terugvallife(tmp_path, monkeypatch)
+    assert life.check_storage_fallback({"item_id": "i", "gebruiker_id": "g"}), life.steps
+    assert [s["stap"] for s in life.steps] == [
+        "teruggevallen plugin met de echte server", "na herstel en herstart: plugin aan, kijkgegevens gelijk"]
+
+
+@pytest.mark.parametrize("fout", ["plugin-schrijft", "plugin-niet-teruggevallen", "geen-melding"])
+def test_terugvalproef_merkt_schrijven_of_geen_terugval_op(tmp_path, monkeypatch, fout):
+    life = _terugvallife(tmp_path, monkeypatch, schrijft=fout == "plugin-schrijft",
+                         modules_status=200 if fout == "plugin-niet-teruggevallen" else 503, meldingen=0 if fout == "geen-melding" else 1)
+    assert not life.check_storage_fallback({"item_id": "i", "gebruiker_id": "g"})
+    assert not life.steps[0]["geslaagd"]

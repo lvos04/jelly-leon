@@ -1042,6 +1042,17 @@ geven `GET` en `PUT` 503 en blijft de serverdatabase byte-gelijk. **Eerlijke aan
 (de start weigert ze), en tussen toetsen en opslaan blijft een wissel door dezelfde gebruiker mogelijk. Daarom blijven de
 twee regels verplicht; de bescherming hangt daar af van de gebruiker.
 
+**Teruggevallen plugin met de echte server in CI (R-HARDE-EIS-4).** De terugval van deel 1d werd alleen in de testhost
+bewezen. De levenscyclus van de echte image (CI-job image, `image_lifecycle.py`, `check_storage_fallback`, naar de proef van de
+review) start nu op dezelfde opslag met `data/jelly-leon` 0775 en controleert: server gezond; gezien, favoriet en hervatpunt
+zetten en lezen; statisch afspelen; `GET /media/v1/modules` 503 `storage_unavailable` als beheerder, 401 anoniem, 403 voor de
+niet-beheerder van de rooktest; Hub-route zonder token 401; een gebruiker aanmaken en verwijderen (204); precies één
+opslagmelding; de eigen opslag van de plugin (data en cache: soort, modus, eigenaar, grootte, mtime, sha256) ongewijzigd.
+Daarna herstel (0755) en herstart: modules 200 en dezelfde kijkgegevens. Valt de plugin terug naar de oude registratie, dan
+start de server niet en is de stap rood; de beoordeling zelf is zonder Docker getest (`test_image_lifecycle_processes.py`).
+Geen extra imagebouw: de stap gebruikt de image die de job al bouwt. Lokaal draaide de proef van de review op de stock-server
+12.4 met de plugin van deze stap: 15/15.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:
