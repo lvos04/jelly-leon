@@ -72,7 +72,10 @@ meer `0:0 1777` is, en de CI-proef start met 2560 MiB.
   - Een eigen tmpfs blijft `1777 0:0`, als root en als Custom User.
   - Lege proefmappen van root worden opgeruimd; een rest met inhoud en een koppeling blijven staan.
   - Update vanaf de vorige image: `JellyLeon_0.0.9.0` wordt vervangen door `JellyLeon_0.1.0.0`, de andere plugin blijft
-    byte-gelijk.
+    byte-gelijk. Het vervangen van een oudere eigen pluginversie bewijzen alleen deze lokale proef en de pytest-test
+    `test_alleen_de_eigen_plugin_wordt_bijgewerkt_een_andere_jellyleon_map_blijft_ongemoeid` (ook in CI, job Forkregels).
+    De CI-upgradeproef gaat van stock 10.11.11 naar de image, zonder oudere eigen pluginmap, en toetst dit niet (deel 1h,
+    R-EERLIJK-2).
 - `proef_1g.py eind ruimte xml`, met de echte stock-server: alle 8 gevallen zoals verwacht.
   - Stock-entrypoint: 2048 MiB weigert, 2560 MiB start.
   - Entrypoint van deze stap: 2048 MiB weigert in het Nederlands zonder serverstart. 2049 MiB start, en 2560 MiB start als
@@ -92,6 +95,23 @@ Nieuw of gewijzigd in `tools/jelly-leon/e2e/image_lifecycle.py`:
 
 De uitkomst op de eind-commit staat in het externe rapport.
 
+## Aanvulling deel 1h (na de slotcontrole R-EERLIJK)
+
+Status ongewijzigd: **Bezig**; **Sim-getest**; **NIET GEVALIDEERD (echte NAS)**. Bronbasis
+`1c1cf919640bf7a01cf0b1774b0874056d50f93a`; uitvoering in het externe rapport `RAPPORT-A-HERSTEL-1h.md` (logs in `bouw1h/`).
+- R-EERLIJK-5: eerst gemeten met de echte gepinde stock-server 12.4 in een lichte proefimage met de entrypoint van de
+  bronbasis, als root met een eigen tmpfs `mode=0755` (eigenaar 0:0): de server stopt met
+  "Access to the path '/cache/.jellyfin-cache' is denied" (exit 139), zonder Nederlandse melding. Herstel: de app-fase
+  toetst of een tmpfs-`/cache` voor de app-gebruiker schrijfbaar is; zo niet, één Nederlandse regel en stoppen, zonder iets te
+  wijzigen (eigenaar en modus van de tmpfs blijven ongewijzigd, zoals in deel 1g besloten). Met de entrypoint van 1h, echte
+  server: 0755 als root weigert in het Nederlands met `/config` ongewijzigd; zonder eigen modus (1777) als root en als Custom
+  User, en `mode=1777` als root, start de server. Test
+  `test_eigen_tmpfs_als_cache_waarin_de_app_niet_schrijft_weigert_met_een_nederlandse_regel` (rood zonder het herstel: 2
+  failed); de CI-levenscyclus weigert nu ook een tmpfs met `mode=0755` als root. `CUSTOM_APP.md` noemt het geval onder
+  *Problemen*.
+- R-EERLIJK-3: de opruimtest heeft nu ook een leeg bestand met precies het naampatroon; dat blijft staan. De mutatie die
+  `-type d` weghaalt, is nu rood (1 failed).
+
 ## Uitvoering en grenzen
 
 Commando's, exitcodes en letterlijke slotregels staan in het externe rapport `RAPPORT-A-HERSTEL-1g.md`, met de ruwe logs in
@@ -106,5 +126,6 @@ verwachte fouten. De echte image wordt alleen in CI gebouwd.
 Grenzen:
 - een lege gedeelde tmpfs blijft aanvaard; daartegen beschermt alleen *Verplicht 3*;
 - of een schrijfactie van de echte server een koppeling in een gedeelde `/cache` volgt, is niet gemeten;
-- `chown -R` bij de eerste start wijzigt de eigenaar van een harde koppeling op het XML-bestand binnen dezelfde dataset;
+- `chown -R` bij de eerste start wijzigt de eigenaar (nooit de inhoud) van een harde koppeling op het XML-bestand, ook van
+  een andere naam buiten `/config` op hetzelfde bestandssysteem als `/config` een submap van een dataset is (deel 1h);
 - een wissel door dezelfde gebruiker tussen toetsen en handelen valt onder B1 (ADR-0032, deel 1g).

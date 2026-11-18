@@ -1,6 +1,8 @@
 # S-G1-16 deel 1e — installatiebestanden en startbestanden
 
-Status: **Bezig**; **Sim-getest**; **NIET GEVALIDEERD (echte NAS)**, alleen NAS-test nodig voor dit herstel.
+Status: **Bezig**; **Sim-getest**; **NIET GEVALIDEERD (echte NAS)**. Nog nodig (deel 1h, R-EERLIJK-1): het besluit van de
+gebruiker over de restgrenzen (B1 en de gedeelde tmpfs, ADR-0032 deel 1g), deel 2 (bewijsrij B03-017 en de lokale image),
+daarna de NAS-metingen (test-evidence deel 1g).
 Bronbasis: `6525d9819e51579e03e62c6847d37cb45ec2fec9`. Herstel van R-TECH-1 en R-TECH-2 uit de technische review over
 deel 1 t/m 1d. B03-017 als geheel, zijn bewijsrij en de lokale image blijven onderdeel van deel 2. Besluit en grenzen:
 ADR-0032, "Opslagdreigingen, deel 1e".

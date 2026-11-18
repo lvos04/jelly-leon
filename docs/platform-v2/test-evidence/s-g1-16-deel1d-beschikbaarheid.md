@@ -1,6 +1,8 @@
 # S-G1-16 deel 1d — alleen de plugin uit bij onveilige opslag
 
-Status: **Bezig**; **Sim-getest**; **NIET GEVALIDEERD (echte NAS)**, alleen NAS-test nodig voor dit herstel.
+Status: **Bezig**; **Sim-getest**; **NIET GEVALIDEERD (echte NAS)**. Nog nodig (deel 1h, R-EERLIJK-1): het besluit van de
+gebruiker over de restgrenzen (B1 en de gedeelde tmpfs, ADR-0032 deel 1g), deel 2 (bewijsrij B03-017 en de lokale image),
+daarna de NAS-metingen (test-evidence deel 1g).
 Bronbasis: `afcb25b07e219eae2e4093198005591f38d58858`. B03-017 als geheel, zijn bewijsrij en de lokale image blijven
 onderdeel van deel 2. De reviews over deel 1 t/m 1d volgen afzonderlijk. Besluit en grenzen: ADR-0032,
 "Opslagdreigingen, deel 1d".

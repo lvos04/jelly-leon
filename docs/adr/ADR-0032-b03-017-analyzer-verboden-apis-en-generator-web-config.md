@@ -1128,9 +1128,11 @@ De rootfase laat precies dit geval door en blijft voor al het andere even streng
 (XML als harde koppeling op een synthetische serverdatabase, root en Custom User): de server start, `GET /media/v1/modules`
 geeft 200, de database blijft byte-gelijk met één naam, en de XML heeft één naam. De server schreef daarna zelf een nieuwe
 standaardconfiguratie in het eigen bestand. **Aantekening:** is `/config` bij de eerste start nog niet van 568, dan wijzigt
-`chown -R` van de rootfase de eigenaar van de inode, en dus ook van de andere naam. Dat kan alleen binnen dezelfde dataset
-(een harde koppeling gaat niet over mounts) en gold al voor de pluginmap (deel 1f). Een wissel door dezelfde gebruiker tussen
-toetsen en kopiëren valt onder B1.
+`chown -R` van de rootfase de eigenaar van de inode, en dus ook van de andere naam. Die andere naam ligt altijd binnen
+hetzelfde bestandssysteem. Is `/config` een submap van een dataset (Host Path naar een submap), dan kan die andere naam
+buiten `/config` liggen; ook dan wisselt alleen de eigenaar, nooit de inhoud (deel 1h, R-EERLIJK-4, gemeten). Dat gold al
+voor elk bestand onder `/config` (ook vóór deel 1g, bijvoorbeeld een harde koppeling in `metadata/`) en voor de pluginmap
+(deel 1f). Een wissel door dezelfde gebruiker tussen toetsen en kopiëren valt onder B1.
 
 **Alleen de eigen pluginmappen (vervolgpunt van de review, punt 5).** `install_plugins` verwijderde met `rm -rf` elke map
 `JellyLeon_*` van een andere versie, ook `JellyLeon_Extra_2.0.0.0` van een andere plugin. Herhaald, met nog een gevolg: had zo'n
