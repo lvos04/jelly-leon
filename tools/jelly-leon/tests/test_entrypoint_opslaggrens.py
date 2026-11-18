@@ -547,6 +547,25 @@ def test_eigen_tmpfs_als_cache_start_met_de_modus_van_docker_of_truenas(tmp_path
     assert buiten.read_bytes() == KIJKGEGEVENS
 
 
+@pytest.mark.parametrize("modus", [0o555, 0o655], ids=["0555", "0655"])
+def test_eigen_tmpfs_als_cache_waarin_de_app_niet_schrijft_weigert_met_een_nederlandse_regel(tmp_path: Path, modus: int) -> None:
+    """R-EERLIJK-5 (deel 1h): een eigen tmpfs met een eigen modus (bijvoorbeeld 0755 van root) wisselt nooit van eigenaar of
+    modus; de echte server stopt dan met "Access to the path '/cache/.jellyfin-cache' is denied" (gemeten). De app-fase
+    weigert vóór elke wijziging met één Nederlandse regel. Hier nagebootst met een modus zonder schrijf- of zoekrecht voor
+    de eigenaar, omdat de test niet als root draait."""
+    data, cache, buiten = opzet(tmp_path)
+    cache.chmod(modus)
+    script = fase_twee(tmp_path, data, cache, mountinfo=mountinfo(tmp_path, tmpfs_regel(cache)))
+    voor = boom(tmp_path)
+    proc = draai(script)
+    uit = proc.stdout + proc.stderr
+    assert proc.returncode != 0, uit
+    fout = [r for r in uit.splitlines() if "FOUT" in r]
+    assert len(fout) == 1 and "werkgeheugen (tmpfs) waarin de app-gebruiker" in fout[0], uit
+    assert f"modus {modus:o}" in fout[0] and "Er is niets gewijzigd" in fout[0] and "modus 1777" in fout[0], uit
+    assert boom(tmp_path) == voor and buiten.read_bytes() == KIJKGEGEVENS
+
+
 @pytest.mark.parametrize("geval", ["hostmap", "submap", "gevuld", "geen-tmpfs", "data-als-tmpfs"])
 def test_tmpfs_die_niet_alleen_van_de_container_is_blijft_streng(tmp_path: Path, geval: str) -> None:
     """Niet op naam: een gekoppelde map van een host-tmpfs (wortel niet "/"), een map ín een tmpfs, een al gevulde tmpfs of

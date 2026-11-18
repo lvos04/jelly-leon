@@ -34,6 +34,7 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
      - JELLYFIN_CACHE_DIR naar de mediamap (root zou anders `chown -R` op de media doen);
      - /config als tmpfs (opslagtype tmpfs in het formulier: database weg na elke herstart, startwizard weer open);
      - /cache als tmpfs van 2048 MiB (de server zou weigeren; de start meldt het in het Nederlands, deel 1g);
+     - /cache als tmpfs met modus 0755 van root, als root gestart (de server zou stoppen met een Engelse fout; deel 1h);
      - JELLYFIN_CONFIG_DIR in de container zelf (instellingen weg bij elke update);
      - een padoptie (`--datadir`) in het veld Command;
      - Custom User 568 met een /config die niet van 568 is (NL-melding, nooit stil doorstarten);
@@ -879,6 +880,15 @@ class Lifecycle:
             env=[],
             extra=["--tmpfs", "/cache:size=2147483648"],
             expected_text="minstens 2560 MiB",
+        )
+        # Deel 1h (R-EERLIJK-5): de start wijzigt een tmpfs nooit; met modus 0755 van root kan de server (568) er niet in
+        # schrijven (gemeten: "Access to the path '/cache/.jellyfin-cache' is denied"). De app-fase weigert in het Nederlands.
+        self.expect_refusal(
+            "/cache als tmpfs met modus 0755 van root (niet schrijfbaar voor de app)",
+            mounts=[f"{self.config}:/config", f"{self.media}:/media/muziek:ro"],
+            env=[],
+            extra=["--tmpfs", f"{TMPFS_CACHE},mode=0755"],
+            expected_text="waarin de app-gebruiker 568:568 niet mag schrijven",
         )
         self.expect_refusal(
             "JELLYFIN_CONFIG_DIR in de container zelf",

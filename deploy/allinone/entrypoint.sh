@@ -428,6 +428,11 @@ if [ "$(id -u)" != "0" ]; then
   if [ "${JELLY_LEON_ENTRYPOINT_STAGE:-}" = "app" ] && [ "$nnp" = "1" ]; then
     log "draait als $(id -u):$(id -g) (groepen $(id -G | tr ' ' ',')), zonder capabilities, no_new_privs"
     unset JELLY_LEON_ENTRYPOINT_STAGE
+    # Deel 1h (R-EERLIJK-5): een tmpfs-/cache wisselt nooit van eigenaar of modus (deel 1g); met een eigen modus (bijvoorbeeld
+    # 0755 van root) kan de server er dan niet in schrijven en stopt hij met een Engelse fout. Liever één Nederlandse regel.
+    if [ "$(mount_of "$CACHE_DIR" | cut -d ' ' -f 1)" = tmpfs ] && { [ ! -w "$CACHE_DIR" ] || [ ! -x "$CACHE_DIR" ]; }; then
+      fail "$CACHE_DIR is werkgeheugen (tmpfs) waarin de app-gebruiker $(id -u):$(id -g) niet mag schrijven (eigenaar $(stat -c '%u:%g' -- "$CACHE_DIR"), modus $(stat -c '%a' -- "$CACHE_DIR")); de server kan daar zijn cache niet aanmaken. Er is niets gewijzigd (de start wijzigt een tmpfs nooit). Kies in het Custom App-formulier voor Mount Path $CACHE_DIR het opslagtype tmpfs met alleen een grootte (de image geeft dan modus 1777) of zet de modus op 1777, en start de app opnieuw"
+    fi
     assert_private_storage "$(id -u)"
     assert_new_dirs_private
     remove_probe_leftovers
