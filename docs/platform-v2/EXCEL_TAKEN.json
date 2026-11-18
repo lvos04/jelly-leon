@@ -235,7 +235,15 @@
   "Prioriteit": "P0",
   "Afhankelijkheid": "B03-014; contract 1.2 §3–§7 en JL4 (CONTRACT_1.2_CONFORMITEIT.md:256); B03-010 (IsKid en authpatch op streamroutes); B03-009 (MediaGuard-viewerclient); ADR-0001 en ADR-0002 (jelly-leon)",
   "Bron": "https://jellyfin.org/docs/general/server/plugins/",
-  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md"
+  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
+  "id": "B03-017",
+  "status": "Bezig",
+  "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (echte Hub)",
+  "bewijs": "Broncommit 48293b48ac48644e0d4433cf3193a96fbf35eac4; lokale image jelly-leon:lokaal-48293b48a; image-ID sha256:09c2bb379cf09e0895a794dcf4979b3171d015d942dda67a67ad42231f43741b; revisionlabel gelijk aan de broncommit. De daaropvolgende vastlegging wijzigt uitsluitend bewijs en documentatie, geen imagebron. Lokale pluginsuite, negatieve analyzerbouw, T-JL-REGISTER en 424 forktooltests; alle imageproeven uit P-jelly-leon job image. Uitkomsten en grenzen: docs/platform-v2/test-evidence/s-g1-16-deel2-bewijs-image.md. Bestaande CI op de broncommit: Jelly Leon CI 44223144485; de CI-uitkomst van de nieuwe bewijscommit wordt afzonderlijk vastgelegd in het externe RAPPORT-A-BOUW-2b.md.",
+  "blokkade": "NIET GEVALIDEERD (echte NAS): de plugin draait nog op geen echte NAS; gebruiker moet de NAS-metingen uitvoeren. NIET GEVALIDEERD (echte Hub): de koppeling is alleen tegen de Hub-simulator getest. Besluit B1 bij de gebruiker: de serverroute voor pluginconfiguratie en een harde koppeling op de database; tevens de lege gedeelde tmpfs als /cache en het opvolgen van Verplicht 3. Geen absolute garantie afgeleid uit de groene simulatieproeven.",
+  "opmerking": "Gebouwd: één pluginassembly met Core en de prototypes Devices en Quality, analyzer, opslag- en startgrens, web-configgenerator. De IStartupFilter-spike is lokaal beproefd; volledige acceptatie en doorvoering blijven vervolgwerk. Nog open: export/import per module met preview_hash, de webhaakmodule en de modules WatchTogether, Recommendations, Subtitles en Segments. JLT-64/65/68 en volledige acceptatiemeting worden in S-G1-10 geboekt; Hub/web in S-G1-12, foutcatalogus/idempotentie in S-G1-14, privacy in S-G1-18, mountstatus in S-G1-20 en MediaGuard-vervoer in S-G1-50. Restgrenzen van deel 1 blijven gelden (ADR-0032): vooraf gelegde harde databasekoppeling en wissel door dezelfde UID tussen controle en openen; serverroute voor pluginconfiguratie; lege gedeelde tmpfs. Op de NAS nog meten: leegte van /dev/shm bij start; modus, eigenaar en grootte van tmpfs-/cache; preset Apps, NFSv4-ACL’s en fs.protected_hardlinks. Deze stap wijzigt deel 1 niet.",
+  "repo": "jelly-leon",
+  "bijgewerkt": "2026-11-18"
  },
  {
   "ID": "B03-018",
