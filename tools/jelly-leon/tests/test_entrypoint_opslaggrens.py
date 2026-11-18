@@ -196,7 +196,7 @@ def test_controle_staat_als_root_voor_de_eigenaarswissel_en_als_app_voor_het_vas
     tekst = SCRIPT.read_text(encoding="utf-8")
     fase = tekst.index('if [ "${JELLY_LEON_ENTRYPOINT_STAGE:-}" = "app" ]')
     app = tekst.index('    assert_private_storage "$(id -u)"\n', fase)
-    assert app < tekst.index("    record_datamap_version\n", fase)
+    assert app < tekst.index("    repair_plugin_dirs\n", fase) < tekst.index("    record_datamap_version\n", fase)
     root = tekst.index("\nassert_private_storage\n")
     assert tekst.index("  assert_owned_mount \"$dir\"\n") < root < tekst.index('chown -R "$APP_UID:$APP_GID" "$dir"')
 
@@ -256,15 +256,18 @@ KIJKGEGEVENS = b"SQLite format 3\x00synthetische kijkgegevens"
         "dll-dode-koppeling",
         "dll-harde-koppeling",
         "dll-map",
-        "dll-fifo",
+        "dll-fifo",  # oud (1d): cmp wachtte hierop
         "manifest-koppeling",  # meta.json schrijft de server zelf bij de start
-        "manifest-harde-koppeling",
+        "manifest-harde-koppeling",  # ontdubbelen of terugzetten met behoud van koppelingen (R-HARDE-EIS-2)
+        "tweede-naam",  # ontdubbelen binnen de map (R-VEILIG-4)
         "oude-versie-koppeling",
     ],
 )
-def test_pluginbestand_met_koppeling_weigert_voor_vergelijken_of_schrijven(tmp_path: Path, geval: str) -> None:
-    """R-TECH-1 (deel 1e): een bestaand bestand in een eigen pluginmap dat geen gewoon bestand is of gekoppeld is, wordt
-    geweigerd vóór cmp, het vastleggen van de versie of een schrijfactie; de serverdatabase en de mappen blijven gelijk."""
+def test_vreemde_ingang_in_de_eigen_pluginmap_wordt_hersteld_zonder_te_volgen(tmp_path: Path, geval: str) -> None:
+    """BN-2 (deel 1f; R-HARDE-EIS-2, R-VEILIG-4): een ingang in een eigen pluginmap die geen gewoon bestand met één naam
+    is, legt de mediaserver niet meer stil. De app-fase verwijdert de ingang zelf (unlink volgt niets; vóór cmp, het
+    vastleggen van de versie of een schrijfactie) en plaatst de DLL als nieuw bestand. Het doel van een koppeling en de
+    andere naam van een harde koppeling blijven byte-gelijk; daarbuiten verandert niets."""
     ouder = maak(tmp_path / "ouder")
     data, cache, buiten = opzet(ouder)
     plug = maak(maak(data / "plugins") / ("JellyLeon_0.0.9.0" if geval.startswith("oude-") else "JellyLeon_0.1.0.0"))
@@ -278,30 +281,67 @@ def test_pluginbestand_met_koppeling_weigert_voor_vergelijken_of_schrijven(tmp_p
     elif geval == "dll-map":
         maak(dll)
     elif geval == "dll-fifo":
-        os.mkfifo(dll)  # oud: cmp wacht hierop
+        os.mkfifo(dll)
     else:
         dll.write_bytes(b"oude plugin")
         if geval == "manifest-koppeling":
             manifest.symlink_to(buiten)
-        else:
+        elif geval == "manifest-harde-koppeling":
             os.link(buiten, manifest)
-    voor = boom(ouder)
+        else:
+            os.link(dll, plug / "kopie.dll.bak")
+    buiten_voor = {p: p.lstat() for p in ouder.iterdir()}
     proc = draai(fase_twee(tmp_path, data, cache))
+    uit = proc.stdout + proc.stderr
     assert buiten.read_bytes() == KIJKGEGEVENS, "de start schreef via het pluginbestand in de serverdatabase"
-    assert proc.returncode != 0, proc.stdout + proc.stderr
-    assert "geen gewoon bestand zonder koppeling" in proc.stdout + proc.stderr
-    assert "Er is niets gewijzigd" in proc.stdout + proc.stderr
-    assert boom(ouder) == voor
+    assert proc.returncode == 0, uit
+    nieuw = data / "plugins" / "JellyLeon_0.1.0.0"
+    assert sorted(p.name for p in nieuw.iterdir()) == ["Jellyfin.Plugin.JellyLeon.dll"]
+    dll_nu = nieuw / "Jellyfin.Plugin.JellyLeon.dll"
+    assert not dll_nu.is_symlink() and dll_nu.read_bytes() == b"synthetische plugin" and dll_nu.stat().st_nlink == 1
+    assert not (data / "plugins" / "JellyLeon_0.0.9.0").exists()
+    assert buiten.stat().st_nlink == 1 and sorted(ouder.iterdir()) == sorted(buiten_voor)
+    assert all(p.lstat().st_mode == s.st_mode for p, s in buiten_voor.items())
+    assert uit.count("hersteld zonder een koppeling te volgen") == 1, uit
 
 
-def test_rootfase_weigert_een_gekoppeld_pluginbestand_voor_de_eigenaarswissel(tmp_path: Path) -> None:
-    """Als root vóór `chown -R` (de controle staat daar, zie de volgordetest): niets gewijzigd, ook geen eigenaar."""
+def test_map_met_inhoud_in_de_eigen_pluginmap_weigert_zonder_wijziging(tmp_path: Path) -> None:
+    """Wat de start niet veilig kan opruimen (een map met inhoud), blijft een weigering vóór elke wijziging, als root vóór
+    de eigenaarswissel; de melding noemt de veilige weg en waarschuwt bij een snapshot (R-HARDE-EIS-2)."""
+    ouder = maak(tmp_path / "ouder")
+    data, cache, buiten = opzet(ouder)
+    plug = maak(maak(data / "plugins") / "JellyLeon_0.1.0.0")
+    (plug / "meta.json").symlink_to(buiten)
+    (maak(plug / "sub") / "x.dll").write_bytes(b"x")
+    voor = boom(ouder)
+    for body in (None, "assert_private_storage\nprintf 'EIGENAARSWISSEL\\n'\n"):
+        proc = draai(fase_twee(tmp_path, data, cache, body=body))
+        uit = proc.stdout + proc.stderr
+        assert proc.returncode != 0 and "EIGENAARSWISSEL" not in uit, uit
+        assert "is een map met inhoud in de eigen pluginmap" in uit and "Er is niets gewijzigd" in uit
+        assert "Veilige weg" in uit and "kijkgegevens van na die snapshot verloren gaan" in uit
+        assert boom(ouder) == voor
+    assert buiten.read_bytes() == KIJKGEGEVENS
+
+
+def test_rootfase_laat_herstel_aan_de_app_fase_en_volgt_geen_koppeling(tmp_path: Path) -> None:
+    """Als root (vóór `chown -R`, zie de volgordetest) blijft een gekoppeld pluginbestand staan; het herstel doet de
+    app-fase. Root leest of schrijft er niets doorheen."""
     data, cache, buiten = opzet(tmp_path)
-    (maak(maak(data / "plugins") / "JellyLeon_0.1.0.0") / "Jellyfin.Plugin.JellyLeon.dll").symlink_to(buiten)
+    dll = maak(maak(data / "plugins") / "JellyLeon_0.1.0.0") / "Jellyfin.Plugin.JellyLeon.dll"
+    dll.symlink_to(buiten)
     proc = draai(fase_twee(tmp_path, data, cache, body="assert_private_storage\nprintf 'EIGENAARSWISSEL\\n'\n"))
-    assert proc.returncode != 0
-    assert "EIGENAARSWISSEL" not in proc.stdout
-    assert "geen gewoon bestand zonder koppeling" in proc.stdout + proc.stderr
+    assert proc.returncode == 0 and "EIGENAARSWISSEL" in proc.stdout, proc.stdout + proc.stderr
+    assert dll.is_symlink() and buiten.read_bytes() == KIJKGEGEVENS
+
+
+def test_elke_snapshotraad_waarschuwt_voor_verlies_van_kijkgegevens() -> None:
+    """R-HARDE-EIS-2: geen melding raadt het terugzetten van een snapshot aan zonder de waarschuwing dat kijkgegevens van
+    na die snapshot verloren gaan, en elke zo'n melding noemt eerst een veilige weg."""
+    meldingen = [r for r in SCRIPT.read_text(encoding="utf-8").splitlines() if 'fail "' in r and "snapshot" in r]
+    assert len(meldingen) >= 5
+    for melding in meldingen:
+        assert "kijkgegevens van na die snapshot" in melding and "Veilige weg" in melding, melding
 
 
 @pytest.mark.parametrize("soort", ["koppeling", "harde-koppeling"])

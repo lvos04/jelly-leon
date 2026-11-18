@@ -169,29 +169,42 @@ def test_custom_user_weigering_merkt_rechtenwijziging_op(tmp_path, monkeypatch):
     assert not life.steps[-1]["geslaagd"]
 
 
-def _pluginlife(tmp_path, monkeypatch, refusal):
+def _herstel(mounts, schrijf_door=False):
+    """Nabootsing van de herstelde start: vreemde ingangen weg, nieuwe DLL; met schrijf_door als de oude fout."""
+    config = Path(mounts[0].split(":")[0])
+    for plugin in (config / "plugins").iterdir():
+        for ingang in plugin.iterdir():
+            if schrijf_door:
+                (config / "data" / "jellyfin.db").write_bytes(b"synthetische plugin")
+            ingang.unlink()
+        (plugin / "Jellyfin.Plugin.JellyLeon.dll").write_bytes(b"plugin")
+    return "exited 0", "jelly-leon: eigen pluginmap hersteld zonder een koppeling te volgen\nNEPSERVER uid=568"
+
+
+def _pluginlife(tmp_path, monkeypatch, refusal, repair=_herstel):
     life = object.__new__(image_lifecycle.Lifecycle)
-    life.work, life.media, life.steps = tmp_path, tmp_path / "media", []
+    life.work, life.media, life.steps, life.name = tmp_path, tmp_path / "media", [], "jl"
     life.args = type("Args", (), {"image": "proef"})()
     monkeypatch.setattr(image_lifecycle, "docker", lambda *a, **k: image_lifecycle.subprocess.CompletedProcess(a, 0, "JellyLeon_0.1.0.0\n", ""))
     monkeypatch.setattr(life, "expect_refusal", refusal)
+    monkeypatch.setattr(life, "run_to_exit", lambda name, **kwargs: repair(kwargs["mounts"]))
     return life
 
 
-def test_pluginkoppeling_weigering_root_en_custom_user(tmp_path, monkeypatch):
+def test_pluginkoppeling_herstel_en_configweigering_root_en_custom_user(tmp_path, monkeypatch):
     oproepen = []
     life = _pluginlife(tmp_path, monkeypatch, lambda *args, **kwargs: oproepen.append(kwargs))
-    assert life.expect_plugin_link_refusal()
+    assert life.expect_plugin_link_refusal(), life.steps
     custom = ["--user", f"{image_lifecycle.os.getuid()}:{image_lifecycle.os.getgid()}"]
-    assert [o["extra"] for o in oproepen] == [[], custom, [], custom]
-    assert [o["expected_text"] for o in oproepen] == ["is geen gewoon bestand zonder koppeling"] * 2 + [
-        "is geen gewoon bestand met één naam"
-    ] * 2
-    dll = tmp_path / "pluginkoppeling-root" / "config" / "plugins" / "JellyLeon_0.1.0.0" / "Jellyfin.Plugin.JellyLeon.dll"
+    assert [o["extra"] for o in oproepen] == [[], custom]
+    assert [o["expected_text"] for o in oproepen] == ["is geen gewoon bestand met één naam"] * 2
     xml = tmp_path / "configkoppeling-custom-user" / "config" / "plugins" / "configurations" / "Jellyfin.Plugin.JellyLeon.xml"
-    for koppeling in (dll, xml):
-        assert koppeling.is_symlink() and str(koppeling.readlink()) == "/config/data/jellyfin.db"
+    assert xml.is_symlink() and str(xml.readlink()) == "/config/data/jellyfin.db"
     assert oct((xml.parent.stat().st_mode) & 0o777) == "0o755"
+    assert [s["stap"] for s in life.steps if s["stap"].startswith("hersteld:")] == [
+        "hersteld: plugin-DLL als koppeling en meta.json als harde koppeling (root, nep-server)",
+        "hersteld: plugin-DLL als koppeling en meta.json als harde koppeling (Custom User, nep-server)",
+    ]
 
 
 def test_pluginkoppeling_weigering_merkt_een_overschreven_database_op(tmp_path, monkeypatch):
@@ -201,9 +214,20 @@ def test_pluginkoppeling_weigering_merkt_een_overschreven_database_op(tmp_path, 
 
     life = _pluginlife(tmp_path, monkeypatch, overschrijf)
     assert not life.expect_plugin_link_refusal()
-    assert not any(stap["geslaagd"] for stap in life.steps[1:])
+    assert [s["geslaagd"] for s in life.steps if s["stap"].startswith("configkoppeling")] == [False, False]
 
 
+@pytest.mark.parametrize("fout", ["schrijft-door", "laat-koppeling-staan", "start-niet"])
+def test_pluginherstel_merkt_doorschrijven_of_uitval_op(tmp_path, monkeypatch, fout):
+    def herstel(mounts):
+        if fout == "laat-koppeling-staan":
+            return "exited 0", "hersteld zonder een koppeling te volgen\nNEPSERVER"
+        state, log = _herstel(mounts, schrijf_door=fout == "schrijft-door")
+        return ("exited 1", log) if fout == "start-niet" else (state, log)
+
+    life = _pluginlife(tmp_path, monkeypatch, lambda *a, **k: None, herstel)
+    assert not life.expect_plugin_entry_repair("JellyLeon_0.1.0.0")
+    assert not any(s["geslaagd"] for s in life.steps)
 
 def _tmpfslife(tmp_path, monkeypatch, *, status=200, log="", healthy=True):
     life = object.__new__(image_lifecycle.Lifecycle)

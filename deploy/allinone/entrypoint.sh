@@ -22,9 +22,10 @@
 #    het vastleggen) weigert de start een data- of cachemap, een ouder daarvan, jelly-leon/ of plugins/ die een
 #    symbolische koppeling is of voor groep of anderen beschrijfbaar; als app-gebruiker ook een map van een andere
 #    eigenaar. NL-melding, er is niets gewijzigd. Anders kan een andere gebruiker de start via een koppeling laten
-#    schrijven in bijvoorbeeld de database met kijkgegevens. Deel 1e: ook een bestand in een eigen pluginmap dat geen
-#    gewoon bestand met één naam is, wordt vóór vergelijken, vastleggen, eigenaarswissel of schrijven geweigerd, en de DLL
-#    wordt als nieuw bestand naast het doel geschreven en dan hernoemd (nooit door een bestaande ingang heen). Deel 1f:
+#    schrijven in bijvoorbeeld de database met kijkgegevens. Deel 1e/1f: een ingang in een eigen pluginmap die geen gewoon
+#    bestand met één naam is, verwijdert de app-fase zelf vóór vergelijken, vastleggen of schrijven (unlink volgt niets;
+#    alleen een map met inhoud wordt geweigerd), en de DLL wordt als nieuw bestand naast het doel geschreven en dan
+#    hernoemd (nooit door een bestaande ingang heen). Deel 1f:
 #    ook plugins/configurations en daarin Jellyfin.Plugin.JellyLeon.xml (de server leest en schrijft dat bestand). Een
 #    /cache die een eigen tmpfs van deze container is (eigen koppelpunt, bij de start leeg; own_tmpfs) wordt aanvaard met
 #    de eigenaar en modus van Docker of TrueNAS; de image zet /cache op 1777, zodat ook een Custom User erin schrijft.
@@ -160,7 +161,7 @@ assert_not_downgrade() {
   [ "$check_uid" != 0 ] || check_uid=""
   assert_private_storage "$check_uid"
   if [ -L "$DATAMAP_VERSION_FILE" ] || { [ -e "$DATAMAP_VERSION_FILE" ] && [ ! -f "$DATAMAP_VERSION_FILE" ]; }; then
-    fail "datamap-versie is geen gewoon bestand zonder koppeling. Er is niets gewijzigd. Controleer in TrueNAS bij Apps → Edit → Storage de eigen config-opslag; zet bij Datasets → Snapshots zo nodig de snapshot van vóór de wijziging terug of vraag hulp via de Hub"
+    fail "datamap-versie is geen gewoon bestand zonder koppeling. Er is niets gewijzigd. Dit bestand onthoudt alleen de hoogste Jelly Leon-versie, geen kijkgegevens. Veilige weg: controleer in TrueNAS bij Apps → Edit → Storage de eigen config-opslag en bij je andere apps dat geen andere app de config-dataset gekoppeld heeft; laat daarna alleen dit ene bestand weghalen (bijvoorbeeld via de Hub; start daarna alleen de nieuwste Jelly Leon-image die je gebruikte). Zet een snapshot van de config-dataset (Datasets → Snapshots) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan"
   fi
   assert_private_dir "$DATAMAP_VERSION_FILE" "$check_uid"
   own=$(image_version)
@@ -170,10 +171,10 @@ assert_not_downgrade() {
   recorded=$(sed -n 's/^fork_version=//p' "$DATAMAP_VERSION_FILE" | head -n 1)
   recorded_fields=$(version_fields "$recorded")
   if [ -z "$recorded_fields" ]; then
-    fail "$DATAMAP_VERSION_FILE is onleesbaar (verwacht fork_version=<x.y.z>-jl.<n>); er is niets gewijzigd. Zet de snapshot van de config-dataset terug of vraag hulp via de Hub"
+    fail "$DATAMAP_VERSION_FILE is onleesbaar (verwacht fork_version=<x.y.z>-jl.<n>); er is niets gewijzigd. Dit bestand onthoudt alleen de hoogste Jelly Leon-versie, geen kijkgegevens. Veilige weg: laat alleen dit ene bestand weghalen (bijvoorbeeld via de Hub; start daarna alleen de nieuwste Jelly Leon-image die je gebruikte). Zet een snapshot van de config-dataset (Datasets → Snapshots) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan"
   fi
   if version_newer "$recorded_fields" "$own_fields"; then
-    fail "deze datamap is al gestart door Jelly Leon $recorded, nieuwer dan deze image ($own). Een oudere server op een al gemigreerde database kan kijkgegevens beschadigen, daarom start deze image niet; er is niets gewijzigd. Terugzetten = de snapshot van de config-dataset van vóór de update én de vorige image samen (deploy/truenas/CUSTOM_APP.md, 'Updaten en terugdraaien'); of kies weer de nieuwere image"
+    fail "deze datamap is al gestart door Jelly Leon $recorded, nieuwer dan deze image ($own). Een oudere server op een al gemigreerde database kan kijkgegevens beschadigen, daarom start deze image niet; er is niets gewijzigd. Veilige weg: kies weer de nieuwere image. Terugzetten kan alleen met de snapshot van de config-dataset van vóór de update én de vorige image samen (deploy/truenas/CUSTOM_APP.md, 'Updaten en terugdraaien'); dan gaan de kijkgegevens van na die snapshot verloren"
   fi
 }
 
@@ -206,7 +207,7 @@ record_datamap_version() {
 # Leest alleen.
 assert_private_dir() {
   if [ -L "$1" ]; then
-    fail "$1 is een symbolische koppeling: daarlangs kan de start buiten de eigen opslag schrijven, bijvoorbeeld in de database met kijkgegevens. Er is niets gewijzigd. Controleer in TrueNAS bij de app (Edit → Storage) dat /config en /cache op de eigen datasets staan; zet anders de snapshot van de config-dataset van vóór de wijziging terug (Datasets → Snapshots) of vraag hulp via de Hub"
+    fail "$1 is een symbolische koppeling: daarlangs kan de start buiten de eigen opslag schrijven, bijvoorbeeld in de database met kijkgegevens. Er is niets gewijzigd. Veilige weg: controleer in TrueNAS bij de app (Edit → Storage) dat /config en /cache op de eigen datasets staan, en bij je andere apps dat geen andere app de config-dataset gekoppeld heeft; laat daarna alleen deze koppeling weghalen (bijvoorbeeld via de Hub). Zet een snapshot van de config-dataset (Datasets → Snapshots) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan"
   fi
   [ -e "$1" ] || return 0
   perm=$(stat -c '%a' -- "$1")
@@ -252,15 +253,27 @@ assert_private_storage() {
   if [ -L "$xml" ] || { [ -e "$xml" ] && { [ ! -f "$xml" ] || [ "$(stat -c '%h' -- "$xml")" != 1 ]; }; }; then
     fail "$xml is geen gewoon bestand met één naam (een symbolische of harde koppeling, een map of een bijzonder bestand): daarlangs kan de server bij het lezen of opslaan van de Jelly Leon-instellingen een ander bestand overschrijven, bijvoorbeeld de database met kijkgegevens. Er is niets gewijzigd. Dit bestand bevat alleen de moduleschakelaars van Jelly Leon, geen kijkgegevens. Veilige weg: controleer bij Apps → Edit → Storage van je andere apps dat geen andere app de config-dataset of een map daarin gekoppeld heeft, laat daarna alleen dit ene bestand weghalen (bijvoorbeeld via de Hub; Jelly Leon start dan met standaardinstellingen, alle modules uit) en start de app opnieuw. Zet een snapshot van de config-dataset (Datasets → Snapshots) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan"
   fi
-  # Alleen gewone bestanden met één naam (ADR-0032, deel 1e): een symbolische of harde koppeling, map, FIFO of ander
-  # bijzonder bestand zou cmp laten volgen of wachten, of een schrijfactie van start of server naar een ander bestand sturen.
+  # Eigen pluginmappen (ADR-0032, deel 1e en 1f): een vreemde ingang (koppeling, harde koppeling, FIFO, lege map) herstelt de
+  # app-fase zelf (repair_plugin_dirs). Alleen een map met inhoud kan zij niet veilig opruimen: dan weigeren, vóór alles.
   for dir in "$DATA_DIR"/plugins/JellyLeon_*; do
     [ -d "$dir" ] || continue
-    odd=$(find "$dir" -mindepth 1 \( ! -type f -o -links +1 \) -print -quit) \
+    odd=$(find "$dir" -mindepth 1 -maxdepth 1 -type d ! -empty -print -quit) \
       || fail "$dir kan niet worden gecontroleerd. Er is niets gewijzigd. Controleer in TrueNAS bij Datasets → de config-dataset → Permissions → Edit dat de gebruiker apps (568) eigenaar is, en start de app opnieuw"
     if [ -n "$odd" ]; then
-      fail "$odd is geen gewoon bestand zonder koppeling (een symbolische of harde koppeling, een map of een bijzonder bestand): daarlangs kunnen de start of de server buiten de eigen pluginmap lezen of schrijven, bijvoorbeeld in de database met kijkgegevens. Er is niets gewijzigd. Zet in TrueNAS de snapshot van de config-dataset van vóór de wijziging terug (Datasets → Snapshots) of vraag hulp via de Hub"
+      fail "$odd is een map met inhoud in de eigen pluginmap; die kan de start niet veilig opruimen. Er is niets gewijzigd. De pluginmap bevat alleen de meegeleverde Jelly Leon-plugin, geen kijkgegevens. Veilige weg: laat alleen deze map weghalen (bijvoorbeeld via de Hub); de start zet de plugin daarna zelf terug. Zet een snapshot van de config-dataset (Datasets → Snapshots) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan"
     fi
+  done
+}
+
+# Deel 1f (BN-2): in een eigen pluginmap (door de image beheerd) verwijdert de app-fase elke ingang die geen gewoon bestand met
+# één naam is: unlink en rmdir volgen niets, dus het doel van een koppeling en een andere naam van hetzelfde bestand blijven
+# ongemoeid. De DLL komt daarna als nieuw bestand; meta.json schrijft de server opnieuw. Eén logregel per herstelde map.
+repair_plugin_dirs() {
+  for dir in "$DATA_DIR"/plugins/JellyLeon_*; do
+    [ -d "$dir" ] || continue
+    gone=$(find "$dir" -mindepth 1 -maxdepth 1 \( ! -type f -o -links +1 \) -print -delete) \
+      || fail "$dir: niet elke vreemde ingang kon worden verwijderd (wel verwijderd: ${gone:-niets}). De database met kijkgegevens is niet aangeraakt. Controleer in TrueNAS bij Datasets → de config-dataset → Permissions → Edit dat de gebruiker apps (568) eigenaar is met schrijfrecht, en start de app opnieuw"
+    [ -z "$gone" ] || log "eigen pluginmap $(basename -- "$dir") hersteld zonder een koppeling te volgen; verwijderd: $(printf '%s' "$gone" | tr '\n' ' ')"
   done
 }
 
@@ -325,6 +338,7 @@ if [ "$(id -u)" != "0" ]; then
     log "draait als $(id -u):$(id -g) (groepen $(id -G | tr ' ' ',')), zonder capabilities, no_new_privs"
     unset JELLY_LEON_ENTRYPOINT_STAGE
     assert_private_storage "$(id -u)"
+    repair_plugin_dirs
     record_datamap_version
     install_plugins
     exec /jellyfin/jellyfin "$@"

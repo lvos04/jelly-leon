@@ -939,8 +939,8 @@ gebruiker, niet door de image beheerd.
 |---|---|---|---|
 | `plugins/` | server: `CreateAndCheckMarker` maakt bij elke start `.jellyfin-plugin` als die ontbreekt (`File.Exists` volgt, `File.Create`); start: `mkdir` | marker: ja | start: map zonder koppeling, niet voor groep of anderen beschrijfbaar, van de app-gebruiker; de marker kan alleen leggen wie in die map schrijft (B1) |
 | `plugins/JellyLeon_<versie>/` | start: `mkdir`, oude versies `rm -rf`; server: `Directory.Delete` van oudere versies en bij verwijderen | nee | start: zoals `plugins/` |
-| `.../Jellyfin.Plugin.JellyLeon.dll` | start: `cmp`, daarna nieuw bestand naast het doel en hernoemen (deel 1e); server: laden | nee | start: alleen gewone bestanden met één naam (deel 1e) |
-| `.../meta.json` | server: `LoadManifest` (`File.ReadAllBytes`) bij elke start; `SaveManifest` (`File.WriteAllText`) bij de eerste start, een versie- of statuswijziging | ja | start: alleen gewone bestanden met één naam (deel 1e) |
+| `.../Jellyfin.Plugin.JellyLeon.dll` | start: `cmp`, daarna nieuw bestand naast het doel en hernoemen (deel 1e); server: laden | nee | start: een vreemde ingang wordt eerst zelf verwijderd (deel 1f) |
+| `.../meta.json` | server: `LoadManifest` (`File.ReadAllBytes`) bij elke start; `SaveManifest` (`File.WriteAllText`) bij de eerste start, een versie- of statuswijziging | ja | start: een vreemde ingang wordt eerst zelf verwijderd (deel 1f); daarna schrijft de server een nieuw, gewoon bestand |
 | `.../<afbeelding>` | server: `DownloadImage` alleen voor een plugin uit een catalogus (tijdelijke willekeurige naam, dan `File.Move` met overschrijven); `GET /Plugins/<id>/<versie>/Image` leest alleen een pad binnen de pluginmap | nee | de meegeleverde plugin staat in geen catalogus; lezen alleen van een gewoon bestand in de eigen map |
 | `plugins/configurations/` | server: `Directory.CreateDirectory` bij opslaan | n.v.t. | **start (deel 1f)**: zoals `plugins/` |
 | `plugins/configurations/Jellyfin.Plugin.JellyLeon.xml` | server: lezen bij de eerste lezing (eigen route van de plugin, of de serverroute `GET /Plugins/<id>/Configuration`), schrijven bij een mislukte lezing, bij `POST /Plugins/<id>/Configuration` en bij een moduleschakelaar van de plugin | ja | **start (deel 1f)**: ontbreekt of gewoon bestand met één naam |
@@ -976,6 +976,24 @@ héle wortelpunt van een tmpfs van de host (bijvoorbeeld Host Path `/dev/shm`, d
 te onderscheiden van een eigen tmpfs als die bij de start toevallig leeg is. Daarom zegt `CUSTOM_APP.md`: voor `/cache` alleen
 het opslagtype tmpfs of een eigen dataset, nooit een Host Path naar een map buiten je datasets. Of TrueNAS bij een tmpfs ook
 1777 of een andere modus geeft, blijft een NAS-meting.
+
+**Zelfherstel in de eigen pluginmap (R-HARDE-EIS-2 en R-VEILIG-4; besluit BN-2 optie B).** Sinds deel 1e weigerde de start
+elke ingang in `plugins/JellyLeon_*` die geen gewoon bestand met één naam is. Een goedaardige harde koppeling (ontdubbelen, of
+terugzetten met behoud van koppelingen) legde zo de hele mediaserver stil, en de melding bood als enige UI-weg het terugzetten
+van een snapshot, zonder te zeggen dat kijkgegevens van na die snapshot dan verloren gaan. Herhaald en rood gezien (harde
+koppeling op de DLL en op `meta.json` naar een kopie in `/config/backup`, tweede naam binnen de map). Herstel: deze map wordt
+door de image beheerd. De app-fase (`repair_plugin_dirs`, vóór het vastleggen van de versie, vóór `cmp` en vóór elke
+schrijfactie) verwijdert er zelf elke ingang die geen gewoon bestand met één naam is: een symbolische of harde koppeling, een
+FIFO of ander bijzonder bestand (`find -delete`: unlink volgt niets), en een lege map (rmdir). Het doel van een koppeling en de
+andere naam van een harde koppeling worden niet gelezen of beschreven. Daarna plaatst de start de DLL als nieuw bestand (deel
+1e) en schrijft de server een nieuwe `meta.json` (een eerder in het dashboard uitgezette plugin staat dan weer aan). Eén
+logregel per herstelde map. De rootfase laat zulke ingangen staan (zij leest of schrijft er niet doorheen; `chown -R` volgt
+geen koppeling en een harde koppeling over mounts heen bestaat niet). Wat de start niet veilig kan opruimen, een map met inhoud,
+blijft een weigering vóór elke wijziging. Alle meldingen die een snapshot noemen, geven nu eerst een veilige weg en zeggen
+dat kijkgegevens van na die snapshot verloren gaan (ook de bestaande meldingen over `datamap-versie`, de downgradeweigering en
+een gekoppelde opslagmap). Bewijs met de proeven van de reviewers op de entrypoint van deze stap: de serverdatabase en de
+andere naam blijven byte-gelijk en de start gaat door (DLL en `meta.json` als harde koppeling, DLL als symbolische koppeling
+als root en als Custom User, `meta.json` als koppeling, FIFO, lege map, tweede naam, koppeling in een oude versie).
 
 ### 2. Witte lijst: één API in één klasse
 

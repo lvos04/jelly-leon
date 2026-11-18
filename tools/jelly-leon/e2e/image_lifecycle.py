@@ -36,9 +36,9 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
      - /config voor iedereen beschrijfbaar (0777) met een koppeling van een andere gebruiker (deze testgebruiker,
        niet 568) op de tijdelijke naam van de start naar een synthetische serverdatabase: geweigerd vóór de
        eigenaarswissel, database byte-gelijk (S-G1-16 deel 1c, ADR-0032);
-     - de bestaande plugin-DLL als koppeling naar een synthetische serverdatabase, als root en als Custom User (deze
-       testgebruiker): geweigerd vóór vergelijken, versie vastleggen, eigenaarswissel of schrijven; /config met database,
-       eigenaren, rechten en koppelingen ongewijzigd (S-G1-16 deel 1e, R-TECH-1, ADR-0032);
+     - de bestaande plugin-DLL als koppeling naar een synthetische serverdatabase en meta.json als harde koppeling naar
+       een back-up, als root en als Custom User (deze testgebruiker): de start verwijdert die ingangen zelf zonder iets te
+       volgen, plaatst de DLL en start (nep-server); database en back-up byte-gelijk (S-G1-16 deel 1e en 1f, BN-2);
      - de pluginconfiguratie die de server leest en schrijft (plugins/configurations/Jellyfin.Plugin.JellyLeon.xml) als
        koppeling naar een synthetische serverdatabase, als root en als Custom User: zelfde weigering (deel 1f, R-VEILIG-1).
   9. downgradeweigering (B03-014, JLT-61 b): na de eerste start staat de forkversie van de image in
@@ -541,9 +541,19 @@ class Lifecycle:
         extra: list[str] | None = None,
         command: list[str] | None = None,
     ) -> None:
-        name = f"{self.name}-neg"
-        self.remove(name)
         before = self.media_fingerprint()
+        state, log = self.run_to_exit(f"{self.name}-neg", mounts=mounts, env=env, extra=extra, command=command)
+        refused = state.startswith("exited") and not state.endswith(" 0") and expected_text in log
+        untouched = self.media_fingerprint() == before
+        last_line = log.strip().splitlines()[-1] if log.strip() else ""
+        self.add(f"geweigerd: {label}", refused and untouched, f"{state}; media ongewijzigd={untouched}; {last_line[:200]}")
+
+    def run_to_exit(
+        self, name: str, *, mounts: list[str], env: list[str] | None = None, extra: list[str] | None = None,
+        command: list[str] | None = None,
+    ) -> tuple[str, str]:
+        """Start een container die vanzelf moet stoppen; geeft "<status> <exitcode>" en de laatste logregels."""
+        self.remove(name)
         docker(*self.run_args(name, mounts=mounts, env=env, extra=extra, command=command))
         deadline = time.monotonic() + 60
         state = ""
@@ -553,11 +563,8 @@ class Lifecycle:
                 break
             time.sleep(1)
         log = self.logs(name, 20)
-        refused = state.startswith("exited") and not state.endswith(" 0") and expected_text in log
-        untouched = self.media_fingerprint() == before
-        last_line = log.strip().splitlines()[-1] if log.strip() else ""
-        self.add(f"geweigerd: {label}", refused and untouched, f"{state}; media ongewijzigd={untouched}; {last_line[:200]}")
         self.remove(name)
+        return state, log
 
     # ------------------------------------------------------------------ verloop
     def check_storage_modes(self) -> bool:
@@ -629,18 +636,58 @@ class Lifecycle:
         ok = database.read_bytes() == before and shared.stat().st_uid == os.getuid()
         return self.add("gedeelde /config: serverdatabase byte-gelijk, geen eigenaarswissel", ok, f"eigenaar {shared.stat().st_uid}")
 
+    def expect_plugin_entry_repair(self, plugin_dir: str) -> bool:
+        """S-G1-16 deel 1f (BN-2; R-HARDE-EIS-2, R-VEILIG-4; eerder deel 1e, R-TECH-1): in de eigen pluginmap is de DLL een
+        koppeling naar de serverdatabase en meta.json een harde koppeling (zoals na ontdubbelen) naar een back-up. Als root en
+        als Custom User (deze testgebruiker) verwijdert de start die ingangen zelf, zonder iets te volgen, plaatst de DLL en
+        start de server; database en back-up blijven byte-gelijk. De server is hier een nep-server (de synthetische
+        database is geen echte); de echte server start op de pluginmap in de stappen ervoor."""
+        stub = self.work / "nep-server"
+        stub.write_text('#!/bin/sh\necho "NEPSERVER uid=$(id -u)"\n', encoding="utf-8")
+        stub.chmod(0o755)
+        ok = True
+        for label, extra in (("root", []), ("Custom User", ["--user", f"{os.getuid()}:{os.getgid()}"])):
+            base = self.work / ("pluginherstel-" + label.replace(" ", "-").lower())
+            config, cache = base / "config", base / "cache"
+            plugin = config / "plugins" / plugin_dir
+            for directory in (config / "data", config / "backup", plugin, cache):
+                directory.mkdir(parents=True)
+            for directory in (base, config, config / "data", config / "backup", config / "plugins", plugin, cache):
+                directory.chmod(0o755)
+            database, backup = config / "data" / "jellyfin.db", config / "backup" / "meta.json"
+            database.write_bytes(b"SQLite format 3\x00synthetische kijkgegevens")
+            backup.write_text('{"status": "Active"}', encoding="utf-8")
+            for path in (database, backup):
+                path.chmod(0o644)
+            (plugin / "Jellyfin.Plugin.JellyLeon.dll").symlink_to("/config/data/jellyfin.db")
+            os.link(backup, plugin / "meta.json")
+            state, log = self.run_to_exit(
+                f"{self.name}-herstel", mounts=[f"{config}:/config", f"{cache}:/cache", f"{stub}:/jellyfin/jellyfin:ro"],
+                extra=extra,
+            )
+            entries = sorted((p.name, p.is_file() and not p.is_symlink(), p.lstat().st_nlink) for p in plugin.iterdir())
+            same = (database.read_bytes() == b"SQLite format 3\x00synthetische kijkgegevens"
+                    and backup.read_text(encoding="utf-8") == '{"status": "Active"}' and backup.stat().st_nlink == 1)
+            started = state == "exited 0" and "NEPSERVER" in log and "hersteld zonder een koppeling te volgen" in log
+            ok = self.add(
+                f"hersteld: plugin-DLL als koppeling en meta.json als harde koppeling ({label}, nep-server)",
+                started and same and entries == [("Jellyfin.Plugin.JellyLeon.dll", True, 1)],
+                f"{state}; serverdatabase en back-up byte-gelijk={same}; pluginmap {entries}; herstelregel in het log="
+                f"{'hersteld zonder een koppeling te volgen' in log}",
+            ) and ok
+        return ok
+
     def expect_plugin_link_refusal(self) -> bool:
-        """S-G1-16 deel 1e (R-TECH-1) en 1f (R-VEILIG-1): de bestaande plugin-DLL, of de pluginconfiguratie die de server
-        leest en schrijft (plugins/configurations/Jellyfin.Plugin.JellyLeon.xml), is een koppeling naar de serverdatabase.
-        Als root en als Custom User (deze testgebruiker, eigenaar van de mappen) weigert de start vóór vergelijken, het
-        vastleggen van de versie, de eigenaarswissel of een schrijfactie; database, eigenaren, rechten en koppelingen
-        blijven gelijk."""
+        """S-G1-16 deel 1f (R-VEILIG-1): de pluginconfiguratie die de server leest en schrijft
+        (plugins/configurations/Jellyfin.Plugin.JellyLeon.xml) is een koppeling naar de serverdatabase. Als root en als
+        Custom User (deze testgebruiker, eigenaar van de mappen) weigert de start vóór het vastleggen van de versie, de
+        eigenaarswissel of een schrijfactie; database, eigenaren, rechten en koppelingen blijven gelijk. Daarvóór: de
+        eigen pluginmap met vreemde ingangen wordt zelf hersteld (expect_plugin_entry_repair)."""
         names = docker("run", "--rm", "--network", "none", "--entrypoint", "/bin/ls", self.args.image,
                        "/usr/share/jelly-leon/plugins", check=False).stdout.split()
         ok = self.add("meegeleverde Jelly Leon-pluginmap in de image", len(names) == 1, " ".join(names) or "niet gevonden")
-        plugin = Path("plugins") / (names[0] if len(names) == 1 else "JellyLeon_onbekend")
+        ok = self.expect_plugin_entry_repair(names[0] if len(names) == 1 else "JellyLeon_onbekend") and ok
         cases = (
-            ("plugin-DLL", "pluginkoppeling", plugin / "Jellyfin.Plugin.JellyLeon.dll", "is geen gewoon bestand zonder koppeling"),
             ("pluginconfiguratie", "configkoppeling", Path("plugins/configurations/Jellyfin.Plugin.JellyLeon.xml"),
              "is geen gewoon bestand met één naam"),
         )
@@ -763,10 +810,10 @@ class Lifecycle:
         return bool(self.steps) and all(step["geslaagd"] for step in self.steps)
 
     def cleanup(self) -> bool:
-        """Werkmap opruimen; /config en /cache zijn van 568, dus via een wegwerpcontainer (geen sudo)."""
+        """Werkmap opruimen; veel is van 568 (ook na de herstelproef als root), dus via een wegwerpcontainer (geen sudo)."""
         docker(
-            "run", "--rm", "--network", "none", "--entrypoint", "/bin/rm", "-v", f"{self.work}:/werk", self.args.image,
-            "-rf", "/werk/config", "/werk/cache", "/werk/media", check=False, timeout=120,
+            "run", "--rm", "--network", "none", "--entrypoint", "/usr/bin/find", "-v", f"{self.work}:/werk", self.args.image,
+            "/werk", "-mindepth", "1", "-delete", check=False, timeout=120,
         )
         shutil.rmtree(self.work, ignore_errors=True)
         return not self.work.exists()
