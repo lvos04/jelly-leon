@@ -265,6 +265,29 @@ assert_private_storage() {
   done
 }
 
+# Deel 1f (R-VEILIG-3): een overerfbare ACL-regel (POSIX default-ACL of NFSv4-overerving) geeft een nieuwe map schrijfrecht
+# voor groep of anderen, ook met umask 022, en de modus van de bestaande map verraadt dat niet. Vóór elke wijziging (als root
+# vóór de eigenaarswissel, als app-gebruiker vóór herstel en vastleggen) maakt de start daarom in elke map waarin zij zelf een
+# map gaat aanmaken één proefmap met een onvoorspelbare naam, leest de modus en verwijdert haar direct (alleen de
+# wijzigingstijd van die map verandert). Zo weigert zij voordat er iets is gewijzigd.
+probe_new_dir() {
+  probe=$(mktemp -u "$1/.jelly-leon-proef.XXXXXXXXXX") || return 0
+  mkdir -- "$probe" 2>/dev/null || return 0 # lukt dat niet, dan faalt straks de echte mkdir met zijn eigen melding
+  perm=$(stat -c '%a' -- "$probe")
+  rmdir -- "$probe" || fail "proefmap $probe kan niet worden verwijderd; controleer in TrueNAS bij Datasets → de config-dataset → Permissions → Edit dat de gebruiker apps (568) eigenaar is"
+  [ $((0$perm & 022)) -eq 0 ] || fail "nieuwe mappen in $1 krijgen schrijfrecht voor groep of anderen (modus $perm), door een overerfbare ACL-regel van die map: dan kan een andere gebruiker of app er een koppeling neerleggen waarlangs de start of de server een ander bestand overschrijft, bijvoorbeeld de database met kijkgegevens. Er is niets gewijzigd (alleen een proefmap is gemaakt en direct weer verwijderd). Zet in TrueNAS bij Datasets → de dataset van deze map → Permissions → Edit de ACL-regels voor onderliggende mappen (overerving) zonder schrijfrecht voor groep, anderen of extra gebruikers (alleen de eigenaar apps, 568, schrijft), en start de app opnieuw"
+}
+assert_new_dirs_private() {
+  if [ ! -e "$DATA_DIR/jelly-leon" ] || [ ! -e "$DATA_DIR/plugins" ]; then
+    probe_new_dir "$DATA_DIR"
+  fi
+  for src in "$BUNDLED_PLUGINS"/JellyLeon_*; do
+    if [ -d "$src" ] && [ -d "$DATA_DIR/plugins" ] && [ ! -e "$DATA_DIR/plugins/$(basename -- "$src")" ]; then
+      probe_new_dir "$DATA_DIR/plugins"
+    fi
+  done
+}
+
 # Deel 1f (BN-2): in een eigen pluginmap (door de image beheerd) verwijdert de app-fase elke ingang die geen gewoon bestand met
 # één naam is: unlink en rmdir volgen niets, dus het doel van een koppeling en een andere naam van hetzelfde bestand blijven
 # ongemoeid. De DLL komt daarna als nieuw bestand; meta.json schrijft de server opnieuw. Eén logregel per herstelde map.
@@ -338,6 +361,7 @@ if [ "$(id -u)" != "0" ]; then
     log "draait als $(id -u):$(id -g) (groepen $(id -G | tr ' ' ',')), zonder capabilities, no_new_privs"
     unset JELLY_LEON_ENTRYPOINT_STAGE
     assert_private_storage "$(id -u)"
+    assert_new_dirs_private
     repair_plugin_dirs
     record_datamap_version
     install_plugins
@@ -364,8 +388,10 @@ fi
 for dir in "$DATA_DIR" "$CACHE_DIR"; do
   assert_owned_mount "$dir"
 done
-# Vóór de eigenaarswissel: een gedeelde map of koppeling weigeren zonder iets te wijzigen (eigenaar pas als app-gebruiker).
+# Vóór de eigenaarswissel: een gedeelde map, koppeling of overerfbare ACL weigeren zonder iets te wijzigen (eigenaar pas als
+# app-gebruiker).
 assert_private_storage
+assert_new_dirs_private
 
 for dir in "$DATA_DIR" "$CACHE_DIR"; do
   owner=$(stat -c '%u' "$dir")

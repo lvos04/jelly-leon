@@ -774,8 +774,8 @@ startgevallen waren op oud en nieuw groen. `tools/jelly-leon/e2e/image_lifecycle
 
 **Gevolg voor een bestaande installatie.** Een correcte installatie (map van de app-gebruiker, geen schrijfrecht voor groep
 of anderen) start ongewijzigd, ook met tmpfs-`/cache` (gemeten met de echte entrypoint en in de tests). Een weigering
-wijzigt niets; hooguit blijft een lege map staan die de start zelf net maakte en die een te ruime modus kreeg (bijvoorbeeld
-door ACL-overerving). De plugin weigert dezelfde mappen al sinds deel 1b; dat gebeurt in de constructor van `JlPaths`,
+wijzigt niets. (Correctie deel 1f, R-VEILIG-3: bij een overerfbare ACL weigerde de start pas na de eenmalige `chown -R` en
+een `mkdir`; dat is hersteld, zie "Opslagdreigingen, deel 1f".) De plugin weigert dezelfde mappen al sinds deel 1b; dat gebeurt in de constructor van `JlPaths`,
 waarvan een hosted service afhangt, zodat de hele server stopt met een Engelse foutmelding. De start meldt het nu eerder en
 in het Nederlands. **Niet vastgesteld, alleen op de echte NAS te meten:** welke modusbits de preset Apps uit
 `deploy/truenas/CUSTOM_APP.md` geeft, en hoe het opslagtype tmpfs van TrueNAS de modus zet. Geeft de preset schrijfrecht
@@ -994,6 +994,19 @@ dat kijkgegevens van na die snapshot verloren gaan (ook de bestaande meldingen o
 een gekoppelde opslagmap). Bewijs met de proeven van de reviewers op de entrypoint van deze stap: de serverdatabase en de
 andere naam blijven byte-gelijk en de start gaat door (DLL en `meta.json` als harde koppeling, DLL als symbolische koppeling
 als root en als Custom User, `meta.json` als koppeling, FIFO, lege map, tweede naam, koppeling in een oude versie).
+
+**Overerfbare ACL (R-VEILIG-3).** Bij `/config` 0755 met alleen een overerfbare ACL-regel (default-ACL `g::rwx`) weigerde de
+start pas nadat de rootfase `chown -R` had gedaan en de app-fase `jelly-leon/` had aangemaakt (die kreeg 0775 door de
+overerving), terwijl de melding en deze ADR zeiden dat er niets was gewijzigd. Herhaald en rood gezien. De modus van de
+bestaande map verraadt zo'n regel niet, en `getfacl` zit niet in de runtime-image. Herstel (`assert_new_dirs_private`): vóór
+elke wijziging, als root vóór de eigenaarswissel en als app-gebruiker vóór herstel en vastleggen, maakt de start in elke map
+waarin zij zelf een map gaat aanmaken (`/config` voor `jelly-leon/` en `plugins/`, `plugins/` voor de pluginmap) één proefmap
+met een onvoorspelbare naam (`mktemp -u` en een exclusieve `mkdir`, zoals de echte `mkdir`), leest de modus en verwijdert
+haar direct. Krijgt die schrijfrecht voor groep of anderen, dan weigert zij met een melding over de ACL-regels voor
+onderliggende mappen; eigenaar, rechten, ACL en inhoud blijven byte-gelijk, alleen de wijzigingstijd van die ene map
+verandert. Dit meet het werkelijke resultaat, ook bij NFSv4-overerving, zonder native code. Een bestaande installatie waarin
+de start geen map meer aanmaakt, wordt niet geproefd (geen nieuwe strengheid); mappen die de server later zelf aanmaakt,
+vallen buiten deze startcontrole (zie de vervolgpunten van de review).
 
 ### 2. Witte lijst: één API in één klasse
 

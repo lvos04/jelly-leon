@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+import struct
 import subprocess
 from pathlib import Path
 
@@ -495,3 +496,67 @@ def test_tmpfs_die_niet_alleen_van_de_container_is_blijft_streng(tmp_path: Path,
     assert ("werkgeheugen (tmpfs)" in uit) == (geval != "geen-tmpfs")
     assert ("Datasets → de dataset van deze map" in uit) == (geval == "geen-tmpfs")
     assert boom(tmp_path) == voor
+
+
+def overerfbare_acl(map_: Path, groep: int) -> None:
+    """Zet een POSIX default-ACL (u::rwx, g::<groep>, m::<groep>, o::r-x) zonder setfacl: het xattr-formaat van de kernel,
+    versie 2, daarna per regel tag, rechten en id (-1 voor de eigenaar-, groeps-, masker- en anderenregel)."""
+    regels = [(0x01, 7), (0x04, groep), (0x10, groep), (0x20, 5)]
+    waarde = struct.pack("<I", 2) + b"".join(struct.pack("<HHI", tag, recht, 0xFFFFFFFF) for tag, recht in regels)
+    os.setxattr(map_, "system.posix_acl_default", waarde)
+
+
+def staat(map_: Path) -> dict[str, tuple[int, int, int, str, bytes]]:
+    """Modus, eigenaar, groep, inhoud of koppelingsdoel en overerfbare ACL van elke ingang (bytevergelijking)."""
+    uit = {}
+    for pad in sorted([map_, *map_.rglob("*")]):
+        st = pad.lstat()
+        inhoud = str(pad.readlink()) if pad.is_symlink() else pad.read_text() if pad.is_file() else ""
+        acl = os.getxattr(pad, "system.posix_acl_default") if pad.is_dir() and "system.posix_acl_default" in os.listxattr(pad) else b""
+        uit[str(pad.relative_to(map_))] = (st.st_mode, st.st_uid, st.st_gid, inhoud, acl)
+    return uit
+
+
+@pytest.mark.parametrize("fase", ["app", "root"])
+def test_overerfbare_acl_weigert_voor_elke_wijziging(tmp_path: Path, fase: str) -> None:
+    """R-VEILIG-3 (deel 1f): /config 0755 met alleen een overerfbare ACL-regel die nieuwe mappen schrijfrecht voor de groep
+    geeft. De start weigert vóór elke wijziging (als root vóór de eigenaarswissel, als app-gebruiker vóór herstel en
+    vastleggen): eigenaar, rechten, ACL en inhoud byte-gelijk, geen proefmap achter."""
+    ouder = maak(tmp_path / "ouder")
+    data, cache, buiten = opzet(ouder)
+    (maak(data / "data") / "jellyfin.db").write_bytes(KIJKGEGEVENS)
+    overerfbare_acl(data, 7)
+    assert oct(data.stat().st_mode & 0o777) == "0o755"
+    body = None if fase == "app" else "assert_private_storage\nassert_new_dirs_private\nprintf 'EIGENAARSWISSEL\\n'\n"
+    script = fase_twee(tmp_path, data, cache, body=body)
+    voor = staat(ouder)
+    proc = draai(script)
+    uit = proc.stdout + proc.stderr
+    assert proc.returncode != 0 and "EIGENAARSWISSEL" not in uit, uit
+    assert "door een overerfbare ACL-regel van die map" in uit and "Er is niets gewijzigd" in uit
+    assert staat(ouder) == voor
+    assert buiten.read_bytes() == KIJKGEGEVENS
+
+
+@pytest.mark.parametrize("geval", ["acl-zonder-schrijfrecht", "bestaande-installatie"])
+def test_overerfbare_acl_die_niets_opent_blijft_starten(tmp_path: Path, geval: str) -> None:
+    """Geen nieuwe strengheid: een overerfbare ACL zonder schrijfrecht voor groep of anderen, of een bestaande installatie
+    waarin de start geen map meer aanmaakt, start door."""
+    data, cache, buiten = opzet(tmp_path)
+    if geval == "bestaande-installatie":
+        maak(data / "jelly-leon")
+        maak(maak(data / "plugins") / "JellyLeon_0.1.0.0")
+    overerfbare_acl(data, 7 if geval == "bestaande-installatie" else 5)
+    proc = draai(fase_twee(tmp_path, data, cache))
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert not list(data.glob(".jelly-leon-proef.*"))
+    assert all(oct(m.stat().st_mode & 0o777) == "0o755" for m in (data / "jelly-leon", data / "plugins"))
+
+
+def test_proef_op_overerving_staat_voor_elke_wijziging() -> None:
+    tekst = SCRIPT.read_text(encoding="utf-8")
+    root = tekst.index("\nassert_private_storage\nassert_new_dirs_private\n")
+    assert root < tekst.index('chown -R "$APP_UID:$APP_GID" "$dir"')
+    fase = tekst.index('if [ "${JELLY_LEON_ENTRYPOINT_STAGE:-}" = "app" ]')
+    app = tekst.index('    assert_private_storage "$(id -u)"\n    assert_new_dirs_private\n', fase)
+    assert app < tekst.index("    repair_plugin_dirs\n", fase)
