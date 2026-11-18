@@ -649,6 +649,41 @@ def test_overerfbare_acl_die_niets_opent_blijft_starten(tmp_path: Path, geval: s
     assert all(oct(m.stat().st_mode & 0o777) == "0o755" for m in (data / "jelly-leon", data / "plugins"))
 
 
+def test_lege_proefmap_van_een_afgebroken_start_ruimt_de_volgende_start_op(tmp_path: Path) -> None:
+    """R-VEILIG-1f-3 (deel 1g): een start die precies tussen mkdir en rmdir van de proefmap wordt afgebroken (zoals docker
+    kill in dat venster) laat een lege proefmap achter. De volgende start verwijdert die, alleen als het een lege, echte map
+    met precies dat naampatroon direct in /config of plugins/ is (rmdir, volgt niets). Al het andere blijft staan."""
+    ouder = maak(tmp_path / "ouder")
+    data, cache, buiten = opzet(ouder)
+    afbreken = 'mkdir() { command mkdir "$@"; case "$*" in *.jelly-leon-proef.*) kill -9 $$ ;; esac; }\n'
+    proc = draai(fase_twee(tmp_path, data, cache, body=afbreken + "assert_new_dirs_private\n"))
+    assert proc.returncode == -9, proc.stdout + proc.stderr
+    resten = list(data.glob(".jelly-leon-proef.*"))
+    assert len(resten) == 1 and resten[0].is_dir() and not any(resten[0].iterdir())
+    plugins = maak(data / "plugins")
+    rest_plugins = maak(plugins / ".jelly-leon-proef.Ab3dEf6hI9")
+    blijft = {
+        "met-inhoud": maak(data / ".jelly-leon-proef.MetInhoud1"),
+        "koppeling": data / ".jelly-leon-proef.Koppeling1",
+        "andere-naam": maak(data / ".jelly-leon-proef.kort"),
+        "dieper": maak(maak(data / "data") / ".jelly-leon-proef.Dieper1234"),
+        "bestand": data / ".jelly-leon-proef.Bestand123",
+    }
+    (blijft["met-inhoud"] / "x").write_text("x")
+    elders = maak(ouder / "elders")
+    blijft["koppeling"].symlink_to(elders)
+    blijft["bestand"].write_text("y")
+    voor_elders = boom(elders)
+    proc = draai(fase_twee(tmp_path, data, cache))
+    uit = proc.stdout + proc.stderr
+    assert proc.returncode == 0, uit
+    assert not resten[0].exists() and not rest_plugins.exists()
+    assert all(p.exists() or p.is_symlink() for p in blijft.values()) and (blijft["met-inhoud"] / "x").read_text() == "x"
+    assert blijft["koppeling"].is_symlink() and boom(elders) == voor_elders and blijft["bestand"].read_text() == "y"
+    assert uit.count("achtergebleven lege proefmap verwijderd") == 2, uit
+    assert buiten.read_bytes() == KIJKGEGEVENS
+
+
 def test_proef_op_overerving_staat_voor_elke_wijziging() -> None:
     tekst = SCRIPT.read_text(encoding="utf-8")
     root = tekst.index("\nassert_private_storage\nassert_new_dirs_private\n")

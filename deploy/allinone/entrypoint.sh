@@ -313,6 +313,19 @@ assert_new_dirs_private() {
   done
 }
 
+# Deel 1g (R-VEILIG-1f-3): een start die precies tussen mkdir en rmdir van probe_new_dir werd afgebroken, liet een lege proefmap
+# achter (ook een van root). Na alle weigeringen verwijdert de app-fase alleen een lege, echte map met precies dat naampatroon
+# direct in de gecontroleerde map (find -type d volgt geen koppeling; -delete is rmdir, dus nooit inhoud).
+remove_probe_leftovers() {
+  x='[0-9A-Za-z]'
+  for dir in "$DATA_DIR" "$DATA_DIR/plugins"; do
+    [ -d "$dir" ] || continue
+    gone=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -empty -name ".jelly-leon-proef.$x$x$x$x$x$x$x$x$x$x" -print -delete) \
+      || log "waarschuwing: niet elke achtergebleven proefmap in $dir kon worden verwijderd"
+    [ -z "$gone" ] || log "achtergebleven lege proefmap verwijderd: $(printf '%s' "$gone" | tr '\n' ' ')"
+  done
+}
+
 # Deel 1f (BN-2): in een eigen pluginmap (door de image beheerd) verwijdert de app-fase elke ingang die geen gewoon bestand met
 # één naam is: unlink en rmdir volgen niets, dus het doel van een koppeling en een andere naam van hetzelfde bestand blijven
 # ongemoeid. De DLL komt daarna als nieuw bestand; meta.json schrijft de server opnieuw. Eén logregel per herstelde map.
@@ -387,6 +400,7 @@ if [ "$(id -u)" != "0" ]; then
     unset JELLY_LEON_ENTRYPOINT_STAGE
     assert_private_storage "$(id -u)"
     assert_new_dirs_private
+    remove_probe_leftovers
     repair_plugin_dirs
     record_datamap_version
     install_plugins
