@@ -64,8 +64,10 @@
      vertaling weigert een image zonder digest (`digest_not_pinned`), dus installeren via het platform kan pas na de
      eerste release.
    - **CI valideert strikt, zonder eigen uitzonderingenlijst.** De job *manifest* haalt de validator van de
-     manifesteigenaar (`appstore-en-fork`) op een vastgezette commit die 1.3 kent (`7b3159d`) en draait
-     `validate --strict`. `tools/jelly-leon/manifest_rapport.py` beoordeelt het rapport en kent de vlag `--toegestaan`
+     manifesteigenaar (`appstore-en-fork`) op de commit uit `APPSTORE_COMMIT` in de workflow en draait
+     `validate --strict`. Sinds KLEIN-109 wijst de pin naar `a994c2a51f45b81b2c48c6533b0ccf51ba857f5a`,
+     met de aanvulling C-12 uit ADR-0023 van appstore-en-fork.
+     `tools/jelly-leon/manifest_rapport.py` beoordeelt het rapport en kent de vlag `--toegestaan`
      niet meer: een waarschuwing telt alleen als geaccepteerd wanneer de validator haar zo markeert, met de reden uit
      het manifest en een code uit de vaste lijst van §9. Ook de exitcode van de validator telt.
    - `check_fork_consistency.py` bewaakt dezelfde regels zonder netwerk (job *forkregels*), inclusief de koppeling

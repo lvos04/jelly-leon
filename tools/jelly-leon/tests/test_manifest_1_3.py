@@ -101,13 +101,14 @@ def test_released_manifest_without_accepted_findings_is_allowed():
 
 
 def test_ci_validates_strict_without_a_separate_exception_list():
-    """De CI-job `manifest` draait de validator van de eigenaar met --strict op een commit die contract 1.3 kent, en
+    """De CI-job `manifest` draait de validator van de eigenaar met --strict op de commit met aanvulling C-12, en
     kent geen eigen lijst met toegestane waarschuwingen meer (contract 1.3 §9)."""
     job = WORKFLOW[WORKFLOW.index("\n  manifest:\n") : WORKFLOW.index("\n  server:\n")]
     assert "appstore.manifest.cli validate --strict" in job
     assert "manifest_rapport.py --rapport" in job
     assert "--toegestaan" not in WORKFLOW
-    assert "APPSTORE_COMMIT: bd33052cd0174be08fbf6324f1caf296257182d3" not in WORKFLOW  # validator van vóór 1.3
+    assert "APPSTORE_COMMIT: a994c2a51f45b81b2c48c6533b0ccf51ba857f5a" in job
+    assert "ref: ${{ env.APPSTORE_COMMIT }}" in job
     assert 'test "$validator_rc" -eq 0' in job  # ook de exitcode van de validator telt
 
 
