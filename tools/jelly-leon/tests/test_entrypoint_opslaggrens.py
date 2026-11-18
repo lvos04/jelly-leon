@@ -756,7 +756,10 @@ def test_lege_proefmap_van_een_afgebroken_start_ruimt_de_volgende_start_op(tmp_p
         "andere-naam": maak(data / ".jelly-leon-proef.kort"),
         "dieper": maak(maak(data / "data") / ".jelly-leon-proef.Dieper1234"),
         "bestand": data / ".jelly-leon-proef.Bestand123",
+        # R-EERLIJK-3 (deel 1h): leeg en precies het naampatroon, maar geen map: alleen -type d houdt dit tegen.
+        "leeg-bestand": data / ".jelly-leon-proef.Leeg123456",
     }
+    blijft["leeg-bestand"].touch()
     (blijft["met-inhoud"] / "x").write_text("x")
     elders = maak(ouder / "elders")
     blijft["koppeling"].symlink_to(elders)
@@ -768,6 +771,7 @@ def test_lege_proefmap_van_een_afgebroken_start_ruimt_de_volgende_start_op(tmp_p
     assert not resten[0].exists() and not rest_plugins.exists()
     assert all(p.exists() or p.is_symlink() for p in blijft.values()) and (blijft["met-inhoud"] / "x").read_text() == "x"
     assert blijft["koppeling"].is_symlink() and boom(elders) == voor_elders and blijft["bestand"].read_text() == "y"
+    assert blijft["leeg-bestand"].is_file() and blijft["leeg-bestand"].read_bytes() == b""
     assert uit.count("achtergebleven lege proefmap verwijderd") == 2, uit
     assert buiten.read_bytes() == KIJKGEGEVENS
 
