@@ -1053,6 +1053,9 @@ start de server niet en is de stap rood; de beoordeling zelf is zonder Docker ge
 Geen extra imagebouw: de stap gebruikt de image die de job al bouwt. Lokaal draaide de proef van de review op de stock-server
 12.4 met de plugin van deze stap: 15/15.
 
+Uitvoering, rode herhalingen en tegenproeven van deel 1f: `docs/platform-v2/test-evidence/s-g1-16-deel1f-herstel-reviews.md`.
+De echte NAS, Emby en accounts zijn niet benaderd.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:
