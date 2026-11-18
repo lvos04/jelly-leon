@@ -401,7 +401,7 @@ XML = "Jellyfin.Plugin.JellyLeon.xml"
     [
         ("xml-koppeling", "is geen gewoon bestand met één naam"),  # de proef van R-VEILIG-1
         ("xml-dode-koppeling", "is geen gewoon bestand met één naam"),
-        ("xml-harde-koppeling", "is geen gewoon bestand met één naam"),
+        ("xml-harde-koppeling-te-groot", "is geen gewoon bestand met één naam"),  # deel 1g: groter dan 1 MiB
         ("xml-fifo", "is geen gewoon bestand met één naam"),
         ("xml-map", "is geen gewoon bestand met één naam"),
         ("configmap-gedeeld", "voor groep of anderen beschrijfbaar (modus 777)"),
@@ -426,8 +426,10 @@ def test_pluginconfiguratie_die_de_server_schrijft_weigert_zonder_wijziging(tmp_
         xml.symlink_to(buiten)
     elif geval == "xml-dode-koppeling":
         xml.symlink_to(ouder / "ontbreekt.db")
-    elif geval == "xml-harde-koppeling":
-        os.link(buiten, xml)
+    elif geval == "xml-harde-koppeling-te-groot":
+        groot = ouder / "groot.bak"
+        groot.write_bytes(b"x" * (MIB + 1))
+        os.link(groot, xml)
     elif geval == "xml-fifo":
         os.mkfifo(xml)
     elif geval == "xml-map":
@@ -442,6 +444,45 @@ def test_pluginconfiguratie_die_de_server_schrijft_weigert_zonder_wijziging(tmp_
     assert melding in uit
     assert "Er is niets gewijzigd" in uit
     assert boom(ouder) == voor
+
+
+@pytest.mark.parametrize("andere", ["instellingen", "serverdatabase", "precies-1-mib"])
+def test_harde_koppeling_op_de_eigen_pluginconfiguratie_wordt_een_eigen_kopie(tmp_path: Path, andere: str) -> None:
+    """Deel 1g (besluit 4): een harde koppeling op de eigen pluginconfiguratie (ontdubbelen, terugzetten met behoud van
+    koppelingen) legt de server niet meer stil. De app-fase maakt na de toets van plugins/configurations een verse kopie
+    (mktemp in dezelfde map) en hernoemt die over de ingang; er wordt nooit door de koppeling geschreven. De instellingen
+    blijven, de andere naam blijft byte-gelijk (ook als dat de serverdatabase is), en het XML-bestand heeft één naam."""
+    ouder = maak(tmp_path / "ouder")
+    data, cache, buiten = opzet(ouder)
+    conf = maak(maak(data / "plugins") / "configurations")
+    naam = {"instellingen": ouder / "backup.xml", "serverdatabase": buiten, "precies-1-mib": ouder / "grens.xml"}[andere]
+    if andere == "instellingen":
+        naam.write_bytes(b'<?xml version="1.0"?><PluginConfiguration><Modules>devices</Modules></PluginConfiguration>')
+    elif andere == "precies-1-mib":
+        naam.write_bytes(b"x" * MIB)
+    os.link(naam, conf / XML)
+    inhoud, voor = naam.read_bytes(), naam.lstat()
+    proc = draai(fase_twee(tmp_path, data, cache))
+    uit = proc.stdout + proc.stderr
+    assert proc.returncode == 0, uit
+    xml = conf / XML
+    assert not xml.is_symlink() and xml.stat().st_nlink == 1 and xml.read_bytes() == inhoud
+    na = naam.lstat()
+    assert naam.read_bytes() == inhoud and (na.st_ino, na.st_mode, na.st_nlink) == (voor.st_ino, voor.st_mode, 1)
+    assert sorted(p.name for p in conf.iterdir()) == [XML], "geen tijdelijk bestand achter"
+    assert buiten.read_bytes() == KIJKGEGEVENS
+    assert uit.count("eigen kopie neergezet") == 1, uit
+
+
+def test_rootfase_laat_een_harde_koppeling_op_de_pluginconfiguratie_door_aan_de_app_fase(tmp_path: Path) -> None:
+    """Deel 1g: de rootfase leest of schrijft niets door een harde koppeling (tot 1 MiB) op het eigen XML-bestand en laat
+    precies dit geval door; het herstel doet de app-fase. Een symbolische koppeling blijft ook als root een weigering."""
+    data, cache, buiten = opzet(tmp_path)
+    xml = maak(maak(data / "plugins") / "configurations") / XML
+    os.link(buiten, xml)
+    proc = draai(fase_twee(tmp_path, data, cache, body="assert_private_storage\nprintf 'EIGENAARSWISSEL\\n'\n"))
+    assert proc.returncode == 0 and "EIGENAARSWISSEL" in proc.stdout, proc.stdout + proc.stderr
+    assert xml.stat().st_nlink == 2 and buiten.read_bytes() == KIJKGEGEVENS
 
 
 def test_rootfase_weigert_een_gekoppelde_pluginconfiguratie_voor_de_eigenaarswissel(tmp_path: Path) -> None:

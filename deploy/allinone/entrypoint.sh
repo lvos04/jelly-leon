@@ -273,10 +273,13 @@ assert_private_storage() {
     assert_private_dir "$dir" "${1:-}"
   done
   # Deel 1f (R-VEILIG-1): de server leest de eigen pluginconfiguratie en schrijft er bij een mislukte lezing een nieuwe in
-  # (FileMode.Create volgt een koppeling). Bestanden van andere plugins in dezelfde map blijven buiten beschouwing.
+  # (FileMode.Create volgt een koppeling). Bestanden van andere plugins in dezelfde map blijven buiten beschouwing. Deel 1g
+  # (besluit 4): een gewoon bestand met meer namen tot 1 MiB laten beide fasen door; de app-fase maakt er een eigen kopie van
+  # (separate_plugin_config). stat leest alleen de inode: een FIFO wordt nooit geopend.
   xml="$DATA_DIR/plugins/configurations/Jellyfin.Plugin.JellyLeon.xml"
-  if [ -L "$xml" ] || { [ -e "$xml" ] && { [ ! -f "$xml" ] || [ "$(stat -c '%h' -- "$xml")" != 1 ]; }; }; then
-    fail "$xml is geen gewoon bestand met één naam (een symbolische of harde koppeling, een map of een bijzonder bestand): daarlangs kan de server bij het lezen of opslaan van de Jelly Leon-instellingen een ander bestand overschrijven, bijvoorbeeld de database met kijkgegevens. Er is niets gewijzigd. Dit bestand bevat alleen de moduleschakelaars van Jelly Leon, geen kijkgegevens. Veilige weg: controleer bij Apps → Edit → Storage van je andere apps dat geen andere app de config-dataset of een map daarin gekoppeld heeft, laat daarna alleen dit ene bestand weghalen (bijvoorbeeld via de Hub; Jelly Leon start dan met standaardinstellingen, alle modules uit) en start de app opnieuw. Zet een snapshot van de config-dataset (Datasets → Snapshots) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan"
+  if [ -L "$xml" ] || { [ -e "$xml" ] && { [ ! -f "$xml" ] || { [ "$(stat -c '%h' -- "$xml")" != 1 ] \
+    && [ "$(stat -c '%s' -- "$xml")" -gt 1048576 ]; }; }; }; then
+    fail "$xml is geen gewoon bestand met één naam (een symbolische koppeling, een map, een bijzonder bestand of een harde koppeling groter dan 1 MiB): daarlangs kan de server bij het lezen of opslaan van de Jelly Leon-instellingen een ander bestand overschrijven, bijvoorbeeld de database met kijkgegevens. Er is niets gewijzigd. Dit bestand bevat alleen de moduleschakelaars van Jelly Leon, geen kijkgegevens. Veilige weg: controleer bij Apps → Edit → Storage van je andere apps dat geen andere app de config-dataset of een map daarin gekoppeld heeft, laat daarna alleen dit ene bestand weghalen (bijvoorbeeld via de Hub; Jelly Leon start dan met standaardinstellingen, alle modules uit) en start de app opnieuw. Zet een snapshot van de config-dataset (Datasets → Snapshots) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan"
   fi
   # Eigen pluginmappen (ADR-0032, deel 1e en 1f): een vreemde ingang (koppeling, harde koppeling, FIFO, lege map) herstelt de
   # app-fase zelf (repair_plugin_dirs). Alleen een map met inhoud kan zij niet veilig opruimen: dan weigeren, vóór alles.
@@ -336,6 +339,18 @@ repair_plugin_dirs() {
       || fail "$dir: niet elke vreemde ingang kon worden verwijderd (wel verwijderd: ${gone:-niets}). De database met kijkgegevens is niet aangeraakt. Controleer in TrueNAS bij Datasets → de config-dataset → Permissions → Edit dat de gebruiker apps (568) eigenaar is met schrijfrecht, en start de app opnieuw"
     [ -z "$gone" ] || log "eigen pluginmap $(basename -- "$dir") hersteld zonder een koppeling te volgen; verwijderd: $(printf '%s' "$gone" | tr '\n' ' ')"
   done
+}
+
+# Deel 1g (besluit 4): een harde koppeling op de eigen pluginconfiguratie (ontdubbelen, terugzetten met behoud van koppelingen)
+# wordt een eigen kopie. Alleen als app-gebruiker, na assert_private_storage (plugins/configurations van deze gebruiker en niet
+# gedeeld; het bestand een gewoon bestand van hooguit 1 MiB). place_file leest de inhoud, schrijft een nieuw bestand naast de
+# ingang (mktemp) en hernoemt dat over de ingang: er wordt nooit door de koppeling geschreven, de andere naam blijft gelijk.
+separate_plugin_config() {
+  xml="$DATA_DIR/plugins/configurations/Jellyfin.Plugin.JellyLeon.xml"
+  { [ -f "$xml" ] && [ ! -L "$xml" ] && [ "$(stat -c '%h' -- "$xml")" != 1 ]; } || return 0
+  place_file "$xml" "$xml" \
+    || fail "$xml (een harde koppeling) kon niet als eigen kopie worden neergezet. De andere naam en de database met kijkgegevens zijn niet aangeraakt. Controleer in TrueNAS bij Datasets → de config-dataset → Permissions → Edit dat de gebruiker apps (568) eigenaar is met schrijfrecht, en start de app opnieuw"
+  log "pluginconfiguratie $(basename -- "$xml") had meer namen (harde koppeling): eigen kopie neergezet zonder door de koppeling te schrijven; de andere naam is ongewijzigd"
 }
 
 # Zet bestand $1 neer als $2 zonder een bestaande ingang te volgen: eerst een nieuw bestand naast het doel (mktemp:
@@ -402,6 +417,7 @@ if [ "$(id -u)" != "0" ]; then
     assert_new_dirs_private
     remove_probe_leftovers
     repair_plugin_dirs
+    separate_plugin_config
     record_datamap_version
     install_plugins
     exec /jellyfin/jellyfin "$@"
