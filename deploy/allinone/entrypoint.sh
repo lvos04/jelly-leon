@@ -247,6 +247,20 @@ assert_private_dir() {
   fi
 }
 
+# Deel 1g (vervolgpunt van de herreview): een eigen pluginmap is <naam>_<versie> van een plugin die de image zelf meelevert
+# (exacte naam uit BUNDLED_PLUGINS, elke versie: alleen cijfers en punten). Een andere map, ook JellyLeon_Extra_2.0.0.0 van een
+# andere plugin, hoort niet bij de start: die wordt niet gecontroleerd, hersteld of verwijderd.
+own_plugin_dir() {
+  pd_name=${1##*/}
+  pd_version=${pd_name##*_}
+  case $pd_version in '' | *[!0-9.]*) return 1 ;; esac
+  for pd_src in "$BUNDLED_PLUGINS"/*; do
+    pd_bundled=${pd_src##*/}
+    [ -d "$pd_src" ] && [ "${pd_bundled%_*}" = "${pd_name%_*}" ] && return 0
+  done
+  return 1
+}
+
 # De data- en cachemap met hun ouders tot / (die komt uit de image), de mappen waarin de start zelf schrijft, de map van
 # de pluginconfiguraties met het eigen bestand daarin (de server schrijft dat), en in een eigen pluginmap een map met inhoud
 # (de andere vreemde ingangen daar herstelt repair_plugin_dirs).
@@ -270,6 +284,7 @@ assert_private_storage() {
     done
   done
   for dir in "$DATA_DIR/jelly-leon" "$DATA_DIR/plugins" "$DATA_DIR/plugins/configurations" "$DATA_DIR"/plugins/JellyLeon_*; do
+    case $dir in "$DATA_DIR"/plugins/JellyLeon_*) own_plugin_dir "$dir" || continue ;; esac
     assert_private_dir "$dir" "${1:-}"
   done
   # Deel 1f (R-VEILIG-1): de server leest de eigen pluginconfiguratie en schrijft er bij een mislukte lezing een nieuwe in
@@ -284,7 +299,7 @@ assert_private_storage() {
   # Eigen pluginmappen (ADR-0032, deel 1e en 1f): een vreemde ingang (koppeling, harde koppeling, FIFO, lege map) herstelt de
   # app-fase zelf (repair_plugin_dirs). Alleen een map met inhoud kan zij niet veilig opruimen: dan weigeren, vóór alles.
   for dir in "$DATA_DIR"/plugins/JellyLeon_*; do
-    [ -d "$dir" ] || continue
+    { [ -d "$dir" ] && own_plugin_dir "$dir"; } || continue
     odd=$(find "$dir" -mindepth 1 -maxdepth 1 -type d ! -empty -print -quit) \
       || fail "$dir kan niet worden gecontroleerd. Er is niets gewijzigd. Controleer in TrueNAS bij Datasets → de config-dataset → Permissions → Edit dat de gebruiker apps (568) eigenaar is, en start de app opnieuw"
     if [ -n "$odd" ]; then
@@ -334,7 +349,7 @@ remove_probe_leftovers() {
 # ongemoeid. De DLL komt daarna als nieuw bestand; meta.json schrijft de server opnieuw. Eén logregel per herstelde map.
 repair_plugin_dirs() {
   for dir in "$DATA_DIR"/plugins/JellyLeon_*; do
-    [ -d "$dir" ] || continue
+    { [ -d "$dir" ] && own_plugin_dir "$dir"; } || continue
     gone=$(find "$dir" -mindepth 1 -maxdepth 1 \( ! -type f -o -links +1 \) -print -delete) \
       || fail "$dir: niet elke vreemde ingang kon worden verwijderd (wel verwijderd: ${gone:-niets}). De database met kijkgegevens is niet aangeraakt. Controleer in TrueNAS bij Datasets → de config-dataset → Permissions → Edit dat de gebruiker apps (568) eigenaar is met schrijfrecht, en start de app opnieuw"
     [ -z "$gone" ] || log "eigen pluginmap $(basename -- "$dir") hersteld zonder een koppeling te volgen; verwijderd: $(printf '%s' "$gone" | tr '\n' ' ')"
@@ -385,9 +400,9 @@ install_plugins() {
   for src in "$BUNDLED_PLUGINS"/JellyLeon_*; do
     [ -d "$src" ] || continue
     name=$(basename "$src")
-    # Alleen eigen pluginmappen (JellyLeon_*) van een andere versie opruimen.
+    # Alleen eigen pluginmappen van een andere versie opruimen (own_plugin_dir: niet die van een andere plugin, deel 1g).
     for old in "$DATA_DIR/plugins"/JellyLeon_*; do
-      [ -d "$old" ] || continue
+      { [ -d "$old" ] && own_plugin_dir "$old"; } || continue
       [ "$(basename "$old")" = "$name" ] && continue
       if rm -rf -- "$old"; then
         log "oude Jelly Leon-plugin $(basename "$old") verwijderd"

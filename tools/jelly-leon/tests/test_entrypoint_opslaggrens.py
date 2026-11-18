@@ -313,6 +313,34 @@ def test_vreemde_ingang_in_de_eigen_pluginmap_wordt_hersteld_zonder_te_volgen(tm
     assert uit.count("hersteld zonder een koppeling te volgen") == 1, uit
 
 
+def test_alleen_de_eigen_plugin_wordt_bijgewerkt_een_andere_jellyleon_map_blijft_ongemoeid(tmp_path: Path) -> None:
+    """Vervolgpunt van de herreview (deel 1g, punt 5): de start verwijdert, herstelt en controleert alleen mappen van de plugin
+    die de image zelf meelevert (exacte naam uit de image, elke versie). Een andere plugin waarvan de map ook met JellyLeon_
+    begint (gemeten: JellyLeon_Extra_2.0.0.0 werd met rm -rf verwijderd) blijft byte-gelijk, met koppelingen en submappen;
+    een oudere versie van de eigen plugin wordt nog steeds vervangen."""
+    ouder = maak(tmp_path / "ouder")
+    data, cache, buiten = opzet(ouder)
+    plugins = maak(data / "plugins")
+    (maak(plugins / "JellyLeon_0.0.9.0") / "Jellyfin.Plugin.JellyLeon.dll").write_bytes(b"oude plugin")
+    extra = maak(plugins / "JellyLeon_Extra_2.0.0.0")
+    (extra / "Extra.dll").write_bytes(b"andere plugin")
+    os.link(extra / "Extra.dll", extra / "tweede-naam.dll")
+    (extra / "koppeling.dll").symlink_to(buiten)
+    (maak(extra / "runtimes") / "lib.so").write_bytes(b"x")
+    maak(plugins / "JellyLeon_Extra_2.0.0.0" / "leeg")
+    extra.chmod(0o775)  # de rechten van een andere plugin zijn niet aan de start
+    voor = boom(extra)
+    ino = (extra / "Extra.dll").stat().st_ino
+    proc = draai(fase_twee(tmp_path, data, cache))
+    uit = proc.stdout + proc.stderr
+    assert proc.returncode == 0, uit
+    assert not (plugins / "JellyLeon_0.0.9.0").exists() and "oude Jelly Leon-plugin JellyLeon_0.0.9.0 verwijderd" in uit
+    assert (plugins / "JellyLeon_0.1.0.0" / "Jellyfin.Plugin.JellyLeon.dll").read_bytes() == b"synthetische plugin"
+    assert boom(extra) == voor and (extra / "Extra.dll").stat().st_ino == ino and (extra / "Extra.dll").stat().st_nlink == 2
+    assert "JellyLeon_Extra" not in uit, uit
+    assert buiten.read_bytes() == KIJKGEGEVENS
+
+
 def test_map_met_inhoud_in_de_eigen_pluginmap_weigert_zonder_wijziging(tmp_path: Path) -> None:
     """Wat de start niet veilig kan opruimen (een map met inhoud), blijft een weigering vóór elke wijziging, als root vóór
     de eigenaarswissel; de melding noemt de veilige weg en waarschuwt bij een snapshot (R-HARDE-EIS-2)."""
