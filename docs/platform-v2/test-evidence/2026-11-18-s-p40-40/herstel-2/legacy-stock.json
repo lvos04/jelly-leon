@@ -1,0 +1,71 @@
+{
+ "schema": "jelly-leon/b03-016-clientmatrix/1",
+ "begin": "2026-11-18T10:33:20Z",
+ "eind": "2026-11-18T10:33:37Z",
+ "server": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+ "testitem": "bron/blender/hero/hero.mp4 (synthetisch mini-corpus van ci_mini_corpus.py)",
+ "clients": [
+  {
+   "client": "derden-client met legacy-headers (gesimuleerd: X-Emby-Token, X-MediaBrowser-Token, X-Emby-Authorization, api_key)",
+   "rol": "stock-native (derden)",
+   "status_per_vorm": {
+    "authorization_mediabrowser_token": {
+     "system_info": 200,
+     "gebruiker_items": 200,
+     "stream_statisch": 206
+    },
+    "x_emby_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "x_mediabrowser_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "x_emby_authorization": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "query_api_key": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "query_apikey_hoofdletter": {
+     "system_info": 200,
+     "gebruiker_items": 200,
+     "stream_statisch": 206
+    },
+    "zonder_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    }
+   },
+   "afwijkingen": [],
+   "status": "Sim-getest (gemeten: legacy-auth geweigerd op API-routes; statische stream speelt)",
+   "opmerking": "12.4 verwacht 401 voor oude vormen en tokenloos op beschermde API-routes, 200 voor de moderne header en ApiKey, en 200 of 206 voor statisch afspelen (ADR-0009, BG-01)."
+  }
+ ],
+ "desktop": {
+  "client": "jellyfin-desktop 2.0.0 onder Xvfb",
+  "status": "zie b03-016-desktop-spike.json"
+ },
+ "niet_hier": [
+  {
+   "client": "Swiftfin 1.6.1 (iOS/tvOS), Safari, Apple TV",
+   "rol": "stock-native",
+   "status": "NIET GEVALIDEERD (Mac/Xcode)",
+   "reden": "geen Mac/Xcode in deze bouwomgeving"
+  },
+  {
+   "client": "echte tv's, telefoons, tablets, receivers, Chromecast, DLNA",
+   "rol": "alle",
+   "status": "NIET GEVALIDEERD (hardware)",
+   "reden": "geen echte apparaten; D15 onbekend (JLT-69)"
+  }
+ ]
+}
