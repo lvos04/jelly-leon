@@ -24,14 +24,16 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
      → healthy → smoketest modus `herstart`; daarna nog eens met "Custom User 568" (`--user 568:568`) → healthy →
      smoketest `herstart` → elk proces 568, CapEff/CapPrm/CapAmb 0, NoNewPrivs 1 (de image zet no_new_privs zelf,
      §2.2; CapBnd mag dan de Docker-standaardset zijn), ook de healthcheck; daarna /cache als tmpfs zoals het formulier
-     hem rendert (alleen size), als root en als Custom User 568: healthy, rooktest, plugin aan (modules 200, geen
-     opslagmelding; S-G1-16 deel 1f, BN-1); daarna de teruggevallen plugin met de echte server (data/jelly-leon 0775):
+     hem rendert (alleen size, 2560 MiB), als root en als Custom User 568: healthy, rooktest, plugin aan (modules 200,
+     geen opslagmelding; S-G1-16 deel 1f, BN-1) en /cache nog 0:0 1777 (deel 1g: de start wijzigt een tmpfs nooit);
+     daarna de teruggevallen plugin met de echte server (data/jelly-leon 0775):
      server gezond, afspelen en kijkgegevens werken, pluginroutes 503/401/403, Hub 401, gebruiker verwijderen 204, één
      opslagmelding, de plugin schrijft niets; na herstel en herstart plugin aan en kijkgegevens gelijk (deel 1f, R-HARDE-EIS-4);
   8. negatieve tests (fail-closed): de container weigert te starten en de mediamap blijft onaangeroerd bij
      - geen opslagregel voor /cache (anoniem Docker-volume);
      - JELLYFIN_CACHE_DIR naar de mediamap (root zou anders `chown -R` op de media doen);
      - /config als tmpfs (opslagtype tmpfs in het formulier: database weg na elke herstart, startwizard weer open);
+     - /cache als tmpfs van 2048 MiB (de server zou weigeren; de start meldt het in het Nederlands, deel 1g);
      - JELLYFIN_CONFIG_DIR in de container zelf (instellingen weg bij elke update);
      - een padoptie (`--datadir`) in het veld Command;
      - Custom User 568 met een /config die niet van 568 is (NL-melding, nooit stil doorstarten);
@@ -83,8 +85,9 @@ WEB_TITLE = b"<title>Jelly Leon</title>"
 SMOKE_ADMIN = ("jl-smoke-admin", "jl-smoke-wachtwoord-niet-geheim")
 SMOKE_HUB = ("jl-smoke-hub", "jl-smoke-hub-wachtwoord-niet-geheim")
 # Zoals TrueNAS een tmpfs rendert (alleen size, in bytes). De server weigert te starten met minder dan 2 GiB vrij in /cache
-# (StorageHelper.TestCommonPathsForStorageCapacity); 4096 MiB is het voorstel uit CUSTOM_APP.md.
-TMPFS_CACHE = "/cache:size=4294967296"
+# (StorageHelper.TestCommonPathsForStorageCapacity), gemeten nadat hij er CACHEDIR.TAG in zette: 2048 MiB start niet. 2560 MiB
+# is het minimum uit CUSTOM_APP.md (deel 1g).
+TMPFS_CACHE = "/cache:size=2684354560"
 
 
 def tree_state(root: Path) -> dict[str, tuple[int, int, int, bytes | str]]:
@@ -667,7 +670,7 @@ class Lifecycle:
 
     def check_tmpfs_cache_starts(self, first: dict) -> bool:
         """S-G1-16 deel 1f (BN-1, R-HARDE-EIS-1): /cache als tmpfs zoals het TrueNAS-formulier hem rendert (alleen size; hier
-        4096 MiB, want de server eist 2 GiB vrij), als root en als Custom User 568: healthy, rooktest, en de plugin is niet
+        2560 MiB, want de server eist 2 GiB vrij), als root en als Custom User 568: healthy, rooktest, en de plugin is niet
         teruggevallen (modules 200, geen opslagmelding). Deel 1g (R-VEILIG-1f-1): ook als root houdt de tmpfs de eigenaar en
         modus van Docker (0:0 1777); de start wisselt een tmpfs nooit van eigenaar."""
         ok = True
@@ -867,6 +870,15 @@ class Lifecycle:
             env=[],
             extra=["--tmpfs", "/config"],
             expected_text="staat in het werkgeheugen (tmpfs)",
+        )
+        # Deel 1g (R-VEILIG-1f-2): een tmpfs van precies 2048 MiB laat de server weigeren (Engelse fout, herstartlus); de start
+        # weigert hem eerder met één Nederlandse regel.
+        self.expect_refusal(
+            "/cache als tmpfs van 2048 MiB (te klein voor de server)",
+            mounts=[f"{self.config}:/config", f"{self.media}:/media/muziek:ro"],
+            env=[],
+            extra=["--tmpfs", "/cache:size=2147483648"],
+            expected_text="minstens 2560 MiB",
         )
         self.expect_refusal(
             "JELLYFIN_CONFIG_DIR in de container zelf",

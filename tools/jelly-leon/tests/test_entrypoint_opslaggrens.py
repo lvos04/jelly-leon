@@ -505,6 +505,50 @@ def test_tmpfs_die_niet_alleen_van_de_container_is_blijft_streng(tmp_path: Path,
     assert boom(tmp_path) == voor
 
 
+MIB = 1024 * 1024
+
+
+@pytest.mark.parametrize(
+    ("mib", "soort", "start"),
+    [(500, "tmpfs", False), (2048, "tmpfs", False), (2049, "tmpfs", True), (2560, "tmpfs", True), (2048, "dataset", True)],
+)
+def test_tmpfs_cache_met_te_weinig_ruimte_weigert_met_een_nederlandse_regel(tmp_path: Path, mib: int, soort: str, start: bool) -> None:
+    """R-VEILIG-1f-2 (deel 1g): de server weigert een /cache met minder dan 2 GiB vrij, nadat hij er zelf CACHEDIR.TAG in heeft
+    gezet; een tmpfs van precies 2048 MiB start daardoor niet (gemeten met de echte server; 2049 start wel). De start weigert
+    zo'n tmpfs vóór elke wijziging met één Nederlandse regel (wat, waarom, welke waarde) in plaats van de Engelse fout met
+    herstartlus. Alleen bij tmpfs; een dataset met weinig ruimte meldt de server zelf. De vrije ruimte is hier nagebootst."""
+    data, cache, buiten = opzet(tmp_path)
+    regel = tmpfs_regel(cache) if soort == "tmpfs" else ""
+    nep = f'stat() {{ if [ "$1" = -f ]; then printf "%s 4096\\n" {mib * MIB // 4096}; else command stat "$@"; fi; }}\n'
+    script = fase_twee(tmp_path, data, cache, body=nep + "assert_cache_space\nprintf 'VERDER\\n'\n",
+                       mountinfo=mountinfo(tmp_path, regel))
+    voor = boom(tmp_path)
+    proc = draai(script)
+    uit = proc.stdout + proc.stderr
+    assert (proc.returncode == 0 and "VERDER" in uit) == start, uit
+    if not start:
+        fout = [r for r in uit.splitlines() if "FOUT" in r]
+        assert len(fout) == 1 and f"met {mib} MiB vrij" in fout[0] and "minstens 2560 MiB" in fout[0], uit
+        assert "Er is niets gewijzigd" in fout[0] and "insufficient" not in uit
+    assert boom(tmp_path) == voor
+    tekst = SCRIPT.read_text(encoding="utf-8")
+    assert tekst.index("\nassert_cache_space\n") < tekst.index("\nassert_not_downgrade\n"), "vóór elke schrijfactie"
+
+
+def test_ruimtegrens_komt_van_de_server_en_het_advies_is_overal_2560_mib() -> None:
+    """De grens in de start komt uit één plek: de constante van de server (StorageHelper.TwoGigabyte). Het advies (minstens
+    2560 MiB: 2 GiB plus marge, want 2048 MiB start niet) staat in de melding, CUSTOM_APP.md en de CI-proef gelijk."""
+    server = (REPO / "Jellyfin.Server.Implementations" / "StorageHelpers" / "StorageHelper.cs").read_text(encoding="utf-8")
+    grens = re.search(r"TwoGigabyte = ([0-9_]+)L;", server)
+    eigen = re.search(r"need=\$\(\((\d+) \+ 4096\)\)", SCRIPT.read_text(encoding="utf-8"))
+    assert grens and eigen and int(grens.group(1).replace("_", "")) == int(eigen.group(1)) == 2147483647
+    assert "minstens 2560 MiB" in SCRIPT.read_text(encoding="utf-8")
+    doc = (REPO / "deploy" / "truenas" / "CUSTOM_APP.md").read_text(encoding="utf-8")
+    assert doc.count("minstens 2560 MiB") >= 2 and "2048 MiB (voorstel" not in doc and "minstens 2048" not in doc
+    proef = (REPO / "tools" / "jelly-leon" / "e2e" / "image_lifecycle.py").read_text(encoding="utf-8")
+    assert f'TMPFS_CACHE = "/cache:size={2560 * MIB}"' in proef and f'"/cache:size={2048 * MIB}"' in proef
+
+
 def wortelfase(tekst: str) -> str:
     """De rootfase vanaf de controles tot de groepen, met chown als nep (de test draait niet als root): elke aanroep wordt
     gemeld in plaats van uitgevoerd."""

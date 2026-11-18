@@ -128,9 +128,23 @@ assert_persistent() {
       fail "$1 staat op een netwerkshare ($fstype): de SQLite-database van Jellyfin is daar niet betrouwbaar. Kies voor Mount Path $mnt een Host Path of ixVolume op de NAS zelf" ;;
   esac
 }
+# Deel 1g (R-VEILIG-1f-2): de server weigert te starten met minder dan 2 GiB vrij in /cache (StorageHelper.TwoGigabyte,
+# 2147483647 bytes), gemeten nadat hij er zelf CACHEDIR.TAG in heeft gezet (op tmpfs één pagina, 4 KiB); een tmpfs van precies
+# 2048 MiB start daardoor niet, 2049 MiB wel (gemeten met de echte server). Bij een tmpfs dan liever direct één Nederlandse
+# regel dan een Engelse fout met herstartlus. Een dataset met te weinig ruimte meldt de server zelf. Leest alleen.
+assert_cache_space() {
+  [ "$(mount_of "$CACHE_DIR" | cut -d ' ' -f 1)" = tmpfs ] || return 0
+  free=$(stat -f -c '%a %S' -- "$CACHE_DIR")
+  free=$((${free% *} * ${free#* }))
+  need=$((2147483647 + 4096))
+  [ "$free" -lt "$need" ] || return 0
+  fail "$CACHE_DIR is werkgeheugen (tmpfs) met $((free / 1048576)) MiB vrij; de server start pas met meer dan 2048 MiB vrij (hij eist 2 GiB vrij nadat hij er zelf een bestand in heeft gezet). Er is niets gewijzigd. Zet in het Custom App-formulier bij de opslag voor $CACHE_DIR (opslagtype tmpfs) de grootte op minstens 2560 MiB en start de app opnieuw"
+}
+
 assert_persistent "$DATA_DIR" data
 assert_persistent "$CONFIG_DIR" data
 assert_persistent "$CACHE_DIR" cache
+assert_cache_space
 
 # ---------------------------------------------------------------- downgradeweigering (JLT-61 b)
 DATAMAP_VERSION_FILE="$DATA_DIR/jelly-leon/datamap-versie"
