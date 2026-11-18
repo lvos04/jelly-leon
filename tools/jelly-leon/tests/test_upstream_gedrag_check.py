@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import upstream_gedrag_check as ug
@@ -46,6 +48,19 @@ def test_unknown_runtime_test_and_missing_test_fail(tmp_path: Path) -> None:
     _, errors = ug.check(make_repo(tmp_path, rows), KNOWN)
     assert any("onbekende runtime-test runtime:bestaat_niet" in e for e in errors)
     assert any("UG-GEM-2: gedrag, 'gebruikt door' en een test" in e for e in errors)
+
+
+def test_cli_rejects_extra_register_row_without_test(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    result = subprocess.run([sys.executable, ug.__file__, "--repo", str(repo)], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+    register = repo / ug.REGISTER_REL
+    extra = ROW2.replace("UG-GEM-2", "UG-GEM-3").replace("| anker |", "|  |")
+    register.write_text(register.read_text(encoding="utf-8") + extra, encoding="utf-8")
+    result = subprocess.run([sys.executable, ug.__file__, "--repo", str(repo)], capture_output=True, text=True, check=False)
+    assert result.returncode == 1
+    assert "UG-GEM-3: gedrag, 'gebruikt door' en een test" in result.stderr
 
 
 def test_numbering_duplicates_and_fork_paths(tmp_path: Path) -> None:

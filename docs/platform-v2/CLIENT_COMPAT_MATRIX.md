@@ -74,9 +74,43 @@ Gemeten op 2026-11-10 tegen de lokaal gebouwde jelly-leon-image `12.4.0-jl.0` (i
 | Jelly Leon-webclient (ingebouwd) in Chromium 153, Firefox 155, WebKit 26.6 (Playwright 1.63, headless) | hero.mp4 speelt (orakel geslaagd; eerste frame 0,5–0,9 s) — Sim-getest |
 | webOS en Tizen via UA-simulatie (profielcode van de Jelly Leon-webclient) | speelt — Sim-getest (geen echte decoder) |
 | Stock-web uit de stock-image tegen de Jelly Leon-server (over `/jellyfin/jellyfin-web` gekoppeld; de image weigert `--webdir`) | speelt — Sim-getest |
-| Derden-client met legacy-headers (gesimuleerd) | gemeten: `X-Emby-Token`, `X-MediaBrowser-Token`, `X-Emby-Authorization`, `api_key` geweigerd op API-routes; statische stream speelt (UG-GEM-1/2) — besluit BG-01 |
+| Derden-client met legacy-headers (gesimuleerd) | `X-Emby-Token`, `X-MediaBrowser-Token`, `X-Emby-Authorization` en `api_key` geweigerd op de beproefde API-routes. Statische stream speelt (UG-GEM-1/2, BG-01) |
 | PlaybackInfo (3 apparaatprofielen) | byte-gelijk aan stock 12.4 op dezelfde datamap, Direct Play én transcode (`test-evidence/p40/compat-api.json`) |
 
-Niet in deze ronde tegen de jelly-leon-image: de Android-/Android TV-emulators (tegen stock 12.4 wel, §3), de desktopapp
-(spike Geblokkeerd), SyncPlay, skipknoppen, downloaden en de MediaGuard-afspeeltest. Echte apparaten: NIET GEVALIDEERD
-(hardware); Swiftfin/Safari: NIET GEVALIDEERD (Mac/Xcode).
+### Serverrooktests op 2026-11-18
+
+De bewaarde Jelly Leon-image van bronrevisie `48293b48a` en de gepinde stock-image van 12.4 gaven dezelfde uitkomst
+bij acht runtimetests. De API-proef vergeleek 18 antwoorden met 0 verschillen. OpenAPI bevatte alleen nieuwe paden
+onder `/media/v1` en `/connector/v1` en bijbehorende schema's. [Runtimerapporten en API-proef](test-evidence/2026-11-18-s-p40-40/)
+
+Het synthetische browsercorpus gaf op beide servers dezelfde uitkomst. Firefox, WebKit en de webOS- en Tizen-UA's
+doorstonden de rooktest. Chromium toonde op beide servers beeld zonder gemeten audiodecodering, ook met stock-web.
+De gesimuleerde derden-client kreeg in beide runs HTTP 401 met de oude koppen en `?api_key=`, HTTP 200 met moderne
+authenticatie en met `?ApiKey=`, en HTTP 206 bij een statische stream zonder token. [Stockbrowserproef](test-evidence/2026-11-18-s-p40-40/clientmatrix-synthetisch-stock.json) · [Jelly Leon-browserproef](test-evidence/2026-11-18-s-p40-40/clientmatrix-synthetisch-jelly-leon.json)
+
+### Clientmetingen uit jelly-leon-clients
+
+De clients-repo mat server 12.4 uit jelly-leon `e294f84` en jelly-leon-web `5ced8a2` met stock 12.4 op digest als
+controlegroep voor de vergelijkingen hieronder. Herkomst: [EVIDENCE.json, B03-003][clientbewijs] en
+[BOUWVERIFICATIE_P4-0.md, §2–§4, §8 en §9.1][clientverslag].
+
+| Datum | Client / rol | Uitkomst uit de clients-repo |
+|---|---|---|
+| 2026-11-10 | Android-telefoon API 35, officiële app en fork-app | Sim-getest tegen beide servers. Inloggen, bladeren, hervatten rond 300 s, bewaard hervatpunt, Direct Play, transcode en NL-ondertitels gemeten. Ondertitels op afstand wisselen mislukte in het native pad op beide servers. [Fork-app][android] · [officiële app][officieel] |
+| 2026-11-10 | Android TV API 34 en 36 | Fork-app op beide emulators Sim-getest op Jelly Leon. Vergelijking op API 34 met stock gaf dezelfde uitkomsten voor de fork-app. Bij de officiële app op API 34 sprong het beeld één keer kort naar het begin op Jelly Leon. De expliciete hervatproef kwam daarna op beide servers op 6/6. [Fork-app][android] · [officiële app en hervatproef][clientverslag] |
+| 2026-11-10 | Android-tablet API 35, fork-app | Sim-mislukt. Bij 4 GiB traden OOM-kills op. Bij 5 GiB verliep één van drie pogingen volledig. [Tabletproeven][clientverslag] |
+| 2026-11-10 | Desktop 2.0.0 onder Xvfb | Sim-getest. Inloggen, bladeren, hervatten rond 300 s, Direct Play, transcode en ondertitels leverden dezelfde uitkomsten op beide servers. [Desktopbewijs][desktop] |
+| 2026-11-10 | Swiftfin 1.6.1, serverprotocol | Moderne MediaBrowser-kop, WebSocket, statische stream en transcode-URL gaven dezelfde uitkomsten op beide servers. De client blijft **NIET GEVALIDEERD (Mac/Xcode)**. [Protocolbewijs][swiftfin] |
+| 2026-11-17 | Fork-telefoon en desktop onder Xvfb, afgeschermd testnetwerk | Rooktests herhaald op dezelfde serverbron. De gemeten speluitkomsten kwamen per client overeen met stock. [Telefoonbewijs][telefoon-herhaling] · [desktopbewijs][desktop-herhaling] |
+
+SyncPlay, skipknoppen, downloaden, de MediaGuard-afspeeltest en de combinatie met alle modules aan blijven open voor
+JLT-63. NIET GEVALIDEERD (hardware): echte tv's, telefoons en tablets. Safari op Mac blijft buiten het Linux-WebKit-bewijs.
+
+[clientbewijs]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/EVIDENCE.json
+[clientverslag]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/BOUWVERIFICATIE_P4-0.md
+[android]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-jc3-android-emulator.json
+[officieel]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-jc3-android-officieel.json
+[desktop]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-jc3-desktop.json
+[swiftfin]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-jc3-swiftfin-protocol.json
+[telefoon-herhaling]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-s-p40-72-herstel-android-telefoon.json
+[desktop-herhaling]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-s-p40-72-herstel-desktop.json

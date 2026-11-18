@@ -5,10 +5,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "e2e"))
 
 import compat_api  # noqa: E402
 import upgrade_proef  # noqa: E402
+import upstream_gedrag_runtime  # noqa: E402
 
 
 def test_normalize_removes_volatile_fields_and_masks_tokens_in_transcoding_url() -> None:
@@ -19,6 +22,34 @@ def test_normalize_removes_volatile_fields_and_masks_tokens_in_transcoding_url()
     assert "PlaySessionId" not in norm and "ServerName" not in norm
     url = norm["MediaSources"][0]["TranscodingUrl"]
     assert "0123456789abcdef" not in url and "ApiKey=<x>" in url and "Tag=t" in url
+
+
+def test_apikey_in_url_is_masked_in_nested_responses_and_error_messages() -> None:
+    url = "/Videos/1/master.m3u8?aPIkEy=proefwaarde&API_KEY=andere-proefwaarde&Tag=t"
+    expected = "/Videos/1/master.m3u8?aPIkEy=<x>&API_KEY=<x>&Tag=t"
+    raw = {"MediaSources": [{"TranscodingUrl": url}]}
+    assert compat_api.normalize(raw) == {"MediaSources": [{"TranscodingUrl": expected}]}
+    error = f"PlaybackInfo gaf een fout: {raw!r}"
+    assert upstream_gedrag_runtime.maskeer_url_geheimen(error) == error.replace(url, expected)
+
+
+@pytest.mark.parametrize("direct_play_zonder_spoor, verwacht", [(True, True), (False, False)])
+def test_playbackinfo_requires_explicit_track_to_transcode_it(
+    monkeypatch: pytest.MonkeyPatch, direct_play_zonder_spoor: bool, verwacht: bool,
+) -> None:
+    ctx = upstream_gedrag_runtime.Ctx("http://127.0.0.1", "niet-gebruikt")
+    ctx.video_id, ctx.video_source_id, ctx.ac3_index = "film", "bron", 1
+    bodies = []
+
+    def playbackinfo(_ctx: upstream_gedrag_runtime.Ctx, selectie: dict) -> dict:
+        bodies.append(selectie)
+        return {"SupportsDirectPlay": False, "TranscodingUrl": "/voorbeeld"} if selectie else {
+            "SupportsDirectPlay": direct_play_zonder_spoor,
+        }
+
+    monkeypatch.setattr(upstream_gedrag_runtime, "_playbackinfo", playbackinfo, raising=False)
+    assert upstream_gedrag_runtime.playbackinfo_zonder_spoorselectie(ctx)[0] is verwacht
+    assert bodies == [{}, {"MediaSourceId": "bron", "AudioStreamIndex": 1}]
 
 
 def test_openapi_only_additive_under_media_and_connector() -> None:

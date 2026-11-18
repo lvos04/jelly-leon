@@ -19,6 +19,11 @@ IPV4 = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
 RUIS = "<ruis>"
 
 
+def maskeer_url_geheimen(tekst: str) -> str:
+    """Verberg sleutelwaarden in URL's en in foutmeldingen die zulke URL's bevatten."""
+    return re.sub(r"(?i)([?&](?:apikey|api_key)=)[^&\s#'\"<>]*", r"\1<x>", tekst)
+
+
 # --------------------------------------------------------------------------------------------- schemacontrole
 def valideer(waarde: Any, schema: dict[str, Any], doc: dict[str, Any], pad: str = "$") -> list[str]:
     """Controleert een waarde tegen een OpenAPI 3.0-schema (de trefwoorden die het pluginbestand gebruikt)."""

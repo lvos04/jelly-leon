@@ -265,7 +265,7 @@
   "Fase": "F6 - Release en nazorg",
   "Soort": "Testen",
   "Taak": "Compatibiliteitsregressie met stock-clients en upstream-sync-proef",
-  "Uitvoering": "Programmafase: vanaf P4-0 doorlopend; gate bij elke module-oplevering, elke release en elke upstream-sync (12.x → 12.y). (a) Register docs/platform-v2/UPSTREAM_GEDRAG.md naast PATCHES.md in jelly-leon (en een web-deel in jelly-leon-web): per afhankelijkheid van upstream-gedrag dat geen ABI is een sync-blokkerende contracttest, genummerd UG-<functie>-<n> (bijv. UG-F3-1, UG-F5-1). Voorbeelden: DI-vervanging van ISyncPlayManager en de wachtlogica van SyncPlay, providervolgorde en limietstop van similar-items, scan van de interne metadatamap en de hernummering van sporen, ffmpeg-pad en ffprobe-afleiding, het -init_hw_device-token, EncoderValidator op het ingestelde VaapiDevice, mtime-cleanup van MediaSegments, forceOverwrite, provider-ID = MD5, en de webfuncties loadSections, setButtonText, DEFAULT_ACTIONS, getDeviceProfile, config.json-plugins en de SyncPlay-instance. (b) Compat-regressiesuite per clientrol: stock-native (androidtv 0.19.10, het native ExoPlayer-pad van de Android-app, Swiftfin = NIET GEVALIDEERD), stock-web uit de stock-image, de officiële Android-/desktopapp op een Jelly Leon-server, Jelly Leon-web, de fork-apps en één derden-client met legacy-headers; scenario's inloggen, bladeren, zoeken, afspelen (Direct Play én transcode), hervatten, ondertitels, SyncPlay, skipknoppen en downloaden; de MediaGuard-afspeeltest (TV_PROFILE) moet byte-gelijk blijven. (c) API-regressie: OpenAPI-diff tegen upstream alleen additief onder /media/v1 en /connector/v1; volledige upstream-testsuite groen met de plugin geladen; per module 'uit' en 'plugin verwijderd' byte-gelijk aan stock (vaste veldenlijst). (d) Upstream-sync-proef: herbasis naar de volgende 12.y-tag op een tak; elke core-, web- en clientpatch los te herbasen; UPSTREAM_GEDRAG-tests op de nieuwe runtime (JL_RUNTIME_IMAGE); resultaat als test-evidence; nooit automatisch naar de standaardbranch (R2).",
+  "Uitvoering": "Programmafase: vanaf P4-0 doorlopend; gate bij elke module-oplevering, elke release en elke upstream-sync (12.x → 12.y). (a) Register docs/platform-v2/UPSTREAM_GEDRAG.md naast PATCHES.md in jelly-leon (en een web-deel in jelly-leon-web): per afhankelijkheid van upstream-gedrag dat geen ABI is een sync-blokkerende contracttest, genummerd UG-<functie>-<n> (bijv. UG-F3-1, UG-F5-1). Voorbeelden: DI-vervanging van ISyncPlayManager en de wachtlogica van SyncPlay, providervolgorde en limietstop van similar-items, scan van de interne metadatamap en de hernummering van sporen, ffmpeg-pad en ffprobe-afleiding, het -init_hw_device-token, EncoderValidator op het ingestelde VaapiDevice, mtime-cleanup van MediaSegments, forceOverwrite, provider-ID = MD5, en de webfuncties loadSections, setButtonText, DEFAULT_ACTIONS, getDeviceProfile, config.json-plugins en de SyncPlay-instance. (b) Compat-regressiesuite per clientrol: stock-native (androidtv 0.19.10, het native ExoPlayer-pad van de Android-app, Swiftfin = NIET GEVALIDEERD), stock-web uit de stock-image, de officiële Android-/desktopapp op een Jelly Leon-server, Jelly Leon-web, de fork-apps en één derden-client met legacy-headers; scenario's inloggen, bladeren, zoeken, afspelen (Direct Play én transcode), hervatten, ondertitels, SyncPlay, skipknoppen en downloaden; de MediaGuard-afspeeltest (TV_PROFILE) moet byte-gelijk blijven. (c) API-regressie: OpenAPI-diff tegen upstream alleen additief onder /media/v1 en /connector/v1; volledige upstream-testsuite groen met de plugin geladen; per module 'uit' en 'plugin verwijderd' byte-gelijk aan stock (vaste veldenlijst). (d) Upstream-sync-proef: herbasis naar de volgende 12.y-tag op een tak; elke core-, web- en clientpatch los te herbasen; UPSTREAM_GEDRAG-tests op de nieuwe runtime (JL_RUNTIME_IMAGE); resultaat als test-evidence; nooit automatisch naar de standaardbranch (R2). P4-0 (S-P40-40): UPSTREAM_GEDRAG.md legt het gedrag bij PlaybackInfo zonder spoorselectie en de ApiKey-maskering met sync-blokkerende tests vast. CLIENT_COMPAT_MATRIX.md §4 verwijst per clientrol naar de gemeten uitkomsten.",
   "Acceptatie": "JLT-63, JLT-64 en JLT-67 Sim-geslaagd bij elke module-oplevering en vóór elke release; 0 regressies in stock-clients (elke afwijking telt als Sim-mislukt; een uitzondering kan alleen met een ADR); het register is volledig: elk upstream-gedrag waarop een plandeel steunt staat erin met een test (CI: een verwijzing UG-… zonder test laat de build falen); de sync-proef naar de volgende 12.y heeft per patch een los herbasisresultaat; voor derden-clients staat de gemeten uitkomst in de matrix, nooit 'werkt ongewijzigd' zonder meting. Echte tv's, telefoons en Swiftfin: NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (Mac/Xcode) tot JLT-69.",
   "Risico": "Hoog",
   "Prioriteit": "P0",
@@ -1987,7 +1987,7 @@
   "Fase": "P6 - E2E",
   "Soort": "Testen",
   "Taak": "Compatibiliteit van stock-clients per rol met alle modules aan",
-  "Uitvoering": "Jelly Leon 12.x met alle modules aan tegen stock 12.x (zelfde digest); per rol apart: stock-web uit de stock-image (--webdir), officiële Android TV-APK en het native ExoPlayer-pad van de officiële Android-APK (emulator), de webweergave van de officiële Android-app, desktop (alleen na een geslaagde spike), één derden-client met legacy-headers; scenario's inloggen, bladeren, zoeken, afspelen (Direct Play en transcode), hervatten, ondertitels, SyncPlay, skipknoppen, downloaden; de MediaGuard-afspeeltest met TV_PROFILE",
+  "Uitvoering": "Jelly Leon 12.x met alle modules aan tegen stock 12.x (zelfde digest); per rol apart: stock-web uit de stock-image (--webdir), officiële Android TV-APK en het native ExoPlayer-pad van de officiële Android-APK (emulator), de webweergave van de officiële Android-app, desktop (alleen na een geslaagde spike), één derden-client met legacy-headers; scenario's inloggen, bladeren, zoeken, afspelen (Direct Play en transcode), hervatten, ondertitels, SyncPlay, skipknoppen, downloaden; de MediaGuard-afspeeltest met TV_PROFILE P4-0 (S-P40-40): serverrooktests en clientbewijs per rol in CLIENT_COMPAT_MATRIX.md §4. De testrij vraagt daarna nog alle modules aan en de resterende scenario's.",
   "Acceptatie": "0 regressies tegen stock voor stock-native en stock-web; PlaybackInfo identiek over de vaste veldenlijst (zonder opt-in); de officiële app gedraagt zich als Jelly Leon-webclient zoals gedocumenteerd; de uitkomst voor derden-clients staat gemeten in de matrix; Swiftfin NIET GEVALIDEERD (Mac/Xcode); validatie Sim-geslaagd of Sim-mislukt",
   "Risico": "Hoog",
   "Prioriteit": "P0",
@@ -2001,7 +2001,7 @@
   "Fase": "P6 - E2E",
   "Soort": "Testen",
   "Taak": "API- en gedragsregressie: alleen additief, module uit = stock",
-  "Uitvoering": "OpenAPI-export van Jelly Leon tegen die van stock 12.x; de volledige upstream-testsuite met de plugin geladen; in de P4-0-gate met de bestaande plugin; daarna bij elke module-oplevering per module apart en voor alle dan bestaande modules samen: aan, uit en plugin verwijderd; vergelijking van Jellyfin-antwoorden voor /Items, /Users/{id}/Items, PlaybackInfo, /MediaSegments, /SyncPlay/List en /Items/{id}/Similar",
+  "Uitvoering": "OpenAPI-export van Jelly Leon tegen die van stock 12.x; de volledige upstream-testsuite met de plugin geladen; in de P4-0-gate met de bestaande plugin; daarna bij elke module-oplevering per module apart en voor alle dan bestaande modules samen: aan, uit en plugin verwijderd; vergelijking van Jellyfin-antwoorden voor /Items, /Users/{id}/Items, PlaybackInfo, /MediaSegments, /SyncPlay/List en /Items/{id}/Similar P4-0 (S-P40-40): vergelijk de bewaarde Jelly Leon-image en stock op de gepinde 12.4-digest met compat_api.py en het runtime-register. De acceptatie per module volgt bij oplevering van de modules.",
   "Acceptatie": "De diff bevat alleen nieuwe paden onder /media/v1 en /connector/v1; upstream-tests groen; module uit of plugin verwijderd geeft byte-gelijke antwoorden (vaste veldenlijst; volgorde van onstabiele upstream-lijsten als verzameling vergeleken); validatie Sim-geslaagd of Sim-mislukt",
   "Risico": "Hoog",
   "Prioriteit": "P0",
@@ -2148,5 +2148,19 @@
   "Afhankelijkheid": "Testrij (blad Testmatrix); startstatus Geblokkeerd; bewijs bij B03-015, B03-013",
   "Bron": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
   "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md"
+ },
+ {
+  "ID": "I06-06-07",
+  "Project": "Jellyfin",
+  "Fase": "Installatie stap 7",
+  "Soort": "Installeren",
+  "Taak": "Fork alleen voor gaten",
+  "Uitvoering": "Maak upstream tracking branch en CI compat smoke; patch server eerst als plugin niet volstaat. Bewijs van S-P40-40: CLIENT_COMPAT_MATRIX.md §4 en EVIDENCE.json, rij I06-06-07.",
+  "Acceptatie": "Jellyfin client matrix groen.",
+  "Risico": "Middel",
+  "Prioriteit": "P0",
+  "Afhankelijkheid": "Backups + client inventory + MediaGuard library refresh connector.",
+  "Bron": "https://jellyfin.org/docs/general/installation/",
+  "Document": "03_INSTALLATIE/I06_JELLYFIN.md"
  }
 ]

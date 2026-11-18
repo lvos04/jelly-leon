@@ -41,6 +41,7 @@ sys.path.insert(0, str(REPO / "tools" / "b03-harnas"))
 sys.path.insert(0, str(REPO / "tools" / "jelly-leon"))
 
 from b03h.jfapi import Http, wacht_klaar  # noqa: E402
+from proef_lib import maskeer_url_geheimen  # noqa: E402
 from upgrade_proef import FILM_REL, FILMS, MUSIC, OLD_IMAGE, STOCK_NEW_IMAGE, differences, docker  # noqa: E402
 
 from openapi_drift import strip_descriptions  # noqa: E402
@@ -88,7 +89,8 @@ def normalize(node: Any) -> Any:
                 continue
             if key == "TranscodingUrl" and isinstance(value, str):
                 # ApiKey = het sessietoken van deze aanmelding (upstream zet het in de transcode-URL); nooit in het rapport.
-                value = re.sub(r"(PlaySessionId|DeviceId|ApiKey|api_key)=[^&]*", r"\1=<x>", value)
+                value = maskeer_url_geheimen(value)
+                value = re.sub(r"([?&](?:PlaySessionId|DeviceId)=)[^&]*", r"\1<x>", value)
             out[key] = normalize(value)
         return out
     if isinstance(node, list):
@@ -100,7 +102,7 @@ class Kant:
     def __init__(self, label: str, image: str, config: Path, work: Path, music: Path, films: Path) -> None:
         self.label, self.image, self.config = label, image, config
         self.work, self.music, self.films = work, music, films
-        self.name = f"jl-compat-{os.getpid()}-{label}"
+        self.name = f"{work.name}-{label}"
         self.port = 0
 
     def start(self) -> str:
@@ -110,8 +112,7 @@ class Kant:
             sock.bind(("127.0.0.1", 0))
             self.port = sock.getsockname()[1]
         cache = self.work / f"cache-{self.label}"
-        cache.mkdir(exist_ok=True)
-        docker("rm", "-f", self.name, check=False)
+        cache.mkdir(mode=0o700, exist_ok=True)
         docker("run", "-d", "--name", self.name, "--user", f"{os.getuid()}:{os.getgid()}", "--memory", "3g",
                "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "-e", "TZ=UTC",
                "-p", f"127.0.0.1:{self.port}:8096", "-v", f"{self.config}:/config", "-v", f"{cache}:/cache",
@@ -190,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
     work = Path(tempfile.mkdtemp(prefix="jl-compat-", dir=args.werkmap))
     music, films, base = work / "media-muziek", work / "media-films", work / "config-basis"
     for d in (music, films, base):
-        d.mkdir(parents=True)
+        d.mkdir(mode=0o700, parents=True)
     subprocess.run([sys.executable, str(E2E / "make_test_media.py"), str(music)], check=True, capture_output=True)
     target = films / FILM_REL
     target.parent.mkdir(parents=True)
@@ -205,7 +206,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
     steps: list[dict[str, Any]] = []
 
     def add(name: str, ok: bool, detail: str) -> bool:
-        steps.append({"stap": name, "geslaagd": ok, "detail": detail.replace(password, "<geheim>"), "tijd": utc_now()})
+        detail = maskeer_url_geheimen(detail).replace(password, "<geheim>")
+        steps.append({"stap": name, "geslaagd": ok, "detail": detail, "tijd": utc_now()})
         print(f"[{'OK  ' if ok else 'FOUT'}] {name}: {detail[:400]}", flush=True)
         return ok
 
@@ -276,10 +278,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
         result = {"verschillen": verschillen, "playbackinfo_besluiten": besluiten, "openapi_toegevoegd": toegevoegd,
                   "openapi_problemen": problemen, "vergeleken": sorted(kanten["stock"]["antwoorden"])}
     except (RuntimeError, subprocess.TimeoutExpired, OSError, KeyError) as exc:
-        add("uitvoering", False, f"{type(exc).__name__}: {str(exc)[:400]}")
+        add("uitvoering", False, f"{type(exc).__name__}: {str(exc)}")
     finally:
         for label in ("basis", "stock", "jelly-leon"):
-            docker("rm", "-f", f"jl-compat-{os.getpid()}-{label}", check=False)
+            docker("rm", "-f", f"{work.name}-{label}", check=False)
         shutil.rmtree(work, ignore_errors=True)
     passed = bool(steps) and all(s["geslaagd"] for s in steps)
     if args.report:

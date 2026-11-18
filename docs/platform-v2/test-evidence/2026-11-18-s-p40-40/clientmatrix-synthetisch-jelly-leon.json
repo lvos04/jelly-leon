@@ -1,0 +1,288 @@
+{
+ "schema": "jelly-leon/b03-016-clientmatrix/1",
+ "begin": "2026-11-18T06:50:45Z",
+ "eind": "2026-11-18T06:52:36Z",
+ "server": "jelly-leon:lokaal-48293b48a",
+ "testitem": "Synthetische hero.mp4 uit ci_mini_corpus.py (lavfi)",
+ "clients": [
+  {
+   "client": "chromium 153.0.8010.12 (Playwright 1.63, headless)",
+   "rol": "Jelly Leon-webclient (ingebouwd in de jelly-leon-image)",
+   "browser": "chromium 153.0.8010.12",
+   "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+   "besluit": "DirectPlay",
+   "orakel_ok": false,
+   "eerste_frame_ms": 579,
+   "tijd_tot_2s_ms": null,
+   "audio_gedecodeerd": false,
+   "laatste_stand": {
+    "ct": 14.407331,
+    "w": 1280,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": 0,
+    "ma": null,
+    "t": 14984.600000143051
+   },
+   "orakel_reden": "geen audio gedecodeerd (stil)",
+   "fout": null,
+   "profiel_directplay": null,
+   "status": "Sim-mislukt",
+   "opmerking": ""
+  },
+  {
+   "client": "firefox 155.0 (Playwright 1.63, headless)",
+   "rol": "Jelly Leon-webclient (ingebouwd in de jelly-leon-image)",
+   "browser": "firefox 155.0",
+   "ua": "Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 478,
+   "tijd_tot_2s_ms": 2564,
+   "audio_gedecodeerd": true,
+   "laatste_stand": {
+    "ct": 2.072416,
+    "w": 1280,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": null,
+    "ma": true,
+    "t": 2564
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": null,
+   "status": "Sim-getest (rooktest geslaagd)",
+   "opmerking": ""
+  },
+  {
+   "client": "webkit 26.6 (Playwright 1.63, headless)",
+   "rol": "Jelly Leon-webclient (ingebouwd in de jelly-leon-image)",
+   "browser": "webkit 26.6",
+   "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6 Safari/605.1.15",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 2230,
+   "tijd_tot_2s_ms": 4297,
+   "audio_gedecodeerd": null,
+   "laatste_stand": {
+    "ct": 2.064473,
+    "w": 1280,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": null,
+    "ma": null,
+    "t": 4297
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": null,
+   "status": "Sim-getest (rooktest geslaagd)",
+   "opmerking": "WebKit op Linux is geen Safari"
+  },
+  {
+   "client": "webos via UA-simulatie (Chromium-engine)",
+   "rol": "Jelly Leon-webclient (profielcode)",
+   "browser": "chromium 153.0.8010.12",
+   "ua": "Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.5359.211 Safari/537.36 WebAppMana",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 351,
+   "tijd_tot_2s_ms": 2454,
+   "audio_gedecodeerd": true,
+   "laatste_stand": {
+    "ct": 2.035039,
+    "w": 1280,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": 36738,
+    "ma": null,
+    "t": 2453.5
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": [
+    [
+     "webm",
+     "vp8,vp9,av1",
+     "vorbis,opus"
+    ],
+    [
+     "mp4,m4v",
+     "h264,hevc,mpeg2video,vc1,vp9,av1",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,opus,flac,vorbis"
+    ],
+    [
+     "mkv",
+     "h264,hevc,mpeg2video,vc1,vp9,av1",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,opus,flac,vorbis"
+    ],
+    [
+     "m2ts",
+     "h264,vc1,mpeg2video",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,opus,flac,vorbis"
+    ],
+    [
+     "wmv",
+     "",
+     ""
+    ],
+    [
+     "ts,mpegts",
+     "h264,hevc,vc1,mpeg2video",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,opus,flac,vorbis"
+    ]
+   ],
+   "status": "Sim-getest (UA-simulatie, geen echte decoder)",
+   "opmerking": "alleen de takken in browserDeviceProfile.js; echte tv NIET GEVALIDEERD (hardware)"
+  },
+  {
+   "client": "tizen via UA-simulatie (Chromium-engine)",
+   "rol": "Jelly Leon-webclient (profielcode)",
+   "browser": "chromium 153.0.8010.12",
+   "ua": "Mozilla/5.0 (SMART-TV; LINUX; Tizen 8.0) AppleWebKit/537.36 (KHTML, like Gecko) 120.0.6099.5/8.0 TV Safari/537.36",
+   "besluit": "DirectPlay",
+   "orakel_ok": true,
+   "eerste_frame_ms": 370,
+   "tijd_tot_2s_ms": 2514,
+   "audio_gedecodeerd": true,
+   "laatste_stand": {
+    "ct": 2.090686,
+    "w": 1280,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": 37426,
+    "ma": null,
+    "t": 2513.7999999523163
+   },
+   "orakel_reden": null,
+   "fout": null,
+   "profiel_directplay": [
+    [
+     "webm",
+     "vp8,vp9,av1",
+     "vorbis,opus"
+    ],
+    [
+     "mp4,m4v",
+     "h264,hevc,mpeg2video,vc1,msmpeg4v2,vp9,av1",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,aac_latm,vorbis"
+    ],
+    [
+     "mkv",
+     "h264,hevc,mpeg2video,vc1,msmpeg4v2,vp9,av1",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,aac_latm,opus,vorbis"
+    ],
+    [
+     "m2ts",
+     "h264,vc1,mpeg2video",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,aac_latm,vorbis"
+    ],
+    [
+     "wmv",
+     "",
+     ""
+    ],
+    [
+     "ts,mpegts",
+     "h264,hevc,vc1,mpeg2video",
+     "aac,mp3,ac3,eac3,mp2,pcm_s16le,pcm_s24le,aac_latm,vorbis"
+    ]
+   ],
+   "status": "Sim-getest (UA-simulatie, geen echte decoder)",
+   "opmerking": "alleen de takken in browserDeviceProfile.js; echte tv NIET GEVALIDEERD (hardware)"
+  },
+  {
+   "client": "derden-client met legacy-headers (gesimuleerd: X-Emby-Token, X-MediaBrowser-Token, X-Emby-Authorization, api_key)",
+   "rol": "stock-native (derden)",
+   "status_per_vorm": {
+    "authorization_mediabrowser_token": {
+     "system_info": 200,
+     "gebruiker_items": 200,
+     "stream_statisch": 206
+    },
+    "x_emby_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "x_mediabrowser_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "x_emby_authorization": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "query_api_key": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    },
+    "query_apikey_hoofdletter": {
+     "system_info": 200,
+     "gebruiker_items": 200,
+     "stream_statisch": 206
+    },
+    "zonder_token": {
+     "system_info": 401,
+     "gebruiker_items": 401,
+     "stream_statisch": 206
+    }
+   },
+   "status": "Sim-getest (gemeten: legacy-auth geweigerd op API-routes; statische stream speelt)",
+   "opmerking": "12.4: EnableLegacyAuthorization uit → 401 voor X-Emby-Token/api_key op API-routes; ?ApiKey= en Authorization: MediaBrowser Token=… werken; /Videos/{id}/stream?static=true geeft 206 ook zonder token (ADR-0009). Besluit derden-clients: BG-01"
+  },
+  {
+   "client": "chromium 153.0.8010.12 tegen de Jelly Leon-server met de stock-web uit de stock-image",
+   "rol": "stock-web uit de stock-image (tegen Jelly Leon)",
+   "browser": "chromium 153.0.8010.12",
+   "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+   "besluit": "DirectPlay",
+   "orakel_ok": false,
+   "eerste_frame_ms": 565,
+   "tijd_tot_2s_ms": null,
+   "audio_gedecodeerd": false,
+   "laatste_stand": {
+    "ct": 14.38864,
+    "w": 1280,
+    "rs": 4,
+    "err": null,
+    "p": false,
+    "ab": 0,
+    "ma": null,
+    "t": 14953.699999809265
+   },
+   "orakel_reden": "geen audio gedecodeerd (stil)",
+   "fout": null,
+   "profiel_directplay": null,
+   "status": "Sim-mislukt",
+   "opmerking": "stock-web tegen de Jelly Leon-server (JLT-63)"
+  }
+ ],
+ "desktop": {
+  "client": "jellyfin-desktop 2.0.0 onder Xvfb",
+  "status": "zie b03-016-desktop-spike.json"
+ },
+ "niet_hier": [
+  {
+   "client": "Swiftfin 1.6.1 (iOS/tvOS), Safari, Apple TV",
+   "rol": "stock-native",
+   "status": "NIET GEVALIDEERD (Mac/Xcode)",
+   "reden": "geen Mac/Xcode in deze bouwomgeving"
+  },
+  {
+   "client": "echte tv's, telefoons, tablets, receivers, Chromecast, DLNA",
+   "rol": "alle",
+   "status": "NIET GEVALIDEERD (hardware)",
+   "reden": "geen echte apparaten; D15 onbekend (JLT-69)"
+  }
+ ]
+}
