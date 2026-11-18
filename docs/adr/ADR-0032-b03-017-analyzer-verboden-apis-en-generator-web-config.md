@@ -932,7 +932,7 @@ buiten beschouwing (ook een koppeling daar is geen reden om te weigeren). Een we
 dat het bestand alleen moduleschakelaars bevat en als veilige weg: andere apps zonder toegang tot de config-dataset en
 alleen dit ene bestand laten weghalen. Zelfde keten na herstel: de start weigert, de server start niet, het doel blijft
 byte-gelijk. Dit bestand wordt geweigerd en niet zelf hersteld (besluit van de regisseur, punt 1): het is instelling van de
-gebruiker, niet door de image beheerd.
+gebruiker, niet door de image beheerd. (Deel 1g, besluit 4: een harde koppeling tot 1 MiB wordt nu wel een eigen kopie.)
 
 **Alle lees- en schrijfacties voor of namens de plugin** (start, server en plugin; nagelopen in `entrypoint.sh`,
 `Emby.Server.Implementations/Plugins/PluginManager.cs`, `BasePluginOfT.cs`, `BaseApplicationPaths.cs`,
@@ -959,7 +959,8 @@ niets in `/cache`.
 (568) en `/cache` als tmpfs allebei toe, en de vorige image startte zo. Sinds deel 1c weigerde de start dat: Docker geeft een
 tmpfs zonder opties de modus van de imagemap (0755 sinds 1c) en eigenaar root (gemeten), dus `/cache` was niet van 568 en niet
 schrijfbaar, en de melding wees naar een dataset die bij een tmpfs niet bestaat. Herhaald en rood gezien. Besluit: een
-tmpfs-`/cache` bestaat alleen in deze container; niemand anders kan er iets in neerleggen. Herstel:
+tmpfs-`/cache` uit het formulier bestaat alleen in deze container. (Correctie deel 1g: de start kan dat niet sluitend
+vaststellen; een lege gedeelde tmpfs ziet er hetzelfde uit, en daar kan een ander wel iets in neerleggen.) Herstel:
 - De start (`own_tmpfs`) stelt uit `/proc/self/mountinfo` vast, niet uit de naam, dat `/cache` zelf het koppelpunt is van een
   heel tmpfs-bestandssysteem (wortel `/`; een gekoppelde map van de host heeft een andere wortel) en dat die bij de start leeg
   is (Docker maakt de tmpfs bij elke start nieuw en leeg; gemeten met `docker restart` en stop/start). Alleen dan aanvaardt zij
@@ -982,7 +983,8 @@ het opslagtype tmpfs of een eigen dataset, nooit een Host Path naar een map buit
 van 500 MiB (de standaardgrootte van het formulier, en de grootte in de proef van de review, die een nep-server gebruikte)
 start de entrypoint nu wel, maar weigert de server zelf: `StorageHelper.TestCommonPathsForStorageCapacity` eist 2 GiB vrij in
 `/cache` ("The path `/cache` has insufficient free space. Available: 500MiB, Required: 2GiB"). Dat gold ook voor de vorige
-image met dezelfde server; `CUSTOM_APP.md` noemt daarom nu minstens 2048 MiB (voorstel 4096 MiB). Met 4096 MiB en Custom User
+image met dezelfde server; `CUSTOM_APP.md` noemde daarom minstens 2048 MiB (voorstel 4096 MiB). Dat minimum start zelf niet
+(correctie deel 1g: minstens 2560 MiB). Met 4096 MiB en Custom User
 568 startte de echte stock-server 12.4 met de entrypoint en de plugin van deze stap (netwerkloos, synthetisch): gezond,
 `GET /media/v1/modules` 200, geen opslagmelding; met de plugin van `81e9c4a26` viel de plugin daar terug (503).
 
@@ -1055,6 +1057,93 @@ Geen extra imagebouw: de stap gebruikt de image die de job al bouwt. Lokaal draa
 
 Uitvoering, rode herhalingen en tegenproeven van deel 1f: `docs/platform-v2/test-evidence/s-g1-16-deel1f-herstel-reviews.md`.
 De echte NAS, Emby en accounts zijn niet benaderd.
+
+#### Opslagdreigingen, deel 1g (tmpfs-grens, ruimte, proefmap, pluginconfiguratie, eigen pluginmappen, 2026-11-18)
+
+Bronbasis: `02ae7d4a5d999d38361c40ccae558e693cadcd96`. Klein, gericht herstel na de herreview van deel 1f (R-VEILIG), met de
+besluiten van de regisseur van 2026-11-18. Deel 1 tot en met 1f zijn niet omgebouwd. Elke bevinding is eerst zelf herhaald
+en rood gezien, in netwerkloze wegwerpcontainers met alleen synthetische bestanden.
+
+**Tmpfs-`/cache` (R-VEILIG-1f-1, belangrijk; besluit optie A: houden en afdekken).** `own_tmpfs` aanvaardt een tmpfs met
+`/cache` als eigen koppelpunt (wortel `/`) die bij de start leeg is. Een lege tmpfs van de NAS die als héle wortel is gekoppeld
+(Host Path `/dev/shm`; de TrueNAS-appbibliotheek 2.3.20 sluit dat pad niet uit) of een met een andere app gedeelde lege tmpfs
+ziet er in de mounttabel precies zo uit. De container kan een eigen tmpfs dus **niet sluitend** onderscheiden van een lege
+gedeelde tmpfs. Meting van de review (gedeeld lokaal Docker-tmpfs-volume op de hele wortel, `volume-nocopy`): de start nam het
+aan als root en als Custom User, ook terwijl een andere app het vasthield. Daarna maakte een andere uid in die `/cache` een map
+met een koppeling naar `/config/data`, en las een proces als 568 in de Jelly Leon-container daardoorheen de synthetische
+serverdatabase. Of een schrijfactie van de echte server zo'n koppeling volgt, is niet gemeten. Bovendien maakte de rootfase
+de wortel van de gedeelde tmpfs eigenaar 568:568. Hier herhaald met een houdercontainer: de wortel was `1777 0:0` vóór en
+`1777 568:568` na een start als root. Herstel:
+- De rootfase wisselt een tmpfs-`/cache` nooit meer van eigenaar of modus (de eigenaarswissel slaat `/cache` over als het
+  bestandssysteem tmpfs is). Een tmpfs uit het formulier houdt `0:0 1777` van Docker en de image en blijft zo voor 568
+  schrijfbaar; root en Custom User starten (CI-levenscyclus: `/cache` na de start `0:0 1777`, healthy, plugin aan).
+- Goedkope extra drempel die geen correcte opzet weigert: een tmpfs-`/cache` die geen eigen, lege tmpfs is (een map ín een
+  tmpfs, of een al gevulde tmpfs), moet nu ook als root al van 568 zijn. Anders weigert de start vóór de eigenaarswissel van
+  `/config`, zonder iets te wijzigen; eerder volgde daar `chown -R`. De weigering van een gevulde tmpfs bestond al. Er is
+  bewust geen herkenning op grootte of modus.
+- `CUSTOM_APP.md` heeft nu drie verplichte regels. **Verplicht 3:** `/cache` is een eigen dataset van alleen deze app, of het
+  opslagtype tmpfs van deze app. Nooit een Host Path naar een tmpfs van de NAS (`/dev/shm`, `/run`, `/tmp`) en nooit een met
+  een andere app gedeelde map of dataset. Het gemeten gevolg staat erbij, in gewone taal. Zinnen die meer beloofden, zijn
+  geschrapt of gecorrigeerd: in `CUSTOM_APP.md` ("bestaat alleen in deze container", "aanvaardt hem alleen als het een eigen
+  … tmpfs is", de Problemen-rij), in deel 1f van deze ADR, in de entrypoint, de Dockerfile en `JlPaths`.
+- **Restgrens (eerlijk):** een lege gedeelde tmpfs blijft aanvaard. De bescherming hangt daar af van Verplicht 3. Nog te meten
+  op de echte NAS: is `/dev/shm` van de NAS bij de start leeg (`ls -A /dev/shm` in de TrueNAS-shell vlak vóór de start)? Welke
+  modus, eigenaar en grootte geeft het opslagtype tmpfs aan `/cache` (`stat -c '%a %u:%g' /cache` en `df -B1 /cache` in de
+  shell van de app)? Gelezen in de openbare bron (`library/2.3.20/tmpfs.py`, `ix-dev/stable/ix-app/questions.yaml`): het
+  formulier vraagt alleen een grootte in MiB (standaard 500), die als bytes wordt gerenderd, en geen modus. Gemeten in
+  Docker: zo'n tmpfs krijgt de modus van de imagemap, dus 1777.
+
+**Te kleine tmpfs (R-VEILIG-1f-2, belangrijk).** Herhaald met de echte gepinde stock-server 12.4 (eigen entrypoint van de
+image, Custom User 568): een tmpfs van 2048 MiB weigert ("The path `/cache` has insufficient free space. Available: 2GiB,
+Required: 2GiB"); 2560 MiB start. Met de entrypoint van de basis: 2048 MiB dezelfde Engelse fout, 2049 en 2560 MiB starten.
+Oorzaak: `StorageHelper.TwoGigabyte` (2147483647 bytes) wordt gemeten nadat `MakeSanityCheckOrThrow` zelf `CACHEDIR.TAG` in
+`/cache` heeft gezet (op tmpfs één pagina). Herstel:
+- Overal staat nu **minstens 2560 MiB**, met de reden: 2 GiB plus marge, want 2048 MiB start niet. Dat geldt voor
+  `CUSTOM_APP.md` (Datasets en Problemen) en de CI-levenscyclus (`TMPFS_CACHE`).
+- De start weigert een tmpfs-`/cache` met minder vrije ruimte dan de server eist (`assert_cache_space`, vóór elke schrijfactie,
+  in beide fasen). Dat gebeurt met één Nederlandse regel (wat, waarom, welke waarde) in plaats van de Engelse fout met
+  herstartlus. De grens komt uit één plek: de constante van de server plus die ene pagina. Een test vergelijkt de waarde met
+  `StorageHelper.cs`. Gemeten op de lichte proefimage met de stock-server: 2048 MiB geeft de Nederlandse weigering zonder
+  serverstart; 2049 MiB en 2560 MiB (root en Custom User) starten. De start weigert dus geen tmpfs die de server zou aanvaarden.
+  Een dataset met te weinig ruimte meldt de server zelf (ook voor `/config`).
+
+**Lege proefmap na een afgebroken start (R-VEILIG-1f-3, klein).** Herhaald: een start die precies tussen `mkdir` en `rmdir`
+van de ACL-proefmap (deel 1f) wordt afgebroken, laat `.jelly-leon-proef.*` achter. Een rest van root bleef ook na een tweede
+start staan. Herstel (`remove_probe_leftovers`, app-fase, na alle weigeringen): alleen een lege, echte map met precies het
+naampatroon van `mktemp` (tien letters of cijfers), direct in `/config` of `plugins/`, wordt verwijderd. `find -type d` volgt
+geen koppeling en `-delete` is `rmdir`, dus nooit `rm -r`. Er volgt één logregel per map. Gemeten met resten van root, als root
+en als Custom User: de lege resten verdwijnen, een rest met inhoud en een koppeling met die naam blijven staan.
+
+**Harde koppeling op het eigen configuratie-XML (besluit 4).** Sinds deel 1f legde een harde koppeling op
+`plugins/configurations/Jellyfin.Plugin.JellyLeon.xml` de hele server stil, ook een goedaardige (ontdubbelen, terugzetten
+met behoud van koppelingen). Het herstel volgt de voorwaarden van de review:
+- alleen in de app-fase, ná de toets van `plugins/configurations` met de app-gebruiker;
+- alleen een gewoon bestand met meer dan één naam van hooguit 1 MiB (`stat` opent niets). Een symbolische koppeling, FIFO,
+  map of ander type, en een groter bestand, blijven een weigering met de bestaande veilige melding;
+- een verse kopie met `mktemp` in dezelfde map, daarna hernoemen over de ingang (`place_file`). Er wordt nooit door de
+  koppeling geschreven;
+- één logregel.
+
+De rootfase laat precies dit geval door en blijft voor al het andere even streng. Gemeten met de echte stock-server
+(XML als harde koppeling op een synthetische serverdatabase, root en Custom User): de server start, `GET /media/v1/modules`
+geeft 200, de database blijft byte-gelijk met één naam, en de XML heeft één naam. De server schreef daarna zelf een nieuwe
+standaardconfiguratie in het eigen bestand. **Aantekening:** is `/config` bij de eerste start nog niet van 568, dan wijzigt
+`chown -R` van de rootfase de eigenaar van de inode, en dus ook van de andere naam. Dat kan alleen binnen dezelfde dataset
+(een harde koppeling gaat niet over mounts) en gold al voor de pluginmap (deel 1f). Een wissel door dezelfde gebruiker tussen
+toetsen en kopiëren valt onder B1.
+
+**Alleen de eigen pluginmappen (vervolgpunt van de review, punt 5).** `install_plugins` verwijderde met `rm -rf` elke map
+`JellyLeon_*` van een andere versie, ook `JellyLeon_Extra_2.0.0.0` van een andere plugin. Herhaald, met nog een gevolg: had zo'n
+andere plugin een submap met inhoud (bijvoorbeeld `runtimes/`), dan weigerde de start de hele server ("map met inhoud in de
+eigen pluginmap"). Herstel (`own_plugin_dir`): een eigen pluginmap is `<naam>_<versie>` van een plugin die de image zelf
+meelevert. De naam komt exact uit `/usr/share/jelly-leon/plugins`; de versie bestaat alleen uit cijfers en punten.
+Controle, herstel (`repair_plugin_dirs`) en verwijderen gelden alleen nog voor die mappen. Een onbekende `JellyLeon_*`-map
+blijft byte-gelijk (getest met een harde en een symbolische koppeling, een submap met inhoud en modus 0775); elk van de vier
+filters apart weghalen maakt de test rood. Proef met de entrypoint van de vorige image (`0783c1987`) en daarna die van deze
+stap: `JellyLeon_0.0.9.0` wordt vervangen door `JellyLeon_0.1.0.0`, de andere plugin blijft byte-gelijk.
+
+Status: Bezig; Sim-getest; NIET GEVALIDEERD (echte NAS). Uitvoering, rode herhalingen en tegenproeven:
+`docs/platform-v2/test-evidence/s-g1-16-deel1g-herstel-herreview.md`. De echte NAS, Emby en accounts zijn niet benaderd.
 
 ### 2. Witte lijst: één API in één klasse
 

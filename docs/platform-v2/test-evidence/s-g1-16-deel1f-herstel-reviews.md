@@ -72,7 +72,8 @@ byte-gelijk); weigering van de pluginconfiguratie als koppeling als root en als 
 echte server (server gezond, kijkgegevens en afspelen, 503/401/403, Hub 401, gebruiker verwijderen 204, één melding, geen
 schrijfactie; na herstel plugin aan en kijkgegevens gelijk). De beoordeling van elke stap is zonder Docker getest in
 `test_image_lifecycle_processes.py`. Gemeten in CI (run 44205112539): met een tmpfs van 500 MiB weigert de server zelf te
-starten (2 GiB vrij vereist); `CUSTOM_APP.md` noemt nu minstens 2048 MiB.
+starten (2 GiB vrij vereist); `CUSTOM_APP.md` noemde toen minstens 2048 MiB. Dat start zelf niet (correctie deel 1g: minstens
+2560 MiB; `s-g1-16-deel1g-herstel-herreview.md`).
 
 ## Uitvoering en grenzen
 
@@ -81,4 +82,6 @@ ketenmap `bouw1f/`. Geen bestaande test is overgeslagen of afgezwakt (de 1e-weig
 besluit BN-2 een herstel geworden); de analyzer en zijn lege uitzonderingslijst zijn ongewijzigd, geen nieuw lid van de
 server-ABI, en de negatieve analyzerbouw geeft nog precies de 323 verwachte fouten. De echte image wordt alleen in CI
 gebouwd. Grenzen: de serverroute voor pluginconfiguratie, een harde koppeling of FIFO op dat bestand na de start, en een
-koppeling van het hele wortelpunt van een host-tmpfs die bij de start leeg is (ADR-0032, deel 1f).
+koppeling van het hele wortelpunt van een host-tmpfs die bij de start leeg is (ADR-0032, deel 1f). Correctie deel 1g:
+de container kan een eigen tmpfs niet sluitend onderscheiden van een lege gedeelde tmpfs; zie deel 1g en *Verplicht 3* in
+`CUSTOM_APP.md`.
