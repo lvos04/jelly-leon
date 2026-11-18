@@ -53,8 +53,10 @@ def compat_proef(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[str]:
     }.get(pad, {})
     monkeypatch.setattr(compat_api, "Http", Mock(return_value=http))
     monkeypatch.setattr(compat_api, "login", Mock(return_value=(http, "proefgebruiker")))
-    monkeypatch.setattr(compat_api, "Kant", lambda label, *args: Mock(label=label, start=Mock(return_value="12.4")))
-    monkeypatch.setattr(compat_api, "subprocess", Mock())
+    monkeypatch.setattr(compat_api, "Kant", lambda label, *args: Mock(
+        label=label, url="http://127.0.0.1:19096", start=Mock(return_value="12.4"),
+    ))
+    monkeypatch.setattr(compat_api.subprocess, "run", Mock())
     monkeypatch.setattr(compat_api, "docker", Mock())
     return ["--image", "fork", "--stock-image", "stock", "--werkmap", str(tmp_path),
             "--report", str(tmp_path / "compat.json")]
@@ -79,6 +81,25 @@ def test_compat_redacts_terminal_and_json_on_api_difference(
     rapport = json.loads(bestand)
     assert "Tag=jelly-leon" in terminal.out and "Tag=jelly-leon" in rapport["verschillen"][0]
     assert "ExtraInfo" in rapport["verschillen"][0]
+    if any(proefwaarde in tekst for tekst in (terminal.out, terminal.err, bestand)):
+        pytest.fail("Synthetische sleutelwaarde zichtbaar in de uitvoer")
+
+
+def test_compat_redacts_terminal_and_json_on_runtime_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str], compat_proef: list[str],
+) -> None:
+    proefwaarde = "proefwaarde"
+    fout = RuntimeError(f"PlaybackInfo gaf een fout: /video?ApiKey={proefwaarde}&Tag=t")
+    monkeypatch.setattr(compat_api, "collect", Mock(side_effect=fout))
+
+    assert compat_api.main(compat_proef) == 1
+    terminal = capsys.readouterr()
+    bestand = (tmp_path / "compat.json").read_text(encoding="utf-8")
+    laatste_stap = json.loads(bestand)["stappen"][-1]
+    detail = "RuntimeError: PlaybackInfo gaf een fout: /video?ApiKey=<x>&Tag=t"
+    assert detail in terminal.out
+    assert laatste_stap["detail"] == detail
+    assert laatste_stap["geslaagd"] is False
     if any(proefwaarde in tekst for tekst in (terminal.out, terminal.err, bestand)):
         pytest.fail("Synthetische sleutelwaarde zichtbaar in de uitvoer")
 
@@ -129,6 +150,33 @@ def test_compat_fails_when_global_openapi_security_is_removed(
     rapport = json.loads((tmp_path / "compat.json").read_text(encoding="utf-8"))
     assert not rapport["geslaagd"]
     assert any("globale security" in probleem for probleem in rapport["openapi_problemen"])
+
+
+@pytest.mark.parametrize("fork_basispad, exitcode", [("/gewijzigd", 1), ("/mediahub", 0)])
+def test_compat_checks_global_openapi_server_base_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, compat_proef: list[str], fork_basispad: str, exitcode: int,
+) -> None:
+    test_urls = {"basis": "http://127.0.0.1:19095", "stock": "http://127.0.0.1:19096",
+                 "jelly-leon": "http://localhost:29096"}
+    monkeypatch.setattr(compat_api, "Kant", lambda label, *args: Mock(
+        label=label, url=test_urls[label], start=Mock(return_value="12.4"),
+    ))
+    antwoorden = {"PlaybackInfo film": {"MediaSources": [{"SupportsDirectPlay": True, "TranscodingUrl": "/video"}]}}
+
+    def collect(kant: Mock, _password: str) -> dict:
+        basispad = "/mediahub" if kant.label == "stock" else fork_basispad
+        return {"antwoorden": antwoorden, "openapi": {
+            "paths": {"/Items": {"get": {}}}, "servers": [{"url": f"{kant.url}{basispad}"}],
+        }}
+
+    monkeypatch.setattr(compat_api, "collect", collect)
+    assert compat_api.main(compat_proef) == exitcode
+    rapport = json.loads((tmp_path / "compat.json").read_text(encoding="utf-8"))
+    assert rapport["geslaagd"] is (exitcode == 0)
+    assert rapport["openapi_problemen"] == (
+        ['globaal OpenAPI-serverbasispad gewijzigd: $[0]["url"]'] if exitcode else []
+    )
+    assert rapport["verschillen"] == rapport["openapi_toegevoegd"] == []
 
 
 def test_openapi_detects_changes_in_shared_components() -> None:

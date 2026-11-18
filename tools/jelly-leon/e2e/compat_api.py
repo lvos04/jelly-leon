@@ -13,8 +13,8 @@ raamwerk vast en draait het nu met die plugin:
      /MediaSegments/{id}, /SyncPlay/List en PlaybackInfo per item met drie apparaatprofielen (Direct Play, transcode,
      alleen audio; mét MediaSourceId en AudioStreamIndex zoals de webclient);
   4. de door de server geserveerde OpenAPI: Jelly Leon mag alleen paden toevoegen onder /media/v1 of /connector/v1
-     en nieuwe schema's toevoegen; bestaande paden, globale authenticatie en componenten blijven gelijk
-     (description-teksten tellen niet, ADR-0010).
+     en nieuwe schema's toevoegen; bestaande paden, globale authenticatie, globale servers en componenten blijven gelijk
+     (description-teksten en de host en poort van de eigen testserver tellen niet, ADR-0010).
 
 Exitcode 0 = geen enkele afwijking buiten de toegestane uitbreiding. Sim; geen echte clients.
 """
@@ -34,6 +34,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 E2E = Path(__file__).resolve().parent
 REPO = E2E.parents[2]
@@ -163,7 +164,20 @@ def collect(kant: Kant, password: str) -> dict[str, Any]:
     return {"antwoorden": normalize(out), "openapi": openapi}
 
 
-def compare_openapi(stock: dict[str, Any], fork: dict[str, Any]) -> tuple[list[str], list[str]]:
+def normalize_global_servers(document: dict[str, Any], test_url: str) -> object:
+    test_host = urlsplit(test_url).netloc
+    servers = []
+    for server in document.get("servers", []):
+        url = urlsplit(server["url"])
+        if test_host and url.netloc == test_host:
+            server = {**server, "url": url._replace(netloc="testserver.invalid").geturl()}
+        servers.append(server)
+    return strip_descriptions(servers)
+
+
+def compare_openapi(
+    stock: dict[str, Any], fork: dict[str, Any], *, stock_url: str = "", fork_url: str = "",
+) -> tuple[list[str], list[str]]:
     sp, fp = stock.get("paths", {}), fork.get("paths", {})
     added = sorted(p for p in fp if p not in sp)
     problems = [f"pad alleen in Jelly Leon buiten {ADDITIEF}: {p}" for p in added if not p.startswith(ADDITIEF)]
@@ -180,6 +194,8 @@ def compare_openapi(stock: dict[str, Any], fork: dict[str, Any]) -> tuple[list[s
     problems += [f"gedeeld schema gewijzigd: {d}" for d in diff_paths(
         strip_descriptions(ss), strip_descriptions({k: fs[k] for k in ss.keys() & fs.keys()}))[:10]]
     problems += [f"globale security gewijzigd: {d}" for d in diff_paths(stock.get("security"), fork.get("security"))[:10]]
+    problems += [f"globaal OpenAPI-serverbasispad gewijzigd: {d}" for d in diff_paths(
+        normalize_global_servers(stock, stock_url), normalize_global_servers(fork, fork_url))[:10]]
     components_a = strip_descriptions({k: v for k, v in sc.items() if k != "schemas"})
     components_b = strip_descriptions({k: v for k, v in fc.items() if k != "schemas"})
     problems += [f"OpenAPI-component gewijzigd: {d}" for d in diff_paths(components_a, components_b)[:10]]
@@ -272,6 +288,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
             try:
                 kanten[label] = collect(kant, password)
                 kanten[label]["versie"] = versie
+                kanten[label]["url"] = kant.url
             finally:
                 kant.stop()
         add("zelfde serverversie", kanten["stock"]["versie"] == kanten["jelly-leon"]["versie"],
@@ -286,7 +303,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
         dp = any(v and v[0][0] for v in besluiten.values())
         tc = any(v and v[0][2] for v in besluiten.values())
         add("PlaybackInfo dekt Direct Play én transcode", dp and tc, json.dumps(besluiten, ensure_ascii=False))
-        problemen, toegevoegd = compare_openapi(kanten["stock"]["openapi"], kanten["jelly-leon"]["openapi"])
+        problemen, toegevoegd = compare_openapi(
+            kanten["stock"]["openapi"], kanten["jelly-leon"]["openapi"],
+            stock_url=kanten["stock"]["url"], fork_url=kanten["jelly-leon"]["url"],
+        )
         add("OpenAPI van de server: alleen additief onder /media/v1 en /connector/v1", not problemen,
             f"toegevoegd: {toegevoegd}" + ("; " + "; ".join(problemen[:6]) if problemen else ""))
         result = {"verschillen": verschillen, "playbackinfo_besluiten": besluiten, "openapi_toegevoegd": toegevoegd,
