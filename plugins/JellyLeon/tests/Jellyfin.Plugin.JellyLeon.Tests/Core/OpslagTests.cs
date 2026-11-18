@@ -610,4 +610,60 @@ public sealed class OpslagTests : IDisposable
         using var ander = new Harnas();
         Assert.NotEqual(id, ander.Dienst<SecretStore>().OpaakId("apparaat", "TV Woonkamer"));
     }
+
+    /// <summary>
+    /// Deel 1f (BN-1, R-HARDE-EIS-1): een eigen tmpfs van de container wordt herkend uit de mounttabel, niet uit de naam:
+    /// alleen het koppelpunt zelf, van een heel tmpfs-bestandssysteem (wortel "/"); bij gestapelde mounts telt de laatste.
+    /// </summary>
+    [Fact]
+    public void TmpfsCache_AlleenEenEigenKoppelpuntVanEenHeleTmpfsTelt()
+    {
+        const string Wortel = "21 1 0:20 / / rw,relatime - overlay overlay rw";
+        static string Tmpfs(string wortel, string punt) => $"900 21 0:99 {wortel} {punt} rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=512000k";
+
+        Assert.True(JlPaths.IsEigenTmpfs("/cache", [Wortel, Tmpfs("/", "/cache")]));
+        Assert.True(JlPaths.IsEigenTmpfs("/cache/", [Wortel, Tmpfs("/", "/cache")]));
+        Assert.True(JlPaths.IsEigenTmpfs("/mijn cache", [Wortel, Tmpfs("/", "/mijn\\040cache")]));
+        Assert.True(JlPaths.IsEigenTmpfs("/cache", [Wortel, "800 21 0:50 /ds /cache rw - zfs pool/ds rw", Tmpfs("/", "/cache")]));
+        Assert.False(JlPaths.IsEigenTmpfs("/cache", [Wortel]));
+        Assert.False(JlPaths.IsEigenTmpfs("/cache", [Wortel, Tmpfs("/gedeeld", "/cache")]));
+        Assert.False(JlPaths.IsEigenTmpfs("/cache", [Wortel, Tmpfs("/", "/")]));
+        Assert.False(JlPaths.IsEigenTmpfs("/cache/sub", [Wortel, Tmpfs("/", "/cache")]));
+        Assert.False(JlPaths.IsEigenTmpfs("/cache", [Wortel, Tmpfs("/", "/cache"), "800 21 0:50 /ds /cache rw - zfs pool/ds rw"]));
+        Assert.False(JlPaths.IsEigenTmpfs("/cache", [Wortel, "800 21 0:50 / /cache rw - zfs pool/ds rw"]));
+    }
+
+    /// <summary>
+    /// Deel 1f (BN-1, R-HARDE-EIS-1): een eigen tmpfs als cachemap wordt aanvaard met de modus (1777) en eigenaar (root of een
+    /// andere gebruiker) die Docker of TrueNAS geeft; zonder tmpfs, als map ín een tmpfs, of als datamap blijft het streng.
+    /// De mounttabel is hier synthetisch (een tmpfs koppelen vraagt root); de echte tabel wordt wel gelezen en ontleed.
+    /// </summary>
+    [Fact]
+    public void TmpfsCache_EigenTmpfsAlsCacheWordtAanvaardAlsDatamapNiet()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("De opslaggrens geldt alleen in de Linux-container.");
+        }
+
+        Assert.True(JlPaths.IsEigenTmpfs("/dev/shm", File.ReadLines("/proc/self/mountinfo")), "verwacht /dev/shm als eigen tmpfs in de echte mounttabel");
+        var data = Path.Combine(_h.Map, "data");
+        var cache = Directory.CreateDirectory(Path.Combine(_h.Map, "tmpfs-cache")).FullName;
+        File.SetUnixFileMode(cache, (UnixFileMode)Convert.ToInt32("1777", 8));
+        var vreemd = Environment.GetEnvironmentVariable("JL_VREEMDE_OPSLAG") ?? throw new InvalidOperationException("JL_VREEMDE_OPSLAG ontbreekt; maak eerst de tijdelijke eigenaarfixture.");
+        static string[] Tmpfs(string punt) => [$"900 21 0:99 / {punt} rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=512000k"];
+
+        Assert.Contains("voor groep of anderen", Assert.Throws<UnauthorizedAccessException>(() => new JlPaths(data, cache, [])).Message, StringComparison.Ordinal);
+        Assert.Contains("niet van de eigen gebruiker", Assert.Throws<UnauthorizedAccessException>(() => new JlPaths(data, vreemd, [])).Message, StringComparison.Ordinal);
+        foreach (var map in new[] { cache, vreemd })
+        {
+            var paden = new JlPaths(data, map, Tmpfs(map));
+            Assert.Equal(map, paden.EigenTmpfs);
+            paden.EisVeiligBestand(Path.Combine(paden.CacheRoot, "run", "werker.sock"));
+        }
+
+        Assert.Throws<UnauthorizedAccessException>(() => new JlPaths(cache, Path.Combine(_h.Map, "cache"), Tmpfs(cache)));
+        Assert.Throws<UnauthorizedAccessException>(() => new JlPaths(data, cache, Tmpfs(_h.Map)));
+        Assert.Null(_h.Dienst<JlPaths>().EigenTmpfs);
+    }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,14 @@ internal sealed class JlPaths
     private const string RunWortel = "/run/jelly-leon";
 
     public JlPaths(string dataPath, string cachePath)
+        : this(dataPath, cachePath, OperatingSystem.IsLinux() ? File.ReadLines("/proc/self/mountinfo") : [])
+    {
+    }
+
+    /// <param name="dataPath">De datamap van de server.</param>
+    /// <param name="cachePath">De cachemap van de server.</param>
+    /// <param name="mountinfo">De regels van <c>/proc/self/mountinfo</c> (tests geven een eigen tabel).</param>
+    internal JlPaths(string dataPath, string cachePath, IEnumerable<string> mountinfo)
     {
         if (new[] { dataPath, cachePath }.Any(p => Path.GetFullPath(p).TrimEnd('/') is "" or "/tmp" or "/run"))
         {
@@ -25,13 +34,22 @@ internal sealed class JlPaths
 
         DataRoot = Path.GetFullPath(Path.Combine(dataPath, "jelly-leon"));
         CacheRoot = Path.GetFullPath(Path.Combine(cachePath, "jelly-leon"));
+        var cacheMap = Path.GetDirectoryName(CacheRoot)!;
+        EigenTmpfs = IsEigenTmpfs(cacheMap, mountinfo) ? cacheMap : null;
         EisVeiligeMap(DataRoot, maak: false);
-        EisVeiligeMap(CacheRoot, maak: false);
+        EisVeiligeMap(CacheRoot, maak: false, EigenTmpfs);
     }
 
     public string DataRoot { get; }
 
     public string CacheRoot { get; }
+
+    /// <summary>
+    /// De cachemap van de server als die een eigen tmpfs van deze container is (deel 1f, BN-1), anders null. Zo'n tmpfs
+    /// bestaat alleen in deze container; zijn eigenaar en modus (ook 1777) komen van Docker of TrueNAS. Alleen voor de
+    /// cache: de datamap blijft even streng.
+    /// </summary>
+    public string? EigenTmpfs { get; }
 
     public string SecretsDir => Path.Combine(DataRoot, "secrets");
 
@@ -133,8 +151,36 @@ internal sealed class JlPaths
         return huidig;
     }
 
+    /// <summary>
+    /// Is <paramref name="map"/> zelf het koppelpunt van een heel tmpfs-bestandssysteem (wortel "/", dus geen gekoppelde
+    /// map van de host)? Vastgesteld uit de mounttabel (<c>/proc/self/mountinfo</c>), niet uit de naam; bij gestapelde
+    /// mounts telt de laatste. Een tmpfs uit het formulier maakt Docker bij elke start nieuw; de start van de container
+    /// eist bovendien dat hij dan leeg is (ADR-0032, deel 1f).
+    /// </summary>
+    internal static bool IsEigenTmpfs(string map, IEnumerable<string> mountinfo)
+    {
+        var doel = Path.GetFullPath(map).TrimEnd('/');
+        bool? uitkomst = null;
+        foreach (var regel in mountinfo)
+        {
+            var delen = regel.Split(" - ", 2);
+            var links = delen[0].Split(' ');
+            if (delen.Length != 2 || links.Length < 6 || Ontsnap(links[4]) != doel)
+            {
+                continue;
+            }
+
+            uitkomst = delen[1].Split(' ')[0] == "tmpfs" && links[3] == "/";
+        }
+
+        return uitkomst ?? false;
+    }
+
     /// <summary>Controleert elke bestaande ouder, ook boven de eigen wortel; nieuwe mappen zijn 0700.</summary>
-    internal static void EisVeiligeMap(string pad, bool maak)
+    /// <param name="pad">De map.</param>
+    /// <param name="maak">Ontbrekende mappen aanmaken (0700).</param>
+    /// <param name="eigenTmpfs">De cachemap als die een eigen tmpfs van deze container is (zie <see cref="EigenTmpfs"/>).</param>
+    internal static void EisVeiligeMap(string pad, bool maak, string? eigenTmpfs = null)
     {
         if (!OperatingSystem.IsLinux())
         {
@@ -152,10 +198,10 @@ internal sealed class JlPaths
             throw new UnauthorizedAccessException("Jelly Leon-opslag vereist één niet-rootgebruiker zonder effectieve capabilities.");
         }
 
-        ControleerMap(Path.GetFullPath(pad), maak);
+        ControleerMap(Path.GetFullPath(pad), maak, eigenTmpfs);
     }
 
-    private static void ControleerMap(string pad, bool maak)
+    private static void ControleerMap(string pad, bool maak, string? eigenTmpfs)
     {
         if (!OperatingSystem.IsLinux())
         {
@@ -165,7 +211,7 @@ internal sealed class JlPaths
         var ouder = Path.GetDirectoryName(pad);
         if (ouder is not null)
         {
-            ControleerMap(ouder, maak);
+            ControleerMap(ouder, maak, eigenTmpfs);
         }
 
         if (new FileInfo(pad).LinkTarget is not null)
@@ -181,6 +227,12 @@ internal sealed class JlPaths
             }
 
             Directory.CreateDirectory(pad, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        // Een eigen tmpfs van deze container (alleen de cachemap): niemand buiten de container kan daarin iets neerleggen.
+        if (pad == eigenTmpfs)
+        {
+            return;
         }
 
         var modus = File.GetUnixFileMode(pad);
@@ -215,7 +267,7 @@ internal sealed class JlPaths
             throw new UnauthorizedAccessException("Opslag buiten de eigen mappen of via een koppeling is niet toegestaan.");
         }
 
-        EisVeiligeMap(Path.GetDirectoryName(Path.GetFullPath(pad))!, maak: false);
+        EisVeiligeMap(Path.GetDirectoryName(Path.GetFullPath(pad))!, maak: false, EigenTmpfs);
         if (!OperatingSystem.IsLinux())
         {
             throw new PlatformNotSupportedException("Controle van opslagrechten vereist Linux.");
@@ -290,6 +342,11 @@ internal sealed class JlPaths
         var echteOuder = EchtPad(ouder);
         return echteOuder is null ? null : Path.Combine(echteOuder, Path.GetFileName(vol));
     }
+
+    /// <summary>Een pad uit mountinfo: spatie, tab, regeleinde en backslash staan daar als octale code.</summary>
+    private static string Ontsnap(string veld) =>
+        veld.Replace("\\040", " ", StringComparison.Ordinal).Replace("\\011", "\t", StringComparison.Ordinal)
+            .Replace("\\012", "\n", StringComparison.Ordinal).Replace("\\134", "\\", StringComparison.Ordinal);
 
     private static bool Binnen(string pad, string wortel)
     {

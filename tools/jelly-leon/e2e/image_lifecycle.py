@@ -3,7 +3,8 @@
 
 Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas/CUSTOM_APP.md doet:
   1. lege host-mappen voor /config en /cache (eigenaar = aanroeper, niet 568; modus 0755 zoals een correcte dataset)
-     en media alleen-lezen; vooraf: /config en /cache in de image zijn 568:568 0755, ook /cache als tmpfs (S-G1-16);
+     en media alleen-lezen; vooraf: /config in de image is 568:568 0755, /cache 568:568 1777 (een tmpfs-/cache wordt
+     0:0 1777, schrijfbaar voor een Custom User; S-G1-16 deel 1c en 1f);
   2. container starten zoals het formulier: als root (geen Custom User), niet privileged, geen extra capabilities,
      geen host-netwerk, alleen poort 8096 gepubliceerd;
   3. wachten tot de Docker-healthcheck van de image `healthy` meldt;
@@ -22,7 +23,9 @@ Bootst na wat een standaard TrueNAS Custom App met de waarden uit deploy/truenas
   7. container verwijderen en opnieuw aanmaken met dezelfde opslag (zoals een app-update/herinstallatie)
      → healthy → smoketest modus `herstart`; daarna nog eens met "Custom User 568" (`--user 568:568`) → healthy →
      smoketest `herstart` → elk proces 568, CapEff/CapPrm/CapAmb 0, NoNewPrivs 1 (de image zet no_new_privs zelf,
-     §2.2; CapBnd mag dan de Docker-standaardset zijn), ook de healthcheck;
+     §2.2; CapBnd mag dan de Docker-standaardset zijn), ook de healthcheck; daarna /cache als tmpfs zoals het formulier
+     hem rendert (alleen size), als root en als Custom User 568: healthy, rooktest, plugin aan (modules 200, geen
+     opslagmelding; S-G1-16 deel 1f, BN-1);
   8. negatieve tests (fail-closed): de container weigert te starten en de mediamap blijft onaangeroerd bij
      - geen opslagregel voor /cache (anoniem Docker-volume);
      - JELLYFIN_CACHE_DIR naar de mediamap (root zou anders `chown -R` op de media doen);
@@ -64,6 +67,8 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
+import stock_client_smoke
+
 E2E_DIR = Path(__file__).resolve().parent
 SMOKE = E2E_DIR / "stock_client_smoke.py"
 MAKE_MEDIA = E2E_DIR / "make_test_media.py"
@@ -72,6 +77,9 @@ APP_UID = "568"
 HEALTHCHECK = "/usr/local/bin/jelly-leon-healthcheck"
 DATAMAP_VERSION = "jelly-leon/datamap-versie"
 WEB_TITLE = b"<title>Jelly Leon</title>"
+# De vaste, niet-geheime testaccounts van stock_client_smoke.py (standaardwaarden van --username/--password).
+SMOKE_ADMIN = ("jl-smoke-admin", "jl-smoke-wachtwoord-niet-geheim")
+SMOKE_HUB = ("jl-smoke-hub", "jl-smoke-hub-wachtwoord-niet-geheim")
 
 
 def tree_state(root: Path) -> dict[str, tuple[int, int, int, bytes | str]]:
@@ -553,14 +561,51 @@ class Lifecycle:
 
     # ------------------------------------------------------------------ verloop
     def check_storage_modes(self) -> bool:
-        """S-G1-16 deel 1c: /config en /cache in de image zijn 568:568 0755, ook /cache als tmpfs (die neemt de modus van
-        de imagemap over; de basisimage heeft 0777 en de start weigert een voor groep of anderen beschrijfbare map)."""
+        """S-G1-16 deel 1c en 1f: /config in de image is 568:568 0755 (de start weigert een voor groep of anderen
+        beschrijfbare map); /cache is 568:568 1777, zodat een tmpfs-/cache (neemt de modus van de imagemap over, niet de
+        eigenaar) ook voor een Custom User schrijfbaar is (BN-1, R-HARDE-EIS-1)."""
         image = docker("run", "--rm", "--network", "none", "--entrypoint", "stat", self.args.image,
                        "-c", "%u:%g %a", "/config", "/cache", check=False).stdout.split()
         tmpfs = docker("run", "--rm", "--network", "none", "--tmpfs", "/cache", "--entrypoint", "stat", self.args.image,
-                       "-c", "%a", "/cache", check=False).stdout.strip()
-        ok = image == ["568:568", "755", "568:568", "755"] and tmpfs == "755"
-        return self.add("opslagmappen in de image 568:568 0755 (ook /cache als tmpfs)", ok, f"image {image}; tmpfs {tmpfs}")
+                       "-c", "%u:%g %a", "/cache", check=False).stdout.strip()
+        ok = image == ["568:568", "755", "568:568", "1777"] and tmpfs == "0:0 1777"
+        return self.add("opslagmappen in de image: /config 568:568 0755, /cache 568:568 1777 (als tmpfs 0:0 1777)", ok,
+                        f"image {image}; tmpfs {tmpfs}")
+
+    def api(self, method: str, path: str, token: str | None = None, body: object | None = None) -> tuple[int, object]:
+        """Eén verzoek als de webclient van de rooktest (token None = zonder aanmelding)."""
+        auth = {"Authorization": stock_client_smoke.auth_value(stock_client_smoke.CLIENTS["web"], token)} if token else {}
+        return stock_client_smoke.Client(f"http://127.0.0.1:{self.port}").json(method, path, headers=auth, body=body)
+
+    def login(self, user: str, password: str) -> tuple[str, str]:
+        """(token, gebruikers-ID) van een gebruiker die de rooktest maakte; leeg als aanmelden mislukt."""
+        auth = {"Authorization": stock_client_smoke.auth_value(stock_client_smoke.CLIENTS["web"])}
+        status, body = stock_client_smoke.Client(f"http://127.0.0.1:{self.port}").json(
+            "POST", "/Users/AuthenticateByName", headers=auth, body={"Username": user, "Pw": password})
+        if status == 200 and isinstance(body, dict):
+            return str(body.get("AccessToken", "")), str((body.get("User") or {}).get("Id", ""))
+        return "", ""
+
+    def check_tmpfs_cache_starts(self, first: dict) -> bool:
+        """S-G1-16 deel 1f (BN-1, R-HARDE-EIS-1): /cache als tmpfs zoals het TrueNAS-formulier hem rendert (alleen size),
+        als root en als Custom User 568: healthy, rooktest, en de plugin is niet teruggevallen (modules 200, geen
+        opslagmelding)."""
+        ok = True
+        mounts = [f"{self.config}:/config", f"{self.media}:/media/muziek:ro"]
+        for label, extra in (("root", []), ("Custom User 568:568", ["--user", f"{APP_UID}:{APP_UID}"])):
+            self.remove(self.name)
+            docker(*self.run_args(self.name, mounts=mounts, extra=["--tmpfs", "/cache:size=524288000", *extra]))
+            if not self.wait_healthy(f"/cache als tmpfs, {label}") or not self.smoke(f"tmpfs-cache {label}", "herstart", first):
+                ok = False
+                continue
+            token, _ = self.login(*SMOKE_ADMIN)
+            status, _ = self.api("GET", "/media/v1/modules", token) if token else (0, None)
+            log = self.logs(self.name, 400)
+            fallback = "alleen de plugin is uitgeschakeld" in log
+            ok = self.add(f"plugin aan met /cache als tmpfs ({label})", status == 200 and not fallback,
+                          f"GET /media/v1/modules als beheerder: HTTP {status}; opslagmelding in het serverlog: {fallback}") and ok
+        self.remove(self.name)
+        return ok
 
     def expect_shared_config_refusal(self) -> bool:
         """S-G1-16 deel 1c, actor (b): een andere gebruiker (deze testgebruiker, niet 568) legt in een te ruim gedeelde
@@ -672,6 +717,7 @@ class Lifecycle:
                 return False
             self.check_all_processes("Custom User 568:568", root_start=False)
             self.check_healthcheck("Custom User 568:568", root_start=False)
+            self.check_tmpfs_cache_starts(first)
             self.add("mediamap onaangeroerd", self.media_fingerprint() == media_before, "eigenaar/rechten ongewijzigd")
         finally:
             self.remove(self.name)

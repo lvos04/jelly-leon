@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "e2e"))
 
 import image_lifecycle  # noqa: E402
@@ -200,3 +202,40 @@ def test_pluginkoppeling_weigering_merkt_een_overschreven_database_op(tmp_path, 
     life = _pluginlife(tmp_path, monkeypatch, overschrijf)
     assert not life.expect_plugin_link_refusal()
     assert not any(stap["geslaagd"] for stap in life.steps[1:])
+
+
+
+def _tmpfslife(tmp_path, monkeypatch, *, status=200, log="", healthy=True):
+    life = object.__new__(image_lifecycle.Lifecycle)
+    life.work, life.config, life.media, life.steps = tmp_path, tmp_path / "config", tmp_path / "media", []
+    life.name, life.port, life.args = "jl", 1, type("Args", (), {"image": "proef"})()
+    starts = []
+
+    def nep_docker(*args, **kwargs):
+        starts.append(args)
+        return image_lifecycle.subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(image_lifecycle, "docker", nep_docker)
+    monkeypatch.setattr(life, "wait_healthy", lambda label: healthy)
+    monkeypatch.setattr(life, "smoke", lambda *a, **k: {"item_id": "i"})
+    monkeypatch.setattr(life, "login", lambda *a: ("token", "id"))
+    monkeypatch.setattr(life, "api", lambda *a, **k: (status, None))
+    monkeypatch.setattr(life, "logs", lambda *a, **k: log)
+    return life, starts
+
+
+def test_tmpfs_cache_start_als_root_en_custom_user(tmp_path, monkeypatch):
+    life, starts = _tmpfslife(tmp_path, monkeypatch)
+    assert life.check_tmpfs_cache_starts({"item_id": "i", "gebruiker_id": "g"})
+    runs = [a for a in starts if a[0] == "run"]
+    assert len(runs) == 2 and all("/cache:size=524288000" in a and not any(m.endswith(":/cache") for m in a) for a in runs)
+    assert "--user" not in runs[0] and "568:568" in runs[1]
+
+
+@pytest.mark.parametrize(
+    ("status", "log", "healthy"),
+    [(503, "", True), (200, "Jelly Leon: ... alleen de plugin is uitgeschakeld", True), (200, "", False)],
+)
+def test_tmpfs_cache_start_merkt_terugval_of_uitval_op(tmp_path, monkeypatch, status, log, healthy):
+    life, _ = _tmpfslife(tmp_path, monkeypatch, status=status, log=log, healthy=healthy)
+    assert not life.check_tmpfs_cache_starts({"item_id": "i", "gebruiker_id": "g"})

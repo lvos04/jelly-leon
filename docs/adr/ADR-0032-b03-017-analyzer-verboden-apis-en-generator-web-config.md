@@ -952,6 +952,31 @@ gebruiker, niet door de image beheerd.
 Geen andere plek: de plugin gebruikt `DataFolderPath` niet, heeft geen eigen logbestand, en de server schrijft voor de plugin
 niets in `/cache`.
 
+**`/cache` als tmpfs met Custom User (R-HARDE-EIS-1, blokkerend; besluit BN-1 optie B).** `CUSTOM_APP.md` staat Custom User
+(568) en `/cache` als tmpfs allebei toe, en de vorige image startte zo. Sinds deel 1c weigerde de start dat: Docker geeft een
+tmpfs zonder opties de modus van de imagemap (0755 sinds 1c) en eigenaar root (gemeten), dus `/cache` was niet van 568 en niet
+schrijfbaar, en de melding wees naar een dataset die bij een tmpfs niet bestaat. Herhaald en rood gezien. Besluit: een
+tmpfs-`/cache` bestaat alleen in deze container; niemand anders kan er iets in neerleggen. Herstel:
+- De start (`own_tmpfs`) stelt uit `/proc/self/mountinfo` vast, niet uit de naam, dat `/cache` zelf het koppelpunt is van een
+  heel tmpfs-bestandssysteem (wortel `/`; een gekoppelde map van de host heeft een andere wortel) en dat die bij de start leeg
+  is (Docker maakt de tmpfs bij elke start nieuw en leeg; gemeten met `docker restart` en stop/start). Alleen dan aanvaardt zij
+  voor `/cache` de eigenaar en modus die Docker of TrueNAS geeft (root, 1777 of 0777). Een gekoppelde map, een al gevulde tmpfs
+  en een gewone map met 1777 blijven geweigerd; `/config` en een `/cache` op een dataset of hostpad blijven even streng.
+- De plugin (`JlPaths.IsEigenTmpfs`, `EigenTmpfs`) slaat voor precies die cachemap de modus- en eigenaarscontrole over, met
+  dezelfde vaststelling uit de mounttabel (de leegte heeft de start al gecontroleerd); de datamap blijft streng, ook als tmpfs.
+- De image zet `/cache` op 1777: een tmpfs krijgt die modus mee, zodat ook een Custom User erin kan schrijven. Een nieuw
+  Docker-volume neemt de modus van de imagemap ook over (deel 1c) en is geen eigen tmpfs, dus geweigerd; het formulier kent
+  geen gewoon Docker-volume (alleen Host Path, ixVolume, SMB/NFS-share en tmpfs; openbare bron `ix-dev/stable/ix-app/questions.yaml`)
+  en een anoniem volume weigert de start al. Een SMB/NFS-share als `/cache` is niet gemeten.
+- De meldingen bij een tmpfs verwijzen niet meer naar Datasets → Permissions, maar naar het opslagtype in het formulier.
+Gemeten met de echte entrypoint in netwerkloze wegwerpcontainers: Custom User 568 met een tmpfs 1777 (zoals de nieuwe image)
+en root met een tmpfs 0777 (basisimage) starten; Custom User met een tmpfs 0755 weigert met de tmpfs-melding; de host-`/dev/shm`
+(gevuld) als `/cache` weigert, als root en als Custom User. **Grens (eerlijk):** binnen de container is een koppeling van het
+héle wortelpunt van een tmpfs van de host (bijvoorbeeld Host Path `/dev/shm`, dat de TrueNAS-appbibliotheek niet uitsluit) niet
+te onderscheiden van een eigen tmpfs als die bij de start toevallig leeg is. Daarom zegt `CUSTOM_APP.md`: voor `/cache` alleen
+het opslagtype tmpfs of een eigen dataset, nooit een Host Path naar een map buiten je datasets. Of TrueNAS bij een tmpfs ook
+1777 of een andere modus geeft, blijft een NAS-meting.
+
 ### 2. Witte lijst: één API in één klasse
 
 `JellyLeon.AnalyzerUitzonderingen.txt` naast het pluginproject, één regel per uitzondering:

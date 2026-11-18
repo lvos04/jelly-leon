@@ -93,7 +93,7 @@ internal sealed class InternalWriteScope
     {
         // De wortel zelf is geen bestandspad; een fictief kind toetst dezelfde schrijfgrens.
         _paden.EisVeiligBestand(Path.Combine(pad, "x"));
-        JlPaths.EisVeiligeMap(pad, maak: true);
+        JlPaths.EisVeiligeMap(pad, maak: true, _paden.EigenTmpfs);
     }
 
     private FileStream OpenNieuw(string pad)

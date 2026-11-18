@@ -25,7 +25,9 @@
 #    schrijven in bijvoorbeeld de database met kijkgegevens. Deel 1e: ook een bestand in een eigen pluginmap dat geen
 #    gewoon bestand met één naam is, wordt vóór vergelijken, vastleggen, eigenaarswissel of schrijven geweigerd, en de DLL
 #    wordt als nieuw bestand naast het doel geschreven en dan hernoemd (nooit door een bestaande ingang heen). Deel 1f:
-#    ook plugins/configurations en daarin Jellyfin.Plugin.JellyLeon.xml (de server leest en schrijft dat bestand).
+#    ook plugins/configurations en daarin Jellyfin.Plugin.JellyLeon.xml (de server leest en schrijft dat bestand). Een
+#    /cache die een eigen tmpfs van deze container is (eigen koppelpunt, bij de start leeg; own_tmpfs) wordt aanvaard met
+#    de eigenaar en modus van Docker of TrueNAS; de image zet /cache op 1777, zodat ook een Custom User erin schrijft.
 #  * De meegeleverde Jelly Leon-plugin wordt in <datamap>/plugins/JellyLeon_<versie> gezet; andere plugins blijven
 #    onaangeroerd. Geen geheimen, geen netwerkaanroepen, geen shell voor iets anders dan deze start.
 #  * Downgradeweigering (B03-014, JLT-61 b): <datamap>/jelly-leon/datamap-versie onthoudt de hoogste forkversie die de
@@ -41,6 +43,7 @@ DATA_DIR="${JELLYFIN_DATA_DIR:-/config}"
 CACHE_DIR="${JELLYFIN_CACHE_DIR:-/cache}"
 BUNDLED_PLUGINS=/usr/share/jelly-leon/plugins
 IMAGE_VERSION_FILE=/usr/share/doc/jelly-leon/VERSION
+MOUNTINFO=/proc/self/mountinfo
 SELF=$(readlink -f -- "$0")
 
 log() { printf '%s jelly-leon: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
@@ -75,7 +78,18 @@ mount_of() {
         if (length(m) >= best) { best = length(m); out = fs " " $4 " " m }
       }
     }
-    END { if (out != "") print out }' /proc/self/mountinfo
+    END { if (out != "") print out }' "$MOUNTINFO"
+}
+
+# Deel 1f (BN-1): een tmpfs die alleen in deze container bestaat. Vastgesteld uit de mounttabel, niet uit de naam: de map
+# is zelf het koppelpunt van een heel tmpfs-bestandssysteem (wortel "/", dus geen gekoppelde map van de host) en is bij de
+# start leeg (Docker maakt een tmpfs bij elke start nieuw en leeg). Niemand buiten de container kan daar iets neerleggen.
+own_tmpfs() {
+  info=$(mount_of "$1") || return 1
+  rest=${info#* }
+  [ "${info%% *}" = tmpfs ] && [ "${rest%% *}" = / ] && [ "${rest#* }" = "$(readlink -f -- "$1")" ] || return 1
+  entries=$(ls -A -- "$1") || return 1
+  [ -z "$entries" ]
 }
 
 # Datamap en instellingen moeten op blijvende, lokale opslag uit het formulier staan; anders verdwijnen database en
@@ -197,10 +211,18 @@ assert_private_dir() {
   [ -e "$1" ] || return 0
   perm=$(stat -c '%a' -- "$1")
   owner=$(stat -c '%u' -- "$1")
+  # Een tmpfs is geen dataset: dan geen verwijzing naar Datasets → Permissions (deel 1f, R-HARDE-EIS-1).
+  tmpfs_fix="$1 staat in werkgeheugen (tmpfs) dat niet alleen van deze container is (geen eigen koppelpunt, of al gevuld bij de start); het is geen dataset. Kies in TrueNAS in het Custom App-formulier voor deze opslag een eigen dataset (Host Path of ixVolume) of, alleen voor /cache, het opslagtype tmpfs (de container krijgt dan bij elke start een eigen, lege tmpfs), en start de app opnieuw"
   if [ $((0$perm & 022)) -ne 0 ] && { [ -z "${3:-}" ] || [ $((0$perm & 01000)) -eq 0 ]; }; then
+    if [ "$(mount_of "$1" | cut -d ' ' -f 1)" = tmpfs ]; then
+      fail "$1 is voor groep of anderen beschrijfbaar (modus $perm). Er is niets gewijzigd. $tmpfs_fix"
+    fi
     fail "$1 is voor groep of anderen beschrijfbaar (modus $perm): een andere gebruiker of app kan daar een koppeling neerleggen waarlangs de start een ander bestand overschrijft, bijvoorbeeld de database met kijkgegevens. Er is niets gewijzigd. Zet in TrueNAS bij Datasets → de dataset van deze map → Permissions → Edit de schrijfrechten voor groep, anderen en extra ACL-regels uit, ook voor de onderliggende mappen (alleen de eigenaar apps, 568, schrijft), en start de app opnieuw"
   fi
   if [ -n "${2:-}" ] && [ "$owner" != "$2" ] && { [ -z "${3:-}" ] || [ "$owner" != 0 ]; }; then
+    if [ "$(mount_of "$1" | cut -d ' ' -f 1)" = tmpfs ]; then
+      fail "$1 is van gebruiker $owner, niet van $2. Er is niets gewijzigd. $tmpfs_fix"
+    fi
     fail "$1 is van gebruiker $owner, niet van $2: die gebruiker kan de map vervangen of er een koppeling in neerleggen. Er is niets gewijzigd. Maak in TrueNAS bij Datasets → de dataset van deze map → Permissions → Edit de gebruiker apps (568) eigenaar, ook van de onderliggende mappen, en start de app opnieuw"
   fi
 }
@@ -211,7 +233,10 @@ assert_private_dir() {
 # $1 = de app-gebruiker; leeg als root vóór de eenmalige eigenaarswissel.
 assert_private_storage() {
   for top in "$DATA_DIR" "$CACHE_DIR"; do
-    assert_private_dir "$top" "${1:-}"
+    # Deel 1f (BN-1): een eigen tmpfs als cache aanvaarden met de eigenaar en modus die Docker of TrueNAS geeft (ook 1777).
+    if [ "$top" != "$CACHE_DIR" ] || ! own_tmpfs "$top"; then
+      assert_private_dir "$top" "${1:-}"
+    fi
     parent=$(dirname -- "$top")
     while [ "${#parent}" -gt 1 ]; do # stopt bij / (en bij . voor een relatief pad)
       assert_private_dir "$parent" "${1:-}" ouder
@@ -308,6 +333,9 @@ if [ "$(id -u)" != "0" ]; then
   # schrijfbaar → NL-melding en stoppen (healthcheck rood), nooit stil doorstarten (contract 1.3 §2.2).
   for dir in "$DATA_DIR" "$CACHE_DIR"; do
     if [ ! -w "$dir" ] || [ ! -x "$dir" ]; then
+      if [ "$(mount_of "$dir" | cut -d ' ' -f 1)" = tmpfs ]; then
+        fail "$dir is werkgeheugen (tmpfs) waarin gebruiker $(id -u):$(id -g) (Custom User in het formulier) niet mag schrijven: zet Custom User uit, of kies voor Mount Path $dir het opslagtype tmpfs zonder eigen modus of een eigen dataset (Host Path of ixVolume) van deze gebruiker"
+      fi
       fail "$dir is niet schrijfbaar voor gebruiker $(id -u):$(id -g) (Custom User in het formulier): zet Custom User uit (de container maakt dan zelf 568:568 eigenaar van /config en /cache) of maak de dataset eerst van deze gebruiker"
     fi
   done

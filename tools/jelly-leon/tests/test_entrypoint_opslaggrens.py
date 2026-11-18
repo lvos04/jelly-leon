@@ -21,7 +21,7 @@ VERSIE = "12.4.0-jl.0"
 
 
 def fase_twee(
-    tmp: Path, data: Path, cache: Path, *, pauze: bool = False, body: str | None = None, mountinfo: str = "/proc/self/mountinfo"
+    tmp: Path, data: Path, cache: Path, *, pauze: bool = False, body: str | None = None, mountinfo: str | None = None
 ) -> str:
     tekst = SCRIPT.read_text(encoding="utf-8")
     # Alle functies van het entrypoint, eenregelig (log, fail) of meerregelig; de rest van het script draait niet.
@@ -36,10 +36,17 @@ def fase_twee(
     voorwerk = (
         f"set -eu\numask 022\nDATA_DIR='{data}'\nCACHE_DIR='{cache}'\nBUNDLED_PLUGINS='{tmp / 'bundel'}'\n"
         f"IMAGE_VERSION_FILE='{tmp / 'VERSION'}'\nDATAMAP_VERSION_FILE=\"$DATA_DIR/jelly-leon/datamap-versie\"\n"
-        f"MOUNTINFO='{mountinfo}'\n"
+        f"MOUNTINFO='{mountinfo or standaard_mountinfo(tmp)}'\n"
     )
     # De pauze staat buiten de productiecode: de proef leest de PID en legt dan pas de koppeling (in de container is $$ 1).
     return voorwerk + functies + ('printf "%s\\n" "$$"\nread -r _\n' if pauze else "") + body
+
+
+def standaard_mountinfo(tmp: Path) -> Path:
+    """Alleen een overlay-wortel, zoals in de container zonder tmpfs: de uitkomst hangt niet af van de testmachine."""
+    pad = tmp / "mountinfo-standaard"
+    pad.write_text("21 1 0:20 / / rw,relatime - overlay overlay rw\n")
+    return pad
 
 
 def maak(pad: Path, modus: int = 0o755) -> Path:
@@ -226,7 +233,7 @@ def test_downgradecontrole_leest_niet_voor_de_opslaggrens(tmp_path: Path, geval:
     # Onderschep de leesaanroep: oud volgt de koppeling of zou op de FIFO wachten. Geen echt blokkerend proces.
     script = (
         f"set -eu\nDATA_DIR='{data}'\nCACHE_DIR='{cache}'\nIMAGE_VERSION_FILE='{image}'\nBUNDLED_PLUGINS='{tmp_path}/geen'\n"
-        f"MOUNTINFO=/proc/self/mountinfo\nDATAMAP_VERSION_FILE='{versie}'\n" + functies
+        f"MOUNTINFO='{standaard_mountinfo(tmp_path)}'\nDATAMAP_VERSION_FILE='{versie}'\n" + functies
         + f"sed() {{ : > '{gelezen}'; printf 'fork_version={VERSIE}\\n'; }}\n"
         + "assert_not_downgrade\n"
     )
@@ -396,3 +403,55 @@ def test_rootfase_weigert_een_gekoppelde_pluginconfiguratie_voor_de_eigenaarswis
     assert proc.returncode != 0
     assert "EIGENAARSWISSEL" not in proc.stdout
     assert "is geen gewoon bestand met één naam" in proc.stdout + proc.stderr
+
+
+def mountinfo(tmp: Path, *regels: str) -> str:
+    """Een synthetische /proc/self/mountinfo (in de container leest de start de echte)."""
+    pad = tmp / "mountinfo"
+    pad.write_text("21 1 0:20 / / rw,relatime - overlay overlay rw\n" + "".join(regels))
+    return str(pad)
+
+
+def tmpfs_regel(punt: Path, wortel: str = "/") -> str:
+    """Zoals Docker een tmpfs uit het formulier (alleen size) in mountinfo zet."""
+    return f"900 21 0:99 {wortel} {punt} rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=512000k,inode64\n"
+
+
+@pytest.mark.parametrize("modus", [0o1777, 0o777, 0o755])
+def test_eigen_tmpfs_als_cache_start_met_de_modus_van_docker_of_truenas(tmp_path: Path, modus: int) -> None:
+    """BN-1 optie B (R-HARDE-EIS-1, deel 1f): /cache als tmpfs bestaat alleen in deze container. Een eigen, bij de start lege
+    tmpfs op het koppelpunt /cache start, ook met de modus die Docker of TrueNAS meegeeft (de image: 1777)."""
+    data, cache, buiten = opzet(tmp_path)
+    cache.chmod(modus)
+    proc = draai(fase_twee(tmp_path, data, cache, mountinfo=mountinfo(tmp_path, tmpfs_regel(cache))))
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert f"fork_version={VERSIE}" in (data / "jelly-leon" / "datamap-versie").read_text().splitlines()
+    assert not any(cache.iterdir()), "de start schrijft niets in /cache"
+    assert buiten.read_bytes() == KIJKGEGEVENS
+
+
+@pytest.mark.parametrize("geval", ["hostmap", "submap", "gevuld", "geen-tmpfs", "data-als-tmpfs"])
+def test_tmpfs_die_niet_alleen_van_de_container_is_blijft_streng(tmp_path: Path, geval: str) -> None:
+    """Niet op naam: een gekoppelde map van een host-tmpfs (wortel niet "/"), een map ín een tmpfs, een al gevulde tmpfs of
+    een gewone map met 1777 wordt geweigerd; /config blijft even streng, ook als tmpfs. Bij een tmpfs wijst de melding
+    niet naar een dataset (R-HARDE-EIS-1)."""
+    data, cache, buiten = opzet(tmp_path)
+    regels = {
+        "hostmap": tmpfs_regel(cache, "/gedeeld"),
+        "submap": tmpfs_regel(tmp_path),
+        "gevuld": tmpfs_regel(cache),
+        "geen-tmpfs": "",
+        "data-als-tmpfs": tmpfs_regel(data),
+    }
+    (data if geval == "data-als-tmpfs" else cache).chmod(0o1777)
+    if geval == "gevuld":
+        (cache / "van-een-ander").write_text("x")
+    script = fase_twee(tmp_path, data, cache, mountinfo=mountinfo(tmp_path, regels[geval]))
+    voor = boom(tmp_path)
+    proc = draai(script)
+    uit = proc.stdout + proc.stderr
+    assert proc.returncode != 0, uit
+    assert "voor groep of anderen beschrijfbaar (modus 1777)" in uit and "Er is niets gewijzigd" in uit
+    assert ("werkgeheugen (tmpfs)" in uit) == (geval != "geen-tmpfs")
+    assert ("Datasets → de dataset van deze map" in uit) == (geval == "geen-tmpfs")
+    assert boom(tmp_path) == voor
