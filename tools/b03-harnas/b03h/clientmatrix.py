@@ -269,6 +269,7 @@ def main(argv: list[str] | None = None) -> int:
     uitmap = a.uit.with_suffix("")
     uitmap.mkdir(parents=True, exist_ok=True)
     clients: list[dict[str, Any]] = []
+    legacy_afwijkingen: list[str] = []
     begin = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     koppelingen = {"/media/movies/hero": "bron/blender/hero", "/media/movies/sintel": "bron/blender/sintel"}
     with meetslot.exclusief_slot(bij_wachten=log):
@@ -295,15 +296,18 @@ def main(argv: list[str] | None = None) -> int:
                 hero = next(i for i in server.jf.items() if i["Path"] == HERO)
                 server.jf.login(GEBRUIKER, WACHTWOORD)
                 statussen = legacy.meet(server.url, server.jf.token, server.jf.admin_id, hero["Id"])
-                stream_ok = statussen["x_emby_token"]["stream_statisch"] in (200, 206)
+                legacy_afwijkingen = legacy.afwijkingen(statussen)
                 clients.append({"client": "derden-client met legacy-headers (gesimuleerd: X-Emby-Token, X-MediaBrowser-Token, "
                                           "X-Emby-Authorization, api_key)", "rol": "stock-native (derden)",
                                 "status_per_vorm": statussen,
+                                "afwijkingen": legacy_afwijkingen,
                                 "status": "Sim-getest (gemeten: legacy-auth geweigerd op API-routes; statische stream speelt)"
-                                if stream_ok else "Sim-mislukt",
-                                "opmerking": "12.4: EnableLegacyAuthorization uit → 401 voor X-Emby-Token/api_key op API-routes; "
-                                             "?ApiKey= en Authorization: MediaBrowser Token=… werken; /Videos/{id}/stream?static=true "
-                                             "geeft 206 ook zonder token (ADR-0009). Besluit derden-clients: BG-01"})
+                                if not legacy_afwijkingen else "Sim-mislukt",
+                                "opmerking": "12.4 verwacht 401 voor oude vormen en tokenloos op beschermde API-routes, "
+                                             "200 voor de moderne header en ApiKey, en 200 of 206 voor statisch afspelen "
+                                             "(ADR-0009, BG-01)."})
+                for afwijking in legacy_afwijkingen:
+                    log(f"legacy-auth: {afwijking}")
             for soort in ("telefoon", "tablet", "tv", "tv36"):
                 if soort in delen:
                     try:
@@ -342,4 +346,4 @@ def main(argv: list[str] | None = None) -> int:
         document["eerdere_sessies"] = oud.get("eerdere_sessies", []) + [{"begin": oud.get("begin"), "eind": oud.get("eind")}]
     a.uit.write_text(json.dumps(document, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     log(f"clientmatrix geschreven: {a.uit}")
-    return 0
+    return 1 if legacy_afwijkingen else 0

@@ -8,7 +8,6 @@ welke status een gewone route, de gebruikersroute en de streamroute geven. Token
 from __future__ import annotations
 
 import urllib.parse
-from typing import Any
 
 from .jfapi import Http
 
@@ -25,13 +24,13 @@ VORMEN = {
 }
 
 
-def meet(url: str, token: str, user_id: str, item_id: str) -> dict[str, Any]:
+def meet(url: str, token: str, user_id: str, item_id: str) -> dict[str, dict[str, int]]:
     routes = {
         "system_info": "/System/Info",
         "gebruiker_items": f"/Users/{user_id}/Items?Limit=1",
         "stream_statisch": f"/Videos/{item_id}/stream?static=true",
     }
-    uit: dict[str, Any] = {}
+    uit = {}
     for vorm, maak in VORMEN.items():
         headers, query = maak(token)
         rij = {}
@@ -43,6 +42,21 @@ def meet(url: str, token: str, user_id: str, item_id: str) -> dict[str, Any]:
             rij[naam] = status
         uit[vorm] = rij
     return uit
+
+
+def afwijkingen(statussen: dict[str, dict[str, int]]) -> list[str]:
+    """Toets de beschermde API-routes en de upstream-uitzondering voor statisch afspelen."""
+    fouten = []
+    for vorm in VORMEN:
+        api = 200 if vorm in {"authorization_mediabrowser_token", "query_apikey_hoofdletter"} else 401
+        rij = statussen.get(vorm, {})
+        for route, verwacht in {"system_info": (api,), "gebruiker_items": (api,), "stream_statisch": (200, 206)}.items():
+            status = rij.get(route)
+            if status not in verwacht:
+                gemeten = f"HTTP {status}" if status is not None else "geen meting"
+                codes = " of ".join(str(code) for code in verwacht)
+                fouten.append(f"{vorm}/{route}: {gemeten}, verwacht HTTP {codes}")
+    return fouten
 
 
 def main(argv: list[str] | None = None) -> int:
