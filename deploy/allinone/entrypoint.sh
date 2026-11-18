@@ -229,8 +229,8 @@ assert_private_dir() {
 }
 
 # De data- en cachemap met hun ouders tot / (die komt uit de image), de mappen waarin de start zelf schrijft, de map van
-# de pluginconfiguraties met het eigen bestand daarin (de server schrijft dat), en elk bestand in een eigen pluginmap (de
-# start vergelijkt en vervangt de DLL; de server schrijft er zelf meta.json).
+# de pluginconfiguraties met het eigen bestand daarin (de server schrijft dat), en in een eigen pluginmap een map met inhoud
+# (de andere vreemde ingangen daar herstelt repair_plugin_dirs).
 # $1 = de app-gebruiker; leeg als root vóór de eenmalige eigenaarswissel.
 assert_private_storage() {
   for top in "$DATA_DIR" "$CACHE_DIR"; do
