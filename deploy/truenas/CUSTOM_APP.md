@@ -50,7 +50,9 @@ Kies voor `/config` het opslagtype **Host Path** of **ixVolume**. De container w
 het opslagtype **tmpfs** heeft (database en instellingen zouden na elke herstart weg zijn en de startwizard zou weer
 voor iedereen openstaan) of een **NFS/SMB-share** is (de SQLite-database van Jellyfin is daar niet betrouwbaar). Voor
 `/cache` mag tmpfs wel, ook met *Custom User* (alles daarin is opnieuw op te bouwen; het kost werkgeheugen): kies dan het
-opslagtype **tmpfs** met alleen een grootte (geen eigen modus, uid of gid). Zo'n tmpfs bestaat alleen in deze container;
+opslagtype **tmpfs** met alleen een grootte (geen eigen modus, uid of gid) van **minstens 2048 MiB, voorstel 4096 MiB**:
+de server start niet met minder dan 2 GiB vrij in `/cache` (in de log: `The path /cache has insufficient free space`; de
+standaardgrootte van 500 MiB is dus te klein). Zo'n tmpfs bestaat alleen in deze container;
 de image geeft hem modus 1777, zodat ook een Custom User erin schrijft, en de container aanvaardt hem alleen als het een eigen,
 bij de start lege tmpfs is. Kies voor `/cache` nooit een Host Path buiten je eigen datasets (zoals `/dev/shm`).
 
@@ -177,6 +179,7 @@ vóór de controle van `/health` naar 568 zonder capabilities (ADR-0014). Je hoe
 | `FOUT: … datamap-versie is onleesbaar` | Het bestand `jelly-leon/datamap-versie` in de config-dataset is beschadigd of geen gewoon bestand (het onthoudt alleen de hoogste Jelly Leon-versie). Veilige weg: laat alleen dit ene bestand weghalen (bijvoorbeeld via de Hub) en start daarna alleen de nieuwste Jelly Leon-image die je gebruikte. Zet een snapshot van de config-dataset (*Datasets* → *Snapshots*) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan. Er is niets gewijzigd. |
 | Poort bezet bij opslaan | Andere Host Port kiezen; Container Port blijft `8096`. |
 | `FOUT: … staat in werkgeheugen (tmpfs) dat niet alleen van deze container is` | `/cache` is een tmpfs die de container niet als eigen tmpfs herkent (een Host Path naar een tmpfs van de NAS, of al gevuld bij de start). Kies voor `/cache` het opslagtype tmpfs met alleen een grootte, of een eigen dataset (Host Path of ixVolume). Er is niets gewijzigd. |
+| `The path /cache has insufficient free space. Available: …, Required: 2GiB` | De server zelf weigert te starten: `/cache` heeft minder dan 2 GiB vrij. Bij het opslagtype tmpfs: zet de grootte op minstens 2048 MiB (voorstel 4096 MiB); bij een dataset: maak ruimte vrij. |
 | `FOUT: /cache is werkgeheugen (tmpfs) waarin gebruiker … niet mag schrijven` | Custom User staat aan en de tmpfs heeft een eigen modus gekregen: laat bij de tmpfs alleen de grootte staan (de image geeft dan 1777), zet Custom User uit, of kies een eigen dataset van deze gebruiker. |
 | `FOUT: /config is niet schrijfbaar voor gebruiker 568:568 (Custom User in het formulier)` | Custom User staat aan maar de dataset is (nog) niet van 568: zet Custom User uit (de container regelt het eigenaarschap zelf) of maak de dataset eerst van 568. |
 | Image kan niet worden opgehaald | Er is nog geen release, of het GHCR-pakket is (nog) privé: dan de registry-login hierboven als terugvaloptie. Tag met digest geweigerd: alleen de exacte forkversie invullen (zie *Tag met digest*). |

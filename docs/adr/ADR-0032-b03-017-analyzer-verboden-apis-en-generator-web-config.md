@@ -975,7 +975,13 @@ en root met een tmpfs 0777 (basisimage) starten; Custom User met een tmpfs 0755 
 héle wortelpunt van een tmpfs van de host (bijvoorbeeld Host Path `/dev/shm`, dat de TrueNAS-appbibliotheek niet uitsluit) niet
 te onderscheiden van een eigen tmpfs als die bij de start toevallig leeg is. Daarom zegt `CUSTOM_APP.md`: voor `/cache` alleen
 het opslagtype tmpfs of een eigen dataset, nooit een Host Path naar een map buiten je datasets. Of TrueNAS bij een tmpfs ook
-1777 of een andere modus geeft, blijft een NAS-meting.
+1777 of een andere modus geeft, blijft een NAS-meting. **Gemeten in de CI-levenscyclus van de echte image:** met een tmpfs
+van 500 MiB (de standaardgrootte van het formulier, en de grootte in de proef van de review, die een nep-server gebruikte)
+start de entrypoint nu wel, maar weigert de server zelf: `StorageHelper.TestCommonPathsForStorageCapacity` eist 2 GiB vrij in
+`/cache` ("The path `/cache` has insufficient free space. Available: 500MiB, Required: 2GiB"). Dat gold ook voor de vorige
+image met dezelfde server; `CUSTOM_APP.md` noemt daarom nu minstens 2048 MiB (voorstel 4096 MiB). Met 4096 MiB en Custom User
+568 startte de echte stock-server 12.4 met de entrypoint en de plugin van deze stap (netwerkloos, synthetisch): gezond,
+`GET /media/v1/modules` 200, geen opslagmelding; met de plugin van `81e9c4a26` viel de plugin daar terug (503).
 
 **Zelfherstel in de eigen pluginmap (R-HARDE-EIS-2 en R-VEILIG-4; besluit BN-2 optie B).** Sinds deel 1e weigerde de start
 elke ingang in `plugins/JellyLeon_*` die geen gewoon bestand met één naam is. Een goedaardige harde koppeling (ontdubbelen, of

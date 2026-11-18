@@ -80,6 +80,9 @@ WEB_TITLE = b"<title>Jelly Leon</title>"
 # De vaste, niet-geheime testaccounts van stock_client_smoke.py (standaardwaarden van --username/--password).
 SMOKE_ADMIN = ("jl-smoke-admin", "jl-smoke-wachtwoord-niet-geheim")
 SMOKE_HUB = ("jl-smoke-hub", "jl-smoke-hub-wachtwoord-niet-geheim")
+# Zoals TrueNAS een tmpfs rendert (alleen size, in bytes). De server weigert te starten met minder dan 2 GiB vrij in /cache
+# (StorageHelper.TestCommonPathsForStorageCapacity); 4096 MiB is het voorstel uit CUSTOM_APP.md.
+TMPFS_CACHE = "/cache:size=4294967296"
 
 
 def tree_state(root: Path) -> dict[str, tuple[int, int, int, bytes | str]]:
@@ -594,14 +597,14 @@ class Lifecycle:
         return "", ""
 
     def check_tmpfs_cache_starts(self, first: dict) -> bool:
-        """S-G1-16 deel 1f (BN-1, R-HARDE-EIS-1): /cache als tmpfs zoals het TrueNAS-formulier hem rendert (alleen size),
-        als root en als Custom User 568: healthy, rooktest, en de plugin is niet teruggevallen (modules 200, geen
-        opslagmelding)."""
+        """S-G1-16 deel 1f (BN-1, R-HARDE-EIS-1): /cache als tmpfs zoals het TrueNAS-formulier hem rendert (alleen size; hier
+        4096 MiB, want de server eist 2 GiB vrij), als root en als Custom User 568: healthy, rooktest, en de plugin is niet
+        teruggevallen (modules 200, geen opslagmelding)."""
         ok = True
         mounts = [f"{self.config}:/config", f"{self.media}:/media/muziek:ro"]
         for label, extra in (("root", []), ("Custom User 568:568", ["--user", f"{APP_UID}:{APP_UID}"])):
             self.remove(self.name)
-            docker(*self.run_args(self.name, mounts=mounts, extra=["--tmpfs", "/cache:size=524288000", *extra]))
+            docker(*self.run_args(self.name, mounts=mounts, extra=["--tmpfs", TMPFS_CACHE, *extra]))
             if not self.wait_healthy(f"/cache als tmpfs, {label}") or not self.smoke(f"tmpfs-cache {label}", "herstart", first):
                 ok = False
                 continue

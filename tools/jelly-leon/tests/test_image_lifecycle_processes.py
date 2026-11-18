@@ -252,7 +252,8 @@ def test_tmpfs_cache_start_als_root_en_custom_user(tmp_path, monkeypatch):
     life, starts = _tmpfslife(tmp_path, monkeypatch)
     assert life.check_tmpfs_cache_starts({"item_id": "i", "gebruiker_id": "g"})
     runs = [a for a in starts if a[0] == "run"]
-    assert len(runs) == 2 and all("/cache:size=524288000" in a and not any(m.endswith(":/cache") for m in a) for a in runs)
+    assert len(runs) == 2 and all(image_lifecycle.TMPFS_CACHE in a and not any(m.endswith(":/cache") for m in a) for a in runs)
+    assert image_lifecycle.TMPFS_CACHE == "/cache:size=4294967296"
     assert "--user" not in runs[0] and "568:568" in runs[1]
 
 
