@@ -12,8 +12,9 @@ raamwerk vast en draait het nu met die plugin:
      /System/Info/Public, /UserViews, /Items (+ per item), /Items/{id}/Similar, /Shows/NextUp, /UserItems/Resume,
      /MediaSegments/{id}, /SyncPlay/List en PlaybackInfo per item met drie apparaatprofielen (Direct Play, transcode,
      alleen audio; mét MediaSourceId en AudioStreamIndex zoals de webclient);
-  4. de door de server geserveerde OpenAPI: Jelly Leon mag alleen paden toevoegen onder /media/v1 of /connector/v1;
-     gedeelde paden en schema's gelijk (description-teksten tellen niet, ADR-0010).
+  4. de door de server geserveerde OpenAPI: Jelly Leon mag alleen paden toevoegen onder /media/v1 of /connector/v1
+     en nieuwe schema's toevoegen; bestaande paden, globale authenticatie en componenten blijven gelijk
+     (description-teksten tellen niet, ADR-0010).
 
 Exitcode 0 = geen enkele afwijking buiten de toegestane uitbreiding. Sim; geen echte clients.
 """
@@ -21,7 +22,6 @@ Exitcode 0 = geen enkele afwijking buiten de toegestane uitbreiding. Sim; geen e
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import os
 import re
@@ -44,7 +44,7 @@ from b03h.jfapi import Http, wacht_klaar  # noqa: E402
 from proef_lib import maskeer_url_geheimen  # noqa: E402
 from upgrade_proef import FILM_REL, FILMS, MUSIC, OLD_IMAGE, STOCK_NEW_IMAGE, differences, docker  # noqa: E402
 
-from openapi_drift import strip_descriptions  # noqa: E402
+from openapi_drift import diff_paths, strip_descriptions  # noqa: E402
 
 CLIENT = 'MediaBrowser Client="jelly-leon-compat", Device="compat", DeviceId="jl-compat", Version="1.0"'
 ADDITIEF = ("/media/v1/", "/connector/v1/")
@@ -172,12 +172,17 @@ def compare_openapi(stock: dict[str, Any], fork: dict[str, Any]) -> tuple[list[s
     b = strip_descriptions({k: v for k, v in fp.items() if k in sp})
     if a != b:
         problems += [f"gedeeld pad gewijzigd: {d}" for d in differences(a, b)[:10]]
-    ss = stock.get("components", {}).get("schemas", {})
-    fs = fork.get("components", {}).get("schemas", {})
+    sc = stock.get("components", {})
+    fc = fork.get("components", {})
+    ss = sc.get("schemas", {})
+    fs = fc.get("schemas", {})
     extra_schemas = sorted(set(fs) - set(ss))
-    if strip_descriptions(ss) != strip_descriptions({k: fs.get(k) for k in ss}):
-        problems += [f"gedeeld schema gewijzigd: {d}" for d in differences(strip_descriptions(ss), strip_descriptions(
-            {k: fs.get(k) for k in ss}))[:10]]
+    problems += [f"gedeeld schema gewijzigd: {d}" for d in diff_paths(
+        strip_descriptions(ss), strip_descriptions({k: fs[k] for k in ss.keys() & fs.keys()}))[:10]]
+    problems += [f"globale security gewijzigd: {d}" for d in diff_paths(stock.get("security"), fork.get("security"))[:10]]
+    components_a = strip_descriptions({k: v for k, v in sc.items() if k != "schemas"})
+    components_b = strip_descriptions({k: v for k, v in fc.items() if k != "schemas"})
+    problems += [f"OpenAPI-component gewijzigd: {d}" for d in diff_paths(components_a, components_b)[:10]]
     return problems, added + [f"schema {s}" for s in extra_schemas]
 
 
@@ -205,8 +210,17 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
     password = uuid.uuid4().hex
     steps: list[dict[str, Any]] = []
 
+    def maskeer(waarde: Any) -> Any:
+        if isinstance(waarde, str):
+            return maskeer_url_geheimen(waarde).replace(password, "<geheim>")
+        if isinstance(waarde, dict):
+            return {maskeer(k): maskeer(v) for k, v in waarde.items()}
+        if isinstance(waarde, (list, tuple)):
+            return [maskeer(v) for v in waarde]
+        return waarde
+
     def add(name: str, ok: bool, detail: str) -> bool:
-        detail = maskeer_url_geheimen(detail).replace(password, "<geheim>")
+        detail = maskeer(detail)
         steps.append({"stap": name, "geslaagd": ok, "detail": detail, "tijd": utc_now()})
         print(f"[{'OK  ' if ok else 'FOUT'}] {name}: {detail[:400]}", flush=True)
         return ok
@@ -286,10 +300,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
     passed = bool(steps) and all(s["geslaagd"] for s in steps)
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
-        args.report.write_text(json.dumps({
+        rapport = maskeer({
             "schema": "jelly-leon/compat-api/1", "soort": "Sim-getest (twee wegwerpcontainers op kopieën van één datamap)",
             "images": {"stock": args.stock_image, "jelly_leon": args.image}, "geslaagd": passed, "stappen": steps,
-            **copy.deepcopy(result)}, indent=1, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
+            **result})
+        args.report.write_text(json.dumps(rapport, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"RESULTAAT: {'GESLAAGD' if passed else 'MISLUKT'} ({sum(s['geslaagd'] for s in steps)}/{len(steps)})")
     return 0 if passed else 1
 

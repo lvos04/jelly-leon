@@ -13,15 +13,28 @@ import sqlite3
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote_plus
 
 DATUMTIJD = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)$")
 IPV4 = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
+QUERY_SLEUTEL = re.compile(r"[?&]([^?&=\s#'\"<>]+)=")
+QUERY_WAARDE = re.compile(r"(?:<x>|[^&\s#'\"<>]*)")
 RUIS = "<ruis>"
 
 
 def maskeer_url_geheimen(tekst: str) -> str:
     """Verberg sleutelwaarden in URL's en in foutmeldingen die zulke URL's bevatten."""
-    return re.sub(r"(?i)([?&](?:apikey|api_key)=)[^&\s#'\"<>]*", r"\1<x>", tekst)
+    delen = []
+    einde = 0
+    for sleutel in QUERY_SLEUTEL.finditer(tekst):
+        if sleutel.start() < einde or unquote_plus(sleutel[1]).casefold() not in {"apikey", "api_key"}:
+            continue
+        waarde = QUERY_WAARDE.match(tekst, sleutel.end())
+        assert waarde is not None  # Ook een lege waarde geeft een treffer.
+        delen.extend((tekst[einde:sleutel.end()], "<x>"))
+        einde = waarde.end()
+    delen.append(tekst[einde:])
+    return "".join(delen)
 
 
 # --------------------------------------------------------------------------------------------- schemacontrole

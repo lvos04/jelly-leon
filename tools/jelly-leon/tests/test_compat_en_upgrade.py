@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import sys
+from copy import deepcopy
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -31,6 +34,53 @@ def test_apikey_in_url_is_masked_in_nested_responses_and_error_messages() -> Non
     assert compat_api.normalize(raw) == {"MediaSources": [{"TranscodingUrl": expected}]}
     error = f"PlaybackInfo gaf een fout: {raw!r}"
     assert upstream_gedrag_runtime.maskeer_url_geheimen(error) == error.replace(url, expected)
+
+
+@pytest.mark.parametrize("prefix", ["/video?", "/video?link=/proxy?"])
+def test_normalize_masks_percent_encoded_query_names(prefix: str) -> None:
+    raw = {"TranscodingUrl": f"{prefix}%41piKey=proefwaarde&api%5Fkey=andere-proefwaarde&Tag=t"}
+    expected = {"TranscodingUrl": f"{prefix}%41piKey=<x>&api%5Fkey=<x>&Tag=t"}
+    assert compat_api.normalize(raw) == expected
+    assert compat_api.normalize(expected) == expected
+
+
+@pytest.fixture
+def compat_proef(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[str]:
+    http = Mock()
+    http.ruw.return_value = (204, b"", {})
+    http.doe.side_effect = lambda _methode, pad, *args, **kwargs: {
+        "/Items": {"Items": [{"Id": "film"}, {"Id": "muziek"}]}, "/ScheduledTasks": [],
+    }.get(pad, {})
+    monkeypatch.setattr(compat_api, "Http", Mock(return_value=http))
+    monkeypatch.setattr(compat_api, "login", Mock(return_value=(http, "proefgebruiker")))
+    monkeypatch.setattr(compat_api, "Kant", lambda label, *args: Mock(label=label, start=Mock(return_value="12.4")))
+    monkeypatch.setattr(compat_api, "subprocess", Mock())
+    monkeypatch.setattr(compat_api, "docker", Mock())
+    return ["--image", "fork", "--stock-image", "stock", "--werkmap", str(tmp_path),
+            "--report", str(tmp_path / "compat.json")]
+
+
+def test_compat_redacts_terminal_and_json_on_api_difference(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str], compat_proef: list[str],
+) -> None:
+    proefwaarde = "proefwaarde"
+
+    def collect(kant: Mock, _password: str) -> dict:
+        url = f"/video?%41piKey={proefwaarde}&Tag={kant.label}"
+        return {"antwoorden": {"PlaybackInfo film": {"MediaSources": [{
+            "SupportsDirectPlay": True, "SupportsTranscoding": True, "TranscodingUrl": url,
+            "ExtraInfo": [url],
+        }]}}, "openapi": {"paths": {}}}
+
+    monkeypatch.setattr(compat_api, "collect", collect)
+    assert compat_api.main(compat_proef) == 1
+    terminal = capsys.readouterr()
+    bestand = (tmp_path / "compat.json").read_text(encoding="utf-8")
+    rapport = json.loads(bestand)
+    assert "Tag=jelly-leon" in terminal.out and "Tag=jelly-leon" in rapport["verschillen"][0]
+    assert "ExtraInfo" in rapport["verschillen"][0]
+    if any(proefwaarde in tekst for tekst in (terminal.out, terminal.err, bestand)):
+        pytest.fail("Synthetische sleutelwaarde zichtbaar in de uitvoer")
 
 
 @pytest.mark.parametrize("direct_play_zonder_spoor, verwacht", [(True, True), (False, False)])
@@ -63,6 +113,38 @@ def test_openapi_only_additive_under_media_and_connector() -> None:
     problems, _ = compat_api.compare_openapi(stock, fork)
     assert any("buiten" in p and "/Extra" in p for p in problems)
     assert any("ontbreekt in Jelly Leon: /Items" in p for p in problems)
+
+
+def test_compat_fails_when_global_openapi_security_is_removed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, compat_proef: list[str],
+) -> None:
+    stock = {"paths": {"/Items": {"get": {}}}, "security": [{"Auth": []}],
+             "components": {"securitySchemes": {"Auth": {"type": "http", "scheme": "bearer"}}}}
+    fork = {naam: waarde for naam, waarde in stock.items() if naam != "security"}
+    antwoorden = {"PlaybackInfo film": {"MediaSources": [{"SupportsDirectPlay": True, "TranscodingUrl": "/video"}]}}
+    monkeypatch.setattr(compat_api, "collect", lambda kant, _password: {
+        "antwoorden": antwoorden, "openapi": stock if kant.label == "stock" else fork,
+    })
+    assert compat_api.main(compat_proef) == 1
+    rapport = json.loads((tmp_path / "compat.json").read_text(encoding="utf-8"))
+    assert not rapport["geslaagd"]
+    assert any("globale security" in probleem for probleem in rapport["openapi_problemen"])
+
+
+def test_openapi_detects_changes_in_shared_components() -> None:
+    stock = {"paths": {}, "components": {
+        "securitySchemes": {"Auth": {"type": "http", "scheme": "bearer", "description": "tekst"}},
+        "parameters": {"Limit": {"name": "Limit", "in": "query", "schema": {"type": "integer"}}},
+    }}
+    fork = deepcopy(stock)
+    fork["components"]["securitySchemes"]["Auth"]["description"] = "andere tekst"
+    assert compat_api.compare_openapi(stock, fork) == ([], [])
+    fork["components"]["securitySchemes"]["Auth"]["scheme"] = "basic"
+    del fork["components"]["parameters"]["Limit"]
+    problems, added = compat_api.compare_openapi(stock, fork)
+    assert any("securitySchemes" in probleem for probleem in problems)
+    assert any("parameters" in probleem for probleem in problems)
+    assert added == []
 
 
 def test_upgrade_differences_and_dates() -> None:
