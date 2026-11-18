@@ -54,7 +54,7 @@ def compat_proef(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[str]:
     monkeypatch.setattr(compat_api, "Http", Mock(return_value=http))
     monkeypatch.setattr(compat_api, "login", Mock(return_value=(http, "proefgebruiker")))
     monkeypatch.setattr(compat_api, "Kant", lambda label, *args: Mock(
-        label=label, url="http://127.0.0.1:19096", start=Mock(return_value="12.4"),
+        label=label, url="http://proefserver.test:19096", start=Mock(return_value="12.4"),
     ))
     monkeypatch.setattr(compat_api.subprocess, "run", Mock())
     monkeypatch.setattr(compat_api, "docker", Mock())
@@ -156,8 +156,8 @@ def test_compat_fails_when_global_openapi_security_is_removed(
 def test_compat_checks_global_openapi_server_base_path(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, compat_proef: list[str], fork_basispad: str, exitcode: int,
 ) -> None:
-    test_urls = {"basis": "http://127.0.0.1:19095", "stock": "http://127.0.0.1:19096",
-                 "jelly-leon": "http://localhost:29096"}
+    test_urls = {"basis": "http://basis.test:19095", "stock": "http://stock.test:19096",
+                 "jelly-leon": "http://fork.test:29096"}
     monkeypatch.setattr(compat_api, "Kant", lambda label, *args: Mock(
         label=label, url=test_urls[label], start=Mock(return_value="12.4"),
     ))
