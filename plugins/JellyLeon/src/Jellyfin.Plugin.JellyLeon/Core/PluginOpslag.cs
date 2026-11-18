@@ -27,6 +27,9 @@ internal sealed class PluginOpslag
 
     public PluginOpslag(string data, string cache, ILogger<PluginOpslag> log)
     {
+        // De server legt dit pad vast: PluginConfigurationsPath = <ProgramDataPath>/plugins/configurations, DataPath =
+        // <ProgramDataPath>/data (BaseApplicationPaths), bestandsnaam = assemblynaam + ".xml" (PluginGrensTests).
+        ConfiguratieBestand = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(data))!, "plugins", "configurations", "Jellyfin.Plugin.JellyLeon.xml");
         try
         {
             var paden = new JlPaths(data, cache);
@@ -47,6 +50,9 @@ internal sealed class PluginOpslag
     }
 
     public bool Beschikbaar => _paden is not null;
+
+    /// <summary>Gets het bestand waarin de server de configuratie van deze plugin leest en schrijft.</summary>
+    public string ConfiguratieBestand { get; }
 
     public JlPaths Paden => _paden ?? throw Fout(false, TimeProvider.System.GetUtcNow());
 

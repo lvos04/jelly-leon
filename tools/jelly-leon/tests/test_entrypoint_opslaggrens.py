@@ -560,3 +560,14 @@ def test_proef_op_overerving_staat_voor_elke_wijziging() -> None:
     fase = tekst.index('if [ "${JELLY_LEON_ENTRYPOINT_STAGE:-}" = "app" ]')
     app = tekst.index('    assert_private_storage "$(id -u)"\n    assert_new_dirs_private\n', fase)
     assert app < tekst.index("    repair_plugin_dirs\n", fase)
+
+
+def test_custom_app_zet_de_twee_gebruiksregels_verplicht_bovenaan() -> None:
+    """R-VEILIG-2 en R-HARDE-EIS-3 (B1, deel 1f): de gebruiker leest CUSTOM_APP.md, niet de ADR. Beide regels staan daar
+    verplicht en vóór de installatiestappen, met de reden in gewone taal."""
+    tekst = (REPO / "deploy" / "truenas" / "CUSTOM_APP.md").read_text(encoding="utf-8")
+    regels = tekst[tekst.index("## Twee verplichte regels") : tekst.index("## Vooraf")]
+    assert "Verplicht 1 — Koppel de config-dataset van Jelly Leon nooit aan een andere app" in regels
+    assert "plugins/configurations" in regels and "dezelfde gebruiker (apps, 568)" in regels
+    assert "overschrijft dan de database met al je kijkgegevens" in regels
+    assert "Verplicht 2 — Zet alleen eigen snapshots of back-ups terug" in regels

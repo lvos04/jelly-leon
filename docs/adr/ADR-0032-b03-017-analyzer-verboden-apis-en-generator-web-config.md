@@ -796,7 +796,9 @@ toegang. Per restgrens:
   gemount, kan daarin een map tussen controle en openen vervangen door een symbolische koppeling met een pad uit de
   servercontainer. De plugin maakt dan een leeg bestand met willekeurige naam in een map die die app zelf niet ziet. Er
   wordt niets overschreven (CreateNew) en de controle na openen weigert de bewerking; de lege ingang blijft staan.
-  Bereikbaar alleen als een beheerder een deel van de Jelly Leon-config in een andere app mount.
+  Bereikbaar alleen als een beheerder een deel van de Jelly Leon-config in een andere app mount. **Correctie deel 1f
+  (R-VEILIG-2):** dat "niets overschreven" geldt alleen voor de eigen schrijfroute van de plugin. In precies dit scenario
+  laat de server wél de serverdatabase overschrijven, via de pluginconfiguratie (gemeten; zie deel 1f, B1).
 
 Een native controle zou toevoegen: `fstat` op de geopende database met weigering bij `st_nlink > 1`, en openen gebonden
 aan een mapdescriptor (`openat2` met RESOLVE_BENEATH en RESOLVE_NO_SYMLINKS), zodat een wissel tijdens het openen
@@ -846,7 +848,8 @@ verzwakte opslagtest. Herstel tijdens dezelfde host blijft geweigerd; na herstar
 
 B1 optie A (regisseur): de harde databasekoppeling en de lege ingang na padwissel blijven de vastgelegde grenzen van
 het foutenmodel; geen herstel in dit deel. Alleen eigen snapshots of back-ups terugzetten en nooit een deel van de
-Jelly Leon-config aan een andere app koppelen. Dit besluit wordt nog aan de gebruiker voorgelegd. B2 blijft strikt:
+Jelly Leon-config aan een andere app koppelen. Dit besluit wordt nog aan de gebruiker voorgelegd (sinds deel 1f met het
+gemeten gevolg en met de regels verplicht in `CUSTOM_APP.md`; zie deel 1f, B1). B2 blijft strikt:
 rechten en ACL-werking op de echte NAS moeten door de gebruiker worden gemeten. Geen NAS, Emby of accounts benaderd.
 
 #### Opslagdreigingen, deel 1e (installatiebestanden en startbestanden, 2026-11-17)
@@ -943,7 +946,7 @@ gebruiker, niet door de image beheerd.
 | `.../meta.json` | server: `LoadManifest` (`File.ReadAllBytes`) bij elke start; `SaveManifest` (`File.WriteAllText`) bij de eerste start, een versie- of statuswijziging | ja | start: een vreemde ingang wordt eerst zelf verwijderd (deel 1f); daarna schrijft de server een nieuw, gewoon bestand |
 | `.../<afbeelding>` | server: `DownloadImage` alleen voor een plugin uit een catalogus (tijdelijke willekeurige naam, dan `File.Move` met overschrijven); `GET /Plugins/<id>/<versie>/Image` leest alleen een pad binnen de pluginmap | nee | de meegeleverde plugin staat in geen catalogus; lezen alleen van een gewoon bestand in de eigen map |
 | `plugins/configurations/` | server: `Directory.CreateDirectory` bij opslaan | n.v.t. | **start (deel 1f)**: zoals `plugins/` |
-| `plugins/configurations/Jellyfin.Plugin.JellyLeon.xml` | server: lezen bij de eerste lezing (eigen route van de plugin, of de serverroute `GET /Plugins/<id>/Configuration`), schrijven bij een mislukte lezing, bij `POST /Plugins/<id>/Configuration` en bij een moduleschakelaar van de plugin | ja | **start (deel 1f)**: ontbreekt of gewoon bestand met één naam |
+| `plugins/configurations/Jellyfin.Plugin.JellyLeon.xml` | server: lezen bij de eerste lezing (eigen route van de plugin, of de serverroute `GET /Plugins/<id>/Configuration`), schrijven bij een mislukte lezing, bij `POST /Plugins/<id>/Configuration` en bij een moduleschakelaar van de plugin | ja | **start (deel 1f)**: ontbreekt of gewoon bestand met één naam; **plugin (deel 1f, A3)**: bestand en map opnieuw getoetst vóór elke eigen lezing of opslag; de serverroute niet (B1, regels in `CUSTOM_APP.md`) |
 | `<data>/jelly-leon/**` en `<cache>/jelly-leon/**` | plugin (`JlPaths`, `InternalWriteScope`, `JlDatabase`, `SecretStore`) | nee (deel 1b) | plugin; bij weigering alleen de plugin uit (deel 1d en 1e) |
 | `<config>/jelly-leon/datamap-versie` | start: lezen, schrijven via `mktemp` en hernoemen | nee | start (deel 1c en 1d) |
 | serverlog onder `<config>/log` | server, ook voor de meldingen van de plugin (`ILogger`) | eigen logbestanden van de server | geen eigen logbestand van de plugin; meldingen zonder paden of inhoud |
@@ -1013,6 +1016,31 @@ onderliggende mappen; eigenaar, rechten, ACL en inhoud blijven byte-gelijk, alle
 verandert. Dit meet het werkelijke resultaat, ook bij NFSv4-overerving, zonder native code. Een bestaande installatie waarin
 de start geen map meer aanmaakt, wordt niet geproefd (geen nieuwe strengheid); mappen die de server later zelf aanmaakt,
 vallen buiten deze startcontrole (zie de vervolgpunten van de review).
+
+**B1 met het gemeten gevolg (R-VEILIG-2 en R-HARDE-EIS-3; besluit B1 optie A1, met A3; wordt de gebruiker opnieuw
+voorgelegd).** De eerdere tekst (deel 1c en 1d) zei dat in het scenario "een andere app met dezelfde gebruiker en een deel
+van de Jelly Leon-config gemount" niets wordt overschreven. Dat klopt niet. Gemeten door de review en hier herhaald (echte
+stock-server 12.4, netwerkloos, synthetisch): na de start vervangt een tweede container met dezelfde uid en alleen
+`plugins/configurations` gemount het gewone configuratiebestand door een koppeling naar `/config/data/jellyfin.db`; slaat de
+beheerder daarna de pluginconfiguratie op, dan begint de serverdatabase met XML. Een startcontrole kan dat na de start niet
+tegenhouden. Het gevolg is dus vernietiging van de database met kijkgegevens, niet alleen een lege ingang. Besluit: de grens
+blijft zonder native uitzondering (geen fstat of openat2, de analyzer en zijn lege uitzonderingslijst ongewijzigd), en de
+twee gebruiksregels zijn nu **verplicht** en staan bovenaan `deploy/truenas/CUSTOM_APP.md`, met de reden in gewone taal:
+(a) koppel de config-dataset of een map daarin (ook `plugins/configurations`) nooit aan een andere app; (b) zet alleen
+eigen snapshots of back-ups terug. Daarnaast is in beheerde code gebouwd wat kan (optie A3): `PluginModuleSwitches` toetst
+vóór elke lezing en opslag van de eigen configuratie het bestand en zijn map opnieuw (`JlPaths.EisVeiligConfiguratiebestand`:
+de map en haar ouders zoals de eigen opslag, het bestand geen symbolische koppeling of map). Bij een onveilig bestand of
+onveilige map leest of schrijft de plugin niets: modules staan uit, `GET` en `PUT /media/v1/modules` geven 503
+`storage_unavailable`; een fout van de server bij het lezen of opslaan wordt geen ruwe fout meer in een gebeurtenis. Het pad
+leidt de plugin af uit `DataPath` (de server: `PluginConfigurationsPath` = `<ProgramDataPath>/plugins/configurations`,
+`DataPath` = `<ProgramDataPath>/data`), zonder nieuw lid van de server-ABI; een test legt vast dat het gelijk is aan
+`ConfigurationFilePath`. Gemeten op de echte server in hetzelfde scenario, maar via de route van de plugin: met de plugin van
+`81e9c4a26` schreef `PUT /media/v1/modules/devices` (200) door de koppeling in de serverdatabase; met de plugin van deze stap
+geven `GET` en `PUT` 503 en blijft de serverdatabase byte-gelijk. **Eerlijke aantekening:** de serverroute
+`GET`/`POST /Plugins/<id>/Configuration` (dashboard van de server) gaat niet langs de plugin; in dezelfde proef overschreef
+`POST` (204) de serverdatabase nog steeds. Ook een harde koppeling of FIFO op dit bestand is in beheerde code niet te zien
+(de start weigert ze), en tussen toetsen en opslaan blijft een wissel door dezelfde gebruiker mogelijk. Daarom blijven de
+twee regels verplicht; de bescherming hangt daar af van de gebruiker.
 
 ### 2. Witte lijst: één API in één klasse
 

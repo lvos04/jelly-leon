@@ -13,6 +13,20 @@
 
 **Nooit** via *Install via YAML*, `custom_compose_config` of docker compose. Geen terminal, geen script.
 
+## Twee verplichte regels (ze beschermen je kijkgegevens)
+
+> **Verplicht 1 — Koppel de config-dataset van Jelly Leon nooit aan een andere app, ook geen map daarin** (zoals
+> `plugins/configurations`). Waarom: TrueNAS-apps draaien standaard allemaal als dezelfde gebruiker (apps, 568). Een
+> andere app die een map van Jelly Leon ziet, kan daar een koppeling (een soort snelkoppeling) neerleggen. De Jelly
+> Leon-server volgt die bij het opslaan van zijn instellingen en overschrijft dan de database met al je kijkgegevens
+> (gezien, hervatpunten, favorieten). Dat is gemeten. Zodra de app draait, kan de container dat niet meer tegenhouden.
+>
+> **Verplicht 2 — Zet alleen eigen snapshots of back-ups terug** (van deze config-dataset, gemaakt door TrueNAS of de
+> Hub). Waarom: een archief van elders kan zulke koppelingen bevatten, met hetzelfde gevolg. En elke snapshot zet ook de
+> kijkgegevens terug naar dat moment: wat daarna is gezien, gaat verloren.
+>
+> Deze regels gelden ook bij een handmatige installatie (ADR-0032, deel 1f, besluit B1).
+
 ## Vooraf (verplicht, zie I24/I06)
 
 1. **Een eventuele bestaande (stock-)Jellyfin blijft draaien en wordt niet aangeraakt** (I24 §5, contract §2.3). Of er

@@ -41,6 +41,7 @@ namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
 
 /// <summary>Echte host, registratie, achtergrondtaken, MVC en routes; uitsluitend tijdelijke synthetische opslag.</summary>
 [SupportedOSPlatform("linux")]
+[Collection(PluginGrensTests.PluginInstantie)] // leest Plugin.Instance via de echte schakelaars
 public sealed class OpslagTerugvalTests : IDisposable
 {
     private readonly string _map = Directory.CreateTempSubdirectory("jl-terugval-").FullName;

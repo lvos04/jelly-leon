@@ -280,6 +280,21 @@ internal sealed class JlPaths
     }
 
     /// <summary>
+    /// Deel 1f (B1, optie A3): de pluginconfiguratie die de server leest en bij een mislukte lezing of een opslag met
+    /// <c>FileMode.Create</c> schrijft (volgt een koppeling). Vóór elke lezing of opslag door de plugin: de map en haar ouders
+    /// zoals bij de eigen opslag, en het bestand zelf geen symbolische koppeling of map. Een harde koppeling of FIFO is in
+    /// beheerde code niet te zien (die weigert de start); de serverroute voor pluginconfiguratie gaat hier niet langs.
+    /// </summary>
+    internal static void EisVeiligConfiguratiebestand(string pad)
+    {
+        EisVeiligeMap(Path.GetDirectoryName(Path.GetFullPath(pad))!, maak: false);
+        if (new FileInfo(pad).LinkTarget is not null || Directory.Exists(pad))
+        {
+            throw new UnauthorizedAccessException("De pluginconfiguratie is geen gewoon bestand; niet gelezen of opgeslagen.");
+        }
+    }
+
+    /// <summary>
     /// Een bestaand bestand is van de procesgebruiker: dezelfde eigendomsproef als bij de mappen (dezelfde modus
     /// terugzetten; zonder CAP_FOWNER kan alleen de eigenaar dat). Alleen na <see cref="EisVeiligBestand"/>, dat een
     /// koppeling al weigert.
