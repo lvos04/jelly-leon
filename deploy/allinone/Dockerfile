@@ -89,8 +89,9 @@ LABEL org.opencontainers.image.title="Jelly Leon" \
 # url/documentation overschrijven die van de basisimage (jellyfin.org): geen schijn van een officiële release (ADR-0004).
 # /config en /cache zijn in de basisimage 0777; een tmpfs of nieuw Docker-volume neemt die modus over (de eigenaar niet).
 # /config 0755: de start weigert een voor groep of anderen beschrijfbare opslagmap (ADR-0032, "Opslagdreigingen, deel 1c").
-# /cache 1777: een tmpfs-/cache (bestaat alleen in deze container) is zo ook voor een Custom User schrijfbaar; de start
-# aanvaardt die modus alleen bij een eigen, lege tmpfs, niet bij een dataset of hostpad (ADR-0032, deel 1f).
+# /cache 1777: een tmpfs-/cache (opslagtype tmpfs) is zo ook voor een Custom User schrijfbaar; de start aanvaardt die modus
+# alleen bij een tmpfs met /cache als eigen koppelpunt die bij de start leeg is, niet bij een dataset of hostpad, en wijzigt
+# een tmpfs nooit (ADR-0032, deel 1f en 1g; een lege gedeelde tmpfs is niet te onderscheiden: CUSTOM_APP.md, Verplicht 3).
 # Upstream-server en -web uit de basisimage vervangen door de fork-build (ffmpeg en drivers blijven).
 RUN rm -rf /jellyfin
 COPY --from=server /out/server /jellyfin

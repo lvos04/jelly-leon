@@ -13,7 +13,7 @@
 
 **Nooit** via *Install via YAML*, `custom_compose_config` of docker compose. Geen terminal, geen script.
 
-## Twee verplichte regels (ze beschermen je kijkgegevens)
+## Drie verplichte regels (ze beschermen je kijkgegevens)
 
 > **Verplicht 1 — Koppel de config-dataset van Jelly Leon nooit aan een andere app, ook geen map daarin** (zoals
 > `plugins/configurations`). Waarom: TrueNAS-apps draaien standaard allemaal als dezelfde gebruiker (apps, 568). Een
@@ -25,7 +25,14 @@
 > Hub). Waarom: een archief van elders kan zulke koppelingen bevatten, met hetzelfde gevolg. En elke snapshot zet ook de
 > kijkgegevens terug naar dat moment: wat daarna is gezien, gaat verloren.
 >
-> Deze regels gelden ook bij een handmatige installatie (ADR-0032, deel 1f, besluit B1).
+> **Verplicht 3 — `/cache` is een eigen dataset van alleen deze app, of het opslagtype tmpfs van deze app.** Nooit een
+> Host Path naar werkgeheugen (tmpfs) van de NAS zelf (zoals `/dev/shm`, `/run` of `/tmp`), en nooit een met een andere app
+> gedeelde map of dataset. Waarom: in een gedeelde `/cache` kan een andere app een koppeling neerleggen. Via zo'n koppeling
+> komt Jelly Leon bij de serverdatabase met je kijkgegevens (gemeten: lezen lukte zo; of de server er ook doorheen schrijft,
+> is niet gemeten). De container kan een eigen tmpfs niet sluitend onderscheiden van een lege gedeelde tmpfs, dus hij kan
+> dit niet voor je tegenhouden.
+>
+> Deze regels gelden ook bij een handmatige installatie (ADR-0032, deel 1f en 1g, besluit B1).
 
 ## Vooraf (verplicht, zie I24/I06)
 
@@ -47,7 +54,7 @@ Maak (of laat de Hub maken) twee eigen datasets met preset **Apps**:
 | Media (bestaand, alleen lezen) | jouw bestaande mediadataset | `/media` (of meerdere submappen) | via eigenaar (MediaGuard/MSO) |
 
 Rechten hoef je niet aan te passen: bij de eerste start maakt de container gebruiker `568` (apps) eigenaar van
-**alleen** `/config` en `/cache`. Mediamappen worden nooit gewijzigd.
+**alleen** `/config` en `/cache`. Mediamappen worden nooit gewijzigd, en een `/cache` met opslagtype tmpfs ook niet.
 
 Geef in de datasetrechten geen schrijfrecht aan de groep, aan anderen of aan andere gebruikers of apps. De container
 weigert te starten (en wijzigt dan niets) als `/config`, `/cache` of een map waarin hij schrijft voor groep of anderen
@@ -66,9 +73,11 @@ voor iedereen openstaan) of een **NFS/SMB-share** is (de SQLite-database van Jel
 `/cache` mag tmpfs wel, ook met *Custom User* (alles daarin is opnieuw op te bouwen; het kost werkgeheugen): kies dan het
 opslagtype **tmpfs** met alleen een grootte (geen eigen modus, uid of gid) van **minstens 2048 MiB, voorstel 4096 MiB**:
 de server start niet met minder dan 2 GiB vrij in `/cache` (in de log: `The path /cache has insufficient free space`; de
-standaardgrootte van 500 MiB is dus te klein). Zo'n tmpfs bestaat alleen in deze container;
-de image geeft hem modus 1777, zodat ook een Custom User erin schrijft, en de container aanvaardt hem alleen als het een eigen,
-bij de start lege tmpfs is. Kies voor `/cache` nooit een Host Path buiten je eigen datasets (zoals `/dev/shm`).
+standaardgrootte van 500 MiB is dus te klein). De image geeft zo'n tmpfs modus 1777, zodat ook een Custom User erin
+schrijft; de container wijzigt eigenaar en modus ervan nooit. Hij aanvaardt een tmpfs alleen als `/cache` zelf het koppelpunt
+is en die bij de start leeg is. Een lege tmpfs van de NAS of van een andere app ziet er voor de container precies zo uit;
+die herkent hij dus niet. Kies voor `/cache` daarom nooit een Host Path buiten je eigen datasets (zoals `/dev/shm`), zie
+*Verplicht 3*.
 
 ## Formulier: Apps → Discover Apps → Custom App
 
@@ -192,7 +201,7 @@ vóór de controle van `/health` naar 568 zonder capabilities (ADR-0014). Je hoe
 | `FOUT: … is van gebruiker <x>, niet van 568` | *Datasets* → de dataset → *Permissions* → *Edit*: maak apps (568) eigenaar, ook van de onderliggende mappen. Er is niets gewijzigd. |
 | `FOUT: … datamap-versie is onleesbaar` | Het bestand `jelly-leon/datamap-versie` in de config-dataset is beschadigd of geen gewoon bestand (het onthoudt alleen de hoogste Jelly Leon-versie). Veilige weg: laat alleen dit ene bestand weghalen (bijvoorbeeld via de Hub) en start daarna alleen de nieuwste Jelly Leon-image die je gebruikte. Zet een snapshot van de config-dataset (*Datasets* → *Snapshots*) alleen terug als je accepteert dat de kijkgegevens van na die snapshot verloren gaan. Er is niets gewijzigd. |
 | Poort bezet bij opslaan | Andere Host Port kiezen; Container Port blijft `8096`. |
-| `FOUT: … staat in werkgeheugen (tmpfs) dat niet alleen van deze container is` | `/cache` is een tmpfs die de container niet als eigen tmpfs herkent (een Host Path naar een tmpfs van de NAS, of al gevuld bij de start). Kies voor `/cache` het opslagtype tmpfs met alleen een grootte, of een eigen dataset (Host Path of ixVolume). Er is niets gewijzigd. |
+| `FOUT: … staat in werkgeheugen (tmpfs) dat niet alleen van deze container is` | `/cache` is een tmpfs waarvan `/cache` niet zelf het koppelpunt is, of die bij de start al gevuld is (bijvoorbeeld een Host Path naar een map of een gevulde tmpfs van de NAS). Kies voor `/cache` het opslagtype tmpfs met alleen een grootte, of een eigen dataset (Host Path of ixVolume). Er is niets gewijzigd. Let op: een **lege** tmpfs van de NAS of van een andere app herkent de container niet; die moet je zelf vermijden (*Verplicht 3*). |
 | `The path /cache has insufficient free space. Available: …, Required: 2GiB` | De server zelf weigert te starten: `/cache` heeft minder dan 2 GiB vrij. Bij het opslagtype tmpfs: zet de grootte op minstens 2048 MiB (voorstel 4096 MiB); bij een dataset: maak ruimte vrij. |
 | `FOUT: /cache is werkgeheugen (tmpfs) waarin gebruiker … niet mag schrijven` | Custom User staat aan en de tmpfs heeft een eigen modus gekregen: laat bij de tmpfs alleen de grootte staan (de image geeft dan 1777), zet Custom User uit, of kies een eigen dataset van deze gebruiker. |
 | `FOUT: /config is niet schrijfbaar voor gebruiker 568:568 (Custom User in het formulier)` | Custom User staat aan maar de dataset is (nog) niet van 568: zet Custom User uit (de container regelt het eigenaarschap zelf) of maak de dataset eerst van 568. |

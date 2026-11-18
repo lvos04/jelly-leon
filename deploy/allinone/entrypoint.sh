@@ -27,8 +27,10 @@
 #    alleen een map met inhoud wordt geweigerd), en de DLL wordt als nieuw bestand naast het doel geschreven en dan
 #    hernoemd (nooit door een bestaande ingang heen). Deel 1f:
 #    ook plugins/configurations en daarin Jellyfin.Plugin.JellyLeon.xml (de server leest en schrijft dat bestand). Een
-#    /cache die een eigen tmpfs van deze container is (eigen koppelpunt, bij de start leeg; own_tmpfs) wordt aanvaard met
-#    de eigenaar en modus van Docker of TrueNAS; de image zet /cache op 1777, zodat ook een Custom User erin schrijft.
+#    /cache die een tmpfs is met /cache als eigen koppelpunt en bij de start leeg (own_tmpfs) wordt aanvaard met de eigenaar
+#    en modus van Docker of TrueNAS; de image zet /cache op 1777, zodat ook een Custom User erin schrijft. Deel 1g: een lege
+#    tmpfs van de NAS (Host Path /dev/shm) is daar niet sluitend van te onderscheiden; daarom wijzigt de start een
+#    tmpfs-/cache nooit (ook als root geen eigenaarswissel) en verbiedt CUSTOM_APP.md (Verplicht 3) zo'n gedeelde /cache.
 #  * De meegeleverde Jelly Leon-plugin wordt in <datamap>/plugins/JellyLeon_<versie> gezet; andere plugins blijven
 #    onaangeroerd. Geen geheimen, geen netwerkaanroepen, geen shell voor iets anders dan deze start.
 #  * Downgradeweigering (B03-014, JLT-61 b): <datamap>/jelly-leon/datamap-versie onthoudt de hoogste forkversie die de
@@ -82,9 +84,12 @@ mount_of() {
     END { if (out != "") print out }' "$MOUNTINFO"
 }
 
-# Deel 1f (BN-1): een tmpfs die alleen in deze container bestaat. Vastgesteld uit de mounttabel, niet uit de naam: de map
-# is zelf het koppelpunt van een heel tmpfs-bestandssysteem (wortel "/", dus geen gekoppelde map van de host) en is bij de
-# start leeg (Docker maakt een tmpfs bij elke start nieuw en leeg). Niemand buiten de container kan daar iets neerleggen.
+# Deel 1f (BN-1): een tmpfs zoals het opslagtype tmpfs van het formulier hem geeft. Vastgesteld uit de mounttabel, niet uit de
+# naam: de map is zelf het koppelpunt van een heel tmpfs-bestandssysteem (wortel "/", dus geen gekoppelde map daarin) en is
+# bij de start leeg (Docker maakt een tmpfs bij elke start nieuw en leeg). Grens (deel 1g, R-VEILIG-1f-1): de héle wortel
+# van een tmpfs van de NAS (Host Path /dev/shm) die toevallig leeg is, of een met een andere app gedeelde lege tmpfs, ziet er
+# hier precies zo uit; daar kan een ander tijdens de looptijd wel iets in neerleggen. Daarom wijzigt de start een tmpfs-/cache
+# nooit en verbiedt CUSTOM_APP.md (Verplicht 3) zo'n opzet.
 own_tmpfs() {
   info=$(mount_of "$1") || return 1
   rest=${info#* }
@@ -236,7 +241,13 @@ assert_private_storage() {
   for top in "$DATA_DIR" "$CACHE_DIR"; do
     # Deel 1f (BN-1): een eigen tmpfs als cache aanvaarden met de eigenaar en modus die Docker of TrueNAS geeft (ook 1777).
     if [ "$top" != "$CACHE_DIR" ] || ! own_tmpfs "$top"; then
-      assert_private_dir "$top" "${1:-}"
+      top_uid=${1:-}
+      # Deel 1g: een tmpfs krijgt ook als root nooit een andere eigenaar (zie de eigenaarswissel), dus moet hij al van de
+      # app-gebruiker zijn; anders hier weigeren, vóór de eigenaarswissel van /config.
+      if [ -z "$top_uid" ] && [ "$top" = "$CACHE_DIR" ] && [ "$(mount_of "$top" | cut -d ' ' -f 1)" = tmpfs ]; then
+        top_uid=$APP_UID
+      fi
+      assert_private_dir "$top" "$top_uid"
     fi
     parent=$(dirname -- "$top")
     while [ "${#parent}" -gt 1 ]; do # stopt bij / (en bij . voor een relatief pad)
@@ -394,6 +405,9 @@ assert_private_storage
 assert_new_dirs_private
 
 for dir in "$DATA_DIR" "$CACHE_DIR"; do
+  # Deel 1g (R-VEILIG-1f-1): een tmpfs-/cache nooit van eigenaar of modus wisselen; het kan per vergissing een tmpfs van de
+  # NAS zijn (Host Path /dev/shm). Een tmpfs uit het formulier heeft modus 1777 van de image en is zo ook voor 568 schrijfbaar.
+  [ "$dir" = "$CACHE_DIR" ] && [ "$(mount_of "$dir" | cut -d ' ' -f 1)" = tmpfs ] && continue
   owner=$(stat -c '%u' "$dir")
   if [ "$owner" != "$APP_UID" ]; then
     log "$dir is van uid $owner; eigenaar wordt $APP_UID:$APP_GID (eenmalig, alleen deze map)"

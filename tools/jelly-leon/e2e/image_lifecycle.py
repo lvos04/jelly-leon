@@ -668,7 +668,8 @@ class Lifecycle:
     def check_tmpfs_cache_starts(self, first: dict) -> bool:
         """S-G1-16 deel 1f (BN-1, R-HARDE-EIS-1): /cache als tmpfs zoals het TrueNAS-formulier hem rendert (alleen size; hier
         4096 MiB, want de server eist 2 GiB vrij), als root en als Custom User 568: healthy, rooktest, en de plugin is niet
-        teruggevallen (modules 200, geen opslagmelding)."""
+        teruggevallen (modules 200, geen opslagmelding). Deel 1g (R-VEILIG-1f-1): ook als root houdt de tmpfs de eigenaar en
+        modus van Docker (0:0 1777); de start wisselt een tmpfs nooit van eigenaar."""
         ok = True
         mounts = [f"{self.config}:/config", f"{self.media}:/media/muziek:ro"]
         for label, extra in (("root", []), ("Custom User 568:568", ["--user", f"{APP_UID}:{APP_UID}"])):
@@ -683,6 +684,9 @@ class Lifecycle:
             fallback = "alleen de plugin is uitgeschakeld" in log
             ok = self.add(f"plugin aan met /cache als tmpfs ({label})", status == 200 and not fallback,
                           f"GET /media/v1/modules als beheerder: HTTP {status}; opslagmelding in het serverlog: {fallback}") and ok
+            cache = docker("exec", self.name, "stat", "-c", "%u:%g %a", "/cache", check=False).stdout.strip()
+            ok = self.add(f"tmpfs-/cache niet van eigenaar of modus gewisseld ({label})", cache == "0:0 1777",
+                          f"/cache in de draaiende container: {cache}") and ok
         self.remove(self.name)
         return ok
 

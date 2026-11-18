@@ -46,8 +46,9 @@ internal sealed class JlPaths
 
     /// <summary>
     /// De cachemap van de server als die een eigen tmpfs van deze container is (deel 1f, BN-1), anders null. Zo'n tmpfs
-    /// bestaat alleen in deze container; zijn eigenaar en modus (ook 1777) komen van Docker of TrueNAS. Alleen voor de
-    /// cache: de datamap blijft even streng.
+    /// (opslagtype tmpfs) krijgt zijn eigenaar en modus (ook 1777) van Docker of TrueNAS. Een lege gedeelde tmpfs (Host
+    /// Path /dev/shm) is hier niet van te onderscheiden (deel 1g; CUSTOM_APP.md, Verplicht 3). Alleen voor de cache: de
+    /// datamap blijft even streng.
     /// </summary>
     public string? EigenTmpfs { get; }
 

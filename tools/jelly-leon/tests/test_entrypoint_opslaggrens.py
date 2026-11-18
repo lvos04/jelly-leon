@@ -35,7 +35,7 @@ def fase_twee(
     bundel.mkdir(parents=True, exist_ok=True)
     (bundel / "Jellyfin.Plugin.JellyLeon.dll").write_bytes(b"synthetische plugin")
     voorwerk = (
-        f"set -eu\numask 022\nDATA_DIR='{data}'\nCACHE_DIR='{cache}'\nBUNDLED_PLUGINS='{tmp / 'bundel'}'\n"
+        f"set -eu\numask 022\nAPP_UID=568\nAPP_GID=568\nDATA_DIR='{data}'\nCACHE_DIR='{cache}'\nBUNDLED_PLUGINS='{tmp / 'bundel'}'\n"
         f"IMAGE_VERSION_FILE='{tmp / 'VERSION'}'\nDATAMAP_VERSION_FILE=\"$DATA_DIR/jelly-leon/datamap-versie\"\n"
         f"MOUNTINFO='{mountinfo or standaard_mountinfo(tmp)}'\n"
     )
@@ -505,6 +505,51 @@ def test_tmpfs_die_niet_alleen_van_de_container_is_blijft_streng(tmp_path: Path,
     assert boom(tmp_path) == voor
 
 
+def wortelfase(tekst: str) -> str:
+    """De rootfase vanaf de controles tot de groepen, met chown als nep (de test draait niet als root): elke aanroep wordt
+    gemeld in plaats van uitgevoerd."""
+    begin = tekst.index("\nassert_private_storage\nassert_new_dirs_private\n") + 1
+    return 'chown() { printf "CHOWN %s\\n" "$*"; }\n' + tekst[begin : tekst.index("\ngroups=", begin)]
+
+
+@pytest.mark.parametrize("modus", [0o1777, 0o777])
+def test_rootfase_wijzigt_een_tmpfs_cache_nooit(tmp_path: Path, modus: int) -> None:
+    """R-VEILIG-1f-1 (deel 1g, besluit optie A): de rootfase geeft een als tmpfs aanvaarde /cache nooit een andere eigenaar of
+    modus. In de container is een lege tmpfs van de NAS (Host Path /dev/shm) niet sluitend van een eigen tmpfs te
+    onderscheiden; zo verandert de start die in elk geval niet. De datamap krijgt bij de eerste start wel eigenaar 568."""
+    data, cache, buiten = opzet(tmp_path)
+    cache.chmod(modus)
+    voor = (cache.stat().st_mode, cache.stat().st_uid, cache.stat().st_gid)
+    script = fase_twee(tmp_path, data, cache, body=wortelfase(SCRIPT.read_text(encoding="utf-8")),
+                       mountinfo=mountinfo(tmp_path, tmpfs_regel(cache)))
+    proc = draai(script)
+    uit = proc.stdout + proc.stderr
+    assert proc.returncode == 0, uit
+    chowns = [r for r in uit.splitlines() if r.startswith("CHOWN ")]
+    assert chowns == [f"CHOWN -R 568:568 {data}"], uit
+    assert (cache.stat().st_mode, cache.stat().st_uid, cache.stat().st_gid) == voor
+    assert not any(cache.iterdir()) and buiten.read_bytes() == KIJKGEGEVENS
+
+
+@pytest.mark.parametrize("geval", ["hostmap", "gevuld"])
+def test_rootfase_weigert_een_tmpfs_cache_die_niet_van_de_app_is(tmp_path: Path, geval: str) -> None:
+    """Deel 1g: omdat de start een tmpfs nooit van eigenaar wisselt, moet een tmpfs-/cache die geen eigen, lege tmpfs is (een
+    map van een tmpfs van de NAS, of een al gevulde tmpfs) al als root van de app-gebruiker zijn. Anders weigert de rootfase
+    vóór de eigenaarswissel van /config, zonder iets te wijzigen (eerder: chown -R op die tmpfs)."""
+    data, cache, buiten = opzet(tmp_path)
+    regel = tmpfs_regel(cache, "/gedeeld") if geval == "hostmap" else tmpfs_regel(cache)
+    if geval == "gevuld":
+        (cache / "van-de-nas").write_text("x")
+    body = "assert_private_storage\nprintf 'EIGENAARSWISSEL\\n'\n"
+    script = fase_twee(tmp_path, data, cache, body=body, mountinfo=mountinfo(tmp_path, regel))
+    voor = boom(tmp_path)
+    proc = draai(script)
+    uit = proc.stdout + proc.stderr
+    assert proc.returncode != 0 and "EIGENAARSWISSEL" not in uit, uit
+    assert f"is van gebruiker {os.getuid()}, niet van 568" in uit and "werkgeheugen (tmpfs)" in uit, uit
+    assert "Er is niets gewijzigd" in uit and boom(tmp_path) == voor
+
+
 def overerfbare_acl(map_: Path, groep: int) -> None:
     """Zet een POSIX default-ACL (u::rwx, g::<groep>, m::<groep>, o::r-x) zonder setfacl: het xattr-formaat van de kernel,
     versie 2, daarna per regel tag, rechten en id (-1 voor de eigenaar-, groeps-, masker- en anderenregel)."""
@@ -569,12 +614,20 @@ def test_proef_op_overerving_staat_voor_elke_wijziging() -> None:
     assert app < tekst.index("    repair_plugin_dirs\n", fase)
 
 
-def test_custom_app_zet_de_twee_gebruiksregels_verplicht_bovenaan() -> None:
-    """R-VEILIG-2 en R-HARDE-EIS-3 (B1, deel 1f): de gebruiker leest CUSTOM_APP.md, niet de ADR. Beide regels staan daar
-    verplicht en vóór de installatiestappen, met de reden in gewone taal."""
+def test_custom_app_zet_de_drie_gebruiksregels_verplicht_bovenaan() -> None:
+    """R-VEILIG-2 en R-HARDE-EIS-3 (B1, deel 1f) en R-VEILIG-1f-1 (deel 1g): de gebruiker leest CUSTOM_APP.md, niet de ADR.
+    De drie regels staan daar verplicht en vóór de installatiestappen, met de reden in gewone taal; de tekst belooft niet
+    dat de container een gedeelde tmpfs herkent."""
     tekst = (REPO / "deploy" / "truenas" / "CUSTOM_APP.md").read_text(encoding="utf-8")
-    regels = tekst[tekst.index("## Twee verplichte regels") : tekst.index("## Vooraf")]
+    # Als één doorlopende tekst (de regels staan in een citaatblok over meer regels).
+    regels = re.sub(r"\s*\n>\s*", " ", tekst[tekst.index("## Drie verplichte regels") : tekst.index("## Vooraf")])
     assert "Verplicht 1 — Koppel de config-dataset van Jelly Leon nooit aan een andere app" in regels
     assert "plugins/configurations" in regels and "dezelfde gebruiker (apps, 568)" in regels
     assert "overschrijft dan de database met al je kijkgegevens" in regels
     assert "Verplicht 2 — Zet alleen eigen snapshots of back-ups terug" in regels
+    derde = regels[regels.index("Verplicht 3 — ") :]
+    assert "eigen dataset van alleen deze app" in derde and "opslagtype tmpfs van deze app" in derde
+    assert all(pad in derde for pad in ("`/dev/shm`", "`/run`", "`/tmp`")) and "met een andere app gedeelde" in derde
+    assert "bij de serverdatabase met je kijkgegevens" in derde and "niet sluitend onderscheiden" in derde
+    for belofte in ("bestaat alleen in deze container", "aanvaardt hem alleen als het een eigen"):
+        assert belofte not in tekst, belofte
