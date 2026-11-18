@@ -297,7 +297,14 @@ def test_vreemde_ingang_in_de_eigen_pluginmap_wordt_hersteld_zonder_te_volgen(tm
     assert buiten.read_bytes() == KIJKGEGEVENS, "de start schreef via het pluginbestand in de serverdatabase"
     assert proc.returncode == 0, uit
     nieuw = data / "plugins" / "JellyLeon_0.1.0.0"
-    assert sorted(p.name for p in nieuw.iterdir()) == ["Jellyfin.Plugin.JellyLeon.dll"]
+    namen = sorted(p.name for p in nieuw.iterdir())
+    # Twee namen binnen de map: welke als eerste weg is, hangt af van de volgorde van de map; de andere is dan een gewoon
+    # bestand met één naam (en geen .dll, dus de server laadt hem niet).
+    toegestaan = [["Jellyfin.Plugin.JellyLeon.dll"]]
+    if geval == "tweede-naam":
+        toegestaan.append(["Jellyfin.Plugin.JellyLeon.dll", "kopie.dll.bak"])
+    assert namen in toegestaan
+    assert all(p.is_file() and not p.is_symlink() and p.stat().st_nlink == 1 for p in nieuw.iterdir())
     dll_nu = nieuw / "Jellyfin.Plugin.JellyLeon.dll"
     assert not dll_nu.is_symlink() and dll_nu.read_bytes() == b"synthetische plugin" and dll_nu.stat().st_nlink == 1
     assert not (data / "plugins" / "JellyLeon_0.0.9.0").exists()
