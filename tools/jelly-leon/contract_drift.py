@@ -2,7 +2,7 @@
 """Drifttest van de gekopieerde platformcontracten (contract 1.3 kop en §10, C1.3-ALG-01 / C1.3-JL-01).
 
 `docs/platform-v2/PLATFORM_CONTRACTEN.md` en `docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md` zijn byte-gelijke kopieën
-uit `lvos04/ai-server-manager` (bron van waarheid) op een vastgezette bron-commit. Deze repo wijzigt ze nooit zelf; een
+uit `leon/ai-server-manager` (bron van waarheid) op een vastgezette bron-commit. Deze repo wijzigt ze nooit zelf; een
 nieuwe contractversie overnemen is een stap van de orkestratie (nieuwe bron-commit + sha256 hieronder).
 
 `docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md` blijft als historie staan (contract 1.3 C1.3-ALG-01 staat dat toe). Hij
@@ -15,7 +15,7 @@ Controles:
   2. `--bron-map <checkout van ai-server-manager>`: de kopie is byte-gelijk aan `git show <bron-commit>:<pad>`
      (historie: op zijn eigen bron-commit); wijkt de werkboom van die checkout af, dan alleen een waarschuwing
      "bron gewijzigd" (kopie bijwerken; niet voor de historie);
-  3. `--online`: idem via raw.githubusercontent.com op de volledige bron-commit (publieke repo, geen token) en —
+  3. `--online`: idem via de Forgejo-API op de volledige bron-commit en —
      alleen als waarschuwing — op de bronbranch (`--bronbranch`).
 
 Alleen standaardbibliotheek. Exitcodes: 0 = gelijk (eventueel met waarschuwing), 1 = drift/afwijking,
@@ -26,10 +26,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
@@ -38,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from jl_common import DEFAULT_REPO_ROOT  # noqa: E402
 
-BRON_REPO = "lvos04/ai-server-manager"
+BRON_REPO = "leon/ai-server-manager"
 #: Commit van ai-server-manager waaruit de kopieën komen (contracts 1.3 incl. de review-correcties RV1–RV13,
 #: ADR-0027/ADR-0028 daar, en de aanvulling C-12, ADR-0031 daar; dezelfde bron-commit als in de andere repos).
 BRON_COMMIT = "e88a290c9ad5fef4acf498d05ad3414395a4fcb5"
@@ -57,7 +59,7 @@ HISTORIE: dict[str, tuple[str, str]] = {
 }
 #: Kop die in de contractkopie moet staan (de versie die deze repo volgt).
 VERSIEKOP = b"Versie: `contracts 1.3`"
-RAW_URL = "https://raw.githubusercontent.com/{repo}/{ref}/{path}"
+RAW_URL = "https://git.medialeon.nl/api/v1/repos/{repo}/raw/{path}?ref={ref}"
 
 Reader = Callable[[str], bytes | None]
 
@@ -159,12 +161,15 @@ def worktree_reader(source_repo: Path) -> Reader:
 
 def http_reader(ref: str, attempts: int = 4) -> Reader:
     def read(rel: str) -> bytes | None:
-        url = RAW_URL.format(repo=BRON_REPO, ref=ref, path=rel)
+        url = RAW_URL.format(repo=BRON_REPO, ref=urllib.parse.quote(ref, safe=""), path=rel)
+        request = urllib.request.Request(url)  # noqa: S310 (vaste Forgejo-host)
+        if token := os.environ.get("FORGEJO_TOKEN"):
+            request.add_unredirected_header("Authorization", f"token {token}")
         delay = 2.0
         last = ""
         for attempt in range(1, attempts + 1):
             try:
-                with urllib.request.urlopen(url, timeout=30) as resp:  # noqa: S310 (vaste https-URL)
+                with urllib.request.urlopen(request, timeout=30) as resp:  # noqa: S310 (vaste https-URL)
                     return resp.read()
             except urllib.error.HTTPError as exc:
                 if exc.code == 404:
@@ -185,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO_ROOT)
     bron = parser.add_mutually_exclusive_group()
     bron.add_argument("--bron-map", type=Path, help="lokale checkout van ai-server-manager (vergelijk met git show)")
-    bron.add_argument("--online", action="store_true", help="vergelijk met de publieke bron op GitHub")
+    bron.add_argument("--online", action="store_true", help="vergelijk met de privébron op Forgejo (FORGEJO_TOKEN)")
     parser.add_argument("--bronbranch", default=BRON_BRANCH, help="branch van de bron voor de driftwaarschuwing")
     parser.add_argument("--github", action="store_true", help="waarschuwingen als ::warning:: voor GitHub Actions")
     args = parser.parse_args(argv)
@@ -220,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
         for line in errors:
             print(f"  - {line}", file=sys.stderr)
         return 1
-    mode = "online tegen GitHub" if args.online else ("tegen de lokale bron" if args.bron_map else "offline, sha256-pin")
+    mode = "online tegen Forgejo" if args.online else ("tegen de lokale bron" if args.bron_map else "offline, sha256-pin")
     present = [rel for rel in HISTORIE if (repo / rel).is_file()]
     print(
         f"Contractkopieën in orde ({mode}): {len(KOPIEEN)} bestanden byte-gelijk aan {BRON_REPO}@{BRON_COMMIT[:9]}"

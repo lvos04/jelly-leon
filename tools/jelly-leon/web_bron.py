@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bron van de web-client in de image: welke commit van `lvos04/jelly-leon-web` en klopt die bij de server-basis.
+"""Bron van de web-client in de image: welke commit van `leon/jelly-leon-web` en klopt die bij de server-basis.
 
 `tools/jelly-leon/baseline.json` legt naast de serverbasis vast:
   - `web_repo`, `web_upstream_tag`, `web_upstream_commit`: de upstream-basis van de web-fork;
@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from jl_common import DEFAULT_REPO_ROOT, ToolError, Version, load_baseline, parse_stable_tag, run_git  # noqa: E402
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-WEB_REPO_RE = re.compile(r"^https://github\.com/([A-Za-z0-9-]+/[A-Za-z0-9._-]+?)(?:\.git)?$")
+WEB_REPO_RE = re.compile(r"^https://(?:git\.medialeon\.nl|github\.com)/([A-Za-z0-9-]+/[A-Za-z0-9._-]+?)(?:\.git)?$")
 
 
 def web_fields(baseline: dict) -> tuple[list[str], dict[str, str]]:
@@ -43,7 +43,7 @@ def web_fields(baseline: dict) -> tuple[list[str], dict[str, str]]:
         if not SHA_RE.match(fields[key]):
             errors.append(f"baseline.{key} moet een volledige commit-SHA zijn (40 hex), niet {fields[key]!r}")
     if not WEB_REPO_RE.match(fields["web_repo"]):
-        errors.append(f"baseline.web_repo {fields['web_repo']!r} is geen https://github.com/<eigenaar>/<repo>")
+        errors.append(f"baseline.web_repo {fields['web_repo']!r} is geen https://github.com/<eigenaar>/<repo> of https://git.medialeon.nl/<eigenaar>/<repo>")
     tag_version = parse_stable_tag(fields["web_upstream_tag"])
     if tag_version is None:
         errors.append(f"baseline.web_upstream_tag {fields['web_upstream_tag']!r} is geen stabiele upstream-tag")

@@ -14,3 +14,4 @@ tools/emby-overname/
 tools/b03-harnas/
 .github/workflows/jelly-leon-ci.yml
 .github/workflows/upstream-sync.yml
+.forgejo/

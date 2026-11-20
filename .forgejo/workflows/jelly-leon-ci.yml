@@ -1,0 +1,675 @@
+name: Jelly Leon CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'ccr-**'
+      - 'sync/**'
+      - 'release/**'
+    tags:
+      - 'v*-jl.*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jelly-leon-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  DOTNET_PROCESSOR_COUNT: '2'
+  JL_CI_IMAGE: jelly-leon:ci-${{ github.run_id }}-${{ github.run_attempt }}
+  # Officiële upstream-runtime (jellyfin-ffmpeg + Intel-stack), op digest vastgezet; zelfde als deploy/allinone.
+  JL_RUNTIME_IMAGE: docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
+
+jobs:
+  forkregels:
+    name: Forkregels (patchregister, versies, tool-tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (volledige historie voor de upstream-basis)
+        uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Python 3.12
+        uses: https://data.forgejo.org/actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Testafhankelijkheden
+        run: python -m pip install --disable-pip-version-check -r tools/jelly-leon/requirements-dev.txt
+
+      - name: Versie- en forkconsistentie
+        run: python tools/jelly-leon/check_fork_consistency.py
+
+      - name: Patchregister (elke core-patch geregistreerd)
+        run: python tools/jelly-leon/patch_register_check.py
+
+      # B03-019 (a): elk upstream-gedrag waarop Jelly Leon steunt heeft een anker (en waar nodig een runtime-test);
+      # een verwijzing UG-… zonder regel/test laat de build falen.
+      - name: Register van upstream-gedrag (ankers en verwijzingen)
+        run: python tools/jelly-leon/upstream_gedrag_check.py --overzicht
+
+      - name: Vastgezette contractkopieën controleren
+        run: python tools/jelly-leon/contract_drift.py
+
+      - name: Tests van de forktools (incl. EX48-simulatie)
+        run: python -m pytest -q tools/jelly-leon/tests
+
+      - name: Lint forktools (ruff)
+        run: ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon
+
+      - name: Entrypoint en healthcheck controleren (shellcheck)
+        run: shellcheck -s sh deploy/allinone/entrypoint.sh deploy/allinone/healthcheck.sh
+
+      - name: Workflows controleren (actionlint met shellcheck)
+        run: bash tools/jelly-leon/lint_forgejo.sh
+
+  contract:
+    name: Contractkopieën vergelijken met de privébron
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Contracten vergelijken op beide broncommits en de huidige bronbranch
+        env:
+          FORGEJO_TOKEN: ${{ github.token }}
+        run: python3 tools/jelly-leon/contract_drift.py --online --github
+
+  manifest:
+    name: Manifest §9 (validator van appstore-en-fork, vastgezette commit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      APPSTORE_REPO: leon/appstore-en-fork
+      # Validator met contract 1.3 en aanvulling C-12 (ADR-0023 van appstore-en-fork).
+      APPSTORE_COMMIT: a994c2a51f45b81b2c48c6533b0ccf51ba857f5a
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Validator ophalen op de vastgezette commit
+        uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ env.APPSTORE_REPO }}
+          token: ${{ github.token }}
+          ref: ${{ env.APPSTORE_COMMIT }}
+          path: _extern/appstore-en-fork
+          persist-credentials: false
+
+      - name: Python 3.12
+        uses: https://data.forgejo.org/actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Afhankelijkheden van de validator (hash-gepinde lockfile van de eigenaar)
+        run: >
+          python -m pip install --disable-pip-version-check --require-hashes --no-deps
+          -r _extern/appstore-en-fork/apps/api/requirements.lock
+
+      - name: Manifest valideren (--strict) en beoordelen
+        env:
+          PYTHONPATH: _extern/appstore-en-fork/apps/api/src
+        run: |
+          set +e
+          python -m appstore.manifest.cli validate --strict --format json deploy/manifest/jelly-leon.manifest.yaml \
+            > "$RUNNER_TEMP/manifest-rapport.json"
+          validator_rc=$?
+          set -e
+          echo "exitcode validator (--strict): $validator_rc"
+          python tools/jelly-leon/manifest_rapport.py --rapport "$RUNNER_TEMP/manifest-rapport.json" --github
+          test "$validator_rc" -eq 0
+
+      - name: Rapport bewaren
+        if: always()
+        uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
+        with:
+          name: manifest-rapport
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/manifest-rapport.json
+
+  server:
+    name: Upstream-solution bouwen en testen
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      # global.json (upstream) vraagt <major>.0.0 + rollForward (12.4: 10.0.0); die exacte versie is niet te downloaden.
+      # Daarom het kanaal x.y.x uit global.json afleiden (zoals upstream zelf 10.0.x installeert); global.json blijft
+      # ongewijzigd (ADR-0010).
+      - name: .NET-SDK-kanaal uit global.json
+        id: sdk
+        run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
+
+      - name: .NET SDK (actuele patch van de reeks uit global.json)
+        uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: ${{ steps.sdk.outputs.kanaal }}
+
+      - name: Gekozen SDK (via global.json/rollForward)
+        run: dotnet --version
+
+      - name: Restore
+        run: dotnet restore Jellyfin.sln
+
+      - name: Build (Release)
+        run: dotnet build Jellyfin.sln -c Release --no-restore
+
+      - name: Test (volledige upstream-testsuite)
+        run: >
+          dotnet test Jellyfin.sln -c Release --no-build --verbosity minimal
+          --logger "trx;LogFilePrefix=jelly-leon" --results-directory testresults
+
+      # Structureel vergelijken: upstream laadt XML-docbestanden in bestandssysteemvolgorde, waardoor alleen
+      # description-teksten per omgeving kunnen verschillen (ADR-0010). Elke andere afwijking = API-wijziging = falen.
+      - name: OpenAPI-drift (upstream-API moet gelijk blijven aan docs/openapi)
+        run: |
+          generated=$(find tests/Jellyfin.Server.Integration.Tests/bin/Release -name openapi.json | head -1)
+          python3 tools/jelly-leon/openapi_drift.py --github \
+            --verwacht docs/openapi/jelly-leon.openapi.json --gegenereerd "${generated:-ontbreekt/openapi.json}"
+
+      - name: Testresultaten bewaren
+        if: always()
+        uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
+        with:
+          name: testresultaten-server
+          retention-days: 14
+          path: testresults/
+
+  plugins:
+    name: Plugins bouwen en testen
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      # global.json (upstream) vraagt <major>.0.0 + rollForward (12.4: 10.0.0); die exacte versie is niet te downloaden.
+      # Daarom het kanaal x.y.x uit global.json afleiden (zoals upstream zelf 10.0.x installeert); global.json blijft
+      # ongewijzigd (ADR-0010).
+      - name: .NET-SDK-kanaal uit global.json
+        id: sdk
+        run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
+
+      - name: .NET SDK (actuele patch van de reeks uit global.json)
+        uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: ${{ steps.sdk.outputs.kanaal }}
+
+      - name: Gekozen SDK (via global.json/rollForward)
+        run: dotnet --version
+
+      - name: Build plugins (tegen Jellyfin.Controller van de basisversie)
+        run: dotnet build plugins/JellyLeon.Plugins.sln -c Release
+
+      # Ook (deel 1e) een eigen, veilige datamap met daarin core/core.db (0644) van een andere UID.
+      - name: Tijdelijke opslag met een vreemde eigenaar (geen root of sudo in de tests)
+        run: |
+          fixture=$(mktemp -d "$RUNNER_TEMP/eigenaar.XXXXXXXX")
+          mkdir -p "$fixture/kern/jelly-leon/core"
+          chmod 1777 "$fixture" "$fixture/kern/jelly-leon/core"
+          docker run --rm --network none --user 65534:65534 --entrypoint /bin/sh \
+            -v "$fixture:/fixture" "$JL_RUNTIME_IMAGE" -c 'umask 022; mkdir -m 0755 /fixture/vreemd && : > /fixture/kern/jelly-leon/core/core.db'
+          chmod 0755 "$fixture" "$fixture/kern" "$fixture/kern/jelly-leon"
+          chmod 0700 "$fixture/kern/jelly-leon/core"
+          printf 'JL_VREEMDE_OPSLAG=%s/vreemd\nJL_VREEMDE_KERN=%s/kern\n' "$fixture" "$fixture" >> "$GITHUB_ENV"
+
+      - name: Test plugins
+        run: dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+
+      - name: Alleen de eigen tijdelijke eigenaarfixture opruimen
+        if: always() && env.JL_VREEMDE_OPSLAG != ''
+        run: |
+          rm -f -- "$JL_VREEMDE_KERN/jelly-leon/core/core.db"
+          rmdir -- "$JL_VREEMDE_KERN/jelly-leon/core" "$JL_VREEMDE_KERN/jelly-leon" "$JL_VREEMDE_KERN" \
+            "$JL_VREEMDE_OPSLAG" "$(dirname -- "$JL_VREEMDE_OPSLAG")"
+
+      # B03-017 / ADR-0032: de proefassembly bevat elke verboden aanroep en MOET de build laten falen, met precies de
+      # gemarkeerde bouwfouten (JL0001–JL0004) en om geen andere reden. De gewone build hierboven bewijst het omgekeerde:
+      # de plugin zelf bevat geen enkele verboden aanroep.
+      - name: Analyzer verboden API's (proefassembly moet de build laten falen)
+        run: python3 tools/jelly-leon/analyzer_proef.py --bouw
+
+      - name: Plugin-DLL bewaren
+        uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
+        with:
+          name: plugin-jellyleon
+          retention-days: 14
+          if-no-files-found: error
+          # TargetFramework volgt de upstream-ABI (plugins/Directory.Build.props; 12.x: net10.0).
+          path: plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net*/Jellyfin.Plugin.JellyLeon.dll
+
+  image:
+    name: Alles-in-één image bouwen (echte jelly-leon-web-build) en levenscyclus testen
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Web-bron uit baseline.json
+        id: web
+        run: python3 tools/jelly-leon/web_bron.py --commit --github-output
+
+      - name: Webclient ophalen op de vastgezette commit
+        uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ steps.web.outputs.repo }}
+          token: ${{ github.token }}
+          ref: ${{ steps.web.outputs.commit }}
+          path: _extern/jelly-leon-web
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Web-bron controleren (commit, jellyfin-web-versie = server-basis, upstream-basis is voorouder)
+        run: python3 tools/jelly-leon/web_bron.py --controleer _extern/jelly-leon-web
+
+      - name: Schone export van jelly-leon-web (git archive; geen .git of bouwresten in de build-context)
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/jelly-leon-web"
+          git -C _extern/jelly-leon-web archive --format=tar HEAD | tar -x -C "$RUNNER_TEMP/jelly-leon-web"
+          test -f "$RUNNER_TEMP/jelly-leon-web/package-lock.json"
+          rm -rf _extern
+
+      - name: Image bouwen met de productie-Dockerfile (geen push)
+        env:
+          WEB_REF: ${{ steps.web.outputs.commit }}
+        run: |
+          set -eu
+          fork_version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['fork_version'])")
+          docker buildx build -f deploy/allinone/Dockerfile \
+            --build-context jelly-leon-web="$RUNNER_TEMP/jelly-leon-web" \
+            --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" --build-arg WEB_REF="$WEB_REF" \
+            --build-arg BUILD_JOBS=2 --build-arg WEB_BUILD_JOBS=2 --load -t "$JL_CI_IMAGE" .
+
+      - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568 zonder rechten, herkomst web, herstart, Custom User, weigeringen)
+        env:
+          WEB_REF: ${{ steps.web.outputs.commit }}
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          python3 tools/jelly-leon/e2e/image_lifecycle.py --image "$JL_CI_IMAGE" --expected-version "$version" \
+            --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/image-lifecycle.json" --verwacht-web-ref "$WEB_REF" \
+            --opmerking "CI; web-client gebouwd uit leon/jelly-leon-web@$WEB_REF"
+
+      # B03-016: de image bevat geen beperkt gelicentieerde testdata (MovieLens, Pioneer One, fanondertitels, afgeleide labels).
+      - name: CI-guard testdatalicenties op de image
+        run: PYTHONPATH=tools/b03-harnas python3 -m b03h guard --image "$JL_CI_IMAGE"
+
+      # B03-013: migratie vanaf de bestaande upstream-Jellyfin en terug met DB-back-up (koude kopie als model voor de
+      # ZFS-snapshot) + oude binary; streamen moet blijven werken. Upstream-image = de vastgezette runtime (digest).
+      - name: Terugzetproef (upstream → Jelly Leon → terug met DB-back-up en oude binary)
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          python3 tools/jelly-leon/e2e/rollback_sim.py --image "$JL_CI_IMAGE" --upstream-image "$JL_RUNTIME_IMAGE" \
+            --expected-version "$version" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/rollback-sim.json" \
+            --opmerking "CI; Jelly Leon-image met de echte web-build van jelly-leon-web"
+
+      # B03-014 (P4-0), JLT-60/61: gevulde 10.11.11-datamap (5 gebruikers met kijkgegevens, spoorkeuze, apparaten,
+      # override, afspeellijst) → deze image; VÓÓR = NA per gebruiker, hervatten, legacy-auth uit, controle-run tegen stock
+      # 12.x, terugzetten (kopie + oude image, byte-gelijke jellyfin.db) en de negatieve proef met de oude stock-image.
+      - name: Upgradeproef 10.11.11 → deze image (JLT-60, JLT-61 a/b)
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          python3 tools/jelly-leon/e2e/upgrade_proef.py --image "$JL_CI_IMAGE" --expected-version "$version" \
+            --stock-image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/upgrade-proef.json" \
+            --opmerking "CI; Jelly Leon-image met de echte web-build van jelly-leon-web"
+
+      # JLT-64 (met de bestaande plugin) en het PlaybackInfo-deel van JLT-63: Jellyfin-antwoorden en OpenAPI van deze
+      # image = stock 12.x op dezelfde datamap, behalve paden onder /media/v1 en /connector/v1; plus de UG-runtimetests
+      # op deze image (zelfde upstream-gedrag als stock).
+      - name: API-regressie tegen stock 12.x en upstream-gedrag op de Jelly Leon-image
+        run: |
+          python3 tools/jelly-leon/e2e/compat_api.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE" \
+            --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/compat-api.json"
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_CI_IMAGE" --werkmap "$RUNNER_TEMP" \
+            --rapport "$RUNNER_TEMP/upstream-gedrag-runtime-jelly-leon.json"
+
+      # B03-017 (gate golf 1): JLT-68, JLT-64 en JLT-65 op deze image met de meegeleverde plugin (Core, Devices, Quality).
+      # Zaai- en controle-runs op stock 12.x, daarna dezelfde datamap op jelly-leon:ci: routetabel, Hub-simulator (pin,
+      # weigeringen, herhaalde jti), foutcatalogus per module, connector tegen het schema, UserDeleted in de ruwe
+      # bestanden, geheimen niet in XML/log, en elke tabel van de serverdatabase tegen de controle-run.
+      - name: Pluginproef op de Jelly Leon-image (JLT-68, JLT-64, JLT-65; Hub-simulator)
+        run: |
+          python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE" \
+            --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/pluginproef-jelly-leon.json"
+
+      # B03-017, spike IStartupFilter (ADR-0033): twee containers van deze image, zonder en met
+      # JELLYLEON_SPIKE_STARTUPFILTER=1. Meet of een laag uit de plugin vóór routing en authenticatie werkt (413 vóór 401
+      # bij meer dan 1 MiB op een pluginroute) en of al het andere gelijk blijft. Standaard staat de laag uit.
+      - name: Spike IStartupFilter op de Jelly Leon-image (ADR-0033)
+        run: |
+          python3 tools/jelly-leon/e2e/startupfilter_spike.py --image "$JL_CI_IMAGE" \
+            --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/startupfilter-spike-jelly-leon.json"
+
+      - name: Rapporten bewaren
+        if: always()
+        uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
+        with:
+          name: image-lifecycle
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/image-lifecycle.json
+            ${{ runner.temp }}/rollback-sim.json
+            ${{ runner.temp }}/upgrade-proef.json
+            ${{ runner.temp }}/compat-api.json
+            ${{ runner.temp }}/upstream-gedrag-runtime-jelly-leon.json
+            ${{ runner.temp }}/pluginproef-jelly-leon.json
+            ${{ runner.temp }}/startupfilter-spike-jelly-leon.json
+
+      - name: Geteste image naar het Forgejo-register publiceren
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          REGISTRY_USER: ${{ vars.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: bash tools/jelly-leon/publiceer_image.sh "$JL_CI_IMAGE"
+
+      - name: Eigen CI-imagetag opruimen
+        if: always()
+        run: |
+          if docker image inspect "$JL_CI_IMAGE" >/dev/null 2>&1; then docker image rm "$JL_CI_IMAGE"; fi
+
+  stock-client-e2e:
+    name: Stock-client-smoketest (simulator, geen echte apparaten)
+    needs: [server, plugins]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      # global.json (upstream) vraagt <major>.0.0 + rollForward (12.4: 10.0.0); die exacte versie is niet te downloaden.
+      # Daarom het kanaal x.y.x uit global.json afleiden (zoals upstream zelf 10.0.x installeert); global.json blijft
+      # ongewijzigd (ADR-0010).
+      - name: .NET-SDK-kanaal uit global.json
+        id: sdk
+        run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
+
+      - name: .NET SDK (actuele patch van de reeks uit global.json)
+        uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: ${{ steps.sdk.outputs.kanaal }}
+
+      - name: Gekozen SDK (via global.json/rollForward)
+        run: dotnet --version
+
+      - name: Server publiceren (self-contained, linux-x64)
+        run: >
+          dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release --runtime linux-x64 --self-contained
+          -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/server"
+
+      - name: Plugin bouwen
+        run: >
+          dotnet build plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj -c Release
+          -o "$RUNNER_TEMP/plugin"
+
+      - name: Server starten op de upstream-runtime (als 568, zonder capabilities)
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0" "$RUNNER_TEMP/cache" "$RUNNER_TEMP/media"
+          cp "$RUNNER_TEMP/plugin/Jellyfin.Plugin.JellyLeon.dll" "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
+          python3 tools/jelly-leon/e2e/make_test_media.py "$RUNNER_TEMP/media"
+          # Eigenaar 568 zonder sudo: chown in een wegwerpcontainer van dezelfde vastgezette runtime (geen netwerk).
+          docker run --rm --network none --user 0:0 --entrypoint /bin/chown \
+            -v "$RUNNER_TEMP/config:/w/config" -v "$RUNNER_TEMP/cache:/w/cache" \
+            "$JL_RUNTIME_IMAGE" -R 568:568 /w/config /w/cache
+          loopback=$(getent ahostsv4 localhost | awk 'NR == 1 { print $1 }')
+          docker run -d --rm --cidfile "$RUNNER_TEMP/stock.cid" --user 568:568 --cap-drop ALL --security-opt no-new-privileges \
+            -p "$loopback::8096" \
+            -v "$RUNNER_TEMP/server:/jellyfin:ro" -v "$RUNNER_TEMP/config:/config" -v "$RUNNER_TEMP/cache:/cache" \
+            -v "$RUNNER_TEMP/media:/media/muziek:ro" \
+            "$JL_RUNTIME_IMAGE" --nowebclient
+
+      - name: Stock-client-smoketest
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
+          port=$(docker port "$(cat "$RUNNER_TEMP/stock.cid")" 8096/tcp)
+          python3 tools/jelly-leon/e2e/stock_client_smoke.py --url "http://localhost:${port##*:}" \
+            --expected-version "$version" --library-path /media/muziek --expect-plugin \
+            --media-file "$RUNNER_TEMP/media/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav" \
+            --report "$RUNNER_TEMP/stock-client-smoke.json"
+
+      - name: Serverlog bij falen
+        if: failure()
+        run: test ! -s "$RUNNER_TEMP/stock.cid" || docker logs "$(cat "$RUNNER_TEMP/stock.cid")" 2>&1 | tail -200
+
+      - name: Eigen testserver opruimen
+        if: always()
+        run: test ! -s "$RUNNER_TEMP/stock.cid" || docker rm -f -v "$(cat "$RUNNER_TEMP/stock.cid")"
+
+      # B03-019 (a): runtime-contracttests van UPSTREAM_GEDRAG.md op JL_RUNTIME_IMAGE (stock 12.x op digest).
+      - name: Upstream-gedrag op JL_RUNTIME_IMAGE (UG-runtimetests)
+        run: >
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP"
+          --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
+
+      # B03-017 (gate golf 1): dezelfde pluginproef op stock 12.x met de los gebouwde plugin-DLL, plus de run waarin de
+      # plugin weer is weggehaald (de server geeft dan dezelfde antwoorden als de controle-run; plugindata blijft staan).
+      - name: Pluginproef op JL_RUNTIME_IMAGE (JLT-68, JLT-64, JLT-65; Hub-simulator; plugin verwijderd)
+        run: >
+          python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$RUNNER_TEMP/plugin"
+          --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/pluginproef-stock.json"
+
+      - name: Spike IStartupFilter op JL_RUNTIME_IMAGE (ADR-0033)
+        run: >
+          python3 tools/jelly-leon/e2e/startupfilter_spike.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$RUNNER_TEMP/plugin"
+          --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/startupfilter-spike-stock.json"
+
+      # Contract 1.3 §2.2 (C1.3-JL-03): het healthcheck-script uit deze checkout in de runtime-image, als root en als
+      # Custom User 568, met de negatieve gevallen (fase-argument zonder echte wissel → rood); de gebouwde image zelf
+      # controleert de levenscyclustest in de job image.
+      - name: Healthcheck-proef (script in JL_RUNTIME_IMAGE, als root en als 568)
+        run: >
+          python3 tools/jelly-leon/e2e/healthcheck_proef.py --image "$JL_RUNTIME_IMAGE"
+          --rapport "$RUNNER_TEMP/healthcheck-proef.json"
+
+      - name: Rapport bewaren
+        if: always()
+        uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
+        with:
+          name: stock-client-smoke
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/stock-client-smoke.json
+            ${{ runner.temp }}/upstream-gedrag-runtime.json
+            ${{ runner.temp }}/pluginproef-stock.json
+            ${{ runner.temp }}/startupfilter-spike-stock.json
+            ${{ runner.temp }}/healthcheck-proef.json
+
+  # B03-015 deel A (golf 0, P0 van de gebruiker): overname van de kijkgeschiedenis uit Emby. Unit- en simulatortests, daarna
+  # de proefrun met een echte Emby-container (4.10.2.0) en stock Jellyfin 12.4, beide op vaste digest (in de harnas), met
+  # zelfgemaakte synthetische media (het mediacorpus blijft lokaal, BG-37). Alles is Sim; de echte NAS is JLT-74.
+  emby-overname:
+    name: Overname uit Emby (B03-015; echte Emby + stock Jellyfin 12.4, JLT-70…73)
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Python 3.12
+        uses: https://data.forgejo.org/actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Testafhankelijkheden
+        run: python -m pip install --disable-pip-version-check -r tools/jelly-leon/requirements-dev.txt
+
+      - name: Lint overnametool (ruff)
+        run: ruff check --config tools/emby-overname/ruff.toml tools/emby-overname
+
+      - name: Unit- en simulatortests (geen netwerk, geen Docker)
+        run: python -m pytest -q tools/emby-overname/tests
+
+      # JLT-70 clientdeel: de webclient van de doelserver in een echte browser (Chromium via het B03-016-harnas):
+      # inloggen met het nieuwe wachtwoord en hervatten op het overgezette hervatpunt (gemeten aan de serversessie).
+      - name: Node 22
+        uses: https://data.forgejo.org/actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Playwright 1.63 met Chromium (B03-016-harnas)
+        working-directory: tools/b03-harnas/playwright
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Proefrun met echte Emby-container en stock Jellyfin 12.4 (synthetische media, webclient in Chromium)
+        run: >
+          python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker --browser chromium
+          --uitvoer "$RUNNER_TEMP/emby-overname"
+
+      - name: Bewijs en rapporten bewaren
+        if: always()
+        uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
+        with:
+          name: emby-overname-proefrun
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/emby-overname/bewijs.json
+            ${{ runner.temp }}/emby-overname/toolrun.log
+            ${{ runner.temp }}/emby-overname/proxy-*.jsonl
+            ${{ runner.temp }}/emby-overname/werkmap/runs/
+            ${{ runner.temp }}/emby-overname/werkmap-herimport/runs/
+
+  # B03-016 (golf 0): één harnasraamwerk. Unit- en recepttests (reproduceerbaar: zelfde sha256 bij dezelfde seed) op een
+  # synthetisch mini-corpus, de CI-guard testdatalicenties (hele boom én de gepushte commits), de clientmatrix-rooktest
+  # (Chromium/Firefox/WebKit, webOS/Tizen-UA, legacy-headers, stock-web via --webdir) en de differentiële controle-run
+  # tegen stock jellyfin/jellyfin:12.4 op digest. Het echte corpus en de Android-emulators blijven lokaal (BG-37, KVM).
+  b03-harnas:
+    name: B03-016-harnas (corpus, CI-guard, clientmatrix, controle-run)
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: tools/b03-harnas
+      STOCK_IMAGE: docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Python 3.12
+        uses: https://data.forgejo.org/actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Werkmappen buiten de checkout (sloten, servers, mini-corpus, testsets)
+        run: |
+          {
+            echo "B03_LOCK_DIR=$RUNNER_TEMP/sloten"
+            echo "B03_WERK=$RUNNER_TEMP/b03-werk"
+            echo "B03_CORPUS=$RUNNER_TEMP/b03-corpus"
+            echo "B03_UITVOER=$RUNNER_TEMP/b03-testsets"
+          } >> "$GITHUB_ENV"
+
+      - name: Testafhankelijkheden en ffmpeg (alleen voor de recepttests op het mini-corpus)
+        run: |
+          python -m pip install --disable-pip-version-check -r tools/jelly-leon/requirements-dev.txt
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+          mkdir -p "$B03_LOCK_DIR" "$B03_WERK" "$B03_CORPUS" "$B03_UITVOER"
+
+      - name: Lint harnas (ruff)
+        run: ruff check --config tools/b03-harnas/ruff.toml tools/b03-harnas
+
+      - name: Unit-, recept- en guardtests (incl. negatieve test met beperkte testdata)
+        run: python -m pytest -q tools/b03-harnas/tests
+
+      - name: CI-guard testdatalicenties (hele boom)
+        run: python -m b03h guard --git .
+
+      - name: CI-guard testdatalicenties (gepushte commits)
+        if: github.event_name == 'push' && github.event.before != '' && github.event.before != '0000000000000000000000000000000000000000'
+        env:
+          VOOR: ${{ github.event.before }}
+        run: |
+          if git cat-file -e "$VOOR^{commit}" 2>/dev/null; then
+            python -m b03h guard --bereik . "$VOOR..$GITHUB_SHA"
+          else
+            echo "vorige commit niet beschikbaar (force-push of nieuwe branch); alleen de boom gecontroleerd"
+          fi
+
+      - name: Node 22
+        uses: https://data.forgejo.org/actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Playwright 1.63 met Chromium, Firefox en WebKit
+        working-directory: tools/b03-harnas/playwright
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium firefox webkit
+
+      # Een runner heeft geen geluidsapparaat: zonder uitvoer decodeert Chromium geen audio (het orakel ziet dan 'stil') en
+      # blijft WebKit/GStreamer na ~0,2 s hangen. Een PulseAudio-null-sink geeft beide een echte audio-uitvoer.
+      - name: Audio-uitvoer voor headless browsers (PulseAudio-null-sink)
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends pulseaudio gstreamer1.0-pulseaudio gstreamer1.0-libav \
+            gstreamer1.0-alsa libasound2-plugins
+          printf 'pcm.!default { type pulse }\nctl.!default { type pulse }\n' > "$HOME/.asoundrc"
+          pulseaudio -D --exit-idle-time=-1 --system=false
+          pactl load-module module-null-sink sink_name=b03 sink_properties=device.description=b03-null
+          pactl set-default-sink b03
+          pactl info | grep -E 'Server Name|Default Sink'
+
+      - name: Stock-image ophalen (vaste digest) en synthetisch mini-corpus
+        run: |
+          docker pull "$STOCK_IMAGE"
+          python3 tools/b03-harnas/ci_mini_corpus.py "$B03_CORPUS" --ffmpeg-docker "$STOCK_IMAGE"
+
+      - name: Clientmatrix-rooktest tegen stock 12.4 (hero.mp4 per client)
+        run: |
+          python -m b03h clientmatrix --onderdelen web,ua,legacy,webdir --uit "$RUNNER_TEMP/b03-clientmatrix.json"
+          python3 - "$RUNNER_TEMP/b03-clientmatrix.json" <<'PY'
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          # Een runner heeft geen audiohardware. Gemeten (runs 42725506092, 42726891316): Chromium met een desktop-UA decodeert
+          # dan geen audio (beeld speelt wel; met webOS/Tizen-UA wel audio) en WebKit/GStreamer blijft na ~0,2 s hangen.
+          # In CI telt daarom het beeld (≥ 2 s, geen fout); het audio-orakel en WebKit tellen lokaal (echte audio-uitvoer).
+          fout = []
+          for c in d["clients"]:
+              l = c.get("laatste_stand") or {}
+              print(f"{c['status']:60} {c['client']} {c.get('orakel_reden') or ''} {l}")
+              if c["status"].startswith("Sim-getest"):
+                  continue
+              if "webkit" in c["client"] or (c.get("orakel_reden") == "geen audio gedecodeerd (stil)" and l.get("ct", 0) >= 2
+                                             and l.get("w", 0) > 0 and not l.get("err")):
+                  print(f"::warning::{c['client']}: in CI alleen beeld getoetst ({c.get('orakel_reden') or l}); lokaal bewijs telt")
+              else:
+                  fout.append(c["client"])
+          sys.exit(f"rooktest mislukt voor: {fout}" if fout else 0)
+          PY
+
+      - name: Differentiële controle-run stock tegen stock (verwacht 0 verschillen) en negatieve proef
+        if: ${{ !cancelled() }}
+        run: |
+          python -m b03h diffrun --uit "$RUNNER_TEMP/b03-diffrun.json"
+          if python -m b03h diffrun --negatieve-proef --uit "$RUNNER_TEMP/b03-diffrun-negatief.json"; then
+            echo "negatieve proef vond geen verschil — de vergelijking is stuk"; exit 1
+          fi
+
+      - name: Bewijs bewaren
+        if: always()
+        uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
+        with:
+          name: b03-016-harnas
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/b03-clientmatrix.json
+            ${{ runner.temp }}/b03-clientmatrix/
+            ${{ runner.temp }}/b03-diffrun.json
+            ${{ runner.temp }}/b03-diffrun-negatief.json

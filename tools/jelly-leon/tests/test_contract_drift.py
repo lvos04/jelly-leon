@@ -103,7 +103,7 @@ def test_history_is_compared_with_its_own_source_commit(tmp_path):
     assert errors == [] and warnings == []
     other = {rel: b"andere stand"}
     errors, _ = contract_drift.compare_with_source(repo, originals.get, None, historie={rel: other.get})
-    assert errors == [f"{rel} (historie): kopie is niet byte-gelijk aan lvos04/ai-server-manager@8b54f3940"]
+    assert errors == [f"{rel} (historie): kopie is niet byte-gelijk aan leon/ai-server-manager@8b54f3940"]
 
 
 def test_compare_with_source_reports_moved_source_as_warning_only(tmp_path):

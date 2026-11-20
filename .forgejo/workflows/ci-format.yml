@@ -1,0 +1,24 @@
+name: Format
+on:
+  push:
+    branches: [master, main, 'ccr-**']
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_PROCESSOR_COUNT: '2'
+  SDK_VERSION: "10.0.x"
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: ${{ env.SDK_VERSION }}
+
+      - name: Run DotNet Format
+        run: dotnet format --verify-no-changes --verbosity minimal

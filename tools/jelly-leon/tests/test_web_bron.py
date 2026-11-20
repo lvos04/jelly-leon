@@ -42,7 +42,7 @@ def test_real_baseline_pins_a_full_web_commit_of_the_same_release():
     baseline = json.loads((REPO / "tools/jelly-leon/baseline.json").read_text(encoding="utf-8"))
     errors, fields = web_bron.web_fields(baseline)
     assert errors == []
-    assert fields["web_repo"] == "https://github.com/lvos04/jelly-leon-web"
+    assert fields["web_repo"] == "https://git.medialeon.nl/leon/jelly-leon-web"
 
 
 def test_checkout_on_other_commit_fails(web):
