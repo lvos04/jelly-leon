@@ -718,6 +718,17 @@ def main(argv: list[str] | None = None) -> int:
 
         runs: dict[str, Server] = {}
         opnames: dict[str, dict[str, Any]] = {}
+
+        def meet(server: Server, naam: str) -> None:
+            # GET /SyncPlay/List werkt na een minuut ook Users.RowVersion van de beheerder bij.
+            # Begin elke meting met dezelfde verse sessie, onafhankelijk van de duur van de pluginproeven.
+            sessie = Sessie(server, BEHEER, ww[BEHEER], "Meettoestel", "jl-proef-meting")
+            v.geheim(f"sessietoken:{naam}-meting", sessie.token)
+            try:
+                opnames[naam] = opname(sessie, audio)
+            finally:
+                sessie.http.doe("POST", "/Sessions/Logout")
+
         openapi_stock: dict[str, Any] = {}
         for naam, image in (("a1", stock), ("a2", stock)):
             s = Server(f"{werk.name}-{naam}", image, werk / naam, media)
@@ -728,9 +739,10 @@ def main(argv: list[str] | None = None) -> int:
             beheer = Sessie(s, BEHEER, ww[BEHEER], TOESTEL_BEHEER, "jl-proef-beheer")
             v.geheim(f"sessietoken:{naam}-beheer", beheer.token)
             v.geheim(f"sessietoken:{naam}-kijker", Sessie(s, KIJKER, ww[KIJKER], "Kijkertoestel-Zeldzaam-2207", "jl-proef-kijker").token)
-            opnames[f"{naam}-voor"] = opname(beheer, audio)
+            meet(s, f"{naam}-voor")
             v.geheim(f"sessietoken:{naam}-tijdelijk", afspelen_en_verwijderen(s, beheer, audio, ww_weg))
-            opnames[f"{naam}-na"] = opname(beheer, audio)
+            meet(s, f"{naam}-na")
+            meet(s, f"{naam}-uit")
             if naam == "a1":
                 openapi_stock = beheer.http.doe("GET", "/api-docs/openapi.json")
                 status, _, _ = Http(s.url).ruw("GET", "/connector/v1/discover")
@@ -759,7 +771,7 @@ def main(argv: list[str] | None = None) -> int:
         plugin.elke_route_antwoordt()
         plugin.zonder_pin()
         plugin.modules_uit("begin")
-        opnames["b-voor"] = opname(beheer, audio)
+        meet(b, "b-voor")
         vergelijk_opnames(v, "plugin geladen, modules uit", opnames["a1-voor"], opnames["a2-voor"], opnames["b-voor"])
         plugin.pin()
         plugin.hub_weigeringen()
@@ -805,7 +817,7 @@ def main(argv: list[str] | None = None) -> int:
         v.test("JLT-65", "gegevens van de overige gebruikers blijven staan", "pseudoniem beheerder" in blijft, f"{blijft}")
         status, register, _ = plugin.sessie_vraag(beheer, "GET", "/media/v1/privacy/register")
         plugin.schema("JLT-65", "register van persoonsgegevens volgt het schema", "GET", "/media/v1/privacy/register", (status, register, b""))
-        opnames["b-na"] = opname(beheer, audio)
+        meet(b, "b-na")
         vergelijk_opnames(v, "modules aan, na het scenario", opnames["a1-na"], opnames["a2-na"], opnames["b-na"])
         status, ruw, _ = beheer.http.ruw("GET", f"/Plugins/{PLUGIN_ID}/Configuration")
         config_tekst = ruw.decode("utf-8", "replace")
@@ -820,8 +832,8 @@ def main(argv: list[str] | None = None) -> int:
         status, discover, _ = plugin.hub_vraag("GET", "/connector/v1/discover", plugin.hub.token())
         over = sorted(t for t in discover.get("limits", {}).get("max_age_s", {}) if t != "health") if status == 200 else ["?"]
         v.test("JLT-64", "modules uit: de connector biedt alleen nog de kern aan", over == ["backups"], f"{over}")
-        opnames["b-uit"] = opname(beheer, audio)
-        vergelijk_opnames(v, "modules weer uit", opnames["a1-na"], opnames["a2-na"], opnames["b-uit"])
+        meet(b, "b-uit")
+        vergelijk_opnames(v, "modules weer uit", opnames["a1-uit"], opnames["a2-uit"], opnames["b-uit"])
         status, inhoud, _ = plugin.sessie_vraag(beheer, "DELETE", "/media/v1/hub-link", None, {"Idempotency-Key": str(uuid.uuid4())})
         v.test("JLT-68", "pin verwijderen → not_linked", status == 200 and inhoud.get("status") == "not_linked", f"HTTP {status}")
         plugin._laatste = ("GET", "/connector/v1/discover")
