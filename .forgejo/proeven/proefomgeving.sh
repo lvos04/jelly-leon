@@ -3,12 +3,23 @@
 # aansturende proefcontainer krijgt de engine-socket. De checkout gaat via docker cp.
 set -euo pipefail
 staat="$RUNNER_TEMP/jl-harnas"
+# Deze map behoort op de geïsoleerde engine alleen aan de opslagproeven van deze repo.
+opslag=/var/lib/jelly-leon-proeven
 case "$1" in
     start)
         mkdir "$staat"
         docker buildx build --load --iidfile "$staat/image" --target "$2" -f .forgejo/proeven/Dockerfile .
-        docker volume create "jl-proef-$(cat /proc/sys/kernel/random/uuid)" > "$staat/volume"
-        volume=$(cat "$staat/volume")
+        volume="jl-proef-$(cat /proc/sys/kernel/random/uuid)"
+        if [[ ${3:-} == database ]]; then
+            # Het datavolume van Docker zelf kan op tmpfs staan. Maak de testdataset op
+            # het lokale bestandssysteem van de engine en koppel alleen deze eigen map.
+            echo "$volume" > "$staat/dataset"
+            docker run --rm --network none --read-only -v "$opslag:/opslag" "$(cat "$staat/image")" \
+                sh -ec 'mkdir -- "/opslag/$1"; stat -f -c "Bestandssysteem voor de proefdatabase: %T" "/opslag/$1"' sh "$volume"
+            docker volume create --opt type=none --opt o=bind --opt "device=$opslag/$volume" "$volume" > "$staat/volume"
+        else
+            docker volume create "$volume" > "$staat/volume"
+        fi
         pad=$(docker volume inspect --format '{{.Mountpoint}}' "$volume")
         printf '%s\n' "$pad" > "$staat/pad"
         docker run -d --init --cidfile "$staat/container" --network host --cpus 2 --shm-size 512m \
@@ -50,6 +61,12 @@ case "$1" in
                 while read -r container; do docker rm -fv "$container" >/dev/null; done <<< "$eigen"
             fi
             docker volume rm "$volume"
+        fi
+        if [[ -s $staat/dataset ]]; then
+            dataset=$(cat "$staat/dataset")
+            [[ $dataset =~ ^jl-proef-[0-9a-f-]{36}$ ]]
+            docker run --rm --network none --read-only -v "$opslag:/opslag" "$(cat "$staat/image")" \
+                rm -rf -- "/opslag/$dataset"
         fi
         ;;
     *) echo "Onbekende proefopdracht: $1" >&2; exit 2 ;;

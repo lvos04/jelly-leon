@@ -326,8 +326,8 @@ jobs:
             --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" --build-arg WEB_REF="$WEB_REF" \
             --build-arg BUILD_JOBS=2 --build-arg WEB_BUILD_JOBS=2 --load -t "$JL_CI_IMAGE" .
 
-      - name: Proefcontainer met eigen Docker-volume starten
-        run: bash .forgejo/proeven/proefomgeving.sh start basis
+      - name: Proefcontainer met lokale dataset voor de database starten
+        run: bash .forgejo/proeven/proefomgeving.sh start basis database
 
       - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568 zonder rechten, herkomst web, herstart, Custom User, weigeringen)
         env:
