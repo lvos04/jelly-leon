@@ -605,7 +605,7 @@ def vergelijk_databases(v: Verslag, werk: Path, a1: Server, a2: Server, b: Serve
         telling: dict[str, int] = {}
         for oordeel in uitkomst.values():
             telling[oordeel["oordeel"]] = telling.get(oordeel["oordeel"], 0) + 1
-        afwijking = sorted(t for t, o in uitkomst.items() if o["oordeel"] == "afwijking")
+        afwijking = {t: o.get("afwijkende_kolommen", o.get("reden")) for t, o in uitkomst.items() if o["oordeel"] == "afwijking"}
         v.test("JLT-65", f"{relatief}: geen tabel wijkt af van de controle-run", not afwijking,
                f"{len(uitkomst)} tabellen {telling}; afwijkend: {afwijking}")
         onbeslist = sorted(t for t, o in uitkomst.items() if o["oordeel"] == "ruis_onvergelijkbaar")

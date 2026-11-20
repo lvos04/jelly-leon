@@ -203,6 +203,12 @@ def vergelijk_db(a1: Path, a2: Path, b: Path) -> dict[str, dict[str, Any]]:
             uit[naam] = {"oordeel": "afwijking", "reden": "kolommen verschillen", "masker": [], "rijen": {}}
         else:
             uit[naam] = vergelijk_tabel(da1[naam][0], da1[naam][1], da2[naam][1], db[naam][1])
+            if uit[naam]["oordeel"] == "afwijking":
+                # Rapporteer alleen kolomnamen. Ruwe waarden kunnen aanmeldgegevens bevatten.
+                uit[naam]["afwijkende_kolommen"] = [
+                    k for i, k in enumerate(da1[naam][0]) if k not in uit[naam]["masker"]
+                    and sorted((r[i] for r in da1[naam][1]), key=repr) != sorted((r[i] for r in db[naam][1]), key=repr)
+                ]
     return uit
 
 

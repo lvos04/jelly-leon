@@ -104,6 +104,7 @@ def test_databasevergelijking(tmp_path: Path) -> None:
     assert goed["UserData"]["oordeel"] == "gelijk" and goed["Log"]["oordeel"] == "gelijk_na_masker"
     fout = pl.vergelijk_db(a1, a2, _db(tmp_path / "c.db", "0", 30, extra_tabel=True))
     assert fout["UserData"]["oordeel"] == "afwijking" and fout["Vreemd"]["oordeel"] == "afwijking"
+    assert fout["UserData"]["afwijkende_kolommen"] == ["Gespeeld"]
     kopie = pl.kopieer_db(a1, tmp_path / "kopie" / "a1.db")
     assert pl.lees_db(kopie)["UserData"] == (["ItemId", "Gespeeld"], [("item", 1)])
 

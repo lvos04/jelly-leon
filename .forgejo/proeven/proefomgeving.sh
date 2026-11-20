@@ -28,7 +28,7 @@ case "$1" in
             --workdir "$pad/bron" -e "JL_PROEFVOLUME=$volume" -e "JL_PROEFMAP=$pad/werk" -e "RUNNER_TEMP=$pad/rapporten" \
             -e "B03_LOCK_DIR=$pad/werk/sloten" -e "B03_WERK=$pad/werk/b03-werk" -e "B03_CORPUS=$pad/werk/b03-corpus" \
             -e "B03_UITVOER=$pad/werk/b03-testsets" -e PYTHONPATH=tools/b03-harnas \
-            -e JL_RUNTIME_IMAGE -e JL_CI_IMAGE -e STOCK_IMAGE "$(cat "$staat/image")" sleep infinity
+            -e DOTNET_PROCESSOR_COUNT -e JL_RUNTIME_IMAGE -e JL_CI_IMAGE -e STOCK_IMAGE "$(cat "$staat/image")" sleep infinity
         harnas=$(cat "$staat/container")
         docker exec "$harnas" install -d -o 1000 -g 1000 "$pad/werk" "$pad/rapporten" \
             "$pad/werk/"{sloten,b03-werk,b03-corpus,b03-testsets}
