@@ -65,7 +65,7 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_SPOOR: ${{ inputs.spoor }}
         run: |
-          set -eu
+          set -euo pipefail
           if [ -n "${INPUT_TAG:-}" ]; then
             python3 - "$INPUT_TAG" <<'PY'
           import json, os, sys
@@ -103,7 +103,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tag: ${{ fromJSON(needs.detecteer.outputs.kandidaten) }}
+        # Forgejo heeft ook bij nul kandidaten een job nodig om de afhankelijke push-job af te sluiten.
+        tag: ${{ fromJSON(needs.detecteer.outputs.heeft_kandidaat == 'true' && needs.detecteer.outputs.kandidaten || '["geen-kandidaat"]') }}
     steps:
       - name: Checkout standaardbranch (volledige historie)
         uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -173,9 +174,9 @@ jobs:
         run: python3 tools/jelly-leon/dotnet_sdk_kanaal.py --github-output
 
       - name: .NET SDK (actuele patch van de reeks uit global.json)
-        uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
-        with:
-          dotnet-version: ${{ steps.sdk.outputs.kanaal }}
+        env:
+          SDK_KANAAL: ${{ steps.sdk.outputs.kanaal }}
+        run: bash tools/jelly-leon/installeer_dotnet.sh "$SDK_KANAAL"
 
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
@@ -270,7 +271,7 @@ jobs:
   push:
     name: Geslaagde sync-branches pushen ter beoordeling (alleen met JL_SYNC_PUSH_TOKEN; nooit naar productie)
     needs: [detecteer, sync]
-    if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.reviewbranch && needs.detecteer.outputs.heeft_kandidaat == 'true' }}
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && format('{0}', inputs.reviewbranch) == 'true' && needs.detecteer.outputs.heeft_kandidaat == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

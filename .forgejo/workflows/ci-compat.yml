@@ -20,16 +20,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      - name: Installatiescript uit de doelrepository ophalen
+        uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: _ci
+          sparse-checkout: tools/jelly-leon/installeer_dotnet.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: .NET SDK installeren
+        run: bash _ci/tools/jelly-leon/installeer_dotnet.sh 10.0.x
+
       - name: Checkout repository
         uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-
-      - name: Setup .NET
-        uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
-        with:
-          dotnet-version: '10.0.x'
 
       - name: Build
         run: |
@@ -48,17 +55,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      - name: Installatiescript uit de doelrepository ophalen
+        uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: _ci
+          sparse-checkout: tools/jelly-leon/installeer_dotnet.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: .NET SDK installeren
+        run: bash _ci/tools/jelly-leon/installeer_dotnet.sh 10.0.x
+
       - name: Checkout repository
         uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           fetch-depth: 0
-
-      - name: Setup .NET
-        uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
-        with:
-          dotnet-version: '10.0.x'
 
       - name: Checkout common ancestor
         env:
@@ -90,6 +104,18 @@ jobs:
       - abi-base
 
     steps:
+      - name: Installatiescript uit de doelrepository ophalen
+        uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: _ci
+          sparse-checkout: tools/jelly-leon/installeer_dotnet.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: .NET SDK installeren
+        run: bash _ci/tools/jelly-leon/installeer_dotnet.sh 10.0.x
+
       - name: Download abi-head
         uses: https://data.forgejo.org/forgejo/download-artifact@d8d0a99033603453ad2255e58720b460a0555e1e
         with:
@@ -101,11 +127,6 @@ jobs:
         with:
           name: abi-base
           path: abi-base
-
-      - name: .NET SDK
-        uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
-        with:
-          dotnet-version: '10.0.x'
 
       - name: ApiCompat installeren
         run: dotnet tool install --tool-path "$RUNNER_TEMP/abi" Microsoft.DotNet.ApiCompat.Tool

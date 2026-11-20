@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Actionlint herkent workflowaanroepen onder .github en actions in eigenaar/repo-notatie.
 set -euo pipefail
-shellcheck tools/jelly-leon/{lint_forgejo,publiceer_image,test_forktools,test_plugins}.sh
+shellcheck tools/jelly-leon/{installeer_dotnet,lint_forgejo,publiceer_image,test_forktools,test_plugins}.sh
 actionlint .github/workflows/jelly-leon-ci.yml .github/workflows/upstream-sync.yml
 lintmap=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:?}}/workflowlint.XXXXXXXX")
 trap 'rm -rf -- "$lintmap"' EXIT

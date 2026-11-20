@@ -24,16 +24,25 @@ jobs:
     name: Main
     runs-on: ubuntu-latest
     steps:
+    - name: CI-instructies uit de workflowrevisie ophalen
+      uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+        ref: ${{ github.event.pull_request.base.sha || github.sha }}
+        path: _ci
+        sparse-checkout: tools/jelly-leon/installeer_dotnet.sh
+        sparse-checkout-cone-mode: false
+
+    - name: Configure .NET
+      env:
+        SDK_KANAAL: '10.0.x'
+      run: bash _ci/tools/jelly-leon/installeer_dotnet.sh "$SDK_KANAAL"
+
     - name: Checkout Repository
       uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       with:
         ref: ${{ inputs.ref }}
         repository: ${{ inputs.repository }}
-
-    - name: Configure .NET
-      uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
-      with:
-        dotnet-version: '10.0.x'
 
     - name: Create File
       run: dotnet test tests/Jellyfin.Server.Integration.Tests/Jellyfin.Server.Integration.Tests.csproj -c Release --filter Jellyfin.Server.Integration.Tests.OpenApiSpecTests
