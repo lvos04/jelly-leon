@@ -16,6 +16,7 @@ Volgorde vóór een core-patch: configuratie → bestaande upstream-plugin → e
 | ID | Titel | Soort | Status |
 |---|---|---|---|
 | JL-0001 | Repository-guards op upstream-bot-workflows | CI (geen servercode) | actief |
+| JL-0002 | Verwijzingen naar de Forgejo-fork | Documentatie en pakketmetadata | actief |
 
 Servercode (C#): **geen** core-patches in P0.
 
@@ -34,3 +35,15 @@ Servercode (C#): **geen** core-patches in P0.
 | Test | `tools/jelly-leon/patch_register_check.py` (CI-job *Forkregels*); `actionlint` op de gewijzigde workflows lokaal geslaagd (zie `BOUWVERIFICATIE_P0.md`). Echte GitHub-run: NIET GEVALIDEERD. |
 | Herbasis v12.4 (2026-11-10) | `upstream_sync.py merge --tag v12.4 --methode herbasis --handmatig-oplossen`: per bestand schoon behalve `.github/workflows/commands.yml` (upstream verwijderde de MEMBER-check van de rename-job en wijzigde actie-versies). Opgelost door de guard op de nieuwe `if:`-regel te zetten (`github.repository == 'jellyfin/jellyfin' && contains(github.event.comment.body, '@jellyfin-bot rename')`) en afgerond met `upstream_sync.py voltooi`. Nieuw in 12.4: `openapi-workflow-run.yml` (workflow_run na *OpenAPI Check*, plaatst PR-commentaar met `secrets.JF_BOT_TOKEN`) kreeg dezelfde guard; `openapi-merge.yml` is upstream al begrensd (`contains(github.repository_owner, 'jellyfin')`), `openapi-generate.yml`, `openapi-pull-request.yml` en `ci-format.yml` gebruiken geen geheimen (ADR-0007). |
 | Bekend bij volgende sync | Bij elke herbasis rapporteert `upstream_sync.py` per patch `schoon`/`conflict`; een conflict in deze workflowbestanden = guard opnieuw op de nieuwe upstream-regel zetten (`--handmatig-oplossen` + `voltooi`). |
+
+
+## JL-0002 — Verwijzingen naar de Forgejo-fork
+
+| Veld | Waarde |
+|---|---|
+| Status | actief |
+| Doel | De README, CI-badges en bronvermelding van de NuGet-pakketten leiden naar de repository van Jelly Leon. |
+| Bestanden | `README.md`, `Emby.Naming/Emby.Naming.csproj`, `Jellyfin.Data/Jellyfin.Data.csproj`, `MediaBrowser.Common/MediaBrowser.Common.csproj`, `MediaBrowser.Controller/MediaBrowser.Controller.csproj`, `MediaBrowser.Model/MediaBrowser.Model.csproj`, `src/Jellyfin.Database/Jellyfin.Database.Implementations/Jellyfin.Database.Implementations.csproj`, `src/Jellyfin.Extensions/Jellyfin.Extensions.csproj`, `src/Jellyfin.MediaEncoding.Keyframes/Jellyfin.MediaEncoding.Keyframes.csproj` |
+| Waarom geen plugin/configuratie | De README en de bestaande NuGet-projecteigenschap `RepositoryUrl` bevatten de bronverwijzingen. |
+| Upstream-PR-kans | Geen. Deze adressen horen bij de fork. |
+| Test | `tools/jelly-leon/patch_register_check.py` en de controle van de acht projectbestanden op hun Forgejo-bronadres. |

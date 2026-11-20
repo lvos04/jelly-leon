@@ -77,14 +77,14 @@ ARG VCS_REF=unknown
 ARG WEB_REF=unknown
 LABEL org.opencontainers.image.title="Jelly Leon" \
       org.opencontainers.image.description="Jelly Leon — mediaserver gebaseerd op Jellyfin (technische identiteit: Jellyfin)" \
-      org.opencontainers.image.source="https://github.com/lvos04/jelly-leon" \
-      org.opencontainers.image.url="https://github.com/lvos04/jelly-leon" \
-      org.opencontainers.image.documentation="https://github.com/lvos04/jelly-leon/blob/main/deploy/truenas/CUSTOM_APP.md" \
+      org.opencontainers.image.source="https://git.medialeon.nl/leon/jelly-leon" \
+      org.opencontainers.image.url="https://git.medialeon.nl/leon/jelly-leon" \
+      org.opencontainers.image.documentation="https://git.medialeon.nl/leon/jelly-leon/src/branch/ccr-c133d7a0-kuz1cv/deploy/truenas/CUSTOM_APP.md" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.version="${FORK_VERSION}" \
       org.opencontainers.image.licenses="GPL-2.0-only AND GPL-2.0-or-later" \
       org.opencontainers.image.base.name="docker.io/jellyfin/jellyfin:12.4" \
-      io.github.lvos04.jelly-leon.web.source="https://github.com/lvos04/jelly-leon-web" \
+      io.github.lvos04.jelly-leon.web.source="https://git.medialeon.nl/leon/jelly-leon-web" \
       io.github.lvos04.jelly-leon.web.revision="${WEB_REF}"
 # url/documentation overschrijven die van de basisimage (jellyfin.org): geen schijn van een officiële release (ADR-0004).
 # /config en /cache zijn in de basisimage 0777; een tmpfs of nieuw Docker-volume neemt die modus over (de eigenaar niet).

@@ -5,7 +5,7 @@ Jelly Leon is de mediaserver van het TrueNAS Home Platform V2 (bouwplan **B03**)
 upstream-credits in `CONTRIBUTORS.md`). De technische identiteit blijft *Jellyfin* zodat alle bestaande Jellyfin-apps
 blijven werken; alleen de zichtbare naam is *Jelly Leon*. Jelly Leon is geen officiële Jellyfin-release.
 
-De upstream-README staat ongewijzigd in `README.md`.
+De [Forgejo-repository](https://git.medialeon.nl/leon/jelly-leon) bevat de broncode. De ontwikkelinstructies van upstream staan in `README.md`.
 
 ## Waar staat wat
 
@@ -25,7 +25,7 @@ De upstream-README staat ongewijzigd in `README.md`.
 | `tools/emby-overname/` | overname van de kijkgeschiedenis uit Emby (B03-015 deel A): alleen-lezen-tool, tests en E2E-proefrun met een echte Emby-container (ADR-0025; procedure in `docs/platform-v2/OVERNAME_EMBY.md`) |
 | `tools/jelly-leon/` | `baseline.json` (bron van waarheid), patchregister-/consistentiecontrole, upstream-sync (herbasis per core-patch), register-controle upstream-gedrag, OpenAPI-upgraderapport; `e2e/`: smoketest, levenscyclus- en terugzetproef, upgradeproef 10.11.11 → 12.x, API-regressie tegen stock, UG-runtimetests |
 | `deploy/` | alles-in-één image (lokaal volledig gebouwd en getest; publicatie in P4), TrueNAS Custom App-formulier, manifest |
-| `.github/workflows/jelly-leon-ci.yml`, `upstream-sync.yml` | eigen CI en upstream-sync (nooit automatisch naar productie) |
+| `.forgejo/workflows/jelly-leon-ci.yml`, `upstream-sync.yml` | Linux-CI en handmatige upstream-sync |
 
 ## Ontwikkelen
 

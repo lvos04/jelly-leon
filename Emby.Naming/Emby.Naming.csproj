@@ -37,7 +37,7 @@
     <Authors>Jellyfin Contributors</Authors>
     <PackageId>Jellyfin.Naming</PackageId>
     <VersionPrefix>12.4.0</VersionPrefix>
-    <RepositoryUrl>https://github.com/jellyfin/jellyfin</RepositoryUrl>
+    <RepositoryUrl>https://git.medialeon.nl/leon/jelly-leon</RepositoryUrl>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
   </PropertyGroup>
 

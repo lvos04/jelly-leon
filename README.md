@@ -1,5 +1,5 @@
-<h1 align="center">Jellyfin</h1>
-<h3 align="center">The Free Software Media System</h3>
+<h1 align="center">Jelly Leon</h1>
+<p align="center">Fork van Jellyfin voor het TrueNAS Home Platform V2. <a href="README.jelly-leon.md">Ontwikkeling en installatie van Jelly Leon</a>.</p>
 
 ---
 
@@ -7,16 +7,17 @@
 <img alt="Logo Banner" src="https://raw.githubusercontent.com/jellyfin/jellyfin-ux/master/branding/SVG/banner-logo-solid.svg?sanitize=true"/>
 <br/>
 <br/>
-<a href="https://github.com/jellyfin/jellyfin"><img alt="GPL 2.0 License" src="https://img.shields.io/github/license/jellyfin/jellyfin.svg"/></a>
-<a href="https://github.com/jellyfin/jellyfin/releases"><img alt="Current Release" src="https://img.shields.io/github/release/jellyfin/jellyfin.svg"/></a>
+<a href="https://git.medialeon.nl/leon/jelly-leon/src/branch/ccr-c133d7a0-kuz1cv/LICENSE">GPL-2.0</a>
+<a href="https://git.medialeon.nl/leon/jelly-leon/actions?workflow=jelly-leon-ci.yml"><img alt="Jelly Leon CI" src="https://git.medialeon.nl/leon/jelly-leon/badges/workflows/jelly-leon-ci.yml/badge.svg"/></a>
+<a href="https://git.medialeon.nl/leon/jelly-leon/releases"><img alt="Current Release" src="https://git.medialeon.nl/leon/jelly-leon/badges/release.svg"/></a>
 <a href="https://translate.jellyfin.org/projects/jellyfin/jellyfin-core/?utm_source=widget"><img alt="Translation Status" src="https://translate.jellyfin.org/widgets/jellyfin/-/jellyfin-core/svg-badge.svg"/></a>
 <a href="https://hub.docker.com/r/jellyfin/jellyfin"><img alt="Docker Pull Count" src="https://img.shields.io/docker/pulls/jellyfin/jellyfin.svg"/></a>
 <br/>
 <a href="https://opencollective.com/jellyfin"><img alt="Donate" src="https://img.shields.io/opencollective/all/jellyfin.svg?label=backers"/></a>
 <a href="https://features.jellyfin.org"><img alt="Submit Feature Requests" src="https://img.shields.io/badge/fider-vote%20on%20features-success.svg"/></a>
 <a href="https://matrix.to/#/#jellyfinorg:matrix.org"><img alt="Chat on Matrix" src="https://img.shields.io/matrix/jellyfinorg:matrix.org.svg?logo=matrix"/></a>
-<a href="https://github.com/jellyfin/jellyfin/releases.atom"><img alt="Release RSS Feed" src="https://img.shields.io/badge/rss-releases-ffa500?logo=rss" /></a>
-<a href="https://github.com/jellyfin/jellyfin/commits/master.atom"><img alt="Master Commits RSS Feed" src="https://img.shields.io/badge/rss-commits-ffa500?logo=rss" /></a>
+<a href="https://git.medialeon.nl/leon/jelly-leon/releases.atom"><img alt="Release RSS Feed" src="https://img.shields.io/badge/rss-releases-ffa500?logo=rss" /></a>
+<a href="https://git.medialeon.nl/leon/jelly-leon/commits/branch/ccr-c133d7a0-kuz1cv.atom"><img alt="Commits van Jelly Leon" src="https://img.shields.io/badge/rss-commits-ffa500?logo=rss" /></a>
 </p>
 
 ---
@@ -31,7 +32,7 @@ For further details, please see [our documentation page](https://jellyfin.org/do
 Check out our <a href="https://jellyfin.org/downloads">downloads page</a> or our <a href="https://jellyfin.org/docs/general/installation/">installation guide</a>, then see our <a href="https://jellyfin.org/docs/general/quick-start">quick start guide</a>. You can also <a href="https://jellyfin.org/docs/general/installation/source">build from source</a>.<br/>
 
 <strong>Something not working right?</strong><br/>
-Open an <a href="https://jellyfin.org/docs/general/contributing/issues">Issue</a> on GitHub.<br/>
+Meld een probleem met Jelly Leon in de <a href="https://git.medialeon.nl/leon/jelly-leon/issues">issuetracker</a>.<br/>
 
 <strong>Want to contribute?</strong><br/>
 Check out our <a href="https://jellyfin.org/contribute">contributing choose-your-own-adventure</a> to see where you can help, then see our <a href="https://jellyfin.org/docs/general/contributing/">contributing guide</a> and our <a href="https://jellyfin.org/docs/general/community-standards">community standards</a>.<br/>
@@ -50,7 +51,7 @@ Check out our <a href="https://translate.jellyfin.org">Weblate instance</a> to h
 
 ## Jellyfin Server
 
-This repository contains the code for Jellyfin's backend server. Note that this is only one of many projects under the Jellyfin GitHub [organization](https://github.com/jellyfin/) on GitHub. If you want to contribute, you can start by checking out our [documentation](https://jellyfin.org/docs/general/contributing/index.html) to see what to work on.
+De broncode van deze fork staat op [Forgejo](https://git.medialeon.nl/leon/jelly-leon). Het upstreamproject is onderdeel van de [Jellyfin-organisatie](https://github.com/jellyfin/). If you want to contribute, you can start by checking out our [documentation](https://jellyfin.org/docs/general/contributing/index.html) to see what to work on.
 
 ## Server Development
 
@@ -69,7 +70,7 @@ Instructions to run this project from the command line are included here, but yo
 After dependencies have been installed you will need to clone a local copy of this repository. If you just want to run the server from source you can clone this repository directly, but if you are intending to contribute code changes to the project, you should [set up your own fork](https://jellyfin.org/docs/general/contributing/development.html#set-up-your-copy-of-the-repo) of the repository. The following example shows how you can clone the repository directly over HTTPS.
 
 ```bash
-git clone https://github.com/jellyfin/jellyfin.git
+git clone https://git.medialeon.nl/leon/jelly-leon.git
 ```
 
 ### Installing the Web Client
