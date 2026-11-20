@@ -17,7 +17,7 @@
 <a href="https://features.jellyfin.org"><img alt="Submit Feature Requests" src="https://img.shields.io/badge/fider-vote%20on%20features-success.svg"/></a>
 <a href="https://matrix.to/#/#jellyfinorg:matrix.org"><img alt="Chat on Matrix" src="https://img.shields.io/matrix/jellyfinorg:matrix.org.svg?logo=matrix"/></a>
 <a href="https://git.medialeon.nl/leon/jelly-leon/releases.atom"><img alt="Release RSS Feed" src="https://img.shields.io/badge/rss-releases-ffa500?logo=rss" /></a>
-<a href="https://git.medialeon.nl/leon/jelly-leon/commits/branch/ccr-c133d7a0-kuz1cv.atom"><img alt="Commits van Jelly Leon" src="https://img.shields.io/badge/rss-commits-ffa500?logo=rss" /></a>
+<a href="https://git.medialeon.nl/leon/jelly-leon/atom/branch/ccr-c133d7a0-kuz1cv"><img alt="Commits van Jelly Leon" src="https://img.shields.io/badge/rss-commits-ffa500?logo=rss" /></a>
 </p>
 
 ---
@@ -102,10 +102,10 @@ After the required extensions are installed, you can run the server by pressing 
 
 #### Running From the Command Line
 
-To run the server from the command line you can use the `dotnet run` command. The example below shows how to do this if you have cloned the repository into a directory named `jellyfin` (the default directory name) and should work on all operating systems.
+To run the server from the command line you can use the `dotnet run` command. The example below shows how to do this if you have cloned the repository into a directory named `jelly-leon` (the default directory name) and should work on all operating systems.
 
 ```bash
-cd jellyfin                          # Move into the repository directory
+cd jelly-leon                        # Move into the repository directory
 dotnet run --project Jellyfin.Server --webdir /absolute/path/to/jellyfin-web/dist # Run the server startup project
 ```
 
