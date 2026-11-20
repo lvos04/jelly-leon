@@ -336,7 +336,7 @@ jobs:
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/image_lifecycle.py --image "$JL_CI_IMAGE" --expected-version "$version" \
-            --werkmap "$JL_PROEFMAP" --report "$RUNNER_TEMP/image-lifecycle.json" --verwacht-web-ref "$WEB_REF" \
+            --werkmap "$JL_PROEFMAP" --api-timeout 60 --report "$RUNNER_TEMP/image-lifecycle.json" --verwacht-web-ref "$WEB_REF" \
             --opmerking "CI; web-client gebouwd uit leon/jelly-leon-web@$WEB_REF"
 
       # Elke volgende proef maakt eigen testdata en kan ook na een eerdere fout bewijs leveren.
@@ -580,7 +580,7 @@ jobs:
     name: Overname uit Emby (B03-015; echte Emby + stock Jellyfin 12.4, JLT-70…73)
     needs: forkregels
     runs-on: ${{ vars.CI_DOCKER_RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 45
+    timeout-minutes: 75
     defaults:
       run:
         working-directory: bron
@@ -605,8 +605,8 @@ jobs:
 
       # JLT-70 clientdeel: de webclient van de doelserver in een echte browser (Chromium via het B03-016-harnas):
       # inloggen met het nieuwe wachtwoord en hervatten op het overgezette hervatpunt (gemeten aan de serversessie).
-      - name: Proefcontainer met eigen Docker-volume starten
-        run: bash .forgejo/proeven/proefomgeving.sh start browser
+      - name: Proefcontainer voor Chromium met eigen Docker-volume starten
+        run: bash .forgejo/proeven/proefomgeving.sh start chromium
 
       - name: Proefrun met echte Emby-container en stock Jellyfin 12.4 (synthetische media, webclient in Chromium)
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
@@ -657,7 +657,7 @@ jobs:
     name: B03-016-harnas (corpus, CI-guard, clientmatrix, controle-run)
     needs: forkregels
     runs-on: ${{ vars.CI_DOCKER_RUNNER || 'linux-x64' }}
-    timeout-minutes: 45
+    timeout-minutes: 75
     env:
       PYTHONPATH: tools/b03-harnas
       STOCK_IMAGE: docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771

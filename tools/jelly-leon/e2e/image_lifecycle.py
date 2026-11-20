@@ -597,15 +597,18 @@ class Lifecycle:
         return self.add("opslagmappen in de image: /config 568:568 0755, /cache 568:568 1777 (als tmpfs 0:0 1777)", ok,
                         f"image {image}; tmpfs {tmpfs}; wortel anonieme cache {'/'.join(delen)}")
 
+    def api_client(self) -> stock_client_smoke.Client:
+        return stock_client_smoke.Client(f"http://localhost:{self.port}", timeout=self.args.api_timeout)
+
     def api(self, method: str, path: str, token: str | None = None, body: object | None = None) -> tuple[int, object]:
         """Eén verzoek als de webclient van de rooktest (token None = zonder aanmelding)."""
         auth = {"Authorization": stock_client_smoke.auth_value(stock_client_smoke.CLIENTS["web"], token)} if token else {}
-        return stock_client_smoke.Client(f"http://127.0.0.1:{self.port}").json(method, path, headers=auth, body=body)
+        return self.api_client().json(method, path, headers=auth, body=body)
 
     def login(self, user: str, password: str) -> tuple[str, str]:
         """(token, gebruikers-ID) van een gebruiker die de rooktest maakte; leeg als aanmelden mislukt."""
         auth = {"Authorization": stock_client_smoke.auth_value(stock_client_smoke.CLIENTS["web"])}
-        status, body = stock_client_smoke.Client(f"http://127.0.0.1:{self.port}").json(
+        status, body = self.api_client().json(
             "POST", "/Users/AuthenticateByName", headers=auth, body={"Username": user, "Pw": password})
         if status == 200 and isinstance(body, dict):
             return str(body.get("AccessToken", "")), str((body.get("User") or {}).get("Id", ""))
@@ -937,6 +940,7 @@ def main(argv: list[str] | None = None) -> int:
         help="werkmap ook bij succes laten staan (bij falen blijft hij altijd staan, ter diagnose)",
     )
     parser.add_argument("--health-timeout", type=float, default=240)
+    parser.add_argument("--api-timeout", type=float, default=15, help="wachttijd per lokaal API-verzoek in seconden")
     parser.add_argument("--report", help="pad voor het JSON-rapport")
     parser.add_argument("--opmerking", default="", help="vrije toelichting in het rapport (bv. herkomst web-client)")
     parser.add_argument(
@@ -948,7 +952,7 @@ def main(argv: list[str] | None = None) -> int:
     started = utc_now()
     try:
         passed = lifecycle.run()
-    except (RuntimeError, subprocess.TimeoutExpired) as exc:
+    except (RuntimeError, TimeoutError, subprocess.TimeoutExpired) as exc:
         lifecycle.add("uitvoering", False, str(exc)[:500])
         passed = False
     result = {

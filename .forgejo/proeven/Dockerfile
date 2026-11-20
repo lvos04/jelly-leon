@@ -7,14 +7,19 @@ COPY --chmod=755 .forgejo/proeven/proefdocker.sh /usr/local/bin/docker
 RUN useradd --create-home --uid 1000 proef && install -d -m 700 -o proef -g proef /home/proef/runtime
 ENV HOME=/home/proef XDG_RUNTIME_DIR=/home/proef/runtime PYTHONDONTWRITEBYTECODE=1
 
-FROM basis AS browser
+FROM basis AS playwright
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules/npm /opt/npm
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/browsers
 WORKDIR /opt/playwright
 COPY tools/b03-harnas/playwright/package*.json ./
-RUN node /opt/npm/bin/npm-cli.js ci --no-audit --no-fund \
-    && node node_modules/playwright/cli.js install --with-deps chromium firefox webkit \
+RUN node /opt/npm/bin/npm-cli.js ci --no-audit --no-fund
+
+FROM playwright AS chromium
+RUN node node_modules/playwright/cli.js install --with-deps chromium && rm -rf /var/lib/apt/lists/*
+
+FROM playwright AS browser
+RUN node node_modules/playwright/cli.js install --with-deps chromium firefox webkit \
     && apt-get update && apt-get install --no-install-recommends -y ffmpeg pulseaudio gstreamer1.0-pulseaudio \
        gstreamer1.0-libav gstreamer1.0-alsa libasound2-plugins \
     && rm -rf /var/lib/apt/lists/*

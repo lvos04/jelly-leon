@@ -55,7 +55,7 @@ def webserver(tmp_path: Path):
 
 def lifecycle_for(port: int, tmp_path: Path) -> image_lifecycle.Lifecycle:
     args = argparse.Namespace(
-        image="jelly-leon:test", expected_version="12.4.0", werkmap=str(tmp_path), health_timeout=1,
+        image="jelly-leon:test", expected_version="12.4.0", werkmap=str(tmp_path), health_timeout=1, api_timeout=15,
         report=None, opmerking="", verwacht_web_ref="",
     )
     lifecycle = image_lifecycle.Lifecycle(args)

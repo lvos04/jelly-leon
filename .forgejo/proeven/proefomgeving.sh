@@ -34,7 +34,7 @@ case "$1" in
             "$pad/werk/"{sloten,b03-werk,b03-corpus,b03-testsets}
         docker exec "$harnas" stat -c %g /var/run/docker.sock > "$staat/socketgroep"
         git archive HEAD tools docs/openapi deploy/allinone/healthcheck.sh | docker cp - "$harnas:$pad/bron"
-        if [[ $2 == browser ]]; then
+        if [[ $2 == browser || $2 == chromium ]]; then
             docker exec "$harnas" ln -s /opt/playwright/node_modules "$pad/bron/tools/b03-harnas/playwright/node_modules"
         fi
         echo 'JL_HARNAS_ACTIEF=1' >> "$GITHUB_ENV"
