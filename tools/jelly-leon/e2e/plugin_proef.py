@@ -109,8 +109,8 @@ class Server:
         return self.map / "config"
 
     def start(self) -> dict[str, Any]:
-        (self.map / "config").mkdir(parents=True, exist_ok=True)
-        (self.map / "cache").mkdir(parents=True, exist_ok=True)
+        self.config.mkdir(mode=0o700, parents=True, exist_ok=True)
+        (self.map / "cache").mkdir(mode=0o700, parents=True, exist_ok=True)
         poort = vrije_poort()
         docker("run", "-d", "--name", self.naam, "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
                "--security-opt", "no-new-privileges", "--memory", self.geheugen, "-e", "TZ=UTC",

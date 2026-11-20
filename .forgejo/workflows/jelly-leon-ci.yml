@@ -473,13 +473,13 @@ jobs:
           python3 tools/jelly-leon/e2e/make_test_media.py "$JL_PROEFMAP/media"
           # Eigenaar 568 zonder sudo: chown in een wegwerpcontainer van dezelfde vastgezette runtime (geen netwerk).
           docker run --rm --network none --user 0:0 --entrypoint /bin/chown \
-            -v "$RUNNER_TEMP/config:/w/config" -v "$RUNNER_TEMP/cache:/w/cache" \
+            -v "$JL_PROEFMAP/config:/w/config" -v "$JL_PROEFMAP/cache:/w/cache" \
             "$JL_RUNTIME_IMAGE" -R 568:568 /w/config /w/cache
           loopback=$(getent ahostsv4 localhost | awk 'NR == 1 { print $1 }')
           docker run -d --rm --cidfile "$RUNNER_TEMP/stock.cid" --user 568:568 --cap-drop ALL --security-opt no-new-privileges \
             -p "$loopback::8096" \
-            -v "$RUNNER_TEMP/server:/jellyfin:ro" -v "$RUNNER_TEMP/config:/config" -v "$RUNNER_TEMP/cache:/cache" \
-            -v "$RUNNER_TEMP/media:/media/muziek:ro" \
+            -v "$JL_PROEFMAP/server:/jellyfin:ro" -v "$JL_PROEFMAP/config:/config" -v "$JL_PROEFMAP/cache:/cache" \
+            -v "$JL_PROEFMAP/media:/media/muziek:ro" \
             "$JL_RUNTIME_IMAGE" --nowebclient
 
       - name: Stock-client-smoketest

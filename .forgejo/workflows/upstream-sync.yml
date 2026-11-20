@@ -229,14 +229,14 @@ jobs:
           cp "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/$tfm/Jellyfin.Plugin.JellyLeon.dll" \
              "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0/"
           python3 tools/jelly-leon/e2e/make_test_media.py "$JL_PROEFMAP/media"
-          beheer=()
-          if (( EUID != 0 )); then beheer=(sudo -n); fi
-          "${beheer[@]}" chown -R 568:568 "$JL_PROEFMAP/config" "$JL_PROEFMAP/cache"
+          docker run --rm --network none --user 0:0 --entrypoint /bin/chown \
+            -v "$JL_PROEFMAP/config:/w/config" -v "$JL_PROEFMAP/cache:/w/cache" \
+            "$JL_RUNTIME_IMAGE" -R 568:568 /w/config /w/cache
           loopback=$(getent ahostsv4 localhost | awk 'NR == 1 { print $1 }')
           docker run -d --rm --cidfile "$RUNNER_TEMP/stock.cid" --user 568:568 --cap-drop ALL --security-opt no-new-privileges \
             -p "$loopback::8096" \
-            -v "$RUNNER_TEMP/server:/jellyfin:ro" -v "$RUNNER_TEMP/config:/config" -v "$RUNNER_TEMP/cache:/cache" \
-            -v "$RUNNER_TEMP/media:/media/muziek:ro" "$JL_RUNTIME_IMAGE" --nowebclient
+            -v "$JL_PROEFMAP/server:/jellyfin:ro" -v "$JL_PROEFMAP/config:/config" -v "$JL_PROEFMAP/cache:/cache" \
+            -v "$JL_PROEFMAP/media:/media/muziek:ro" "$JL_RUNTIME_IMAGE" --nowebclient
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           port=$(docker port "$(cat "$RUNNER_TEMP/stock.cid")" 8096/tcp)
           python3 tools/jelly-leon/e2e/stock_client_smoke.py --url "http://localhost:${port##*:}" \
