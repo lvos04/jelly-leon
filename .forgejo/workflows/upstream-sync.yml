@@ -98,7 +98,7 @@ jobs:
     name: Sync ${{ matrix.tag }} (merge, bouwen, testen — nooit deployen)
     needs: detecteer
     if: needs.detecteer.outputs.heeft_kandidaat == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.CI_DOCKER_RUNNER || 'linux-x64' }}
     timeout-minutes: 90
     strategy:
       fail-fast: false

@@ -293,7 +293,7 @@ jobs:
   image:
     name: Alles-in-één image bouwen (echte jelly-leon-web-build) en levenscyclus testen
     needs: [forkregels, contract, manifest, webbron]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.CI_DOCKER_RUNNER || 'linux-x64' }}
     timeout-minutes: 60
     defaults:
       run:
@@ -425,7 +425,7 @@ jobs:
   stock-client-e2e:
     name: Stock-client-smoketest (simulator, geen echte apparaten)
     needs: [server, plugins]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.CI_DOCKER_RUNNER || 'linux-x64' }}
     timeout-minutes: 30
     defaults:
       run:
@@ -550,7 +550,7 @@ jobs:
   emby-overname:
     name: Overname uit Emby (B03-015; echte Emby + stock Jellyfin 12.4, JLT-70…73)
     needs: forkregels
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.CI_DOCKER_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 45
     defaults:
       run:
@@ -623,7 +623,7 @@ jobs:
   b03-harnas:
     name: B03-016-harnas (corpus, CI-guard, clientmatrix, controle-run)
     needs: forkregels
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.CI_DOCKER_RUNNER || 'linux-x64' }}
     timeout-minutes: 45
     env:
       PYTHONPATH: tools/b03-harnas
