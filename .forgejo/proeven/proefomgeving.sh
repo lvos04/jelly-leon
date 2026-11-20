@@ -10,12 +10,12 @@ case "$1" in
         mkdir "$staat"
         docker buildx build --load --iidfile "$staat/image" --target "$2" -f .forgejo/proeven/Dockerfile .
         volume="jl-proef-$(cat /proc/sys/kernel/random/uuid)"
-        if [[ ${3:-} == database ]]; then
-            # Het datavolume van Docker zelf kan op tmpfs staan. Maak de testdataset op
-            # het lokale bestandssysteem van de engine en koppel alleen deze eigen map.
+        if [[ $2 == basis ]]; then
+            # De standaardvolumes kunnen tmpfs en noexec zijn. Zowel de database als
+            # de gepubliceerde server en healthcheck krijgen een eigen uitvoerbare dataset.
             echo "$volume" > "$staat/dataset"
             docker run --rm --network none --read-only -v "$opslag:/opslag" "$(cat "$staat/image")" \
-                sh -ec 'mkdir -- "/opslag/$1"; stat -f -c "Bestandssysteem voor de proefdatabase: %T" "/opslag/$1"' sh "$volume"
+                sh -ec 'mkdir -- "/opslag/$1"; stat -f -c "Bestandssysteem voor de serverproeven: %T" "/opslag/$1"' sh "$volume"
             docker volume create --opt type=none --opt o=bind --opt "device=$opslag/$volume" "$volume" > "$staat/volume"
         else
             docker volume create "$volume" > "$staat/volume"
@@ -40,13 +40,19 @@ case "$1" in
         echo 'JL_HARNAS_ACTIEF=1' >> "$GITHUB_ENV"
         ;;
     voorraad)
-        docker cp "$RUNNER_TEMP/stockbouw/." "$(cat "$staat/container"):$(cat "$staat/pad")/werk"
+        harnas=$(cat "$staat/container")
+        werk=$(cat "$staat/pad")/werk
+        docker exec "$harnas" mkdir -p "$werk/server" "$werk/plugin"
+        docker cp "$RUNNER_TEMP/stockbouw/server/." "$harnas:$werk/server"
+        docker cp "$RUNNER_TEMP/stockbouw/plugin/." "$harnas:$werk/plugin"
+        docker exec "$harnas" chmod 0755 "$werk/server" "$werk/server/jellyfin"
         ;;
     voer)
-        # Ook de proeven die de uid van de aanroeper gebruiken, draaien als een gewone gebruiker.
+        # De proefgebruiker maakt normale datasets met 0755 aan. Negatieve fixtures zetten
+        # hun afwijkende rechten zelf. Docker exec kan een umask van 000 doorgeven.
         docker exec -i -e WEB_REF -e NIEUWE_RUNTIME "$(cat "$staat/container")" \
             setpriv --reuid=1000 --regid=1000 --groups="$(cat "$staat/socketgroep")" --no-new-privs \
-            bash -e -o pipefail -s < "$2"
+            bash -c 'umask 022; exec bash -e -o pipefail -s' < "$2"
         ;;
     rapporten)
         mkdir -p "$RUNNER_TEMP/proefrapporten"

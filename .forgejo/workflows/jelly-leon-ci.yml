@@ -327,7 +327,7 @@ jobs:
             --build-arg BUILD_JOBS=2 --build-arg WEB_BUILD_JOBS=2 --load -t "$JL_CI_IMAGE" .
 
       - name: Proefcontainer met lokale dataset voor de database starten
-        run: bash .forgejo/proeven/proefomgeving.sh start basis database
+        run: bash .forgejo/proeven/proefomgeving.sh start basis
 
       - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568 zonder rechten, herkomst web, herstart, Custom User, weigeringen)
         env:
@@ -339,14 +339,17 @@ jobs:
             --werkmap "$JL_PROEFMAP" --report "$RUNNER_TEMP/image-lifecycle.json" --verwacht-web-ref "$WEB_REF" \
             --opmerking "CI; web-client gebouwd uit leon/jelly-leon-web@$WEB_REF"
 
+      # Elke volgende proef maakt eigen testdata en kan ook na een eerdere fout bewijs leveren.
       # B03-016: de image bevat geen beperkt gelicentieerde testdata (MovieLens, Pioneer One, fanondertitels, afgeleide labels).
       - name: CI-guard testdatalicenties op de image
+        if: ${{ !cancelled() && env.JL_HARNAS_ACTIEF == '1' }}
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: PYTHONPATH=tools/b03-harnas python3 -m b03h guard --image "$JL_CI_IMAGE"
 
       # B03-013: migratie vanaf de bestaande upstream-Jellyfin en terug met DB-back-up (koude kopie als model voor de
       # ZFS-snapshot) + oude binary; streamen moet blijven werken. Upstream-image = de vastgezette runtime (digest).
       - name: Terugzetproef (upstream → Jelly Leon → terug met DB-back-up en oude binary)
+        if: ${{ !cancelled() && env.JL_HARNAS_ACTIEF == '1' }}
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
@@ -358,6 +361,7 @@ jobs:
       # override, afspeellijst) → deze image; VÓÓR = NA per gebruiker, hervatten, legacy-auth uit, controle-run tegen stock
       # 12.x, terugzetten (kopie + oude image, byte-gelijke jellyfin.db) en de negatieve proef met de oude stock-image.
       - name: Upgradeproef 10.11.11 → deze image (JLT-60, JLT-61 a/b)
+        if: ${{ !cancelled() && env.JL_HARNAS_ACTIEF == '1' }}
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
@@ -369,6 +373,7 @@ jobs:
       # image = stock 12.x op dezelfde datamap, behalve paden onder /media/v1 en /connector/v1; plus de UG-runtimetests
       # op deze image (zelfde upstream-gedrag als stock).
       - name: API-regressie tegen stock 12.x en upstream-gedrag op de Jelly Leon-image
+        if: ${{ !cancelled() && env.JL_HARNAS_ACTIEF == '1' }}
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           python3 tools/jelly-leon/e2e/compat_api.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE" \
@@ -381,6 +386,7 @@ jobs:
       # weigeringen, herhaalde jti), foutcatalogus per module, connector tegen het schema, UserDeleted in de ruwe
       # bestanden, geheimen niet in XML/log, en elke tabel van de serverdatabase tegen de controle-run.
       - name: Pluginproef op de Jelly Leon-image (JLT-68, JLT-64, JLT-65; Hub-simulator)
+        if: ${{ !cancelled() && env.JL_HARNAS_ACTIEF == '1' }}
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE" \
@@ -390,6 +396,7 @@ jobs:
       # JELLYLEON_SPIKE_STARTUPFILTER=1. Meet of een laag uit de plugin vóór routing en authenticatie werkt (413 vóór 401
       # bij meer dan 1 MiB op een pluginroute) en of al het andere gelijk blijft. Standaard staat de laag uit.
       - name: Spike IStartupFilter op de Jelly Leon-image (ADR-0033)
+        if: ${{ !cancelled() && env.JL_HARNAS_ACTIEF == '1' }}
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           python3 tools/jelly-leon/e2e/startupfilter_spike.py --image "$JL_CI_IMAGE" \
@@ -416,20 +423,20 @@ jobs:
             ${{ runner.temp }}/proefrapporten/startupfilter-spike-jelly-leon.json
 
       - name: Geteste image naar het Forgejo-register publiceren
-        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: success() && github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           REGISTRY_USER: ${{ vars.REGISTRY_USER }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: bash tools/jelly-leon/publiceer_image.sh "$JL_CI_IMAGE"
 
+      - name: Eigen proefcontainer en volume opruimen
+        if: always()
+        run: bash .forgejo/proeven/proefomgeving.sh ruim
+
       - name: Eigen CI-imagetag opruimen
         if: always()
         run: |
           if docker image inspect "$JL_CI_IMAGE" >/dev/null 2>&1; then docker image rm "$JL_CI_IMAGE"; fi
-
-      - name: Eigen proefcontainer en volume opruimen
-        if: always()
-        run: bash .forgejo/proeven/proefomgeving.sh ruim
 
   stock-client-e2e:
     name: Stock-client-smoketest (simulator, geen echte apparaten)
@@ -459,7 +466,7 @@ jobs:
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
 
-      - name: Proefcontainer met eigen Docker-volume starten
+      - name: Proefcontainer met uitvoerbare serveropslag starten
         run: bash .forgejo/proeven/proefomgeving.sh start basis
 
       - name: Server publiceren (self-contained, linux-x64)

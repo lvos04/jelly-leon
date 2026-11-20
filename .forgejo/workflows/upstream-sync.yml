@@ -155,7 +155,7 @@ jobs:
 
       # UPSTREAM_GEDRAG-runtimetests op de runtime van de NIEUWE tag (jellyfin/jellyfin:<versie>, op de gemeten digest):
       # bestaat die image nog niet, dan blokkeert de sync met een duidelijke melding (JL_RUNTIME_IMAGE volgt bij de release).
-      - name: Proefcontainer met eigen Docker-volume starten
+      - name: Proefcontainer met uitvoerbare serveropslag starten
         run: bash .forgejo/proeven/proefomgeving.sh start basis
 
       - name: Upstream-gedrag op de nieuwe runtime (UG-runtimetests)
