@@ -86,7 +86,7 @@ jobs:
           ref: ccr-c133d7a0-kuz1cv
           path: _extern/ai-server-manager
           fetch-depth: 0
-          token: ${{ secrets.CI_BRON_LEESTOKEN || github.token }}
+          token: ${{ secrets.BRON_LEESTOKEN }}
           persist-credentials: false
 
       - name: Contracten op beide broncommits en de huidige bronbranch vergelijken
@@ -107,7 +107,7 @@ jobs:
         uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: ${{ env.APPSTORE_REPO }}
-          token: ${{ secrets.CI_BRON_LEESTOKEN || github.token }}
+          token: ${{ secrets.BRON_LEESTOKEN }}
           ref: ${{ env.APPSTORE_COMMIT }}
           path: _extern/appstore-en-fork
           persist-credentials: false
@@ -270,7 +270,7 @@ jobs:
         uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: ${{ steps.web.outputs.repo }}
-          token: ${{ secrets.CI_BRON_LEESTOKEN || github.token }}
+          token: ${{ secrets.BRON_LEESTOKEN }}
           ref: ${{ steps.web.outputs.commit }}
           path: _extern/jelly-leon-web
           fetch-depth: 0
@@ -326,14 +326,13 @@ jobs:
             --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" --build-arg WEB_REF="$WEB_REF" \
             --build-arg BUILD_JOBS=2 --build-arg WEB_BUILD_JOBS=2 --load -t "$JL_CI_IMAGE" .
 
-      - name: Eigen Docker-proefmap aan beide kanten controleren
-        env:
-          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
-        run: python3 tools/jelly-leon/docker_proefmap.py bereid
+      - name: Proefcontainer met eigen Docker-volume starten
+        run: bash .forgejo/proeven/proefomgeving.sh start basis
 
       - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568 zonder rechten, herkomst web, herstart, Custom User, weigeringen)
         env:
           WEB_REF: ${{ needs.webbron.outputs.commit }}
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/image_lifecycle.py --image "$JL_CI_IMAGE" --expected-version "$version" \
@@ -342,11 +341,13 @@ jobs:
 
       # B03-016: de image bevat geen beperkt gelicentieerde testdata (MovieLens, Pioneer One, fanondertitels, afgeleide labels).
       - name: CI-guard testdatalicenties op de image
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: PYTHONPATH=tools/b03-harnas python3 -m b03h guard --image "$JL_CI_IMAGE"
 
       # B03-013: migratie vanaf de bestaande upstream-Jellyfin en terug met DB-back-up (koude kopie als model voor de
       # ZFS-snapshot) + oude binary; streamen moet blijven werken. Upstream-image = de vastgezette runtime (digest).
       - name: Terugzetproef (upstream → Jelly Leon → terug met DB-back-up en oude binary)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/rollback_sim.py --image "$JL_CI_IMAGE" --upstream-image "$JL_RUNTIME_IMAGE" \
@@ -357,6 +358,7 @@ jobs:
       # override, afspeellijst) → deze image; VÓÓR = NA per gebruiker, hervatten, legacy-auth uit, controle-run tegen stock
       # 12.x, terugzetten (kopie + oude image, byte-gelijke jellyfin.db) en de negatieve proef met de oude stock-image.
       - name: Upgradeproef 10.11.11 → deze image (JLT-60, JLT-61 a/b)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/upgrade_proef.py --image "$JL_CI_IMAGE" --expected-version "$version" \
@@ -367,6 +369,7 @@ jobs:
       # image = stock 12.x op dezelfde datamap, behalve paden onder /media/v1 en /connector/v1; plus de UG-runtimetests
       # op deze image (zelfde upstream-gedrag als stock).
       - name: API-regressie tegen stock 12.x en upstream-gedrag op de Jelly Leon-image
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           python3 tools/jelly-leon/e2e/compat_api.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE" \
             --werkmap "$JL_PROEFMAP" --report "$RUNNER_TEMP/compat-api.json"
@@ -378,6 +381,7 @@ jobs:
       # weigeringen, herhaalde jti), foutcatalogus per module, connector tegen het schema, UserDeleted in de ruwe
       # bestanden, geheimen niet in XML/log, en elke tabel van de serverdatabase tegen de controle-run.
       - name: Pluginproef op de Jelly Leon-image (JLT-68, JLT-64, JLT-65; Hub-simulator)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE" \
             --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/pluginproef-jelly-leon.json"
@@ -386,9 +390,14 @@ jobs:
       # JELLYLEON_SPIKE_STARTUPFILTER=1. Meet of een laag uit de plugin vóór routing en authenticatie werkt (413 vóór 401
       # bij meer dan 1 MiB op een pluginroute) en of al het andere gelijk blijft. Standaard staat de laag uit.
       - name: Spike IStartupFilter op de Jelly Leon-image (ADR-0033)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           python3 tools/jelly-leon/e2e/startupfilter_spike.py --image "$JL_CI_IMAGE" \
             --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/startupfilter-spike-jelly-leon.json"
+
+      - name: Rapporten uit het proefvolume ophalen
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
+        run: bash .forgejo/proeven/proefomgeving.sh rapporten
 
       - name: Rapporten bewaren
         if: always()
@@ -398,13 +407,13 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
           path: |
-            ${{ runner.temp }}/image-lifecycle.json
-            ${{ runner.temp }}/rollback-sim.json
-            ${{ runner.temp }}/upgrade-proef.json
-            ${{ runner.temp }}/compat-api.json
-            ${{ runner.temp }}/upstream-gedrag-runtime-jelly-leon.json
-            ${{ runner.temp }}/pluginproef-jelly-leon.json
-            ${{ runner.temp }}/startupfilter-spike-jelly-leon.json
+            ${{ runner.temp }}/proefrapporten/image-lifecycle.json
+            ${{ runner.temp }}/proefrapporten/rollback-sim.json
+            ${{ runner.temp }}/proefrapporten/upgrade-proef.json
+            ${{ runner.temp }}/proefrapporten/compat-api.json
+            ${{ runner.temp }}/proefrapporten/upstream-gedrag-runtime-jelly-leon.json
+            ${{ runner.temp }}/proefrapporten/pluginproef-jelly-leon.json
+            ${{ runner.temp }}/proefrapporten/startupfilter-spike-jelly-leon.json
 
       - name: Geteste image naar het Forgejo-register publiceren
         if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
@@ -418,9 +427,9 @@ jobs:
         run: |
           if docker image inspect "$JL_CI_IMAGE" >/dev/null 2>&1; then docker image rm "$JL_CI_IMAGE"; fi
 
-      - name: Eigen proefmap na het bewaren van het bewijs opruimen
-        if: always() && env.JL_PROEFMAP != ''
-        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+      - name: Eigen proefcontainer en volume opruimen
+        if: always()
+        run: bash .forgejo/proeven/proefomgeving.sh ruim
 
   stock-client-e2e:
     name: Stock-client-smoketest (simulator, geen echte apparaten)
@@ -450,22 +459,24 @@ jobs:
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
 
-      - name: Eigen Docker-proefmap aan beide kanten controleren
-        env:
-          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
-        run: python3 tools/jelly-leon/docker_proefmap.py bereid
+      - name: Proefcontainer met eigen Docker-volume starten
+        run: bash .forgejo/proeven/proefomgeving.sh start basis
 
       - name: Server publiceren (self-contained, linux-x64)
         run: >
           dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release --runtime linux-x64 --self-contained
-          -p:DebugSymbols=false -p:DebugType=none -o "$JL_PROEFMAP/server"
+          -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/stockbouw/server"
 
       - name: Plugin bouwen
         run: >
           dotnet build plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj -c Release
-          -o "$JL_PROEFMAP/plugin"
+          -o "$RUNNER_TEMP/stockbouw/plugin"
+
+      - name: Gebouwde server en plugin naar het proefvolume kopiëren
+        run: bash .forgejo/proeven/proefomgeving.sh voorraad
 
       - name: Server starten op de upstream-runtime (als 568, zonder capabilities)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           set -eu
           mkdir -p "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0" "$JL_PROEFMAP/cache" "$JL_PROEFMAP/media"
@@ -483,6 +494,7 @@ jobs:
             "$JL_RUNTIME_IMAGE" --nowebclient
 
       - name: Stock-client-smoketest
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           port=$(docker port "$(cat "$RUNNER_TEMP/stock.cid")" 8096/tcp)
@@ -492,15 +504,18 @@ jobs:
             --report "$RUNNER_TEMP/stock-client-smoke.json"
 
       - name: Serverlog bij falen
-        if: failure()
+        if: failure() && env.JL_HARNAS_ACTIEF == '1'
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: test ! -s "$RUNNER_TEMP/stock.cid" || docker logs "$(cat "$RUNNER_TEMP/stock.cid")" 2>&1 | tail -200
 
       - name: Eigen testserver opruimen
-        if: always()
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: test ! -s "$RUNNER_TEMP/stock.cid" || docker rm -f -v "$(cat "$RUNNER_TEMP/stock.cid")"
 
       # B03-019 (a): runtime-contracttests van UPSTREAM_GEDRAG.md op JL_RUNTIME_IMAGE (stock 12.x op digest).
       - name: Upstream-gedrag op JL_RUNTIME_IMAGE (UG-runtimetests)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: >
           python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$JL_PROEFMAP"
           --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
@@ -508,11 +523,13 @@ jobs:
       # B03-017 (gate golf 1): dezelfde pluginproef op stock 12.x met de los gebouwde plugin-DLL, plus de run waarin de
       # plugin weer is weggehaald (de server geeft dan dezelfde antwoorden als de controle-run; plugindata blijft staan).
       - name: Pluginproef op JL_RUNTIME_IMAGE (JLT-68, JLT-64, JLT-65; Hub-simulator; plugin verwijderd)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: >
           python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$JL_PROEFMAP/plugin"
           --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/pluginproef-stock.json"
 
       - name: Spike IStartupFilter op JL_RUNTIME_IMAGE (ADR-0033)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: >
           python3 tools/jelly-leon/e2e/startupfilter_spike.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$JL_PROEFMAP/plugin"
           --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/startupfilter-spike-stock.json"
@@ -521,9 +538,14 @@ jobs:
       # Custom User 568, met de negatieve gevallen (fase-argument zonder echte wissel → rood); de gebouwde image zelf
       # controleert de levenscyclustest in de job image.
       - name: Healthcheck-proef (script in JL_RUNTIME_IMAGE, als root en als 568)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: >
           python3 tools/jelly-leon/e2e/healthcheck_proef.py --image "$JL_RUNTIME_IMAGE"
           --rapport "$RUNNER_TEMP/healthcheck-proef.json"
+
+      - name: Rapporten uit het proefvolume ophalen
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
+        run: bash .forgejo/proeven/proefomgeving.sh rapporten
 
       - name: Rapport bewaren
         if: always()
@@ -533,15 +555,15 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
           path: |
-            ${{ runner.temp }}/stock-client-smoke.json
-            ${{ runner.temp }}/upstream-gedrag-runtime.json
-            ${{ runner.temp }}/pluginproef-stock.json
-            ${{ runner.temp }}/startupfilter-spike-stock.json
-            ${{ runner.temp }}/healthcheck-proef.json
+            ${{ runner.temp }}/proefrapporten/stock-client-smoke.json
+            ${{ runner.temp }}/proefrapporten/upstream-gedrag-runtime.json
+            ${{ runner.temp }}/proefrapporten/pluginproef-stock.json
+            ${{ runner.temp }}/proefrapporten/startupfilter-spike-stock.json
+            ${{ runner.temp }}/proefrapporten/healthcheck-proef.json
 
-      - name: Eigen proefmap na het bewaren van het bewijs opruimen
-        if: always() && env.JL_PROEFMAP != ''
-        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+      - name: Eigen proefcontainer en volume opruimen
+        if: always()
+        run: bash .forgejo/proeven/proefomgeving.sh ruim
 
 
   # B03-015 deel A (golf 0, P0 van de gebruiker): overname van de kijkgeschiedenis uit Emby. Unit- en simulatortests, daarna
@@ -576,44 +598,48 @@ jobs:
 
       # JLT-70 clientdeel: de webclient van de doelserver in een echte browser (Chromium via het B03-016-harnas):
       # inloggen met het nieuwe wachtwoord en hervatten op het overgezette hervatpunt (gemeten aan de serversessie).
-      - name: Eigen Docker-proefmap aan beide kanten controleren
-        env:
-          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
-        run: python3 tools/jelly-leon/docker_proefmap.py bereid
-
-      - name: Node 22
-        uses: https://data.forgejo.org/actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '22'
-
-      - name: Playwright 1.63 met Chromium (B03-016-harnas)
-        working-directory: bron/tools/b03-harnas/playwright
-        run: |
-          npm ci --no-audit --no-fund
-          node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Proefcontainer met eigen Docker-volume starten
+        run: bash .forgejo/proeven/proefomgeving.sh start browser
 
       - name: Proefrun met echte Emby-container en stock Jellyfin 12.4 (synthetische media, webclient in Chromium)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: >
           python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker --browser chromium
           --uitvoer "$JL_PROEFMAP/emby-overname"
 
+      - name: Bewijs uit de overnameproef verzamelen
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
+        run: |
+          if [[ -d "$JL_PROEFMAP/emby-overname" ]]; then
+            cd "$JL_PROEFMAP/emby-overname"
+            mkdir -p "$RUNNER_TEMP/emby-overname"
+            for pad in bewijs.json toolrun.log proxy-*.jsonl werkmap/runs werkmap-herimport/runs; do
+              if [[ -e $pad ]]; then cp -R --parents "$pad" "$RUNNER_TEMP/emby-overname/"; fi
+            done
+          fi
+
+      - name: Rapporten uit het proefvolume ophalen
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
+        run: bash .forgejo/proeven/proefomgeving.sh rapporten
+
       - name: Bewijs en rapporten bewaren
-        if: always() && env.JL_PROEFMAP != ''
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
         uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
         with:
           name: emby-overname-proefrun
           retention-days: 14
           if-no-files-found: ignore
           path: |
-            ${{ env.JL_PROEFMAP }}/emby-overname/bewijs.json
-            ${{ env.JL_PROEFMAP }}/emby-overname/toolrun.log
-            ${{ env.JL_PROEFMAP }}/emby-overname/proxy-*.jsonl
-            ${{ env.JL_PROEFMAP }}/emby-overname/werkmap/runs/
-            ${{ env.JL_PROEFMAP }}/emby-overname/werkmap-herimport/runs/
+            ${{ runner.temp }}/proefrapporten/emby-overname/bewijs.json
+            ${{ runner.temp }}/proefrapporten/emby-overname/toolrun.log
+            ${{ runner.temp }}/proefrapporten/emby-overname/proxy-*.jsonl
+            ${{ runner.temp }}/proefrapporten/emby-overname/werkmap/runs/
+            ${{ runner.temp }}/proefrapporten/emby-overname/werkmap-herimport/runs/
 
-      - name: Eigen proefmap na het bewaren van het bewijs opruimen
-        if: always() && env.JL_PROEFMAP != ''
-        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+      - name: Eigen proefcontainer en volume opruimen
+        if: always()
+        run: bash .forgejo/proeven/proefomgeving.sh ruim
 
 
   # B03-016 (golf 0): één harnasraamwerk. Unit- en recepttests (reproduceerbaar: zelfde sha256 bij dezelfde seed) op een
@@ -651,14 +677,13 @@ jobs:
             echo "B03_UITVOER=$RUNNER_TEMP/b03-testsets"
           } >> "$GITHUB_ENV"
 
-      - name: Testafhankelijkheden, ffmpeg en audio-uitvoer voor de browsertests
+      - name: Testafhankelijkheden en ffmpeg voor de recepttests
         run: |
           python -m pip install --disable-pip-version-check -r tools/jelly-leon/requirements-dev.txt
           apt=(apt-get)
           if (( EUID != 0 )); then apt=(sudo -n apt-get); fi
           "${apt[@]}" update -qq
-          "${apt[@]}" install -y -qq --no-install-recommends ffmpeg pulseaudio gstreamer1.0-pulseaudio \
-            gstreamer1.0-libav gstreamer1.0-alsa libasound2-plugins
+          "${apt[@]}" install -y -qq --no-install-recommends ffmpeg
           mkdir -p "$B03_LOCK_DIR" "$B03_WERK" "$B03_CORPUS" "$B03_UITVOER"
 
       - name: Lint harnas (ruff)
@@ -681,35 +706,13 @@ jobs:
             echo "vorige commit niet beschikbaar (force-push of nieuwe branch); alleen de boom gecontroleerd"
           fi
 
-      - name: Eigen Docker-proefmap aan beide kanten controleren
-        env:
-          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
-        run: python3 tools/jelly-leon/docker_proefmap.py bereid
-
-      - name: Werkmappen voor de stockservers en het corpus
-        run: |
-          for map in sloten b03-werk b03-corpus b03-testsets; do mkdir -p "$JL_PROEFMAP/$map"; done
-          {
-            echo "B03_LOCK_DIR=$JL_PROEFMAP/sloten"
-            echo "B03_WERK=$JL_PROEFMAP/b03-werk"
-            echo "B03_CORPUS=$JL_PROEFMAP/b03-corpus"
-            echo "B03_UITVOER=$JL_PROEFMAP/b03-testsets"
-          } >> "$GITHUB_ENV"
-
-      - name: Node 22
-        uses: https://data.forgejo.org/actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '22'
-
-      - name: Playwright 1.63 met Chromium, Firefox en WebKit
-        working-directory: bron/tools/b03-harnas/playwright
-        run: |
-          npm ci --no-audit --no-fund
-          node node_modules/playwright/cli.js install --with-deps chromium firefox webkit
+      - name: Proefcontainer met eigen Docker-volume starten
+        run: bash .forgejo/proeven/proefomgeving.sh start browser
 
       # Een runner heeft geen geluidsapparaat: zonder uitvoer decodeert Chromium geen audio (het orakel ziet dan 'stil') en
       # blijft WebKit/GStreamer na ~0,2 s hangen. Een PulseAudio-null-sink geeft beide een echte audio-uitvoer.
       - name: Audio-uitvoer voor headless browsers (PulseAudio-null-sink)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           printf 'pcm.!default { type pulse }\nctl.!default { type pulse }\n' > "$HOME/.asoundrc"
           pulseaudio -D --exit-idle-time=-1 --system=false
@@ -718,11 +721,13 @@ jobs:
           pactl info | grep -E 'Server Name|Default Sink'
 
       - name: Stock-image ophalen (vaste digest) en synthetisch mini-corpus
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           docker pull "$STOCK_IMAGE"
           python3 tools/b03-harnas/ci_mini_corpus.py "$B03_CORPUS" --ffmpeg-docker "$STOCK_IMAGE"
 
       - name: Clientmatrix-rooktest tegen stock 12.4 (hero.mp4 per client)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           python -m b03h clientmatrix --onderdelen web,ua,legacy,webdir --uit "$RUNNER_TEMP/b03-clientmatrix.json"
           python3 - "$RUNNER_TEMP/b03-clientmatrix.json" <<'PY'
@@ -746,12 +751,25 @@ jobs:
           PY
 
       - name: Differentiële controle-run stock tegen stock (verwacht 0 verschillen) en negatieve proef
-        if: ${{ !cancelled() && env.JL_PROEFMAP != '' }}
+        if: ${{ !cancelled() && env.JL_HARNAS_ACTIEF == '1' }}
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
           python -m b03h diffrun --uit "$RUNNER_TEMP/b03-diffrun.json"
-          if python -m b03h diffrun --negatieve-proef --uit "$RUNNER_TEMP/b03-diffrun-negatief.json"; then
-            echo "negatieve proef vond geen verschil — de vergelijking is stuk"; exit 1
-          fi
+          rapport="$RUNNER_TEMP/b03-diffrun-negatief.json"
+          rc=0
+          python -m b03h diffrun --negatieve-proef --uit "$rapport" || rc=$?
+          test "$rc" -eq 1
+          python3 - "$rapport" <<'PYTOETS'
+          import json, sys
+          with open(sys.argv[1]) as bestand:
+              proef = json.load(bestand)
+          if not (proef["negatieve_proef"] and proef["rapport"]["verschillen_buiten_uitzonderingen"] > 0):
+              sys.exit("Negatieve proef bevat geen gemeten verschil")
+          PYTOETS
+
+      - name: Rapporten uit het proefvolume ophalen
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
+        run: bash .forgejo/proeven/proefomgeving.sh rapporten
 
       - name: Bewijs bewaren
         if: always()
@@ -761,11 +779,11 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
           path: |
-            ${{ runner.temp }}/b03-clientmatrix.json
-            ${{ runner.temp }}/b03-clientmatrix/
-            ${{ runner.temp }}/b03-diffrun.json
-            ${{ runner.temp }}/b03-diffrun-negatief.json
+            ${{ runner.temp }}/proefrapporten/b03-clientmatrix.json
+            ${{ runner.temp }}/proefrapporten/b03-clientmatrix/
+            ${{ runner.temp }}/proefrapporten/b03-diffrun.json
+            ${{ runner.temp }}/proefrapporten/b03-diffrun-negatief.json
 
-      - name: Eigen proefmap na het bewaren van het bewijs opruimen
-        if: always() && env.JL_PROEFMAP != ''
-        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+      - name: Eigen proefcontainer en volume opruimen
+        if: always()
+        run: bash .forgejo/proeven/proefomgeving.sh ruim

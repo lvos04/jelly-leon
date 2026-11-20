@@ -155,10 +155,8 @@ jobs:
 
       # UPSTREAM_GEDRAG-runtimetests op de runtime van de NIEUWE tag (jellyfin/jellyfin:<versie>, op de gemeten digest):
       # bestaat die image nog niet, dan blokkeert de sync met een duidelijke melding (JL_RUNTIME_IMAGE volgt bij de release).
-      - name: Eigen Docker-proefmap aan beide kanten controleren
-        env:
-          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
-        run: python3 tools/jelly-leon/docker_proefmap.py bereid
+      - name: Proefcontainer met eigen Docker-volume starten
+        run: bash .forgejo/proeven/proefomgeving.sh start basis
 
       - name: Upstream-gedrag op de nieuwe runtime (UG-runtimetests)
         env:
@@ -173,7 +171,12 @@ jobs:
           fi
           runtime="docker.io/jellyfin/jellyfin:$tag@$digest"
           echo "- Nieuwe runtime voor UG-tests: \`$runtime\`" >> "$GITHUB_STEP_SUMMARY"
-          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$runtime" --werkmap "$JL_PROEFMAP" \
+          echo "NIEUWE_RUNTIME=$runtime" >> "$GITHUB_ENV"
+
+      - name: Runtimecontracten tegen de nieuwe digest uitvoeren
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
+        run: |
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$NIEUWE_RUNTIME" --werkmap "$JL_PROEFMAP" \
             --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
 
       # Kanaal x.y.x uit de global.json van de NIEUWE basis (bv. 12.x: 10.0.0 → 10.0.x); de exacte ondergrens uit
@@ -218,16 +221,22 @@ jobs:
             echo "- Upstream-API gewijzigd t.o.v. docs/openapi/jelly-leon.openapi.json (handmatig beoordelen)." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Stock-client-smoketest (simulator)
+      - name: Nieuwe server en gebouwde plugin naar het proefvolume kopiëren
         run: |
           cd "$RUNNER_TEMP/testbron"
           set -eu
           dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release --runtime linux-x64 --self-contained \
-            -p:DebugSymbols=false -p:DebugType=none -o "$JL_PROEFMAP/server"
-          mkdir -p "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0" "$JL_PROEFMAP/cache" "$JL_PROEFMAP/media"
+            -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/stockbouw/server"
+          mkdir -p "$RUNNER_TEMP/stockbouw/plugin"
           tfm=$(ls plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/)
-          cp "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/$tfm/Jellyfin.Plugin.JellyLeon.dll" \
-             "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0/"
+          cp "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/$tfm/Jellyfin.Plugin.JellyLeon.dll" "$RUNNER_TEMP/stockbouw/plugin/"
+          bash .forgejo/proeven/proefomgeving.sh voorraad
+
+      - name: Stock-client-smoketest (simulator)
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
+        run: |
+          mkdir -p "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0" "$JL_PROEFMAP/cache" "$JL_PROEFMAP/media"
+          cp "$JL_PROEFMAP/plugin/Jellyfin.Plugin.JellyLeon.dll" "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0/"
           python3 tools/jelly-leon/e2e/make_test_media.py "$JL_PROEFMAP/media"
           docker run --rm --network none --user 0:0 --entrypoint /bin/chown \
             -v "$JL_PROEFMAP/config:/w/config" -v "$JL_PROEFMAP/cache:/w/cache" \
@@ -245,7 +254,8 @@ jobs:
             --report "$RUNNER_TEMP/stock-client-smoke.json"
 
       - name: Eigen testserver opruimen
-        if: always()
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: test ! -s "$RUNNER_TEMP/stock.cid" || docker rm -f -v "$(cat "$RUNNER_TEMP/stock.cid")"
 
       - name: Resultaat als git-bundle bewaren
@@ -264,6 +274,10 @@ jobs:
             git bundle create "$RUNNER_TEMP/sync.bundle" "^origin/$DEFAULT_BRANCH" $refs
           fi
 
+      - name: Rapporten uit het proefvolume ophalen
+        if: always() && env.JL_HARNAS_ACTIEF == '1'
+        run: bash .forgejo/proeven/proefomgeving.sh rapporten
+
       - name: Bundle en rapport uploaden (ook bij falen, ter diagnose)
         if: always()
         uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
@@ -273,9 +287,9 @@ jobs:
           if-no-files-found: ignore
           path: |
             ${{ runner.temp }}/sync.bundle
-            ${{ runner.temp }}/stock-client-smoke.json
+            ${{ runner.temp }}/proefrapporten/stock-client-smoke.json
             ${{ runner.temp }}/sync-resultaat.json
-            ${{ runner.temp }}/upstream-gedrag-runtime.json
+            ${{ runner.temp }}/proefrapporten/upstream-gedrag-runtime.json
 
       # Alleen bereikt als ALLE stappen hierboven slaagden: dit artefact is het enige dat de push-job gebruikt.
       - name: Geslaagde sync markeren voor de push-job
@@ -286,9 +300,9 @@ jobs:
           if-no-files-found: error
           path: ${{ runner.temp }}/sync.bundle
 
-      - name: Eigen proefmap na het bewaren van het bewijs opruimen
-        if: always() && env.JL_PROEFMAP != ''
-        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+      - name: Eigen proefcontainer en volume opruimen
+        if: always()
+        run: bash .forgejo/proeven/proefomgeving.sh ruim
 
 
   # Aparte job zonder upstream-code: het push-token komt nooit in een job waarin upstream-build-/testcode
