@@ -182,10 +182,7 @@ jobs:
           dotnet test Jellyfin.sln -c Release --no-build --verbosity minimal
 
       - name: Plugins bouwen en testen tegen de nieuwe Jellyfin-versie (ABI-breuk = falen)
-        run: |
-          set -eu
-          dotnet build plugins/JellyLeon.Plugins.sln -c Release
-          dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+        run: bash tools/jelly-leon/test_plugins.sh
 
       - name: OpenAPI-wijzigingen van upstream tonen (ter beoordeling, geen automatische acceptatie)
         run: |
@@ -303,6 +300,19 @@ jobs:
             echo "Geen JL_SYNC_PUSH_TOKEN: geslaagde sync staat alleen als git-bundle in de artefacten." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          # Git voert deze eigen hook uit met de zojuist aangeboden remote-ref.
+          # Daarmee kan een gelijktijdig aangemaakte reviewbranch ook geen fast-forward krijgen.
+          hooks=$(mktemp -d "$RUNNER_TEMP/sync-hooks.XXXXXXXX")
+          trap 'rm -rf -- "$hooks"' EXIT
+          cat > "$hooks/pre-push" <<'HOOK'
+          #!/bin/sh
+          set -eu
+          while read -r _ _ doel oud; do
+            case "$doel" in refs/heads/sync/*) ;; *) exit 1 ;; esac
+            test "$oud" = 0000000000000000000000000000000000000000 || exit 1
+          done
+          HOOK
+          chmod 700 "$hooks/pre-push"
           for bundle in "${bundles[@]}"; do
             name=$(basename "$(dirname "$bundle")")
             tag=${name#upstream-sync-geslaagd-}
@@ -320,6 +330,6 @@ jobs:
             # De HTTP-header blijft in het proces. De push bevat uitsluitend de reviewbranch.
             basic=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
             GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: Basic $basic" \
-              git -c core.hooksPath=/dev/null -c push.followTags=false push origin "$ref:$ref"
+              git -c core.hooksPath="$hooks" -c push.followTags=false push origin "$ref:$ref"
             echo "sync/$tag gepusht ter beoordeling. Niet gedeployd; release blijft een handmatige stap." | tee -a "$GITHUB_STEP_SUMMARY"
           done

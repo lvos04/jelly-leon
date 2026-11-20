@@ -32,6 +32,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -562,7 +563,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
     uitvoer.mkdir(parents=True, exist_ok=True)
     werk = uitvoer / "werk"
     bewijs = Bewijs(args.modus)
-    run_id = datetime.now(UTC).strftime("%H%M%S")
+    run_id = uuid.uuid4().hex
     containers: list[str] = []
     proxies: list[LoggendeProxy] = []
     mg: MediaGuardSim | None = None

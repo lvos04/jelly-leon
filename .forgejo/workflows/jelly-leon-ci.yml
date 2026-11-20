@@ -209,30 +209,8 @@ jobs:
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
 
-      - name: Build plugins (tegen Jellyfin.Controller van de basisversie)
-        run: dotnet build plugins/JellyLeon.Plugins.sln -c Release
-
-      # Ook (deel 1e) een eigen, veilige datamap met daarin core/core.db (0644) van een andere UID.
-      - name: Tijdelijke opslag met een vreemde eigenaar (geen root of sudo in de tests)
-        run: |
-          fixture=$(mktemp -d "$RUNNER_TEMP/eigenaar.XXXXXXXX")
-          mkdir -p "$fixture/kern/jelly-leon/core"
-          chmod 1777 "$fixture" "$fixture/kern/jelly-leon/core"
-          docker run --rm --network none --user 65534:65534 --entrypoint /bin/sh \
-            -v "$fixture:/fixture" "$JL_RUNTIME_IMAGE" -c 'umask 022; mkdir -m 0755 /fixture/vreemd && : > /fixture/kern/jelly-leon/core/core.db'
-          chmod 0755 "$fixture" "$fixture/kern" "$fixture/kern/jelly-leon"
-          chmod 0700 "$fixture/kern/jelly-leon/core"
-          printf 'JL_VREEMDE_OPSLAG=%s/vreemd\nJL_VREEMDE_KERN=%s/kern\n' "$fixture" "$fixture" >> "$GITHUB_ENV"
-
-      - name: Test plugins
-        run: dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
-
-      - name: Alleen de eigen tijdelijke eigenaarfixture opruimen
-        if: always() && env.JL_VREEMDE_OPSLAG != ''
-        run: |
-          rm -f -- "$JL_VREEMDE_KERN/jelly-leon/core/core.db"
-          rmdir -- "$JL_VREEMDE_KERN/jelly-leon/core" "$JL_VREEMDE_KERN/jelly-leon" "$JL_VREEMDE_KERN" \
-            "$JL_VREEMDE_OPSLAG" "$(dirname -- "$JL_VREEMDE_OPSLAG")"
+      - name: Plugins bouwen en testen met de eigenaarfixture
+        run: bash tools/jelly-leon/test_plugins.sh
 
       # B03-017 / ADR-0032: de proefassembly bevat elke verboden aanroep en MOET de build laten falen, met precies de
       # gemarkeerde bouwfouten (JL0001–JL0004) en om geen andere reden. De gewone build hierboven bewijst het omgekeerde:
@@ -249,11 +227,12 @@ jobs:
           # TargetFramework volgt de upstream-ABI (plugins/Directory.Build.props; 12.x: net10.0).
           path: plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net*/Jellyfin.Plugin.JellyLeon.dll
 
-  image:
-    name: Alles-in-één image bouwen (echte jelly-leon-web-build) en levenscyclus testen
-    needs: forkregels
+  webbron:
+    name: Vastgezette webclient controleren
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 15
+    outputs:
+      commit: ${{ steps.web.outputs.commit }}
     steps:
       - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
@@ -274,17 +253,40 @@ jobs:
       - name: Web-bron controleren (commit, jellyfin-web-versie = server-basis, upstream-basis is voorouder)
         run: python3 tools/jelly-leon/web_bron.py --controleer _extern/jelly-leon-web
 
-      - name: Schone export van jelly-leon-web (git archive; geen .git of bouwresten in de build-context)
+      - name: Alleen de gecontroleerde webbron archiveren
+        run: git -C _extern/jelly-leon-web archive -o "$RUNNER_TEMP/webbron.tar" HEAD
+
+      - name: Webbron doorgeven aan de imagebouw
+        uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
+        with:
+          name: webbron
+          path: ${{ runner.temp }}/webbron.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  image:
+    name: Alles-in-één image bouwen (echte jelly-leon-web-build) en levenscyclus testen
+    needs: [forkregels, contract, manifest, webbron]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Gecontroleerde webbron ophalen
+        uses: https://data.forgejo.org/forgejo/download-artifact@d8d0a99033603453ad2255e58720b460a0555e1e
+        with:
+          name: webbron
+          path: ${{ runner.temp }}
+
+      - name: Webbron als bouwcontext uitpakken
         run: |
-          set -eu
           mkdir -p "$RUNNER_TEMP/jelly-leon-web"
-          git -C _extern/jelly-leon-web archive --format=tar HEAD | tar -x -C "$RUNNER_TEMP/jelly-leon-web"
-          test -f "$RUNNER_TEMP/jelly-leon-web/package-lock.json"
-          rm -rf _extern
+          tar -xf "$RUNNER_TEMP/webbron.tar" -C "$RUNNER_TEMP/jelly-leon-web"
+          test -s "$RUNNER_TEMP/jelly-leon-web/package-lock.json"
 
       - name: Image bouwen met de productie-Dockerfile (geen push)
         env:
-          WEB_REF: ${{ steps.web.outputs.commit }}
+          WEB_REF: ${{ needs.webbron.outputs.commit }}
         run: |
           set -eu
           fork_version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['fork_version'])")
@@ -295,7 +297,7 @@ jobs:
 
       - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568 zonder rechten, herkomst web, herstart, Custom User, weigeringen)
         env:
-          WEB_REF: ${{ steps.web.outputs.commit }}
+          WEB_REF: ${{ needs.webbron.outputs.commit }}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/image_lifecycle.py --image "$JL_CI_IMAGE" --expected-version "$version" \

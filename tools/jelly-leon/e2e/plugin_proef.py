@@ -702,7 +702,6 @@ def main(argv: list[str] | None = None) -> int:
     v = Verslag()
     ww = {BEHEER: v.geheim("wachtwoord:beheer", uuid.uuid4().hex), KIJKER: v.geheim("wachtwoord:kijker", uuid.uuid4().hex)}
     ww_weg = v.geheim("wachtwoord:tijdelijk", uuid.uuid4().hex)
-    pid = os.getpid()
     servers: list[Server] = []
     info: dict[str, Any] = {}
     db_rapport: dict[str, Any] = {}
@@ -710,7 +709,7 @@ def main(argv: list[str] | None = None) -> int:
     stock_log: dict[tuple[str, str, str], int] = {}
     try:
         corpus_voor = corpus(media)
-        zaaier = Server(f"jl-pp-zaai-{pid}", stock, werk / "zaai", media)
+        zaaier = Server(f"{werk.name}-zaai", stock, werk / "zaai", media)
         servers.append(zaaier)
         zaaier.start()
         audio = zaai(zaaier, ww)
@@ -721,7 +720,7 @@ def main(argv: list[str] | None = None) -> int:
         opnames: dict[str, dict[str, Any]] = {}
         openapi_stock: dict[str, Any] = {}
         for naam, image in (("a1", stock), ("a2", stock)):
-            s = Server(f"jl-pp-{naam}-{pid}", image, werk / naam, media)
+            s = Server(f"{werk.name}-{naam}", image, werk / naam, media)
             shutil.copytree(zaaier.map, s.map, symlinks=True)
             servers.append(s)
             runs[naam] = s
@@ -742,7 +741,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[INFO] controle-run {naam} klaar ({len(stock_log)} soorten logregels met een geheim van upstream zelf)", flush=True)
 
         # ---- run B: de image onder test met de plugin
-        b = Server(f"jl-pp-b-{pid}", args.image, werk / "b", media)
+        b = Server(f"{werk.name}-b", args.image, werk / "b", media)
         shutil.copytree(zaaier.map, b.map, symlinks=True)
         if args.plugin_map is not None:
             doel = b.config / "plugins" / "JellyLeon_0.1.0.0"
@@ -840,7 +839,7 @@ def main(argv: list[str] | None = None) -> int:
 
         # ---- run D: plugin weggehaald (kan alleen als de image hem niet zelf terugzet)
         if args.plugin_map is not None:
-            d = Server(f"jl-pp-d-{pid}", stock, werk / "d", media)
+            d = Server(f"{werk.name}-d", stock, werk / "d", media)
             shutil.copytree(b.map, d.map, symlinks=True)
             for map_ in (d.config / "plugins").glob("JellyLeon_*"):
                 shutil.rmtree(map_)

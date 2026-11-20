@@ -158,13 +158,16 @@ def main(argv: list[str] | None = None) -> int:
     bibliotheken = [("Films", "movies", ["/media/movies"]), ("Series", "tvshows", ["/media/series"])]
     begin = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     with meetslot.exclusief_slot() as wacht:
-        basis = StockServer("diff-basis", image=a.image_a, gpu=False, koppelingen=koppelingen).start()
+        basis = StockServer("diff-basis", image=a.image_a, gpu=False, koppelingen=koppelingen)
+        servers = [basis]
         try:
+            basis.start()
             basis.inrichten(bibliotheken)
             basis.stop()
             uitkomst = {}
             for kant, image in (("a", a.image_a), ("b", a.image_b)):
                 srv = StockServer(f"diff-{kant}", image=image, gpu=False, koppelingen=koppelingen)
+                servers.append(srv)
                 shutil.rmtree(srv.map, ignore_errors=True)
                 srv.map.mkdir(parents=True)
                 shutil.copytree(basis.map / "config", srv.map / "config", symlinks=True)
@@ -175,8 +178,8 @@ def main(argv: list[str] | None = None) -> int:
             rapport = vergelijk(WERK / "servers/diff-a/config/data/jellyfin.db", WERK / "servers/diff-b/config/data/jellyfin.db",
                                 toegestaan)
         finally:
-            for naam in ("diff-basis", "diff-a", "diff-b"):
-                StockServer(naam).verwijder()
+            for server in servers:
+                server.verwijder()
     document = {"schema": "jelly-leon/b03-016-diffrun/1", "begin": begin, "negatieve_proef": a.negatieve_proef,
                 "meetslot_wacht_s": round(wacht, 1),
                 "images": {"a": a.image_a, "b": a.image_b}, "scenario": uitkomst,

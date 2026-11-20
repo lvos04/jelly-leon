@@ -219,9 +219,9 @@ class Lifecycle:
     def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
         self.steps: list[dict] = []
-        self.name = f"jl-lifecycle-{os.getpid()}"
         self.port = free_port()
         self.work = Path(tempfile.mkdtemp(prefix="jl-lifecycle-", dir=args.werkmap))
+        self.name = self.work.name
         self.config = self.work / "config"
         self.cache = self.work / "cache"
         self.media = self.work / "media"

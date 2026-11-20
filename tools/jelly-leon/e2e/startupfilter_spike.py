@@ -97,7 +97,7 @@ def meet(naam: str, image: str, werk: Path, plugin_map: Path | None, aan: bool) 
         doel.mkdir(parents=True)
         shutil.copy2(plugin_map / PLUGIN_DLL, doel / PLUGIN_DLL)
     poort = vrije_poort()
-    container = f"jl-sf-{naam}-{os.getpid()}"
+    container = f"{werk.name}-{naam}"
     extra = ["-e", f"{SCHAKELAAR}=1"] if aan else []
     docker("run", "-d", "--name", container, "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
            "--security-opt", "no-new-privileges", "--memory", "2g", "-e", "TZ=UTC", *extra,

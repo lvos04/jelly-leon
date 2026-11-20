@@ -151,7 +151,7 @@ class Server:
         self.proef = proef
         self.image = image
         self.label = label
-        self.name = f"jl-upgrade-{os.getpid()}-{label}"
+        self.name = f"{proef.work.name}-{label}"
         self.port = 0
         self.info: dict[str, Any] = {}
 

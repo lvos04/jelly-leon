@@ -13,6 +13,7 @@ import shutil
 import socket
 import subprocess
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -68,7 +69,7 @@ class StockServer:
     def __init__(self, naam: str, *, image: str = STOCK_IMAGE, gpu: bool = True, corpus: Path = CORPUS,
                  koppelingen: dict[str, str] | None = None, werk: Path = WERK, geheugen: str = "3g",
                  webdir: Path | None = None, cpus: str | None = None, web_over: Path | None = None) -> None:
-        self.naam = f"b03016-{naam}"
+        self.naam = f"b03016-{naam}-{uuid.uuid4().hex}"
         self.image = image
         self.gpu = gpu and os.path.exists(RENDER)
         self.corpus = corpus
@@ -95,7 +96,6 @@ class StockServer:
             shutil.rmtree(self.map, ignore_errors=True)
         for sub in ("config", "cache"):
             (self.map / sub).mkdir(parents=True, exist_ok=True)
-        docker("rm", "-f", self.naam, check=False)
         self.poort = vrije_poort()
         cmd = ["run", "-d", "--name", self.naam, "--user", f"{os.getuid()}:{os.getgid()}", "--memory", self.geheugen,
                "--security-opt", "no-new-privileges", "--cap-drop", "ALL", "-p", f"127.0.0.1:{self.poort}:8096",
@@ -118,8 +118,12 @@ class StockServer:
         if self.webdir:
             cmd += ["--webdir", "/stockweb"]
         self.container_id = docker(*cmd).stdout.strip()
-        self.info = wacht_klaar(self.url)
-        self.jf = Jellyfin(self.url)
+        try:
+            self.info = wacht_klaar(self.url)
+            self.jf = Jellyfin(self.url)
+        except BaseException:
+            self.verwijder(data=False)
+            raise
         return self
 
     def inrichten(self, bibliotheken: list[tuple[str, str, list[str]]] | None = None) -> float:
@@ -142,7 +146,9 @@ class StockServer:
         docker("stop", "-t", "20", self.naam, check=False)
 
     def verwijder(self, data: bool = True) -> None:
-        docker("rm", "-f", self.naam, check=False)
+        if self.container_id:
+            docker("rm", "-f", "-v", self.container_id, check=False)
+            self.container_id = ""
         if data:
             shutil.rmtree(self.map, ignore_errors=True)
 

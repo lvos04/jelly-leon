@@ -28,10 +28,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -64,7 +64,7 @@ class Proef:
     def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
         self.steps: list[dict] = []
-        self.prefix = f"jl-hc-proef-{os.getpid()}"
+        self.prefix = f"jl-hc-proef-{uuid.uuid4().hex}"
         self.containers: list[str] = []
 
     def add(self, name: str, ok: bool, detail: str) -> bool:
