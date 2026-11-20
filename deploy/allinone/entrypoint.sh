@@ -101,8 +101,8 @@ own_tmpfs() {
 # Datamap en instellingen moeten op blijvende, lokale opslag uit het formulier staan; anders verdwijnen database en
 # "startwizard afgerond" (bij herstart, update of herinstallatie) en staat de startwizard weer anoniem open
 # — de eerste bezoeker wordt dan beheerder. Onduidelijke datamap = no-go (fasering P0) → weigeren (fail-closed).
-#  * anoniem Docker-volume (/…/volumes/<64 hex>/_data): de upstream-basisimage declareert VOLUME /config en /cache,
-#    dus zonder opslagregel maakt Docker er stilletjes één (verdwijnt bij verwijderen/herinstalleren);
+#  * anoniem Docker-volume: de basisimage declareert VOLUME /config en /cache. Zonder opslagregel maakt Docker er één.
+#    Mountinfo toont /…/volumes/<64 hex>/_data, of /<64 hex>/_data als de volumemap een eigen bestandssysteem is;
 #  * tmpfs/ramfs (opslagtype tmpfs in het formulier): leeg na elke herstart;
 #  * de container zelf (geen eigen mount): weg bij elke update of herinstallatie;
 #  * netwerkshare (opslagtype NFS/SMB): de SQLite-database van Jellyfin is daar niet betrouwbaar (vergrendeling).
@@ -114,7 +114,7 @@ assert_persistent() {
   rest=${info#* }
   root=${rest%% *}
   mnt=${rest#* }
-  if printf '%s\n' "$root" | grep -Eq '/volumes/[0-9a-f]{64}/_data$'; then
+  if printf '%s\n' "$root" | grep -Eq '(^|/volumes)/[0-9a-f]{64}/_data$'; then
     fail "$mnt is een anoniem Docker-volume, geen gekozen dataset: voeg in het Custom App-formulier opslag (Host Path of ixVolume) toe met Mount Path $mnt"
   fi
   [ "$2" = "cache" ] && return 0

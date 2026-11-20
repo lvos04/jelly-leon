@@ -534,6 +534,27 @@ def tmpfs_regel(punt: Path, wortel: str = "/") -> str:
     return f"900 21 0:99 {wortel} {punt} rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=512000k,inode64\n"
 
 
+@pytest.mark.parametrize(
+    ("wortel", "anoniem"),
+    [
+        ("/var/lib/docker/volumes/{id}/_data", True),
+        ("/{id}/_data", True),
+        ("/cache-opslag/_data", False),
+        ("/gekozen-dataset/{id}/_data", False),
+        ("/{id}/_data/cache", False),
+    ],
+)
+def test_cachecontrole_herkent_de_wortel_van_een_anoniem_dockervolume(tmp_path: Path, wortel: str, anoniem: bool) -> None:
+    data, cache, _ = opzet(tmp_path)
+    tabel = mountinfo(tmp_path, tmpfs_regel(cache, wortel.format(id="a" * 64)))
+    script = fase_twee(tmp_path, data, cache, body='assert_persistent "$CACHE_DIR" cache\n', mountinfo=tabel)
+    voor = boom(tmp_path)
+    proc = draai(script)
+    assert proc.returncode == (1 if anoniem else 0), proc.stdout + proc.stderr
+    assert ("anoniem Docker-volume" in proc.stdout) == anoniem
+    assert boom(tmp_path) == voor
+
+
 @pytest.mark.parametrize("modus", [0o1777, 0o777, 0o755])
 def test_eigen_tmpfs_als_cache_start_met_de_modus_van_docker_of_truenas(tmp_path: Path, modus: int) -> None:
     """BN-1 optie B (R-HARDE-EIS-1, deel 1f): /cache als tmpfs bestaat alleen in deze container. Een eigen, bij de start lege

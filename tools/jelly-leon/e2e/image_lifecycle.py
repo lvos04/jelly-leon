@@ -580,13 +580,22 @@ class Lifecycle:
         """S-G1-16 deel 1c en 1f: /config in de image is 568:568 0755 (de start weigert een voor groep of anderen
         beschrijfbare map); /cache is 568:568 1777, zodat een tmpfs-/cache (neemt de modus van de imagemap over, niet de
         eigenaar) ook voor een Custom User schrijfbaar is (BN-1, R-HARDE-EIS-1)."""
-        image = docker("run", "--rm", "--network", "none", "--entrypoint", "stat", self.args.image,
-                       "-c", "%u:%g %a", "/config", "/cache", check=False).stdout.split()
+        meting = docker("run", "--rm", "--network", "none", "--entrypoint", "sh", self.args.image, "-ec",
+                        """stat -c '%u:%g %a' /config /cache; awk '$5 == "/cache" {print $4}' /proc/self/mountinfo""",
+                        check=False).stdout.splitlines()
+        image = " ".join(meting[:2]).split()
+        # Leg de vorm van het echte anonieme volume vast zonder hostpaden of volume-ID’s in het rapport te zetten.
+        wortel = meting[2] if len(meting) == 3 else ""
+        delen = []
+        for deel in wortel.split("/"):
+            if deel not in ("", "volumes", "_data"):
+                deel = "<volume>" if len(deel) == 64 else "<map>"
+            delen.append(deel)
         tmpfs = docker("run", "--rm", "--network", "none", "--tmpfs", "/cache", "--entrypoint", "stat", self.args.image,
                        "-c", "%u:%g %a", "/cache", check=False).stdout.strip()
-        ok = image == ["568:568", "755", "568:568", "1777"] and tmpfs == "0:0 1777"
+        ok = wortel.startswith("/") and image == ["568:568", "755", "568:568", "1777"] and tmpfs == "0:0 1777"
         return self.add("opslagmappen in de image: /config 568:568 0755, /cache 568:568 1777 (als tmpfs 0:0 1777)", ok,
-                        f"image {image}; tmpfs {tmpfs}")
+                        f"image {image}; tmpfs {tmpfs}; wortel anonieme cache {'/'.join(delen)}")
 
     def api(self, method: str, path: str, token: str | None = None, body: object | None = None) -> tuple[int, object]:
         """Eén verzoek als de webclient van de rooktest (token None = zonder aanmelding)."""
