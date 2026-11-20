@@ -44,13 +44,19 @@ jobs:
         ref: ${{ inputs.ref }}
         repository: ${{ inputs.repository }}
 
+    # De testprogramma’s moeten kunnen starten; de checkout van de runner is noexec.
+    - name: Testbron op het uitvoerbare jobvolume plaatsen
+      run: git worktree add --quiet --detach "$RUNNER_TEMP/testbron" HEAD
+
     - name: Create File
-      run: dotnet test tests/Jellyfin.Server.Integration.Tests/Jellyfin.Server.Integration.Tests.csproj -c Release --filter Jellyfin.Server.Integration.Tests.OpenApiSpecTests
+      run: |
+        cd "$RUNNER_TEMP/testbron"
+        dotnet test tests/Jellyfin.Server.Integration.Tests/Jellyfin.Server.Integration.Tests.csproj -c Release --filter Jellyfin.Server.Integration.Tests.OpenApiSpecTests
 
     - name: Upload Artifact
       uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
       with:
         name: ${{ inputs.artifact }}
-        path: tests/Jellyfin.Server.Integration.Tests/bin/Release/net10.0/openapi.json
+        path: ${{ runner.temp }}/testbron/tests/Jellyfin.Server.Integration.Tests/bin/Release/net10.0/openapi.json
         retention-days: 14
         if-no-files-found: error

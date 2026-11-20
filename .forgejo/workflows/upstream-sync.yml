@@ -181,18 +181,26 @@ jobs:
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
 
+      # De testprogramma’s moeten kunnen starten; de checkout van de runner is noexec.
+      - name: Testbron op het uitvoerbare jobvolume plaatsen
+        run: git worktree add --quiet --detach "$RUNNER_TEMP/testbron" HEAD
+
       - name: Upstream-solution bouwen en testen
         run: |
+          cd "$RUNNER_TEMP/testbron"
           set -eu
           dotnet restore Jellyfin.sln
           dotnet build Jellyfin.sln -c Release --no-restore
           dotnet test Jellyfin.sln -c Release --no-build --verbosity minimal
 
       - name: Plugins bouwen en testen tegen de nieuwe Jellyfin-versie (ABI-breuk = falen)
-        run: bash tools/jelly-leon/test_plugins.sh
+        run: |
+          cd "$RUNNER_TEMP/testbron"
+          bash tools/jelly-leon/test_plugins.sh
 
       - name: OpenAPI-wijzigingen van upstream tonen (ter beoordeling, geen automatische acceptatie)
         run: |
+          cd "$RUNNER_TEMP/testbron"
           generated=$(find tests/Jellyfin.Server.Integration.Tests/bin/Release -name openapi.json | head -1)
           # Structureel vergelijken (ADR-0010); een gewijzigde upstream-API is hier verwacht en blokkeert de sync niet.
           if ! python3 tools/jelly-leon/openapi_drift.py \
@@ -203,6 +211,7 @@ jobs:
 
       - name: Stock-client-smoketest (simulator)
         run: |
+          cd "$RUNNER_TEMP/testbron"
           set -eu
           dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release --runtime linux-x64 --self-contained \
             -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/server"
@@ -211,7 +220,9 @@ jobs:
           cp "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/$tfm/Jellyfin.Plugin.JellyLeon.dll" \
              "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
           python3 tools/jelly-leon/e2e/make_test_media.py "$RUNNER_TEMP/media"
-          sudo chown -R 568:568 "$RUNNER_TEMP/config" "$RUNNER_TEMP/cache"
+          beheer=()
+          if (( EUID != 0 )); then beheer=(sudo -n); fi
+          "${beheer[@]}" chown -R 568:568 "$RUNNER_TEMP/config" "$RUNNER_TEMP/cache"
           loopback=$(getent ahostsv4 localhost | awk 'NR == 1 { print $1 }')
           docker run -d --rm --cidfile "$RUNNER_TEMP/stock.cid" --user 568:568 --cap-drop ALL --security-opt no-new-privileges \
             -p "$loopback::8096" \

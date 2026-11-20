@@ -167,14 +167,23 @@ jobs:
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
 
+      # De testprogramma’s moeten kunnen starten; de checkout van de runner is noexec.
+      - name: Testbron op het uitvoerbare jobvolume plaatsen
+        run: git worktree add --quiet --detach "$RUNNER_TEMP/testbron" HEAD
+
       - name: Restore
-        run: dotnet restore Jellyfin.sln
+        run: |
+          cd "$RUNNER_TEMP/testbron"
+          dotnet restore Jellyfin.sln
 
       - name: Build (Release)
-        run: dotnet build Jellyfin.sln -c Release --no-restore
+        run: |
+          cd "$RUNNER_TEMP/testbron"
+          dotnet build Jellyfin.sln -c Release --no-restore
 
       - name: Test (volledige upstream-testsuite)
         run: >
+          cd "$RUNNER_TEMP/testbron" &&
           dotnet test Jellyfin.sln -c Release --no-build --verbosity minimal
           --logger "trx;LogFilePrefix=jelly-leon" --results-directory testresults
 
@@ -182,6 +191,7 @@ jobs:
       # description-teksten per omgeving kunnen verschillen (ADR-0010). Elke andere afwijking = API-wijziging = falen.
       - name: OpenAPI-drift (upstream-API moet gelijk blijven aan docs/openapi)
         run: |
+          cd "$RUNNER_TEMP/testbron"
           generated=$(find tests/Jellyfin.Server.Integration.Tests/bin/Release -name openapi.json | head -1)
           python3 tools/jelly-leon/openapi_drift.py --github \
             --verwacht docs/openapi/jelly-leon.openapi.json --gegenereerd "${generated:-ontbreekt/openapi.json}"
@@ -192,7 +202,7 @@ jobs:
         with:
           name: testresultaten-server
           retention-days: 14
-          path: testresults/
+          path: ${{ runner.temp }}/testbron/testresults/
 
   plugins:
     name: Plugins bouwen en testen
@@ -217,14 +227,22 @@ jobs:
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
 
+      # De testprogramma’s moeten kunnen starten; de checkout van de runner is noexec.
+      - name: Testbron op het uitvoerbare jobvolume plaatsen
+        run: git worktree add --quiet --detach "$RUNNER_TEMP/testbron" HEAD
+
       - name: Plugins bouwen en testen met de eigenaarfixture
-        run: bash tools/jelly-leon/test_plugins.sh
+        run: |
+          cd "$RUNNER_TEMP/testbron"
+          bash tools/jelly-leon/test_plugins.sh
 
       # B03-017 / ADR-0032: de proefassembly bevat elke verboden aanroep en MOET de build laten falen, met precies de
       # gemarkeerde bouwfouten (JL0001–JL0004) en om geen andere reden. De gewone build hierboven bewijst het omgekeerde:
       # de plugin zelf bevat geen enkele verboden aanroep.
       - name: Analyzer verboden API's (proefassembly moet de build laten falen)
-        run: python3 tools/jelly-leon/analyzer_proef.py --bouw
+        run: |
+          cd "$RUNNER_TEMP/testbron"
+          python3 tools/jelly-leon/analyzer_proef.py --bouw
 
       - name: Plugin-DLL bewaren
         uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
@@ -233,7 +251,7 @@ jobs:
           retention-days: 14
           if-no-files-found: error
           # TargetFramework volgt de upstream-ABI (plugins/Directory.Build.props; 12.x: net10.0).
-          path: plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net*/Jellyfin.Plugin.JellyLeon.dll
+          path: ${{ runner.temp }}/testbron/plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net*/Jellyfin.Plugin.JellyLeon.dll
 
   webbron:
     name: Vastgezette webclient controleren
@@ -533,7 +551,7 @@ jobs:
         working-directory: tools/b03-harnas/playwright
         run: |
           npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          node node_modules/playwright/cli.js install --with-deps chromium
 
       - name: Proefrun met echte Emby-container en stock Jellyfin 12.4 (synthetische media, webclient in Chromium)
         run: >
@@ -624,7 +642,7 @@ jobs:
         working-directory: tools/b03-harnas/playwright
         run: |
           npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium firefox webkit
+          node node_modules/playwright/cli.js install --with-deps chromium firefox webkit
 
       # Een runner heeft geen geluidsapparaat: zonder uitvoer decodeert Chromium geen audio (het orakel ziet dan 'stil') en
       # blijft WebKit/GStreamer na ~0,2 s hangen. Een PulseAudio-null-sink geeft beide een echte audio-uitvoer.

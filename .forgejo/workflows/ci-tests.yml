@@ -21,8 +21,13 @@ jobs:
           SDK_KANAAL: ${{ env.SDK_VERSION }}
         run: bash tools/jelly-leon/installeer_dotnet.sh "$SDK_KANAAL"
 
+      # De testprogramma’s moeten kunnen starten; de checkout van de runner is noexec.
+      - name: Testbron op het uitvoerbare jobvolume plaatsen
+        run: git worktree add --quiet --detach "$RUNNER_TEMP/testbron" HEAD
+
       - name: Run DotNet CLI Tests
         run: >
+          cd "$RUNNER_TEMP/testbron" &&
           dotnet test Jellyfin.sln
           --configuration Release
           --collect:"XPlat Code Coverage"
@@ -32,7 +37,7 @@ jobs:
       - name: Dekkingsrapporten samenvoegen
         run: |
           dotnet tool install --tool-path "$RUNNER_TEMP/dekking" dotnet-reportgenerator-globaltool --version 5.5.11
-          "$RUNNER_TEMP/dekking/reportgenerator" '-reports:**/coverage.cobertura.xml' '-targetdir:merged' '-reporttypes:Cobertura'
+          "$RUNNER_TEMP/dekking/reportgenerator" "-reports:$RUNNER_TEMP/testbron/**/coverage.cobertura.xml" '-targetdir:merged' '-reporttypes:Cobertura'
 
       - name: Cobertura-rapport bewaren
         uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e

@@ -9,6 +9,7 @@ curl --fail --silent --show-error --location --retry 3 \
     'https://raw.githubusercontent.com/actions/setup-dotnet/67a3573c9a986a3f9c594539f4ab511d57bb3ce9/externals/install-dotnet.sh' -o "$installatie"
 printf '%s  %s\n' 19b0a7890c371201b944bf0f8cdbb6460d053d63ddbea18cfed3e4199769ce17 "$installatie" | sha256sum --check
 bash "$installatie" --channel "$kanaal" --quality GA --install-dir "$sdk" --no-path
-printf 'DOTNET_ROOT=%s\n' "$sdk" >> "$GITHUB_ENV"
+mkdir -p "$RUNNER_TEMP/vstest"
+printf 'DOTNET_ROOT=%s\nVSTEST_ARTIFACTS_DIRECTORY=%s\n' "$sdk" "$RUNNER_TEMP/vstest" >> "$GITHUB_ENV"
 printf '%s\n' "$sdk" >> "$GITHUB_PATH"
 "$sdk/dotnet" --version
