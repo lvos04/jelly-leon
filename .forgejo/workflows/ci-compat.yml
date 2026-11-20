@@ -1,6 +1,12 @@
 name: ABI Compatibility
 on:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      basis:
+        description: Volledige commit-SHA om met de geselecteerde revisie te vergelijken
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -17,8 +23,8 @@ jobs:
       - name: Checkout repository
         uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
       - name: Setup .NET
         uses: https://data.forgejo.org/actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
@@ -39,15 +45,14 @@ jobs:
 
   abi-base:
     name: ABI - BASE
-    if: ${{ github.base_ref != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - name: Checkout repository
         uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           fetch-depth: 0
 
       - name: Setup .NET
@@ -57,8 +62,9 @@ jobs:
 
       - name: Checkout common ancestor
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || inputs.basis }}
         run: |
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
           git fetch --no-tags "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$BASE_SHA"
           ancestor=$(git merge-base FETCH_HEAD HEAD)
           git checkout --detach "$ancestor"
@@ -77,7 +83,6 @@ jobs:
 
   abi-diff:
     name: ABI - Difference
-    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs:

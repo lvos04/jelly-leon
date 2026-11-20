@@ -61,7 +61,7 @@ jobs:
         run: python tools/jelly-leon/contract_drift.py
 
       - name: Tests van de forktools (incl. EX48-simulatie)
-        run: python -m pytest -q tools/jelly-leon/tests
+        run: bash tools/jelly-leon/test_forktools.sh
 
       - name: Lint forktools (ruff)
         run: ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon

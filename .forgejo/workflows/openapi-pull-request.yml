@@ -1,6 +1,15 @@
 name: OpenAPI Check
 on:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      basis:
+        description: Volledige commit-SHA om met de geselecteerde revisie te vergelijken
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
   ancestor:
@@ -12,14 +21,15 @@ jobs:
     - name: Checkout Repository
       uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         fetch-depth: 0
     - name: Search History
       id: ancestor
       env:
-        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha || inputs.basis }}
       run: |
+        [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
         git fetch --no-tags "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$BASE_SHA"
         ancestor=$(git merge-base FETCH_HEAD HEAD)
         echo "base_ref=$ancestor" >> "$GITHUB_OUTPUT"
@@ -28,8 +38,8 @@ jobs:
     name: Head Artifact
     uses: ./.forgejo/workflows/openapi-generate.yml
     with:
-      ref: ${{ github.event.pull_request.head.sha }}
-      repository: ${{ github.event.pull_request.head.repo.full_name }}
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       artifact: openapi-head
 
   base:
@@ -39,7 +49,7 @@ jobs:
     - ancestor
     with:
       ref: ${{ needs.ancestor.outputs.base_ref }}
-      repository: ${{ github.event.pull_request.base.repo.full_name }}
+      repository: ${{ github.event.pull_request.base.repo.full_name || github.repository }}
       artifact: openapi-base
 
   diff:
@@ -65,15 +75,18 @@ jobs:
         sed -i 's:allOf:oneOf:g' openapi-head/openapi.json
         sed -i 's:allOf:oneOf:g' openapi-base/openapi.json
 
-        report="$RUNNER_TEMP/openapi-report.md"
+        werk=$(mktemp -d "$RUNNER_TEMP/openapi.XXXXXXXX")
+        mv openapi-base/openapi.json "$werk/base.json"
+        mv openapi-head/openapi.json "$werk/head.json"
+        # De gebruiker uit de diff-image mag in deze tijdelijke rapportmap schrijven.
+        chmod 1777 "$werk"
         container=$(docker create --network none openapitools/openapi-diff:2.1.6 \
-          /base.json /head.json --state -l ERROR --markdown /openapi-report.md)
-        trap 'docker rm -fv "$container" >/dev/null' EXIT
-        docker cp openapi-base/openapi.json "$container:/base.json"
-        docker cp openapi-head/openapi.json "$container:/head.json"
+          /jl-openapi/base.json /jl-openapi/head.json --state -l ERROR --markdown /jl-openapi/openapi-report.md)
+        trap 'docker rm -fv "$container" >/dev/null; rm -rf -- "$werk"' EXIT
+        docker cp "$werk" "$container:/jl-openapi"
         docker start -a "$container"
         test "$(docker inspect -f '{{.State.ExitCode}}' "$container")" = 0
-        docker cp "$container:/openapi-report.md" "$report"
+        docker cp "$container:/jl-openapi/openapi-report.md" "$RUNNER_TEMP/openapi-report.md"
     - name: Upload Artifact
       uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
       with:

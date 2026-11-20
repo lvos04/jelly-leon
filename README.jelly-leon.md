@@ -25,7 +25,7 @@ De [Forgejo-repository](https://git.medialeon.nl/leon/jelly-leon) bevat de bronc
 | `tools/emby-overname/` | overname van de kijkgeschiedenis uit Emby (B03-015 deel A): alleen-lezen-tool, tests en E2E-proefrun met een echte Emby-container (ADR-0025; procedure in `docs/platform-v2/OVERNAME_EMBY.md`) |
 | `tools/jelly-leon/` | `baseline.json` (bron van waarheid), patchregister-/consistentiecontrole, upstream-sync (herbasis per core-patch), register-controle upstream-gedrag, OpenAPI-upgraderapport; `e2e/`: smoketest, levenscyclus- en terugzetproef, upgradeproef 10.11.11 → 12.x, API-regressie tegen stock, UG-runtimetests |
 | `deploy/` | alles-in-één image (lokaal volledig gebouwd en getest; publicatie in P4), TrueNAS Custom App-formulier, manifest |
-| `.forgejo/workflows/jelly-leon-ci.yml`, `upstream-sync.yml` | Linux-CI en handmatige upstream-sync |
+| `.forgejo/workflows/jelly-leon-ci.yml`, `upstream-sync.yml` | Linux-CI en wekelijkse upstream-controle. Een reviewbranch kan handmatig worden gepubliceerd. |
 
 ## Ontwikkelen
 

@@ -13,6 +13,9 @@ on:
         required: true
         type: string
 
+env:
+  DOTNET_PROCESSOR_COUNT: '2'
+
 permissions:
   contents: read
 
