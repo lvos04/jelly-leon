@@ -105,10 +105,14 @@ jobs:
       matrix:
         # Forgejo heeft ook bij nul kandidaten een job nodig om de afhankelijke push-job af te sluiten.
         tag: ${{ fromJSON(needs.detecteer.outputs.heeft_kandidaat == 'true' && needs.detecteer.outputs.kandidaten || '["geen-kandidaat"]') }}
+    defaults:
+      run:
+        working-directory: bron
     steps:
       - name: Checkout standaardbranch (volledige historie)
         uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          path: bron
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
@@ -151,6 +155,11 @@ jobs:
 
       # UPSTREAM_GEDRAG-runtimetests op de runtime van de NIEUWE tag (jellyfin/jellyfin:<versie>, op de gemeten digest):
       # bestaat die image nog niet, dan blokkeert de sync met een duidelijke melding (JL_RUNTIME_IMAGE volgt bij de release).
+      - name: Eigen Docker-proefmap aan beide kanten controleren
+        env:
+          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
+        run: python3 tools/jelly-leon/docker_proefmap.py bereid
+
       - name: Upstream-gedrag op de nieuwe runtime (UG-runtimetests)
         env:
           SYNC_TAG: ${{ matrix.tag }}
@@ -164,7 +173,7 @@ jobs:
           fi
           runtime="docker.io/jellyfin/jellyfin:$tag@$digest"
           echo "- Nieuwe runtime voor UG-tests: \`$runtime\`" >> "$GITHUB_STEP_SUMMARY"
-          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$runtime" --werkmap "$RUNNER_TEMP" \
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$runtime" --werkmap "$JL_PROEFMAP" \
             --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
 
       # Kanaal x.y.x uit de global.json van de NIEUWE basis (bv. 12.x: 10.0.0 → 10.0.x); de exacte ondergrens uit
@@ -214,15 +223,15 @@ jobs:
           cd "$RUNNER_TEMP/testbron"
           set -eu
           dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release --runtime linux-x64 --self-contained \
-            -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/server"
-          mkdir -p "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0" "$RUNNER_TEMP/cache" "$RUNNER_TEMP/media"
+            -p:DebugSymbols=false -p:DebugType=none -o "$JL_PROEFMAP/server"
+          mkdir -p "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0" "$JL_PROEFMAP/cache" "$JL_PROEFMAP/media"
           tfm=$(ls plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/)
           cp "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/$tfm/Jellyfin.Plugin.JellyLeon.dll" \
-             "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
-          python3 tools/jelly-leon/e2e/make_test_media.py "$RUNNER_TEMP/media"
+             "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0/"
+          python3 tools/jelly-leon/e2e/make_test_media.py "$JL_PROEFMAP/media"
           beheer=()
           if (( EUID != 0 )); then beheer=(sudo -n); fi
-          "${beheer[@]}" chown -R 568:568 "$RUNNER_TEMP/config" "$RUNNER_TEMP/cache"
+          "${beheer[@]}" chown -R 568:568 "$JL_PROEFMAP/config" "$JL_PROEFMAP/cache"
           loopback=$(getent ahostsv4 localhost | awk 'NR == 1 { print $1 }')
           docker run -d --rm --cidfile "$RUNNER_TEMP/stock.cid" --user 568:568 --cap-drop ALL --security-opt no-new-privileges \
             -p "$loopback::8096" \
@@ -232,7 +241,7 @@ jobs:
           port=$(docker port "$(cat "$RUNNER_TEMP/stock.cid")" 8096/tcp)
           python3 tools/jelly-leon/e2e/stock_client_smoke.py --url "http://localhost:${port##*:}" \
             --expected-version "$version" --library-path /media/muziek --expect-plugin \
-            --media-file "$RUNNER_TEMP/media/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav" \
+            --media-file "$JL_PROEFMAP/media/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav" \
             --report "$RUNNER_TEMP/stock-client-smoke.json"
 
       - name: Eigen testserver opruimen
@@ -276,6 +285,11 @@ jobs:
           retention-days: 7
           if-no-files-found: error
           path: ${{ runner.temp }}/sync.bundle
+
+      - name: Eigen proefmap na het bewaren van het bewijs opruimen
+        if: always() && env.JL_PROEFMAP != ''
+        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+
 
   # Aparte job zonder upstream-code: het push-token komt nooit in een job waarin upstream-build-/testcode
   # (MSBuild-targets, tests) heeft gedraaid; die code zou anders hooks, PATH of GITHUB_ENV kunnen manipuleren.

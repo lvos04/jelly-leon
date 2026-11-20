@@ -295,8 +295,13 @@ jobs:
     needs: [forkregels, contract, manifest, webbron]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: bron
     steps:
       - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: bron
 
       - name: Gecontroleerde webbron ophalen
         uses: https://data.forgejo.org/forgejo/download-artifact@d8d0a99033603453ad2255e58720b460a0555e1e
@@ -321,13 +326,18 @@ jobs:
             --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" --build-arg WEB_REF="$WEB_REF" \
             --build-arg BUILD_JOBS=2 --build-arg WEB_BUILD_JOBS=2 --load -t "$JL_CI_IMAGE" .
 
+      - name: Eigen Docker-proefmap aan beide kanten controleren
+        env:
+          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
+        run: python3 tools/jelly-leon/docker_proefmap.py bereid
+
       - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568 zonder rechten, herkomst web, herstart, Custom User, weigeringen)
         env:
           WEB_REF: ${{ needs.webbron.outputs.commit }}
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/image_lifecycle.py --image "$JL_CI_IMAGE" --expected-version "$version" \
-            --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/image-lifecycle.json" --verwacht-web-ref "$WEB_REF" \
+            --werkmap "$JL_PROEFMAP" --report "$RUNNER_TEMP/image-lifecycle.json" --verwacht-web-ref "$WEB_REF" \
             --opmerking "CI; web-client gebouwd uit leon/jelly-leon-web@$WEB_REF"
 
       # B03-016: de image bevat geen beperkt gelicentieerde testdata (MovieLens, Pioneer One, fanondertitels, afgeleide labels).
@@ -340,7 +350,7 @@ jobs:
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/rollback_sim.py --image "$JL_CI_IMAGE" --upstream-image "$JL_RUNTIME_IMAGE" \
-            --expected-version "$version" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/rollback-sim.json" \
+            --expected-version "$version" --werkmap "$JL_PROEFMAP" --report "$RUNNER_TEMP/rollback-sim.json" \
             --opmerking "CI; Jelly Leon-image met de echte web-build van jelly-leon-web"
 
       # B03-014 (P4-0), JLT-60/61: gevulde 10.11.11-datamap (5 gebruikers met kijkgegevens, spoorkeuze, apparaten,
@@ -350,7 +360,7 @@ jobs:
         run: |
           version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['upstream_version'])")
           python3 tools/jelly-leon/e2e/upgrade_proef.py --image "$JL_CI_IMAGE" --expected-version "$version" \
-            --stock-image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/upgrade-proef.json" \
+            --stock-image "$JL_RUNTIME_IMAGE" --werkmap "$JL_PROEFMAP" --report "$RUNNER_TEMP/upgrade-proef.json" \
             --opmerking "CI; Jelly Leon-image met de echte web-build van jelly-leon-web"
 
       # JLT-64 (met de bestaande plugin) en het PlaybackInfo-deel van JLT-63: Jellyfin-antwoorden en OpenAPI van deze
@@ -359,8 +369,8 @@ jobs:
       - name: API-regressie tegen stock 12.x en upstream-gedrag op de Jelly Leon-image
         run: |
           python3 tools/jelly-leon/e2e/compat_api.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE" \
-            --werkmap "$RUNNER_TEMP" --report "$RUNNER_TEMP/compat-api.json"
-          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_CI_IMAGE" --werkmap "$RUNNER_TEMP" \
+            --werkmap "$JL_PROEFMAP" --report "$RUNNER_TEMP/compat-api.json"
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_CI_IMAGE" --werkmap "$JL_PROEFMAP" \
             --rapport "$RUNNER_TEMP/upstream-gedrag-runtime-jelly-leon.json"
 
       # B03-017 (gate golf 1): JLT-68, JLT-64 en JLT-65 op deze image met de meegeleverde plugin (Core, Devices, Quality).
@@ -370,7 +380,7 @@ jobs:
       - name: Pluginproef op de Jelly Leon-image (JLT-68, JLT-64, JLT-65; Hub-simulator)
         run: |
           python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE" \
-            --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/pluginproef-jelly-leon.json"
+            --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/pluginproef-jelly-leon.json"
 
       # B03-017, spike IStartupFilter (ADR-0033): twee containers van deze image, zonder en met
       # JELLYLEON_SPIKE_STARTUPFILTER=1. Meet of een laag uit de plugin vóór routing en authenticatie werkt (413 vóór 401
@@ -378,7 +388,7 @@ jobs:
       - name: Spike IStartupFilter op de Jelly Leon-image (ADR-0033)
         run: |
           python3 tools/jelly-leon/e2e/startupfilter_spike.py --image "$JL_CI_IMAGE" \
-            --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/startupfilter-spike-jelly-leon.json"
+            --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/startupfilter-spike-jelly-leon.json"
 
       - name: Rapporten bewaren
         if: always()
@@ -408,13 +418,22 @@ jobs:
         run: |
           if docker image inspect "$JL_CI_IMAGE" >/dev/null 2>&1; then docker image rm "$JL_CI_IMAGE"; fi
 
+      - name: Eigen proefmap na het bewaren van het bewijs opruimen
+        if: always() && env.JL_PROEFMAP != ''
+        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+
   stock-client-e2e:
     name: Stock-client-smoketest (simulator, geen echte apparaten)
     needs: [server, plugins]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: bron
     steps:
       - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: bron
 
       # global.json (upstream) vraagt <major>.0.0 + rollForward (12.4: 10.0.0); die exacte versie is niet te downloaden.
       # Daarom het kanaal x.y.x uit global.json afleiden (zoals upstream zelf 10.0.x installeert); global.json blijft
@@ -431,22 +450,27 @@ jobs:
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
 
+      - name: Eigen Docker-proefmap aan beide kanten controleren
+        env:
+          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
+        run: python3 tools/jelly-leon/docker_proefmap.py bereid
+
       - name: Server publiceren (self-contained, linux-x64)
         run: >
           dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release --runtime linux-x64 --self-contained
-          -p:DebugSymbols=false -p:DebugType=none -o "$RUNNER_TEMP/server"
+          -p:DebugSymbols=false -p:DebugType=none -o "$JL_PROEFMAP/server"
 
       - name: Plugin bouwen
         run: >
           dotnet build plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj -c Release
-          -o "$RUNNER_TEMP/plugin"
+          -o "$JL_PROEFMAP/plugin"
 
       - name: Server starten op de upstream-runtime (als 568, zonder capabilities)
         run: |
           set -eu
-          mkdir -p "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0" "$RUNNER_TEMP/cache" "$RUNNER_TEMP/media"
-          cp "$RUNNER_TEMP/plugin/Jellyfin.Plugin.JellyLeon.dll" "$RUNNER_TEMP/config/plugins/JellyLeon_0.1.0.0/"
-          python3 tools/jelly-leon/e2e/make_test_media.py "$RUNNER_TEMP/media"
+          mkdir -p "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0" "$JL_PROEFMAP/cache" "$JL_PROEFMAP/media"
+          cp "$JL_PROEFMAP/plugin/Jellyfin.Plugin.JellyLeon.dll" "$JL_PROEFMAP/config/plugins/JellyLeon_0.1.0.0/"
+          python3 tools/jelly-leon/e2e/make_test_media.py "$JL_PROEFMAP/media"
           # Eigenaar 568 zonder sudo: chown in een wegwerpcontainer van dezelfde vastgezette runtime (geen netwerk).
           docker run --rm --network none --user 0:0 --entrypoint /bin/chown \
             -v "$RUNNER_TEMP/config:/w/config" -v "$RUNNER_TEMP/cache:/w/cache" \
@@ -464,7 +488,7 @@ jobs:
           port=$(docker port "$(cat "$RUNNER_TEMP/stock.cid")" 8096/tcp)
           python3 tools/jelly-leon/e2e/stock_client_smoke.py --url "http://localhost:${port##*:}" \
             --expected-version "$version" --library-path /media/muziek --expect-plugin \
-            --media-file "$RUNNER_TEMP/media/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav" \
+            --media-file "$JL_PROEFMAP/media/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav" \
             --report "$RUNNER_TEMP/stock-client-smoke.json"
 
       - name: Serverlog bij falen
@@ -478,20 +502,20 @@ jobs:
       # B03-019 (a): runtime-contracttests van UPSTREAM_GEDRAG.md op JL_RUNTIME_IMAGE (stock 12.x op digest).
       - name: Upstream-gedrag op JL_RUNTIME_IMAGE (UG-runtimetests)
         run: >
-          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP"
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$JL_PROEFMAP"
           --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
 
       # B03-017 (gate golf 1): dezelfde pluginproef op stock 12.x met de los gebouwde plugin-DLL, plus de run waarin de
       # plugin weer is weggehaald (de server geeft dan dezelfde antwoorden als de controle-run; plugindata blijft staan).
       - name: Pluginproef op JL_RUNTIME_IMAGE (JLT-68, JLT-64, JLT-65; Hub-simulator; plugin verwijderd)
         run: >
-          python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$RUNNER_TEMP/plugin"
-          --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/pluginproef-stock.json"
+          python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$JL_PROEFMAP/plugin"
+          --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/pluginproef-stock.json"
 
       - name: Spike IStartupFilter op JL_RUNTIME_IMAGE (ADR-0033)
         run: >
-          python3 tools/jelly-leon/e2e/startupfilter_spike.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$RUNNER_TEMP/plugin"
-          --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/startupfilter-spike-stock.json"
+          python3 tools/jelly-leon/e2e/startupfilter_spike.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$JL_PROEFMAP/plugin"
+          --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/startupfilter-spike-stock.json"
 
       # Contract 1.3 §2.2 (C1.3-JL-03): het healthcheck-script uit deze checkout in de runtime-image, als root en als
       # Custom User 568, met de negatieve gevallen (fase-argument zonder echte wissel → rood); de gebouwde image zelf
@@ -515,6 +539,11 @@ jobs:
             ${{ runner.temp }}/startupfilter-spike-stock.json
             ${{ runner.temp }}/healthcheck-proef.json
 
+      - name: Eigen proefmap na het bewaren van het bewijs opruimen
+        if: always() && env.JL_PROEFMAP != ''
+        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+
+
   # B03-015 deel A (golf 0, P0 van de gebruiker): overname van de kijkgeschiedenis uit Emby. Unit- en simulatortests, daarna
   # de proefrun met een echte Emby-container (4.10.2.0) en stock Jellyfin 12.4, beide op vaste digest (in de harnas), met
   # zelfgemaakte synthetische media (het mediacorpus blijft lokaal, BG-37). Alles is Sim; de echte NAS is JLT-74.
@@ -523,8 +552,13 @@ jobs:
     needs: forkregels
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: bron
     steps:
       - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: bron
 
       - name: Python 3.12
         uses: https://data.forgejo.org/actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -542,13 +576,18 @@ jobs:
 
       # JLT-70 clientdeel: de webclient van de doelserver in een echte browser (Chromium via het B03-016-harnas):
       # inloggen met het nieuwe wachtwoord en hervatten op het overgezette hervatpunt (gemeten aan de serversessie).
+      - name: Eigen Docker-proefmap aan beide kanten controleren
+        env:
+          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
+        run: python3 tools/jelly-leon/docker_proefmap.py bereid
+
       - name: Node 22
         uses: https://data.forgejo.org/actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
 
       - name: Playwright 1.63 met Chromium (B03-016-harnas)
-        working-directory: tools/b03-harnas/playwright
+        working-directory: bron/tools/b03-harnas/playwright
         run: |
           npm ci --no-audit --no-fund
           node node_modules/playwright/cli.js install --with-deps chromium
@@ -556,21 +595,26 @@ jobs:
       - name: Proefrun met echte Emby-container en stock Jellyfin 12.4 (synthetische media, webclient in Chromium)
         run: >
           python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker --browser chromium
-          --uitvoer "$RUNNER_TEMP/emby-overname"
+          --uitvoer "$JL_PROEFMAP/emby-overname"
 
       - name: Bewijs en rapporten bewaren
-        if: always()
+        if: always() && env.JL_PROEFMAP != ''
         uses: https://data.forgejo.org/forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e
         with:
           name: emby-overname-proefrun
           retention-days: 14
           if-no-files-found: ignore
           path: |
-            ${{ runner.temp }}/emby-overname/bewijs.json
-            ${{ runner.temp }}/emby-overname/toolrun.log
-            ${{ runner.temp }}/emby-overname/proxy-*.jsonl
-            ${{ runner.temp }}/emby-overname/werkmap/runs/
-            ${{ runner.temp }}/emby-overname/werkmap-herimport/runs/
+            ${{ env.JL_PROEFMAP }}/emby-overname/bewijs.json
+            ${{ env.JL_PROEFMAP }}/emby-overname/toolrun.log
+            ${{ env.JL_PROEFMAP }}/emby-overname/proxy-*.jsonl
+            ${{ env.JL_PROEFMAP }}/emby-overname/werkmap/runs/
+            ${{ env.JL_PROEFMAP }}/emby-overname/werkmap-herimport/runs/
+
+      - name: Eigen proefmap na het bewaren van het bewijs opruimen
+        if: always() && env.JL_PROEFMAP != ''
+        run: python3 tools/jelly-leon/docker_proefmap.py ruim
+
 
   # B03-016 (golf 0): één harnasraamwerk. Unit- en recepttests (reproduceerbaar: zelfde sha256 bij dezelfde seed) op een
   # synthetisch mini-corpus, de CI-guard testdatalicenties (hele boom én de gepushte commits), de clientmatrix-rooktest
@@ -584,9 +628,13 @@ jobs:
     env:
       PYTHONPATH: tools/b03-harnas
       STOCK_IMAGE: docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
+    defaults:
+      run:
+        working-directory: bron
     steps:
       - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          path: bron
           fetch-depth: 0
 
       - name: Python 3.12
@@ -633,13 +681,28 @@ jobs:
             echo "vorige commit niet beschikbaar (force-push of nieuwe branch); alleen de boom gecontroleerd"
           fi
 
+      - name: Eigen Docker-proefmap aan beide kanten controleren
+        env:
+          CI_DOCKER_WERKMAP: ${{ vars.CI_DOCKER_WERKMAP }}
+        run: python3 tools/jelly-leon/docker_proefmap.py bereid
+
+      - name: Werkmappen voor de stockservers en het corpus
+        run: |
+          for map in sloten b03-werk b03-corpus b03-testsets; do mkdir -p "$JL_PROEFMAP/$map"; done
+          {
+            echo "B03_LOCK_DIR=$JL_PROEFMAP/sloten"
+            echo "B03_WERK=$JL_PROEFMAP/b03-werk"
+            echo "B03_CORPUS=$JL_PROEFMAP/b03-corpus"
+            echo "B03_UITVOER=$JL_PROEFMAP/b03-testsets"
+          } >> "$GITHUB_ENV"
+
       - name: Node 22
         uses: https://data.forgejo.org/actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
 
       - name: Playwright 1.63 met Chromium, Firefox en WebKit
-        working-directory: tools/b03-harnas/playwright
+        working-directory: bron/tools/b03-harnas/playwright
         run: |
           npm ci --no-audit --no-fund
           node node_modules/playwright/cli.js install --with-deps chromium firefox webkit
@@ -683,7 +746,7 @@ jobs:
           PY
 
       - name: Differentiële controle-run stock tegen stock (verwacht 0 verschillen) en negatieve proef
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && env.JL_PROEFMAP != '' }}
         run: |
           python -m b03h diffrun --uit "$RUNNER_TEMP/b03-diffrun.json"
           if python -m b03h diffrun --negatieve-proef --uit "$RUNNER_TEMP/b03-diffrun-negatief.json"; then
@@ -702,3 +765,7 @@ jobs:
             ${{ runner.temp }}/b03-clientmatrix/
             ${{ runner.temp }}/b03-diffrun.json
             ${{ runner.temp }}/b03-diffrun-negatief.json
+
+      - name: Eigen proefmap na het bewaren van het bewijs opruimen
+        if: always() && env.JL_PROEFMAP != ''
+        run: python3 tools/jelly-leon/docker_proefmap.py ruim
