@@ -43,11 +43,11 @@ from jl_common import DEFAULT_REPO_ROOT  # noqa: E402
 BRON_REPO = "leon/ai-server-manager"
 #: Commit van ai-server-manager waaruit de kopieën komen (contracts 1.3 incl. de review-correcties RV1–RV13,
 #: ADR-0027/ADR-0028 daar, en de aanvullingen C-12 en M1/M3, ADR-0031 en ADR-0032; dezelfde bron-commit als in de andere repos).
-BRON_COMMIT = "cfc816328ea2789b30e0db97e28dbfd9ec654ecf"
+BRON_COMMIT = "d392f5277490ba391c346b4b72e7f7a6d9546bc0"
 BRON_BRANCH = "ccr-c133d7a0-kuz1cv"
 #: Pad (gelijk in bron en kopie) → sha256 van de bron op BRON_COMMIT.
 KOPIEEN: dict[str, str] = {
-    "docs/platform-v2/PLATFORM_CONTRACTEN.md": "3ef1bcdc5cd5e35e9d54dc0274434d6766aa6f777e3897e3dbc1c7d9421dd40b",
+    "docs/platform-v2/PLATFORM_CONTRACTEN.md": "5dbb601184f58d9f3af0cd76b1b23f516454768ec17ca70b26cfc00ee6631102",
     "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md": "b5ebba073a8fe8beb715d58e6760feae38e33ad445956d107e64840133dd7924",
 }
 #: Historiekopieën: pad → (eigen bron-commit, sha256). Nooit bijwerken; alleen bewaken dat ze niet lokaal wijzigen.

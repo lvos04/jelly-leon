@@ -24,7 +24,7 @@ def test_contract_copy_is_version_1_3_on_the_shared_source_commit():
     assert "## 9. jelly-leon (server-fork)" in conformity
     assert "C1.3-JL-01" in conformity and "C1.3-JL-09" in conformity
     # Zelfde bron-commit als de andere repos (orkestratie C1.3-ALG-01), volledige SHA.
-    assert contract_drift.BRON_COMMIT == "cfc816328ea2789b30e0db97e28dbfd9ec654ecf"
+    assert contract_drift.BRON_COMMIT == "d392f5277490ba391c346b4b72e7f7a6d9546bc0"
     assert set(contract_drift.KOPIEEN) == {
         "docs/platform-v2/PLATFORM_CONTRACTEN.md",
         "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md",
