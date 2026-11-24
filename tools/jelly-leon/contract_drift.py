@@ -59,7 +59,6 @@ HISTORIE: dict[str, tuple[str, str]] = {
 }
 #: Kop die in de contractkopie moet staan (de versie die deze repo volgt).
 VERSIEKOP = b"Versie: `contracts 1.3`"
-RAW_URL = "https://git.medialeon.nl/api/v1/repos/{repo}/raw/{path}?ref={ref}"
 
 Reader = Callable[[str], bytes | None]
 
@@ -159,12 +158,27 @@ def worktree_reader(source_repo: Path) -> Reader:
     return read
 
 
+def forgejo_verzoek(repo: str, ref: str, pad: str) -> urllib.request.Request:
+    """Lees de privébron met de ingestelde Forgejo-leestoegang, ook buiten CI."""
+    url = (
+        f"https://git.medialeon.nl/api/v1/repos/{urllib.parse.quote(repo)}/raw/{urllib.parse.quote(pad)}"
+        f"?{urllib.parse.urlencode({'ref': ref})}"
+    )
+    verzoek = urllib.request.Request(url, headers={"User-Agent": "platform-contractcontrole/1.0"})  # noqa: S310
+    token = os.environ.get("FORGEJO_TOKEN")
+    if not token:
+        config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+        tokenbestand = config / "forgejo" / "token"
+        if tokenbestand.is_file():
+            token = tokenbestand.read_text(encoding="utf-8").strip()
+    if token:
+        verzoek.add_unredirected_header("Authorization", f"token {token}")
+    return verzoek
+
+
 def http_reader(ref: str, attempts: int = 4) -> Reader:
     def read(rel: str) -> bytes | None:
-        url = RAW_URL.format(repo=BRON_REPO, ref=urllib.parse.quote(ref, safe=""), path=rel)
-        request = urllib.request.Request(url)  # noqa: S310 (vaste Forgejo-host)
-        if token := os.environ.get("FORGEJO_TOKEN"):
-            request.add_unredirected_header("Authorization", f"token {token}")
+        request = forgejo_verzoek(BRON_REPO, ref, rel)
         delay = 2.0
         last = ""
         for attempt in range(1, attempts + 1):
@@ -174,13 +188,15 @@ def http_reader(ref: str, attempts: int = 4) -> Reader:
             except urllib.error.HTTPError as exc:
                 if exc.code == 404:
                     return None
+                if exc.code in (401, 403):
+                    raise PermissionError(f"Forgejo weigert leestoegang (HTTP {exc.code}). Controleer FORGEJO_TOKEN.") from exc
                 last = f"HTTP {exc.code}"
             except (urllib.error.URLError, TimeoutError) as exc:
                 last = str(exc)
             if attempt < attempts:
                 time.sleep(delay)
                 delay *= 2
-        raise OSError(f"{url} niet bereikbaar na {attempts} pogingen ({last})")
+        raise OSError(f"{request.full_url} niet bereikbaar na {attempts} pogingen ({last})")
 
     return read
 
@@ -190,7 +206,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO_ROOT)
     bron = parser.add_mutually_exclusive_group()
     bron.add_argument("--bron-map", type=Path, help="lokale checkout van ai-server-manager (vergelijk met git show)")
-    bron.add_argument("--online", action="store_true", help="vergelijk met de privébron op Forgejo (FORGEJO_TOKEN)")
+    bron.add_argument(
+        "--online",
+        action="store_true",
+        help="vergelijk met de privébron op Forgejo (FORGEJO_TOKEN of forgejo/token in de gebruikersconfiguratie)",
+    )
     parser.add_argument("--bronbranch", default=BRON_BRANCH, help="branch van de bron voor de driftwaarschuwing")
     parser.add_argument("--github", action="store_true", help="waarschuwingen als ::warning:: voor GitHub Actions")
     args = parser.parse_args(argv)

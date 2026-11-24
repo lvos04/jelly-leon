@@ -92,6 +92,11 @@ jobs:
       - name: Contracten op beide broncommits en de huidige bronbranch vergelijken
         run: python3 tools/jelly-leon/contract_drift.py --bron-map _extern/ai-server-manager --github
 
+      - name: Online contractcontrole met Forgejo-leestoegang
+        env:
+          FORGEJO_TOKEN: ${{ secrets.BRON_LEESTOKEN }}
+        run: python3 tools/jelly-leon/contract_drift.py --online --github
+
   manifest:
     name: Manifest §9 (validator van appstore-en-fork, vastgezette commit)
     runs-on: ubuntu-24.04

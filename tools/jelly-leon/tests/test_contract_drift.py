@@ -3,8 +3,13 @@ de bron-commit; de 1.2-conformiteitslijst blijft als ongewijzigde historie staan
 
 from __future__ import annotations
 
+import io
 import shutil
+import urllib.parse
+import urllib.request
 from pathlib import Path
+
+import pytest
 
 import contract_drift
 from conftest import commit_all, init_repo, write
@@ -137,3 +142,45 @@ def test_git_reader_reads_the_file_at_a_commit(tmp_path):
 
 def test_bron_map_must_be_a_git_checkout(tmp_path):
     assert contract_drift.main(["--repo", str(REPO), "--bron-map", str(tmp_path)]) == 3
+
+
+@pytest.mark.parametrize("afwijking", [False, True])
+def test_online_contractcontrole_op_forgejo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, afwijking: bool) -> None:
+    config = tmp_path / "forgejo"
+    config.mkdir()
+    (config / "token").write_text(tmp_path.name, encoding="utf-8")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("FORGEJO_TOKEN", raising=False)
+    toegang = tmp_path.name
+    if afwijking:
+        toegang += "-ci"
+        monkeypatch.setenv("FORGEJO_TOKEN", toegang)
+
+    docs = REPO / "docs/platform-v2"
+    pin = contract_drift.BRON_COMMIT
+    pins = dict.fromkeys(["PLATFORM_CONTRACTEN.md", "CONTRACT_1.3_CONFORMITEIT.md"], pin)
+    for rel, (historisch, _) in contract_drift.HISTORIE.items():
+        pins[Path(rel).name] = historisch
+    tak = "ccr-c133d7a0-kuz1cv"
+    gelezen = set()
+
+    def bron(verzoek: urllib.request.Request, timeout: int) -> io.BytesIO:
+        url = urllib.parse.urlsplit(verzoek.full_url)
+        naam = Path(url.path).name
+        assert url.scheme == "https" and url.netloc == "git.medialeon.nl"
+        assert url.path == f"/api/v1/repos/leon/ai-server-manager/raw/docs/platform-v2/{naam}"
+        assert verzoek.get_header("Authorization") == f"token {toegang}"
+        assert "Authorization" not in verzoek.headers  # leestoegang gaat niet mee bij een redirect
+        assert verzoek.get_header("User-agent")
+        assert timeout > 0
+        [ref] = urllib.parse.parse_qs(url.query)["ref"]
+        assert ref in (pins[naam], tak)
+        gelezen.add((naam, ref))
+        inhoud = (docs / naam).read_bytes()
+        return io.BytesIO(inhoud + b" " if afwijking and ref == pin else inhoud)
+
+    monkeypatch.setattr(urllib.request, "urlopen", bron)
+    assert contract_drift.main(["--online", "--github"]) == int(afwijking)
+    assert set(pins.items()) <= gelezen
+    if not afwijking:
+        assert {(naam, tak) for naam, ref in pins.items() if ref == pin} <= gelezen
