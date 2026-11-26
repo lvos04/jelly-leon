@@ -5,7 +5,7 @@
   "upstream_version": "12.4.0",
   "upstream_commit": "83d0d0e7f76e23e2e085c8ff67d28b772d35967d",
   "local_upstream_tag": "upstream-v12.4",
-  "fork_version": "12.4.0-jl.0",
+  "fork_version": "12.4.0-jl.1",
   "dotnet_sdk_major": "10.0",
   "web_repo": "https://git.medialeon.nl/leon/jelly-leon-web",
   "web_upstream_tag": "v12.4",

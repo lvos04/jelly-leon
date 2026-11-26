@@ -9,8 +9,9 @@
   - `N ≥ 1`: releases; een nieuwe upstream-basis (na sync) begint weer bij `-jl.0`/`-jl.1`.
 - **Git-tags:** eigen releases `v<forkversie>` (bv. `v10.11.11-jl.1`). Upstream-tags staan in deze repo in een eigen
   naamruimte `upstream-v<x>` (bv. `upstream-v10.11.11`) zodat ze nooit met eigen tags verward worden.
-- **Image-tags:** `ghcr.io/lvos04/jelly-leon:<forkversie>` (bv. `10.11.11-jl.1`); nooit `latest`, nooit een
-  zwevende tag (`10.11`, `stable`). De release-CI vult de digest in het manifest.
+- **Image-tags:** `ghcr.io/lvos04/jelly-leon:<forkversie>` (bv. `10.11.11-jl.1`). De regisseur neemt de
+  digest na publicatie over uit `release/digests.json`. Het bestand `VERSION` selecteert de volgende release.
+  Bij de tag controleert de workflow of `VERSION`, `baseline.json`, manifest en git-tag dezelfde forkversie noemen en of de releaseteller positief is.
 - **Wat de server zelf rapporteert blijft de upstream-versie** (`/System/Info` → `10.11.11`, `SharedVersion.cs`
   ongewijzigd) — clients en plugins (`targetAbi`) rekenen daarop (ADR-0003). De forkversie is zichtbaar via de
   image-label `org.opencontainers.image.version`, het bestand `/usr/share/doc/jelly-leon/VERSION` in de image en
@@ -24,3 +25,12 @@
 Volgens SemVer is `10.11.11-jl.1` een *pre-release* van `10.11.11` en sorteert dus vóór `10.11.11`. Tools mogen
 forkversies daarom niet met SemVer-precedentie tegen upstream vergelijken: vergelijk het paar
 `(upstream-versie, N)`. Docker-tags staan geen `+` toe, daarom geen build-metadata (`10.11.11+jl.1`).
+
+## Onderbroken publicatie hervatten
+
+De workflow bewaart eerst de image op digest en zet de drie bijlagen op een conceptrelease. Pas nadat de
+versietag op GHCR naar precies die digest verwijst, wordt de release openbaar. Bij een onderbreking controleert
+de regisseur de drie bijlagen van het concept en leest de digest van de GHCR-tag terug. Bij gelijke digest kan het
+concept worden gepubliceerd. Ontbreekt de versietag nog, controleer dan opnieuw met
+`tools/jelly-leon/controleer_vrije_imagetag.sh` en hervat de tagstap met de digest uit het concept.
+Een afwijkende digest vereist onderzoek. Een bestaande tag of bijlage wordt nooit vervangen.

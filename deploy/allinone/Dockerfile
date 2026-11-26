@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Jelly Leon — alles-in-één image ghcr.io/lvos04/jelly-leon (ADR-0008). Lokaal en in GitHub-CI (job `image`) volledig
 # gebouwd en getest, incl. de echte web-build van jelly-leon-web op baseline.json `web_fork_commit` (ADR-0013);
-# publicatie naar GHCR en de release-workflow volgen in P4.
+# jelly-leon-release.yml publiceert deze build op de vaste forkversie uit VERSION.
 #
 # Inhoud: Jellyfin-server uit deze fork (self-contained) + web-client uit lvos04/jelly-leon-web + de Jelly Leon-plugin,
 # op de officiële upstream-runtime (jellyfin/jellyfin, met jellyfin-ffmpeg en de Intel QSV/VAAPI-stack) — die runtime

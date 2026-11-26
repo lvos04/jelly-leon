@@ -3,6 +3,7 @@
 # Alles buiten deze lijst dat afwijkt van de upstream-basis (tools/jelly-leon/baseline.json)
 # moet in docs/platform-v2/PATCHES.md staan, anders faalt tools/jelly-leon/patch_register_check.py.
 README.jelly-leon.md
+VERSION
 .env.example
 docs/platform-v2/
 docs/adr/
@@ -13,5 +14,6 @@ tools/jelly-leon/
 tools/emby-overname/
 tools/b03-harnas/
 .github/workflows/jelly-leon-ci.yml
+.github/workflows/jelly-leon-release.yml
 .github/workflows/upstream-sync.yml
 .forgejo/

@@ -1,0 +1,119 @@
+name: Jelly Leon release
+on:
+  push:
+    tags: ['v*.*.*-jl.*']
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: jelly-leon-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'lvos04/jelly-leon' && github.event.created && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      IMAGE: ghcr.io/lvos04/jelly-leon
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Releasetag, forkversie en manifest controleren
+        id: bron
+        run: |
+          versie=$(cat VERSION)
+          if [[ ! $versie =~ ^[0-9]+\.[0-9]+\.[0-9]+-jl\.[1-9][0-9]*$ || $GITHUB_REF != "refs/tags/v$versie" ]]; then
+            echo 'De git-tag moet v<VERSION> zijn met een positieve releaseteller.' >&2
+            exit 1
+          fi
+          jq -e --arg v "$versie" '.fork_version == $v' tools/jelly-leon/baseline.json >/dev/null
+          python3 tools/jelly-leon/check_fork_consistency.py
+          echo "versie=$versie" >> "$GITHUB_OUTPUT"
+          echo "server=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          python3 tools/jelly-leon/web_bron.py --commit --github-output
+
+      - name: Controleren of de GitHub-release vrij is
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME")
+          [[ $status == 404 ]] || { echo "Release bestaat al of is niet controleerbaar (HTTP $status)." >&2; exit 1; }
+
+      - name: Publieke GitHub-spiegel van de webclient op de vastgelegde commit ophalen
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: lvos04/jelly-leon-web
+          ref: ${{ steps.bron.outputs.commit }}
+          path: _extern/jelly-leon-web
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Versie en afkomst controleren en alleen bijgehouden webbestanden exporteren
+        run: |
+          python3 tools/jelly-leon/web_bron.py --controleer _extern/jelly-leon-web
+          mkdir "$RUNNER_TEMP/jelly-leon-web"
+          git -C _extern/jelly-leon-web archive HEAD | tar -x -C "$RUNNER_TEMP/jelly-leon-web"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Server, plugin en webclient bouwen en met attestaties op digest opslaan
+        id: bouw
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/allinone/Dockerfile
+          platforms: linux/amd64
+          build-contexts: jelly-leon-web=${{ runner.temp }}/jelly-leon-web
+          build-args: |
+            FORK_VERSION=${{ steps.bron.outputs.versie }}
+            VCS_REF=${{ steps.bron.outputs.server }}
+            WEB_REF=${{ steps.bron.outputs.commit }}
+          labels: org.opencontainers.image.source=https://github.com/lvos04/jelly-leon
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          sbom: true
+          provenance: mode=max
+
+      - name: Digest en attestaties uit dezelfde image als releasebijlagen vastleggen
+        env:
+          DIGEST: ${{ steps.bouw.outputs.digest }}
+          VERSIE: ${{ steps.bron.outputs.versie }}
+        run: |
+          [[ $DIGEST =~ ^sha256:[0-9a-f]{64}$ ]]
+          mkdir -p release
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" --format '{{json .SBOM}}' |
+            jq -e '(.SPDX // .["linux/amd64"].SPDX) | select(.SPDXID == "SPDXRef-DOCUMENT" and .spdxVersion)' > release/sbom.spdx.json
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" --format '{{json .Provenance}}' |
+            jq -e '(.SLSA // .["linux/amd64"].SLSA) | select(.buildType // .buildDefinition.buildType)' > release/provenance.json
+          jq -n --arg version "$VERSIE" --arg image "$IMAGE" --arg digest "$DIGEST" \
+            '{app_id:"jelly-leon", $version, $image, tag:$version, $digest}' > release/digests.json
+
+      - name: Vrije versietag controleren, teruglezen en release publiceren
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIGEST: ${{ steps.bouw.outputs.digest }}
+          VERSIE: ${{ steps.bron.outputs.versie }}
+        run: |
+          bash tools/jelly-leon/controleer_vrije_imagetag.sh "$VERSIE"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --draft --latest=false \
+            --title "Jelly Leon $VERSIE" --notes "Installeer de alles-in-één image voor Linux/amd64 met \`$IMAGE:$VERSIE@$DIGEST\`." \
+            release/digests.json release/sbom.spdx.json release/provenance.json
+          bash tools/jelly-leon/controleer_vrije_imagetag.sh "$VERSIE"
+          docker buildx imagetools create --tag "$IMAGE:$VERSIE" "$IMAGE@$DIGEST"
+          docker buildx imagetools inspect --raw "$IMAGE:$VERSIE" > "$RUNNER_TEMP/tag-index.json"
+          printf '%s  %s\n' "${DIGEST#sha256:}" "$RUNNER_TEMP/tag-index.json" | sha256sum --check
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest=false

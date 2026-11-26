@@ -3,9 +3,8 @@
 > **Status: NIET GEVALIDEERD (echte NAS).** De volledige image (server + echte web-build + plugin) is lokaal én in
 > GitHub-CI (job *image*) gebouwd en met dezelfde formulierwaarden in Docker getest (Sim-getest, zie
 > `docs/platform-v2/BOUWVERIFICATIE_P0.md` §11–§14 en `BOUWVERIFICATIE_P4-0.md`). Sinds P4-0 (B03-014) staat de basis op
-> **Jellyfin 12.4** (forkversie `12.4.0-jl.0`, .NET 10, webclient jelly-leon-web 12.4). Er is nog **geen** gepubliceerde
-> image `ghcr.io/lvos04/jelly-leon`: een `-jl.0`-forkversie wordt nooit uitgebracht (ADR-0005) en de eerste release op
-> 12.x is een aparte R2-stap (BG-02). Anoniem ophalen gaf op 2026-11-09 `DENIED` (er bestaat nog geen pakket).
+> **Jellyfin 12.4** (.NET 10, webclient jelly-leon-web 12.4). De eerste geplande release is `12.4.0-jl.1`.
+> Gebruik de installatiegegevens zodra het pakket publiek is en de releasebijlage `digests.json` beschikbaar is.
 > Het formulier hieronder is niet op een echte TrueNAS doorlopen; veldnamen volgen TrueNAS SCALE 24.10/25.04 en kunnen
 > per versie iets afwijken (welke versie op jouw NAS staat, meet de wizard: D01). De installatie gebeurt normaal **door
 > het platform** (Hub → executor → TrueNAS-API `app.create` met precies deze formulierwaarden, vertaald uit
@@ -38,7 +37,8 @@
 
 1. **Een eventuele bestaande (stock-)Jellyfin blijft draaien en wordt niet aangeraakt** (I24 §5, contract §2.3). Of er
    een is en op welke poort, meet de wizard via de TrueNAS-API (D07); neem dat nooit aan. Jelly Leon krijgt een eigen
-   poort, eigen datasets en een eigen appnaam; de media worden alleen-lezen gedeeld.
+   poort, eigen datasets en een eigen appnaam; de media worden alleen-lezen gedeeld. Laat ook Emby op zijn huidige
+   poort draaien en houd zijn config- en cachedatasets uitsluitend voor Emby.
 2. Back-upgate groen (OneDrive-herstel bewezen, D04/D05) en ZFS-snapshot van de mediadataset.
 3. Waarden komen uit de onboarding-wizard en de datasetkiezer van de Hub (D01 TrueNAS-versie, D02 datasets,
    D03 NAS-adres, D08 GPU-rendernodes). Vul **geen voorbeeldwaarden** in.
@@ -86,7 +86,7 @@ die herkent hij dus niet. Kies voor `/cache` daarom nooit een Host Path buiten j
 |---|---|---|
 | Application Name | | `jelly-leon` |
 | Image Configuration | Repository | `ghcr.io/lvos04/jelly-leon` |
-| | Tag | **`<forkversie>@sha256:<64 hex>`** — de vaste forkversie (vorm `<upstream>-jl.<N>`, ADR-0005) mét de digest uit de release (zie *Tag met digest* hieronder). Nooit `latest`. Nog niet gepubliceerd. |
+| | Tag | **`<forkversie>@sha256:<64 hex>`**. Neem `tag` en `digest` over uit de releasebijlage `digests.json` en zet er een `@` tussen (zie *Tag met digest*). |
 | | Pull Policy | *Pull the image if it is not already present on host* |
 | Container Configuration | Entrypoint / Command | leeg laten |
 | | Timezone | tijdzone van de NAS (uit de wizard) |
@@ -99,8 +99,8 @@ die herkent hij dus niet. Kies voor `/cache` daarom nooit een Host Path buiten j
 | Network Configuration | Host Network | **uit** |
 | | Ports → Add | Container Port `8096`, Host Port `30460` (voorstel uit contract §2; de Hub controleert conflicten via de TrueNAS-API). Draait er al een stock-Jellyfin (D07), dan houdt die zijn eigen poort; kies nooit diens poort. Protocol TCP |
 | Portal Configuration | Add | Name `Jelly Leon`, Protocol *HTTP*, Use Node IP aan, Port gelijk aan de Host Port hierboven, Path `/` (uit `custom_app.portal` van het manifest) |
-| Storage Configuration | Add → Host Path | Mount Path `/config` → Host Path: jouw config-dataset |
-| | Add → Host Path | Mount Path `/cache` → Host Path: jouw cache-dataset |
+| Storage Configuration | Add → Host Path | Mount Path `/config` → eigen config-dataset van Jelly Leon, **Read Only uit** |
+| | Add → Host Path | Mount Path `/cache` → eigen cache-dataset van Jelly Leon, **Read Only uit** |
 | | Add → Host Path | Mount Path `/media` → Host Path: jouw mediadataset, **Read Only aan** |
 | Resources Configuration | CPUs / Memory | voorstel 4 CPU / 4096 MiB (transcoderen deelt de NAS met MediaGuard) |
 | GPU Configuration | Intel-GPU doorgeven | **standaard uit** (manifestparameter `gpu`: `none`). Alleen aanzetten (*Passthrough available (non-NVIDIA) GPUs*) als de wizard via de TrueNAS-API een Intel-render-node heeft gemeten (D08) en jij `intel_render` kiest. Het formulier kan niet per GPU kiezen: de app krijgt dan **elke** niet-NVIDIA-render-GPU van de NAS (NIET GEVALIDEERD op een echte NAS). Geen privileged-modus: de container voegt zelf alleen de groepen toe van de doorgegeven `/dev/dri/renderD*`- en `/dev/dri/card*`-apparaten, en alleen als die in de container bestaan (nooit groep 0). |
@@ -112,7 +112,8 @@ die herkent hij dus niet. Kies voor `/cache` daarom nooit een Host Path buiten j
 
 Het formulier kent alleen *Repository* + *Tag*; TrueNAS maakt daar `<repository>:<tag>` van. Daarom vul je de tag in als
 `<forkversie>@sha256:<digest>` (geldige Docker-syntax; trekt precies die image, ook als iemand de tag later verplaatst).
-De digest staat bij de release van `lvos04/jelly-leon` (de release-CI publiceert hem, P4). Of het formulier het `@`-teken
+Open bij de bijbehorende GitHub-release van `lvos04/jelly-leon` het bestand `digests.json`. De workflow maakt dit als
+`release/digests.json` en voegt het bij de release. Of het formulier het `@`-teken
 accepteert en of TrueNAS met zo'n tag updates herkent, is **NIET GEVALIDEERD (echte NAS)**. Weigert het formulier de tag
 met digest, vul dan alleen de exacte forkversie in; de controle is dan de digest-readback: na elke installatie of update
 leest de executor de digest terug (TrueNAS-API `app.image.query`, `repo_digests`) en stopt met een incident als die
