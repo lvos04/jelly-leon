@@ -1,8 +1,6 @@
 # Manifest (manifeststandaard v1, platformcontract 1.3 §9) van de Jelly Leon-mediaserver.
 # Installatie uitsluitend als standaard TrueNAS Custom App (één image + formulierwaarden); nooit compose/YAML.
-# De releaseworkflow levert de digest in release/digests.json. De regisseur neemt die na publicatie over.
-# Tot dan is installeren niet mogelijk (validator: digest_pending_release,
-# geaccepteerd met reden in accepted_findings; validation_status unvalidated).
+# Digest uit release/digests.json van GitHub-release v12.4.0-jl.1 (release-run 45802894287).
 # Alle paden, poorten en apparaten komen uit de wizard/datasetkiezer of gemeten TrueNAS-readback — nooit voorbeeldwaarden.
 # Contract 1.2: poorten staan alleen in network.ports (custom_app.ports en network.joins_platform_network vervallen);
 # GPU is een optionele wizardparameter (D08), privileges.gpu is het maximum (ADR-0012).
@@ -24,7 +22,7 @@ install:
 image:
   repository: ghcr.io/lvos04/jelly-leon
   tag: "12.4.0-jl.1"
-  digest: null
+  digest: "sha256:c17eedd9c2d7407f964d9561f46b07ed2f333173a99518783c00e43bf35eb94a"
 custom_app:
   # Geen ports hier (vervallen in contract 1.2 §9): de formulierpoorten komen uit network.ports.
   storage:
@@ -200,12 +198,7 @@ post_install_checks:
       wachtwoord. Zolang de startwizard openstaat, kan iedereen op het netwerk die de pagina opent beheerder worden.
       Neem daarna (alleen als je dat wilt) de kijkgeschiedenis uit Emby over volgens de overnameprocedure; Emby blijft
       ongewijzigd draaien.
-accepted_findings:
-  - code: digest_pending_release
-    reden_nl: >-
-      Eigen image vóór de eerste release: na publicatie neemt de regisseur de digest over uit de releasebijlage. Tot dan kan niemand Jelly Leon via het
-      platform installeren (de vertaling weigert een image zonder digest met digest_not_pinned); de proeven
-      draaien op lokaal gebouwde images.
+accepted_findings: []
 compatibility:
   # Platformminimum voor de standaard Custom App (ix-app met values), gelijk aan de andere platformapps;
   # de echte NAS-versie (D01) meet de wizard.

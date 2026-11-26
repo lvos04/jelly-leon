@@ -11,6 +11,13 @@ import check_fork_consistency
 
 REPO = Path(__file__).resolve().parents[3]
 MANIFEST = (REPO / "deploy/manifest/jelly-leon.manifest.yaml").read_text(encoding="utf-8")
+RELEASE_DIGEST = '  digest: "sha256:c17eedd9c2d7407f964d9561f46b07ed2f333173a99518783c00e43bf35eb94a"\n'
+PENDING_FINDING = """accepted_findings:
+  - code: digest_pending_release
+    reden_nl: Eigen image vóór de eerste release.
+"""
+# De stand vóór een release (digest leeg, bevinding met reden): grondslag voor de mutatietests.
+PENDING = MANIFEST.replace(RELEASE_DIGEST, "  digest: null\n").replace("accepted_findings: []\n", PENDING_FINDING)
 WORKFLOW = (REPO / ".github/workflows/jelly-leon-ci.yml").read_text(encoding="utf-8")
 MONITOR = "  monitor: {pad: /health, verwachte_status: 200, timeout_s: 10, interval_s: 60}\n"
 HUB_PARAMETER = """parameters:
@@ -45,12 +52,10 @@ def test_real_manifest_names_the_open_startup_wizard_as_manual_check():
     assert "Emby blijft" in checks  # besluit: Emby blijft ongewijzigd draaien
 
 
-def test_real_manifest_accepts_only_the_pending_digest_with_reason():
-    accepted = check_fork_consistency.top_level_block(MANIFEST, "accepted_findings")
-    assert accepted is not None and accepted.count("- code:") == 1
-    assert "- code: digest_pending_release" in accepted and "reden_nl:" in accepted
-    image = check_fork_consistency.top_level_block(MANIFEST, "image")
-    assert check_fork_consistency._scalar(image, "digest") == "null"  # nog geen release (ADR-0005)
+def test_real_manifest_pins_the_release_digest_without_accepted_findings():
+    assert RELEASE_DIGEST in MANIFEST  # release v12.4.0-jl.1 (ADR-0005)
+    assert "accepted_findings: []\n" in MANIFEST
+    assert check_fork_consistency.check_manifest_1_3(PENDING) == []
 
 
 @pytest.mark.parametrize(
@@ -78,25 +83,25 @@ def test_real_manifest_accepts_only_the_pending_digest_with_reason():
     ],
 )
 def test_contract_1_3_violations_are_detected(mutate, fragment):
-    mutated = mutate(MANIFEST)
-    assert mutated != MANIFEST, "mutatie moet het manifest veranderen"
+    mutated = mutate(PENDING)
+    assert mutated != PENDING, "mutatie moet het manifest veranderen"
     errors = check_fork_consistency.check_manifest_1_3(mutated)
     assert any(fragment in e for e in errors), errors
 
 
 def test_missing_reason_and_duplicate_code_are_detected():
-    start = MANIFEST.index("accepted_findings:")
-    end = MANIFEST.index("compatibility:")
-    zonder_reden = MANIFEST[:start] + "accepted_findings:\n  - code: digest_pending_release\n" + MANIFEST[end:]
+    start = PENDING.index("accepted_findings:")
+    end = PENDING.index("compatibility:")
+    zonder_reden = PENDING[:start] + "accepted_findings:\n  - code: digest_pending_release\n" + PENDING[end:]
     assert any("reden_nl ontbreekt" in e for e in check_fork_consistency.check_manifest_1_3(zonder_reden))
-    dubbel = MANIFEST[:end] + "  - code: digest_pending_release\n    reden_nl: nog een keer\n" + MANIFEST[end:]
+    dubbel = PENDING[:end] + "  - code: digest_pending_release\n    reden_nl: nog een keer\n" + PENDING[end:]
     assert any("dubbel" in e for e in check_fork_consistency.check_manifest_1_3(dubbel))
 
 
 def test_released_manifest_without_accepted_findings_is_allowed():
-    start = MANIFEST.index("accepted_findings:")
-    end = MANIFEST.index("compatibility:")
-    released = (MANIFEST[:start] + MANIFEST[end:]).replace("  digest: null\n", '  digest: "sha256:' + "b" * 64 + '"\n')
+    start = PENDING.index("accepted_findings:")
+    end = PENDING.index("compatibility:")
+    released = (PENDING[:start] + PENDING[end:]).replace("  digest: null\n", '  digest: "sha256:' + "b" * 64 + '"\n')
     assert check_fork_consistency.check_manifest_1_3(released) == []
 
 
