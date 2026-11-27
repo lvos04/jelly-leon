@@ -1,0 +1,411 @@
+{
+  "schema": "b03-060/meetsets/1",
+  "seed": 20261109,
+  "recepten": {
+    "f5-fouten": "9559e2796271f69c119d11aea9a0c0ee97b8b96a11dd5e085dcb0fd57cb119cc",
+    "ass": "e7f2309e7dde116ace555454e84579537b3a0be468d5c1854f74adeac55e38bb"
+  },
+  "groepen": {
+    "a5": {
+      "sha256": "458bc1c21a81373dab326917e95bb4b8e59e937308be438da9ff4646eb3ea0cd",
+      "gevallen": [
+        {
+          "id": "01_llama_drama_1080p.mp4",
+          "pad": "/media/movies/blender/caminandes/01_llama_drama_1080p.mp4",
+          "media_sha256": "90cbebdd3ce684a7f8716d45dee1f52d2b1608fd22966637b4d26af1a6db0ebf"
+        },
+        {
+          "id": "02_gran_dillama_1080p.mp4",
+          "pad": "/media/movies/blender/caminandes/02_gran_dillama_1080p.mp4",
+          "media_sha256": "468e6743c674689a728726bbe4bb4b2a65bd8702a89f021af26a8bb4d450eebd"
+        },
+        {
+          "id": "Caminandes_Llamigos-1080p.mp4",
+          "pad": "/media/movies/blender/caminandes/Caminandes_Llamigos-1080p.mp4",
+          "media_sha256": "826513349ecf02d83b22f414514704e3bba10ff28fb45408a6cdf6cc57bacc06"
+        },
+        {
+          "id": "Cosmos_Laundromat_First_Cycle_2k.mp4",
+          "pad": "/media/movies/blender/cosmos/Cosmos_Laundromat_First_Cycle_2k.mp4",
+          "media_sha256": "039ff018ecebf0746a3d6b68e74de10c2fc3f2e99122131efb795d5e81512354"
+        },
+        {
+          "id": "elephantsdream-720-h264-st-aac.mov",
+          "pad": "/media/movies/blender/ed/elephantsdream-720-h264-st-aac.mov",
+          "media_sha256": "6fc295e0e92835316ec95929ccfc664b05ed2434f673e6f5e684f98f7558a547"
+        },
+        {
+          "id": "hero.mp4",
+          "pad": "/media/movies/blender/hero/hero.mp4",
+          "media_sha256": "1a2d85e9a0303c1c0eb320b2b755705551a5344b3c60dc3ced8166d93d329800"
+        },
+        {
+          "id": "Sintel.2010.1080p.mkv",
+          "pad": "/media/movies/blender/sintel/Sintel.2010.1080p.mkv",
+          "media_sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920"
+        },
+        {
+          "id": "Spring-Blender-Open-Movie.mkv",
+          "pad": "/media/movies/blender/spring/Spring-Blender-Open-Movie.mkv",
+          "media_sha256": "916523651f3d6a38ec98a9f35e48daf7591e21baba473e1d1cf9a7c5dac42031"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_AV1_10bit_10M.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_AV1_10bit_10M.mp4",
+          "media_sha256": "f4acf3bea9ca6804754dab6d17a15b4bac449e10dc17d67d9a51f249ac612cf3"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_AV1_HDR10_10M.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_AV1_HDR10_10M.mp4",
+          "media_sha256": "0d61ab8b4de10f165e2605b5ed4812868fde48dc7ecf0b0df9822d796c3e4803"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_AVC_10M.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_AVC_10M.mp4",
+          "media_sha256": "8046bfa719f16e6287b533bf1f6f483f2b350a29edfc5b370022e7375e703470"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_DV_P5.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_DV_P5.mp4",
+          "media_sha256": "c0dedeeef7d11c404955e126f9544318cdeb6eab62423528cfde9b567e8ca1a4"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_DV_P8.1.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_DV_P8.1.mp4",
+          "media_sha256": "266cda3ffbf46bb73daaf38716ed7dfb2b49e689ca5eb18c585426c1a57957d4"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_DV_P8.4.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_DV_P8.4.mp4",
+          "media_sha256": "eaf21cc55e31694758c9d5cf2ba9f7b448f8447655907380259d4e42a2ea7276"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_HEVC_10bit_10M.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_10bit_10M.mp4",
+          "media_sha256": "54a3dabca1cfe1ba308d99578722a0f4680e7fd265625612567892a9696eaff2"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_HEVC_8bit_10M.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_8bit_10M.mp4",
+          "media_sha256": "a75296d379876ea10ef82e143a38cde791e48fd2d4a738be798c4f9ffdb2a9b4"
+        },
+        {
+          "id": "Test_Jellyfin_1080p_HEVC_HDR10_10M.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_HDR10_10M.mp4",
+          "media_sha256": "ab2e96af8fef996ec178ccba49ccaea3d6d30e147c58f39dd8288e8894a18678"
+        },
+        {
+          "id": "Test_Jellyfin_4K_DV_P8.1.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_4K_DV_P8.1.mp4",
+          "media_sha256": "91e20e16b1386cfd984e15404b43929e49f7558a7ea8420f085bbb8b84810695"
+        },
+        {
+          "id": "Test_Jellyfin_4K_HEVC_HDR10_40M.mp4",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_4K_HEVC_HDR10_40M.mp4",
+          "media_sha256": "da108da499153ae4816b6cd50296a6dc56996ae3d30a08c7a14a1108b25a4221"
+        },
+        {
+          "id": "Pioneer.One.S01E01.720p.x264-VODO.mp4",
+          "pad": "/media/series/Pioneer One/Pioneer.One.S01E01.720p.x264-VODO.mp4",
+          "media_sha256": "94a00a806f0830f0dca8d1b9e4727940fa9892e347916c3189bab2e39c3106f9"
+        },
+        {
+          "id": "Pioneer.One.S01E02.720p.x264-VODO.mp4",
+          "pad": "/media/series/Pioneer One/Pioneer.One.S01E02.720p.x264-VODO.mp4",
+          "media_sha256": "45ef3c38b2d15f2631d1014c2f5d38cef905efbba8bea85ce8b97de7bf0c431f"
+        },
+        {
+          "id": "Pioneer.One.S01E03.720p.x264-VODO.mp4",
+          "pad": "/media/series/Pioneer One/Pioneer.One.S01E03.720p.x264-VODO.mp4",
+          "media_sha256": "414423fc83fc10810fd483f514af0481c759f9ab2310411970527e82e0aacc01"
+        },
+        {
+          "id": "Pioneer.One.S01E04.720p.x264-VODO.mp4",
+          "pad": "/media/series/Pioneer One/Pioneer.One.S01E04.720p.x264-VODO.mp4",
+          "media_sha256": "3e0357b27926d9b31deaf1f27bfd3deaf5d47f35424edd3a2f231a2b7b335fe0"
+        },
+        {
+          "id": "Pioneer.One.S01E05.720p.x264-VODO.mp4",
+          "pad": "/media/series/Pioneer One/Pioneer.One.S01E05.720p.x264-VODO.mp4",
+          "media_sha256": "1930d3ad95102c81101ca6a01c38619d4cfcd2e17afbc2997d72dbd426218f56"
+        },
+        {
+          "id": "Pioneer.One.S01E06.720p.x264-VODO.mp4",
+          "pad": "/media/series/Pioneer One/Pioneer.One.S01E06.720p.x264-VODO.mp4",
+          "media_sha256": "e3f6a3176c1fe09427467cb9e9197f165d515a6a8b4b20fb923a0409ca37aaa7"
+        }
+      ]
+    },
+    "extra": {
+      "sha256": "c8608cc2e7f58df4a61180a2e739501d23866f83856f6ddd9b03ef59709e60ac",
+      "gevallen": [
+        {
+          "id": "tears_of_steel_1080p.mov",
+          "pad": "/media/movies/blender/tos/uitgepakt/tears_of_steel_1080p.mov",
+          "media_sha256": "99486359be7e3681168a0fe94e1cbb0284c48b57b2a3ce7df4fa75e185987a15"
+        },
+        {
+          "id": "bbb_sunflower_1080p_30fps_normal.mp4",
+          "pad": "/media/movies/blender/bbb/uitgepakt/bbb_sunflower_1080p_30fps_normal.mp4",
+          "media_sha256": "ae51005850b0ff757fe60c3dd7a12d754d3cd2397d87d939b55235e457f97658"
+        }
+      ]
+    },
+    "formaten": {
+      "sha256": "c1f931fdc3798d69f64f5568b7b9def5811969a1398d9b067d8d5efb141780e6",
+      "gevallen": [
+        {
+          "id": "dv-p8.1-als.mkv",
+          "pad": "/media/afgeleid/formaten/dv-p8.1-als.mkv",
+          "media_sha256": "8faa4297e120569073aa0b7ecb28251bf2168a5650ab5cf5452da40c2e2bb9ee"
+        },
+        {
+          "id": "dv-p8.1-rpu-gestript-hdr10.mkv",
+          "pad": "/media/afgeleid/formaten/dv-p8.1-rpu-gestript-hdr10.mkv",
+          "media_sha256": "2473518eddbfded378c4b425ab2f8293da7847ed1f0b901ffe37f46f04bd6844"
+        },
+        {
+          "id": "hdr10-als-hlg-tag.mkv",
+          "pad": "/media/afgeleid/formaten/hdr10-als-hlg-tag.mkv",
+          "media_sha256": "dc24d7fc4a97c24bb1a957b4372caf46b442fe0e5357f322cbb37c27e2e47e03"
+        },
+        {
+          "id": "hdr10-hevc-als.ts",
+          "pad": "/media/afgeleid/formaten/hdr10-hevc-als.ts",
+          "media_sha256": "d70cbf592631ed37724fc5d98ac3a8649791f90d29f1adb5ee74e169850e9557"
+        },
+        {
+          "id": "sintel-30s-av1-svt.mkv",
+          "pad": "/media/afgeleid/formaten/sintel-30s-av1-svt.mkv",
+          "media_sha256": "0fdc3b89c6f1ddc831ce33e328cfeb0b1f61e2516b225114db538542e9d6011e"
+        },
+        {
+          "id": "sintel-30s-h264-10bit.mkv",
+          "pad": "/media/afgeleid/formaten/sintel-30s-h264-10bit.mkv",
+          "media_sha256": "5e8478374dc3a3c39bc46f11d014c17dfda64d52aaa5344f7bfb0e0a29f42f8c"
+        },
+        {
+          "id": "sintel-30s-hevc8-flac.mkv",
+          "pad": "/media/afgeleid/formaten/sintel-30s-hevc8-flac.mkv",
+          "media_sha256": "027a4fff2c2923103c6d0e4f923c52443b5c19f582549966539c6119dae7e44c"
+        },
+        {
+          "id": "sintel-30s-mpeg2-ac3.ts",
+          "pad": "/media/afgeleid/formaten/sintel-30s-mpeg2-ac3.ts",
+          "media_sha256": "557e50fc57e243719840040ab75fc5e35c4f15c130ac8a7055390e10249c3a22"
+        },
+        {
+          "id": "sintel-30s-mpeg4-mp3.avi",
+          "pad": "/media/afgeleid/formaten/sintel-30s-mpeg4-mp3.avi",
+          "media_sha256": "e62acbffa14d64b293dde32642a44e1f03df769e19d6a8d8e5529fec37840e31"
+        },
+        {
+          "id": "sintel-30s-vp9-p2-10bit.webm",
+          "pad": "/media/afgeleid/formaten/sintel-30s-vp9-p2-10bit.webm",
+          "media_sha256": "5a81cd1ea9815418a535cec18b9e0add3bede5705611ca1b2bafd0bd1234eede"
+        },
+        {
+          "id": "tos-multiaudio-5.1-me-subs.mkv",
+          "pad": "/media/afgeleid/formaten/tos-multiaudio-5.1-me-subs.mkv",
+          "media_sha256": "945a0414370cde8fd2929fe8a84982cb74bc8f0d6bb7cc1bc77fe5beb415b1d8"
+        }
+      ]
+    },
+    "ass": {
+      "sha256": "649671d6cf69e3f65c9914a6a5c95c8ab3f4e0242579f690e12bb6c5141932ee",
+      "gevallen": [
+        {
+          "id": "sintel-60s-ass.mkv",
+          "pad": "/media/b03-ass/formaten/sintel-60s-ass.mkv",
+          "media_sha256": "4e83915d634e1d0c7f8720e8a44164c6266be6c8307c5c0890c0486ed4f79e83"
+        }
+      ]
+    },
+    "srt": {
+      "sha256": "a77ba9ad48ea40f96c00f43bffbffc224865bb2acce7189e7ec319b450b318ed",
+      "gevallen": [
+        {
+          "id": "Sintel.2010.1080p.mkv",
+          "pad": "/media/movies/blender/sintel/Sintel.2010.1080p.mkv",
+          "media_sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920"
+        }
+      ]
+    },
+    "devset": {
+      "sha256": "d341d97ac185cba1bed8361a3a1d315ec315a2f9ffb71edd9ccce402adcc631b",
+      "gevallen": [
+        {
+          "id": "dev-chromium-hevc8",
+          "client": "chromium",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_8bit_10M.mp4",
+          "middel": "init-scripts/dev-chromium-hevc8.js",
+          "middel_sha256": "2828edcdd44f84d5bc2f5d491aa1a4c02a2e51a503e09c826df908047ca93bbf",
+          "media_sha256": "a75296d379876ea10ef82e143a38cde791e48fd2d4a738be798c4f9ffdb2a9b4"
+        },
+        {
+          "id": "dev-firefox-ac3",
+          "client": "firefox",
+          "pad": "/media/movies/blender/sintel/Sintel.2010.1080p.mkv",
+          "middel": "init-scripts/dev-firefox-ac3.js",
+          "middel_sha256": "eb27146c96ff8c6b54aeabb43779503bb1263f5489607e212bb74026a9bd84ce",
+          "media_sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920"
+        },
+        {
+          "id": "dev-webkit-sintel-echt",
+          "client": "webkit",
+          "pad": "/media/movies/blender/sintel/Sintel.2010.1080p.mkv",
+          "media_sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920"
+        }
+      ]
+    },
+    "testset": {
+      "sha256": "45fd9d01c24f40b4b5796858875b0561ca71ceae42992a7bd90f423d69fbb4ef",
+      "gevallen": [
+        {
+          "id": "test-chromium-hevc10-hdr10",
+          "client": "chromium",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_HDR10_10M.mp4",
+          "middel": "init-scripts/test-chromium-hevc10-hdr10.js",
+          "middel_sha256": "9f1b35b39abe77649213991a0f89e0fa929cf0007f21ae553fe82d14b707937a",
+          "media_sha256": "ab2e96af8fef996ec178ccba49ccaea3d6d30e147c58f39dd8288e8894a18678"
+        },
+        {
+          "id": "test-firefox-hevc10-hdr10",
+          "client": "firefox",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_HDR10_10M.mp4",
+          "middel": "init-scripts/test-firefox-hevc10-hdr10.js",
+          "middel_sha256": "9f1b35b39abe77649213991a0f89e0fa929cf0007f21ae553fe82d14b707937a",
+          "media_sha256": "ab2e96af8fef996ec178ccba49ccaea3d6d30e147c58f39dd8288e8894a18678"
+        },
+        {
+          "id": "test-android-telefoon-hevc10-hdr10",
+          "client": "android-telefoon",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_HEVC_HDR10_10M.mp4",
+          "middel": "android-profielen/geforceerd-ac3-eac3-dts.json",
+          "middel_sha256": "ea7aaf5e36e4cea035cf05a45da3a4c020f8b6bea4f1f281ae015f924cdad116",
+          "media_sha256": "ab2e96af8fef996ec178ccba49ccaea3d6d30e147c58f39dd8288e8894a18678"
+        },
+        {
+          "id": "test-chromium-eac3-51",
+          "client": "chromium",
+          "pad": "/media/afgeleid/formaten/sintel-30s-av1-svt.mkv",
+          "middel": "init-scripts/test-chromium-eac3-51.js",
+          "middel_sha256": "0056f8f8c2daf525d6faa8531425f9da9fd9f0086fcc49a9248b876ad4cb94c8",
+          "media_sha256": "0fdc3b89c6f1ddc831ce33e328cfeb0b1f61e2516b225114db538542e9d6011e"
+        },
+        {
+          "id": "test-firefox-eac3-51",
+          "client": "firefox",
+          "pad": "/media/afgeleid/formaten/sintel-30s-av1-svt.mkv",
+          "middel": "init-scripts/test-firefox-eac3-51.js",
+          "middel_sha256": "0056f8f8c2daf525d6faa8531425f9da9fd9f0086fcc49a9248b876ad4cb94c8",
+          "media_sha256": "0fdc3b89c6f1ddc831ce33e328cfeb0b1f61e2516b225114db538542e9d6011e"
+        },
+        {
+          "id": "test-android-telefoon-eac3-51",
+          "client": "android-telefoon",
+          "pad": "/media/afgeleid/formaten/sintel-30s-av1-svt.mkv",
+          "middel": "android-profielen/geforceerd-ac3-eac3-dts.json",
+          "middel_sha256": "ea7aaf5e36e4cea035cf05a45da3a4c020f8b6bea4f1f281ae015f924cdad116",
+          "media_sha256": "0fdc3b89c6f1ddc831ce33e328cfeb0b1f61e2516b225114db538542e9d6011e"
+        },
+        {
+          "id": "test-chromium-dv-p5",
+          "client": "chromium",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_DV_P5.mp4",
+          "middel": "init-scripts/test-chromium-dv-p5.js",
+          "middel_sha256": "a67ef0e92f359364486b5613a65503cc419e873c740b2ec088877b04733bcd25",
+          "media_sha256": "c0dedeeef7d11c404955e126f9544318cdeb6eab62423528cfde9b567e8ca1a4"
+        },
+        {
+          "id": "test-firefox-dv-p5",
+          "client": "firefox",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_DV_P5.mp4",
+          "middel": "init-scripts/test-firefox-dv-p5.js",
+          "middel_sha256": "a67ef0e92f359364486b5613a65503cc419e873c740b2ec088877b04733bcd25",
+          "media_sha256": "c0dedeeef7d11c404955e126f9544318cdeb6eab62423528cfde9b567e8ca1a4"
+        },
+        {
+          "id": "test-android-telefoon-dv-p5",
+          "client": "android-telefoon",
+          "pad": "/media/movies/jellyfin-testvideos/Test_Jellyfin_1080p_DV_P5.mp4",
+          "middel": "android-profielen/geforceerd-ac3-eac3-dts.json",
+          "middel_sha256": "ea7aaf5e36e4cea035cf05a45da3a4c020f8b6bea4f1f281ae015f924cdad116",
+          "media_sha256": "c0dedeeef7d11c404955e126f9544318cdeb6eab62423528cfde9b567e8ca1a4"
+        },
+        {
+          "id": "test-chromium-flac-51-mkv",
+          "client": "chromium",
+          "pad": "/media/afgeleid/formaten/sintel-30s-hevc8-flac.mkv",
+          "middel": "init-scripts/test-chromium-flac-51-mkv.js",
+          "middel_sha256": "943bdd5af4e91b007b01c22fa41ce68a84b2f21108bd55380559a2f078bda534",
+          "media_sha256": "027a4fff2c2923103c6d0e4f923c52443b5c19f582549966539c6119dae7e44c"
+        },
+        {
+          "id": "test-firefox-flac-51-mkv",
+          "client": "firefox",
+          "pad": "/media/afgeleid/formaten/sintel-30s-hevc8-flac.mkv",
+          "middel": "init-scripts/test-firefox-flac-51-mkv.js",
+          "middel_sha256": "943bdd5af4e91b007b01c22fa41ce68a84b2f21108bd55380559a2f078bda534",
+          "media_sha256": "027a4fff2c2923103c6d0e4f923c52443b5c19f582549966539c6119dae7e44c"
+        },
+        {
+          "id": "test-android-telefoon-flac-51-mkv",
+          "client": "android-telefoon",
+          "pad": "/media/afgeleid/formaten/sintel-30s-hevc8-flac.mkv",
+          "middel": "android-profielen/geforceerd-ac3-eac3-dts.json",
+          "middel_sha256": "ea7aaf5e36e4cea035cf05a45da3a4c020f8b6bea4f1f281ae015f924cdad116",
+          "media_sha256": "027a4fff2c2923103c6d0e4f923c52443b5c19f582549966539c6119dae7e44c"
+        },
+        {
+          "id": "test-chromium-mpeg2-ts",
+          "client": "chromium",
+          "pad": "/media/afgeleid/formaten/sintel-30s-mpeg2-ac3.ts",
+          "middel": "init-scripts/test-chromium-mpeg2-ts.js",
+          "middel_sha256": "d5f4c69a114d9bc29baa34139c45b38e2bdb6325657a3f8ce6cd89454128e931",
+          "media_sha256": "557e50fc57e243719840040ab75fc5e35c4f15c130ac8a7055390e10249c3a22"
+        },
+        {
+          "id": "test-firefox-mpeg2-ts",
+          "client": "firefox",
+          "pad": "/media/afgeleid/formaten/sintel-30s-mpeg2-ac3.ts",
+          "middel": "init-scripts/test-firefox-mpeg2-ts.js",
+          "middel_sha256": "d5f4c69a114d9bc29baa34139c45b38e2bdb6325657a3f8ce6cd89454128e931",
+          "media_sha256": "557e50fc57e243719840040ab75fc5e35c4f15c130ac8a7055390e10249c3a22"
+        },
+        {
+          "id": "test-android-telefoon-mpeg2-ts",
+          "client": "android-telefoon",
+          "pad": "/media/afgeleid/formaten/sintel-30s-mpeg2-ac3.ts",
+          "middel": "android-profielen/geforceerd-ac3-eac3-dts.json",
+          "middel_sha256": "ea7aaf5e36e4cea035cf05a45da3a4c020f8b6bea4f1f281ae015f924cdad116",
+          "media_sha256": "557e50fc57e243719840040ab75fc5e35c4f15c130ac8a7055390e10249c3a22"
+        },
+        {
+          "id": "test-chromium-h264-10bit",
+          "client": "chromium",
+          "pad": "/media/afgeleid/formaten/sintel-30s-h264-10bit.mkv",
+          "middel": "init-scripts/test-chromium-h264-10bit.js",
+          "middel_sha256": "205d81dd5df8614c599473f60fd1aa6ebd8da721b57b25aa0c3c0c441cc5c9c6",
+          "media_sha256": "5e8478374dc3a3c39bc46f11d014c17dfda64d52aaa5344f7bfb0e0a29f42f8c"
+        },
+        {
+          "id": "test-firefox-h264-10bit",
+          "client": "firefox",
+          "pad": "/media/afgeleid/formaten/sintel-30s-h264-10bit.mkv",
+          "middel": "init-scripts/test-firefox-h264-10bit.js",
+          "middel_sha256": "205d81dd5df8614c599473f60fd1aa6ebd8da721b57b25aa0c3c0c441cc5c9c6",
+          "media_sha256": "5e8478374dc3a3c39bc46f11d014c17dfda64d52aaa5344f7bfb0e0a29f42f8c"
+        },
+        {
+          "id": "test-android-telefoon-h264-10bit",
+          "client": "android-telefoon",
+          "pad": "/media/afgeleid/formaten/sintel-30s-h264-10bit.mkv",
+          "middel": "android-profielen/geforceerd-ac3-eac3-dts.json",
+          "middel_sha256": "ea7aaf5e36e4cea035cf05a45da3a4c020f8b6bea4f1f281ae015f924cdad116",
+          "media_sha256": "5e8478374dc3a3c39bc46f11d014c17dfda64d52aaa5344f7bfb0e0a29f42f8c"
+        }
+      ]
+    }
+  }
+}

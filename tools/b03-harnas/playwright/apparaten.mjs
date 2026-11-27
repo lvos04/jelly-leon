@@ -24,7 +24,8 @@ export async function sessieInfo(page, itemId) {
     if (!r.ok) throw new Error('Sessiemeting gaf HTTP ' + r.status);
     const sessie = (await r.json()).find((s) => s.NowPlayingItem?.Id === id && s.DeviceId === device);
     const info = sessie?.TranscodingInfo;
-    return info ? { video_direct: info.IsVideoDirect, hardware: info.HardwareAccelerationType ?? null } : null;
+    return info ? { video_direct: info.IsVideoDirect, hardware: info.HardwareAccelerationType ?? null,
+      frames_per_s: info.Framerate ?? null } : null;
   }, itemId);
 }
 

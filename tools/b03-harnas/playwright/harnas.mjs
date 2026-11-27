@@ -29,7 +29,7 @@ const HAAK = `(() => {
     document.addEventListener(ev, (e) => {
       const t = e.target;
       if (t && (t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) {
-        window.__b03.events.push({ ev, t: performance.now(), ct: t.currentTime, err: t.error ? t.error.code : null });
+        window.__b03.events.push({ ev, soort: t.tagName, t: performance.now(), ct: t.currentTime, err: t.error ? t.error.code : null });
       }
     }, true);
   }
@@ -74,17 +74,24 @@ async function stopEncodering(page, playSessionId) {
 }
 
 async function speelItem(page, item, opts) {
-  const vang = { profiel: null, antwoord: null, hls: false, statisch: false, teruggevallen: false, ingebrand: false };
+  const vang = { profiel: null, antwoord: null, hls: false, statisch: false, ingebrand: false };
   const isBesluit = (r) => r.method() === 'POST' && new URL(r.url()).pathname.toLowerCase() === `/items/${item.id}/playbackinfo`.toLowerCase();
   const opVerzoek = (r) => {
     const u = r.url();
     if (isBesluit(r) && !vang.profiel) {
-      try { vang.profiel = r.postDataJSON()?.DeviceProfile ?? null; } catch { /* geen JSON */ }
+      try {
+        const aanvraag = r.postDataJSON();
+        vang.profiel = aanvraag?.DeviceProfile ?? null;
+        if (Number.isInteger(aanvraag?.SubtitleStreamIndex) && aanvraag.SubtitleStreamIndex >= 0) vang.subIndex = aanvraag.SubtitleStreamIndex;
+      } catch { /* geen JSON */ }
     }
     if (/\.m3u8/i.test(u)) {
       vang.hls = true;
-      if (vang.statisch) vang.teruggevallen = true;
-      if (new URL(u).searchParams.get('SubtitleMethod')?.toLowerCase() === 'encode') vang.ingebrand = true;
+      const q = new URL(u).searchParams;
+      if (q.get('SubtitleMethod')?.toLowerCase() === 'encode' && q.has('SubtitleStreamIndex') && Number(q.get('SubtitleStreamIndex')) >= 0) {
+        vang.ingebrand = true;
+        vang.subIndex = Number(q.get('SubtitleStreamIndex'));
+      }
     }
     if (/\/(Videos|Audio)\/[0-9a-f]+\/stream/i.test(u) && /static=true/i.test(u)) vang.statisch = true;
   };
@@ -117,11 +124,16 @@ async function speelItem(page, item, opts) {
     let ok = false;
     let tot2 = null;
     let herstel = null;
+    let vorige = null;
+    let bewegendSinds = null;
     let info = null;
     let cpu0 = null;
     let cpuBegin = null;
     let cpuKernen = null;
     const grens = opts.orakelMs;
+    const muurBegin = performance.now();
+    let laatsteVoortgang = 0;
+    let laatsteSessiepeiling = -500;
     while (true) {
       const s = await page.evaluate(() => {
         const v = document.querySelector('video');
@@ -130,9 +142,21 @@ async function speelItem(page, item, opts) {
           ma: v?.mozHasAudio ?? null, t: performance.now() - window.__b03.klik,
           fout: window.__b03.events.some((e) => e.ev === 'error') };
       });
+      if (!Number.isFinite(s.t) || performance.now() - muurBegin > Math.max(grens, 60000) + 5000) {
+        throw new Error('Klik of meetklok ontbreekt');
+      }
       spoor.push(s);
+      const loopt = !s.p && !s.err && s.w > 0;
+      const beweegt = loopt && vorige && s.ct > vorige.ct;
+      if (!loopt || (vorige && s.ct < vorige.ct) || s.t - laatsteVoortgang > 500) bewegendSinds = null;
+      if (beweegt) {
+        if (bewegendSinds === null) bewegendSinds = Math.round(s.t);
+        laatsteVoortgang = s.t;
+      }
+      vorige = s;
       const dp = vang.antwoord?.MediaSources?.[0]?.SupportsDirectPlay;
-      if (opts.apparaten && vang.hls && !info && s.t >= 500) {
+      if (opts.apparaten && vang.hls && !info && s.t - laatsteSessiepeiling >= 500) {
+        laatsteSessiepeiling = s.t;
         info = await sessieInfo(page, item.id);
         if (info?.video_direct === false) {
           cpu0 = cpuSeconden(cfg.containerId);
@@ -141,7 +165,11 @@ async function speelItem(page, item, opts) {
       }
       const metAudio = vang.antwoord?.MediaSources?.[0]?.MediaStreams?.some((x) => x.Type === 'Audio');
       const decodeOntbreekt = metAudio && (s.ab === 0 || s.ma === false);
-      if (tot2 === null && !decodeOntbreekt && beoordeling(s, grens, s.fout, dp && vang.teruggevallen)) {
+      if (s.t <= grens && (s.fout || (dp && vang.hls))) {
+        ok = false;
+        tot2 = null;
+      }
+      if (tot2 === null && !decodeOntbreekt && beoordeling(s, grens, s.fout, dp && vang.hls)) {
         tot2 = Math.round(s.t);
         ok = true;
       }
@@ -152,8 +180,8 @@ async function speelItem(page, item, opts) {
         if (cpu0 !== null && einde !== null && nu?.video_direct === false) cpuKernen = (einde - cpu0) * 1000 / (performance.now() - cpuBegin);
       }
       if (ok && (!opts.apparaten || !vang.hls || cpuKernen !== null || s.t >= grens)) break;
-      if (opts.apparaten && dp && !ok && (s.fout || vang.teruggevallen || s.t > grens)) {
-        if (beoordeling(s, 60000, false)) { herstel = Math.round(s.t); break; }
+      if (opts.apparaten && dp && !ok && (s.fout || vang.teruggevallen || s.t >= grens)) {
+        if (s.t <= 60000 && beweegt && bewegendSinds !== null) { herstel = bewegendSinds; break; }
         if (s.t >= 60000) break;
       } else if (s.t >= grens) break;
       await page.waitForTimeout(100);
@@ -169,7 +197,7 @@ async function speelItem(page, item, opts) {
       }
     }
     const ev = await page.evaluate(() => window.__b03.events);
-    const playing = ev.find((e) => e.ev === 'playing');
+    const playing = ev.find((e) => e.ev === 'playing' && e.soort === 'VIDEO');
     const klik = await page.evaluate(() => window.__b03.klik);
     const ms = vang.antwoord?.MediaSources?.[0] ?? {};
     const tu = ms.TranscodingUrl || '';
@@ -178,17 +206,24 @@ async function speelItem(page, item, opts) {
     res.heeft_audio = heeftAudio;
     res.audio_gedecodeerd = !heeftAudio ? null : (l.ab != null ? l.ab > 0 : l.ma != null ? !!l.ma : null);
     res.audio_niet_stil = 'niet gemeten';
+    if (!ok && l.ct >= 2 && l.w > 0 && !l.err && heeftAudio && res.audio_gedecodeerd === false) {
+      // Bestaande clientmatrix gebruikt dit label voor een ontbrekende decoder op de CI-runner.
+      res.orakel_reden = 'geen audio gedecodeerd (stil)';
+    }
+    res.besluit_gemeten = !!vang.antwoord?.MediaSources?.length;
     if (opts.apparaten) {
       const video = (ms.MediaStreams || []).find((x) => x.Type === 'Video');
-      const ot = (ms.MediaStreams || []).find((x) => x.Type === 'Subtitle' && x.Index === ms.DefaultSubtitleStreamIndex);
+      const ot = (ms.MediaStreams || []).find((x) => x.Type === 'Subtitle' && x.Index === (vang.subIndex ?? ms.DefaultSubtitleStreamIndex));
       res.videobereik = video?.VideoRangeType ?? video?.VideoRange ?? null;
       res.herstel_ms = herstel;
       res.transcoding_info = info;
       res.cpu_kernen = cpuKernen;
       res.ingebrand = vang.ingebrand;
+      res.foutmiddel_actief = await page.evaluate(() => Array.isArray(window.__b03_liegt) && window.__b03_liegt.length > 0);
       res.ondertitel = ot?.Codec ?? null;
+      const formaat = (naam) => ({ subrip: 'srt', webvtt: 'vtt' }[naam?.toLowerCase()] ?? naam?.toLowerCase());
       res.extern_mogelijk = !!ot && !!vang.profiel?.SubtitleProfiles?.some((x) =>
-        x.Format?.toLowerCase() === ot.Codec?.toLowerCase() && x.Method === 'External');
+        formaat(x.Format) === formaat(ot.Codec) && x.Method === 'External');
     }
     res.besluit = ms.SupportsDirectPlay ? 'DirectPlay' : ms.SupportsDirectStream ? 'DirectStream' : ms.SupportsTranscoding ? 'Transcode' : 'Geen';
     res.redenen = (tu.match(/TranscodeReasons=([^&]*)/) || [])[1] || '';

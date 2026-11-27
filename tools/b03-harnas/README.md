@@ -34,3 +34,33 @@ Regels (bouwplan §10.13–§10.15, analyse 5 §7):
   `--privileged`, nooit de Docker-socket in een testcontainer; alles op 127.0.0.1.
 - Tests: `python -m pytest -q tools/b03-harnas/tests` (synthetisch mini-corpus met de host-ffmpeg; geen netwerk);
   lint: `ruff check --config tools/b03-harnas/ruff.toml tools/b03-harnas`.
+
+## JLT-40 — meetcommando winstmeting apparaatprofielen
+
+Voer de opdrachten uit vanuit de repo. Zet `B03_CORPUS` op het lokale testcorpus, `B03_WERK`, `TMPDIR` en
+`B03_UITVOER` op eigen mappen in de ketenmap en `B03_LOCK_DIR` op de gedeelde map met `stack.lock`.
+Gebruik de Python 3.12-omgeving van de forktools. Maak de sets met de vastgezette ffmpeg uit het corpusrecept.
+
+```bash
+export PYTHONPATH=tools/b03-harnas
+"$B03_LOCK_DIR/stackslot" nice -n 10 python3.12 -m b03h corpus maak f5-fouten --schaal vol --bevries
+"$B03_LOCK_DIR/stackslot" nice -n 10 python3.12 -m b03h corpus maak ass --schaal vol --bevries
+```
+
+`B03_BASIS` wijst naar het JSON-rapport van de definitieve S-P40-50-sessie. Zet `B03_FORK_IMAGE` op het lokale
+image-ID van de te vergelijken golf-4-bouw. Het harnas zet Devices aan op een eigen wegwerpserver en leest de
+schakelaar terug. De drie systemen wisselen elkaar af. Per geval start de webclient tweemaal met dezelfde
+apparaatidentiteit. De A5-matrix, ToS/BBB, elf formaatgevallen, ASS, tekst-SRT en de bevroren testset krijgen eigen
+noemers. De twee recepten en alle gebruikte mediabestanden worden vóór de sessie op SHA-256 gecontroleerd.
+
+```bash
+STACKSLOTEN=1 "$B03_LOCK_DIR/stackslot" nice -n 10 python3.12 -m b03h apparaten \
+  --basis "${B03_BASIS:?definitieve S-P40-50-baseline vereist}" --sets "$B03_UITVOER" --split testset \
+  --fork-image "${B03_FORK_IMAGE:?lokaal image-ID van de fork vereist}" --runs 3 \
+  --uit docs/platform-v2/test-evidence/jlt-40-apparaatprofielen.json
+```
+
+Dit schrijft ook `jlt-40-apparaatprofielen.md`. In S-P40-64 draait dezelfde ingang met `--split beide`, de twee
+stockprofielen en als uitvoer `b03-060-voormeting.json`. Laat daarvoor `--fork-image` weg. Een ontbrekende
+definitieve baseline of te hoge startlast geeft exitcode 1 en een rapport met de reden. De devset blijft apart van
+de testset bij het berekenen van de tellers. De emulator- en desktopresultaten voor JLT-40 komen uit S-G4-30.

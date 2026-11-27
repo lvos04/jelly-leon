@@ -160,3 +160,38 @@ Absolute anime-nummering, muziek en live-tv zijn in deze proef niet gecontroleer
   opmerking): **NIET GEVALIDEERD (hardware)**; render-node en render-gid op de NAS komen uit D08.
 - Echte tv's, telefoons, receivers (D15): **NIET GEVALIDEERD (hardware)**; Swiftfin/Safari: **NIET GEVALIDEERD (Mac/Xcode)**.
 - De NAS, zijn HDD-pool en de echte bibliotheek: **NIET GEVALIDEERD (echte NAS)**.
+
+## B03-060 — apparaten en afspeelfouten
+
+De ingang `b03h apparaten` gebruikt de stockserver, de afspeelactie van `dp` en `orakel`, de profielwissel en het
+meetslot van B03-016. Daarom staat het harnas in `tools/b03-harnas`. Het werkpakket noemt het oudere pad
+`tools/jelly-leon/e2e/`. De tweede start gebruikt dezelfde browsersessie als de eerste. De statische proef gebruikt
+een apart video-element en vraagt de oorspronkelijke bron op. Voor de ASS- en tekst-SRT-proef kiest de lokale
+testgebruiker Nederlandse ondertitels. De ondertitelinstelling wordt na de meting hersteld.
+[Meetcommando en uitvoer](../../tools/b03-harnas/README.md#jlt-40--meetcommando-winstmeting-apparaatprofielen)
+
+| Metriek | Waarneming |
+|---|---|
+| K1 | Een door PlaybackInfo gekozen Direct Play is onterecht bij een mediafout, terugval of onvoldoende voortgang. Binnen tien seconden na de afspeelklik moet `currentTime ≥ 2` zijn met een positieve videobreedte. Een geregistreerde fout blijft meetellen wanneer de speler wordt vervangen. |
+| K2 | Na een mislukte Direct Play blijft dezelfde klik maximaal 60 seconden onder observatie. Een voortschrijdende beeldklok levert de hersteltijd in milliseconden. Zonder herstel staat er `> 60 s (geen automatisch herstel)`. |
+| K3 | Direct Plays die het beeldorakel halen, gedeeld door alle starts. De noemer en het Wilson-95%-interval staan bij elke set en elk startnummer. |
+| K4 en K5 | K4 vergelijkt effectieve Direct Plays met het bevestigde potentieel van de geforceerde statische proef. HDR zonder bevestigde scherm- of tonemapcapaciteit krijgt een aparte telling. K5 telt transcodes waarbij de geforceerde proef wel speelt. |
+| K6 | De actieve sessie levert het soort video-encode, de hardwaremethode en de beeldsnelheid. CPU-kernen zijn het verschil in cgroup-CPU-seconden van de eigen server, gedeeld door de verstreken tijd tijdens de encode. Een ontbrekende sessiemeting of CPU-waarde blijft zichtbaar. |
+| K7 | Gevraagde HLS-streams met ondertitelmethode Encode tellen als inbranding. Het gekozen spoor en het oorspronkelijke externe ondertitelprofiel bepalen of de inbranding onnodig was. |
+| K8 en K9 | De vergelijking met gelijke `encoding.xml` hoort bij JLT-46. Routering en uitval vereisen de opstelling van JLT-44/45. |
+
+Het geluidsoordeel **audio niet stil** blijft **niet gemeten** tot S-G2-35. Aantallen gedecodeerde bytes en de
+aanwezigheid van een audiospoor zeggen niets over de amplitude. Per run staan de éénminuutslast, CPU-gegevens en
+eventuele afgewezen pogingen in het JSON-rapport. De herhaalcontrole vergelijkt de beslissing en de tijden van
+hetzelfde item en startnummer met de eerste geldige run. De tijdmarge is ±10%. De eerste stock-standaardrun vergelijkt
+alle 25 individuele A5-beslissingen met analyse 5, ook als twee verschillen elkaar in het totaal opheffen.
+
+De historische A5-matrix koos Direct Play voor 16/25 items in Chromium, 17/25 in Firefox en 21/25 in WebKit.
+Bij WebKit speelde één gekozen item, Sintel, niet af. Dit zijn de referentiecijfers van de historische sessie.
+[Bronmatrix van 10 november](test-evidence/b03-016-baseline-voormeting-12.4/dp-matrix.json)
+
+De rooktest speelde `hero.mp4` op de telefoon-, tablet- en tv-emulators. Het clientharnas rapporteerde voor de
+tablet daarnaast drie OOM-kills bij 4 GiB en één van drie succesvolle herhalingen bij 5 GiB. De hervatproef van
+de tv-app leverde vijf van vijf per server op. S-P40-70 kon de tabletproef niet herhalen vanwege ontbrekende
+KVM-toegang. S-P40-90 liet de desktop op de lokale fork afspelen en hervatten. Deze uitkomsten zijn overgenomen.
+[Clientmatrix](test-evidence/b03-016-clientmatrix-rooktest.json) · [Desktopproef](test-evidence/b03-016-desktop-spike.json)

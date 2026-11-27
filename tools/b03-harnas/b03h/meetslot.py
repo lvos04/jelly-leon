@@ -66,6 +66,18 @@ def exclusief_slot(naam: str = STACK_LOCK, lock_dir: Path = LOCK_DIR, timeout: f
                    bij_wachten: object = None) -> Iterator[float]:
     """Wacht netjes op het slot (zoals `flock -w`) en geeft de wachttijd terug."""
     pad = lock_dir / naam
+    # stackslot houdt het gedeelde stack.lock op geërfde fd 9. Verifieer zowel de inode als het flock;
+    # een tweede open() van hetzelfde bestand zou op ons eigen buitenslot blijven wachten.
+    if naam == STACK_LOCK and os.environ.get("STACKSLOT") == "1":
+        try:
+            zelfde = os.path.samestat(os.fstat(9), pad.stat())
+            if zelfde:
+                fcntl.flock(9, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            zelfde = False
+        if zelfde:
+            yield 0.0
+            return
     fd = os.open(pad, os.O_RDONLY | os.O_CREAT, 0o664)
     begin = time.monotonic()
     try:
