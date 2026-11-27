@@ -90,10 +90,11 @@ authenticatie en met `?ApiKey=`, en HTTP 206 bij een statische stream zonder tok
 
 ### Desktoprooktest in het serverharnas op 27 november 2026
 
-De controle vond de bestaande build van Desktop 2.0.0 uit S-P40-72. Drie aanroepen tegen de Jelly Leon-image
-van bronrevisie `48293b48a` eindigden met `Sim-mislukt` na elk 7.200 seconden wachten op het gedeelde stackslot.
-De app startte daardoor niet. Voor deze image blijven het laden van de webclient, inloggen, afspelen van `hero.mp4`,
-hervatten en de ChunkLoadError-vraag open. [Desktopbewijs van het serverharnas](test-evidence/b03-016-desktop-spike.json)
+**Sim-getest.** Desktop 2.0.0 uit S-P40-72 laadde onder Xvfb de webclient van de Jelly Leon-image van bronrevisie
+`48293b48a`. De testkijker logde in en speelde `hero.mp4` via Direct Play. Na **Hervatten** kwamen de eerste
+sessiepositie en de voortgangsmelding overeen met het opgeslagen punt van 17,934 s. Er kwam geen nulmelding.
+Na stoppen stond 20,645 s opgeslagen. Tijdens deze proef registreerde CDP geen `ChunkLoadError`.
+[Desktopbewijs van het serverharnas](test-evidence/b03-016-desktop-spike.json)
 
 ### Clientmetingen uit jelly-leon-clients
 

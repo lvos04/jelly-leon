@@ -58,7 +58,7 @@ met `hero.mp4` (orakel: binnen 15 s currentTime ≥ 2 s, beeld, geen fout en gee
 | derden-client met legacy-headers | stock-native (derden) | X-Emby-Token, X-MediaBrowser-Token, X-Emby-Authorization, `api_key`, `ApiKey` | Sim-getest (gemeten status per vorm; besluit BG-01) |
 | Android-telefoon (API 35, pixel_6), tablet (API 35, pixel_tablet) | officiële jellyfin-android 2.7.3 = Jelly Leon-webclient (webweergave) | emulator in een container met `--device /dev/kvm`, 4 GiB, onder `gradle.lock` in `stack.lock`; afspelen via `POST /Sessions/{id}/Playing`, gecontroleerd aan de serverkant | Sim-getest of Sim-mislukt met reden |
 | Android TV (API 34 x86, tv_1080p) | officiële jellyfin-androidtv 0.19.10 (native) | idem | idem |
-| Desktop 2.0.0 onder Xvfb | Jelly Leon-webclient | bestaande desktopbuild van de clientrepo, echte afspeel- en hervatknop, posities uit de desktopsessie | [Desktopbewijs](test-evidence/b03-016-desktop-spike.json) |
+| Desktop 2.0.0 onder Xvfb | Jelly Leon-webclient | bestaande desktopbuild van de clientrepo, echte afspeel- en hervatknop, posities uit de desktopsessie | [Sim-getest op de lokale fork](test-evidence/b03-016-desktop-spike.json) |
 | Swiftfin, Safari, Apple TV | stock-native | — | NIET GEVALIDEERD (Mac/Xcode) |
 | Echte tv's, telefoons, receivers, Chromecast, DLNA | alle | — | NIET GEVALIDEERD (hardware), JLT-69 (D15) |
 
@@ -86,11 +86,16 @@ Het CDP-consolelog groepeert herkenbare meldingen per fase, bron en niveau. Vrij
 aanmeldgegevens bevatten en worden als aantallen bewaard. Bij een afgebroken meting betekent `chunkloaderror: null`
 dat de vraag openstaat.
 
-Op 27 november 2026 gaf de aanroep tegen de Jelly Leon-image van bronrevisie `48293b48a` driemaal `Sim-mislukt`.
-Elke aanroep wachtte 7.200 seconden op het gedeelde stackslot en eindigde vóór de testserver en desktop startten.
-De controle van het uitvoerbare bestand is uitgevoerd. De grootte van het gedeelde geheugen, het laden van de
-webclient, de aanmelding, beide afspeelposities en het optreden van een ChunkLoadError blijven ongemeten.
-[Uitvoer van de laatste aanroep](test-evidence/b03-016-desktop-spike.json)
+Op 27 november 2026 laadde Desktop 2.0.0 de webclient van de lokale Jelly Leon-image van bronrevisie `48293b48a`.
+De container had 1 GiB gedeeld geheugen. Een nieuwe testkijker meldde zich aan en speelde `hero.mp4` via Direct Play.
+Bij de eerste stop bewaarde de testserver 17,934 s. Na **Hervatten** gaven de eerste sessiemeting en de
+voortgangsmelding beide 17,934 s. Alle drie de gemeten sessieposities waren positief. Na de volgende stop was
+20,645 s bewaard. CDP registreerde bij de start één `net::ERR_NAME_NOT_RESOLVED` en tijdens de hele proef geen
+`ChunkLoadError`. [Meetreeksen en consolelog](test-evidence/b03-016-desktop-spike.json)
+
+Voor deze run nam een externe `flock` zonder tijdlimiet het gedeelde `stack.lock` voor de duur van de containerproef.
+De wachttijd van 6.653,773 s staat in `gedeeld_stackslot.wachttijd_s`. Het harnas kreeg binnen die vergrendeling
+een eigen `B03_LOCK_DIR`. Het veld `stackslot_wacht_s` meet de wachttijd op dat binnenslot.
 
 ## 3. Harnas, meetprotocol en baselines (deel c)
 

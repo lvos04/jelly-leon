@@ -3,12 +3,304 @@
  "client": "Jellyfin Desktop onder Xvfb",
  "server": "jelly-leon:lokaal-48293b48a",
  "stap": "alles",
- "begin": "2026-11-27T05:36:56Z",
+ "begin": "2026-11-27T11:39:57Z",
  "bouw": {
   "binary": "build/src/jellyfin-desktop",
   "sha256": "2bb2a91e74f95c024c1139d6d68e6e7f3cca995acb0457e3539a11e164a3f0fe"
  },
- "status": "Sim-mislukt",
- "reden": "lokale proef onderbroken (TimeoutError)",
- "eind": "2026-11-27T07:36:56Z"
+ "stackslot_wacht_s": 0.0,
+ "server_image_id": "sha256:09c2bb379cf09e0895a794dcf4979b3171d015d942dda67a67ad42231f43741b",
+ "server_versie": "12.4.0",
+ "min_hervatduur_s": 0,
+ "desktop_image_id": "sha256:acd4c811ff4af9db1137569846a7c455474b13d8380a1c2f24e6b0263ffca6a7",
+ "shm_bytes": 1073741824,
+ "cdp": {
+  "webclient_geladen": true,
+  "ingelogd": true,
+  "consolelog": [
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "log",
+    "melding": "overige melding",
+    "aantal": 22
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "debug",
+    "melding": "overige melding",
+    "aantal": 47
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "log",
+    "melding": "ConnectionManager",
+    "aantal": 1
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "info",
+    "melding": "overige melding",
+    "aantal": 2
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "startGroupCollapsed",
+    "melding": "overige melding",
+    "aantal": 1
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "dir",
+    "melding": "overige melding",
+    "aantal": 1
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "endGroup",
+    "melding": "overige melding",
+    "aantal": 1
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "warning",
+    "melding": "overige melding",
+    "aantal": 1
+   },
+   {
+    "fase": "start",
+    "bron": "Log.entryAdded",
+    "niveau": "error",
+    "melding": "Failed to load resource, net::ERR_NAME_NOT_RESOLVED",
+    "aantal": 1
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "debug",
+    "melding": "ConnectionManager",
+    "aantal": 2
+   },
+   {
+    "fase": "start",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "info",
+    "melding": "ConnectionManager",
+    "aantal": 1
+   },
+   {
+    "fase": "inloggen",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "log",
+    "melding": "overige melding",
+    "aantal": 5
+   },
+   {
+    "fase": "inloggen",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "debug",
+    "melding": "overige melding",
+    "aantal": 5
+   },
+   {
+    "fase": "detailpagina",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "debug",
+    "melding": "overige melding",
+    "aantal": 5
+   },
+   {
+    "fase": "detailpagina",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "error",
+    "melding": "overige melding",
+    "aantal": 1
+   },
+   {
+    "fase": "detailpagina",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "log",
+    "melding": "overige melding",
+    "aantal": 2
+   },
+   {
+    "fase": "afspelen",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "log",
+    "melding": "overige melding",
+    "aantal": 17
+   },
+   {
+    "fase": "afspelen",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "debug",
+    "melding": "overige melding",
+    "aantal": 19
+   },
+   {
+    "fase": "stop na afspelen",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "debug",
+    "melding": "overige melding",
+    "aantal": 7
+   },
+   {
+    "fase": "stop na afspelen",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "log",
+    "melding": "overige melding",
+    "aantal": 8
+   },
+   {
+    "fase": "hervatten",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "debug",
+    "melding": "overige melding",
+    "aantal": 11
+   },
+   {
+    "fase": "hervatten",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "log",
+    "melding": "overige melding",
+    "aantal": 18
+   },
+   {
+    "fase": "stop na hervatten",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "debug",
+    "melding": "overige melding",
+    "aantal": 7
+   },
+   {
+    "fase": "stop na hervatten",
+    "bron": "Runtime.consoleAPICalled",
+    "niveau": "log",
+    "melding": "overige melding",
+    "aantal": 1
+   }
+  ],
+  "chunkloaderror": false,
+  "afspelen": [
+   [
+    0.434,
+    0
+   ],
+   [
+    1.26,
+    0.041
+   ],
+   [
+    2.084,
+    1.041
+   ],
+   [
+    3.314,
+    2.041
+   ],
+   [
+    4.136,
+    3.041
+   ],
+   [
+    4.957,
+    4.041
+   ],
+   [
+    6.193,
+    5.041
+   ],
+   [
+    7.017,
+    6.041
+   ],
+   [
+    8.252,
+    7.041
+   ],
+   [
+    9.077,
+    8.041
+   ],
+   [
+    10.305,
+    9.041
+   ],
+   [
+    11.129,
+    9.926
+   ],
+   [
+    11.953,
+    10.926
+   ],
+   [
+    13.191,
+    11.926
+   ],
+   [
+    14.012,
+    12.926
+   ],
+   [
+    15.25,
+    13.926
+   ],
+   [
+    16.077,
+    14.926
+   ],
+   [
+    17.305,
+    15.926
+   ],
+   [
+    18.125,
+    16.926
+   ],
+   [
+    18.943,
+    17.926
+   ]
+  ],
+  "hervatten": [
+   [
+    0.431,
+    17.934
+   ],
+   [
+    1.257,
+    18.934
+   ],
+   [
+    2.485,
+    19.934
+   ]
+  ],
+  "voortgang_hervatten_s": [
+   17.934
+  ],
+  "beginpunt_s": 0,
+  "sessie": {
+   "client": "Jellyfin Desktop",
+   "versie": "2.0.0",
+   "methode": "DirectPlay"
+  },
+  "hervatpunt_s": 17.934,
+  "eindpunt_s": 20.645
+ },
+ "status": "Sim-getest",
+ "eind": "2026-11-27T11:40:46Z",
+ "gedeeld_stackslot": {
+  "bestand": "stack.lock",
+  "wachttijd_s": 6653.773,
+  "tijdlimiet_s": null
+ }
 }
