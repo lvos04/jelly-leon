@@ -240,6 +240,43 @@ def test_android_ready_koppelt_de_timeout_alleen_aan_de_eigen_groep_en_sessie():
     assert kort["status"] == "niet reproduceerbaar in de simulatie" and "ok" not in kort
 
 
+def test_functieproef_kiest_een_aflevering_en_bewaart_stockafwijking(monkeypatch, tmp_path):
+    import json
+    from contextlib import nullcontext
+    from unittest.mock import Mock
+
+    from b03h import watchtogether as wt
+
+    films = [{"Path": f"/{k}/{k}.{ext}", "Id": k, "Type": "Movie", "RunTimeTicks": 300000000}
+             for k, ext in (("Hero", "mp4"), ("Sintel", "mkv"), ("Hlsproef", "mp4"))]
+    versies = {"Path": "/Versieproef/basis.mkv", "MediaSources": [{}, {}]}
+    server = Mock()
+    server.info = {"Version": "12.4"}
+    server.digest.return_value = "simulator"
+    server.jf.a.headers = {"Authorization": "synthetisch"}
+    server.jf.items.return_value = films + [{**versies, "Type": "Movie", "Id": "film"}, {**versies, "Type": "Episode", "Id": "aflevering"}]
+    monkeypatch.setattr(wt, "WERK", tmp_path)
+    monkeypatch.setattr(wt, "CORPUS", tmp_path)
+    monkeypatch.setattr(wt, "StockServer", lambda *args, **kw: server)
+    monkeypatch.setattr(wt, "rollenproef", lambda *_: {"rollen": {}})
+    monkeypatch.setattr(wt.meetslot, "exclusief_slot", nullcontext)
+    monkeypatch.setattr(wt.watchomgeving, "netwerk", lambda *_: nullcontext("simulator"))
+    monkeypatch.setattr(wt.watchomgeving, "netem", lambda *_: nullcontext((None, {"status": "niet gemeten"})))
+    monkeypatch.setattr(wt.watchomgeving, "android_ready", lambda *_: {"status": "niet reproduceerbaar in de simulatie"})
+
+    def browser(opdracht, cfg, **opties):
+        assert opdracht == "watchfunctie" and opties["pogingen"] == 1
+        assert (cfg["versieItem"], cfg["hlsItem"]) == ("aflevering", "Hlsproef")
+        return {"server-17352": {"ok": False, "resterende_deelnemers": 2}}
+
+    monkeypatch.setattr(wt.web, "harnas", browser)
+    uit = tmp_path / "functie.json"
+    assert wt.main(["--functieproef", "--uit", str(uit)]) == 1
+    doc = json.loads(uit.read_text())
+    assert doc["regressies"]["server-17352"]["ok"] is False and "server-18121" in doc["regressies"]
+    assert "metingen" not in doc and "eind" in doc
+
+
 def test_s2_weigert_software_en_twee_transcodes(tmp_path):
     from b03h.watchtogether import vereis_afspeelpad
 

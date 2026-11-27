@@ -1,0 +1,359 @@
+{
+  "schema": "jelly-leon/b03-020-functieproef/1",
+  "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "begin": "2026-11-27T22:44:51Z",
+  "server": {
+    "versie": "12.4.0",
+    "image_id": "sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "zichtbaarheid": {
+    "rollen": {
+      "eigenaar": {
+        "lijst": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 0,
+          "gelekte_namen": 0
+        },
+        "detail": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 0,
+          "gelekte_namen": 0
+        }
+      },
+      "deelnemer": {
+        "lijst": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 0,
+          "gelekte_namen": 0
+        },
+        "detail": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 0,
+          "gelekte_namen": 0
+        }
+      },
+      "huishouden": {
+        "lijst": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 0,
+          "gelekte_namen": 0
+        },
+        "detail": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 0,
+          "gelekte_namen": 0
+        }
+      },
+      "gast": {
+        "lijst": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 1,
+          "gelekte_namen": 2
+        },
+        "detail": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 1,
+          "gelekte_namen": 2
+        }
+      },
+      "kind": {
+        "lijst": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 1,
+          "gelekte_namen": 2
+        },
+        "detail": {
+          "http": 200,
+          "groepen": 1,
+          "deelnemersnamen": 2,
+          "gelekte_groepen": 1,
+          "gelekte_namen": 2
+        }
+      },
+      "zonder_recht": {
+        "lijst": {
+          "http": 403,
+          "groepen": 0,
+          "deelnemersnamen": 0,
+          "gelekte_groepen": 0,
+          "gelekte_namen": 0
+        },
+        "detail": {
+          "http": 403,
+          "groepen": 0,
+          "deelnemersnamen": 0,
+          "gelekte_groepen": 0,
+          "gelekte_namen": 0
+        }
+      }
+    },
+    "toegangstijd": [
+      {
+        "na_s": 0.02,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 2.05,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 4.09,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 6.14,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 8.18,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 10.21,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 12.25,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 14.29,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 16.32,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 18.36,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 20.38,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 22.42,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 24.45,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 26.49,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 28.51,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 30.54,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 32.58,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 34.62,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 36.65,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 38.68,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 40.71,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 42.75,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 44.78,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 46.81,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 48.84,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 50.87,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 52.9,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 54.94,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 56.98,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 59.02,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 61.05,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 63.08,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 65.11,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 67.14,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 69.16,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 71.19,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 73.22,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 75.25,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 77.28,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 79.31,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 81.35,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 83.38,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 85.41,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 87.44,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 89.48,
+        "in_groep": true,
+        "http_lijst": 403
+      },
+      {
+        "na_s": 91.51,
+        "in_groep": true,
+        "http_lijst": 403
+      }
+    ]
+  },
+  "tc_proef": {
+    "status": "niet gemeten",
+    "reden": "tc netem niet beschikbaar in de proefcontainer",
+    "exitcode_tc": 127,
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "regressies": {
+    "server-18121": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "KVM of het lokale emulator-SDK ontbreekt voor de Android-groepsproef"
+    }
+  },
+  "browserproef": {
+    "status": "proef onderbroken",
+    "reden": "harnas faalde: Watch Together: groepsfunctieproef",
+    "exitcode": 1
+  },
+  "status": "gedeeltelijk gemeten"
+}

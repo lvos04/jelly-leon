@@ -318,12 +318,18 @@ def functieproef(a: argparse.Namespace) -> int:
         werk = Path(stapel.enter_context(tempfile.TemporaryDirectory(dir=WERK))).resolve()
         meerdere_sporen = "afgeleid/formaten/tos-multiaudio-5.1-me-subs.mkv"
         mounts = {"/media/movies/Hero/Hero.mp4": BRONNEN["hero"], "/media/movies/Sintel/Sintel.mkv": BRONNEN["sintel"],
-                  "/media/movies/Versieproef/Versieproef - Basis.mp4": BRONNEN["hero"],
-                  "/media/movies/Versieproef/Versieproef - Multispoor.mkv": meerdere_sporen}
+                  "/media/movies/Hlsproef/Hlsproef.mp4": BRONNEN["hevc"]}
+        if (CORPUS / meerdere_sporen).is_file():
+            aflevering = "/media/reeksen/Versieproef/Versieproef - S01E01/Versieproef - S01E01 - "
+            ingekort = werk / "aflevering-ingekort.mkv"
+            ff = Ffmpeg("docker", alleen_lezen=[CORPUS], schrijfbaar=[werk], cpus=1)
+            ff.ffmpeg(["-i", str(CORPUS / meerdere_sporen), "-t", "65", "-map", "0:v:0", "-map", "0:a", "-map", "0:s",
+                       "-c", "copy", str(ingekort)])
+            mounts.update({aflevering + "Basis.mkv": meerdere_sporen, aflevering + "Ingekort.mkv": str(ingekort)})
         server = StockServer("watchfunctie", werk=werk, koppelingen=mounts, gpu=False, cpus="2")
         stapel.callback(server.verwijder)
         server.start()
-        server.inrichten([("Meetfilms", "movies", ["/media/movies"])])
+        server.inrichten([("Meetfilms", "movies", ["/media/movies"]), ("Meetreeksen", "tvshows", ["/media/reeksen"])])
         assert server.jf
         jf = server.jf
         doc["server"] = {"versie": server.info["Version"], "image_id": server.digest()}
@@ -338,11 +344,13 @@ def functieproef(a: argparse.Namespace) -> int:
         sintel = next((i for i in items if i["Path"].endswith("/Sintel/Sintel.mkv")), None)
         if hero is None or sintel is None:
             raise ValueError("de bibliotheekscan mist Hero of Sintel voor de groepsproef")
-        versie = next((i for i in items if len(i.get("MediaSources", [])) > 1 and "/Versieproef/" in i["Path"]), {})
+        versie = next((i for i in items if i.get("Type") == "Episode" and len(i.get("MediaSources", [])) > 1
+                      and "/Versieproef/" in i["Path"]), {})
+        hls = next((i for i in items if i["Path"].endswith("/Hlsproef/Hlsproef.mp4")), {})
         namen = maak_kijkers(server, wachtwoord, "meetkijker")
         cfg = {"url": server.url, "namen": namen, "wachtwoord": wachtwoord, "beheer": jf.a.headers["Authorization"],
                "browser": "firefox", "tweede": "chromium", "item": hero["Id"], "volgende": sintel["Id"],
-               "duurTicks": hero["RunTimeTicks"], "versieItem": versie.get("Id"), "systeem": "stock-standaard"}
+               "duurTicks": hero["RunTimeTicks"], "versieItem": versie.get("Id"), "hlsItem": hls.get("Id"), "systeem": "stock-standaard"}
         mobiel = {**cfg, "browser": "chromium", "namen": maak_kijkers(server, wachtwoord, "meetmobiel")}
         doc["regressies"] = {}
         try:

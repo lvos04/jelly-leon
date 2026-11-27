@@ -17,6 +17,15 @@ async function fase(naam, actie) {
   try { return await actie(); } catch (fout) { throw fout.fase ? fout : meetfout(naam); }
 }
 
+function onderbroken(reden, fout) {
+  // Alleen een vaste classificatie bewaren. Playwright-foutteksten bevatten soms de URL of formuliervelden.
+  const regel = /watchtogether\.mjs:(\d+):/.exec(String(fout.stack));
+  const soort = /timeout/i.test(fout.name) ? 'wachttijd verstreken'
+    : /interrupted by another navigation|NS_BINDING_ABORTED/i.test(fout.message) ? 'navigatie onderbroken'
+    : ['SyntaxError', 'TypeError'].includes(fout.name) ? fout.name : 'clientfout';
+  return { status: 'proef onderbroken', reden: fout.fase || reden, foutsoort: soort, ...(regel ? { bronregel: Number(regel[1]) } : {}) };
+}
+
 async function wachtOp(actie, reden, limiet = 30000) {
   const einde = nu() + limiet;
   do {
@@ -270,7 +279,7 @@ async function groepsrun(cfg, a, b, xwd) {
   await b.api('POST', '/SyncPlay/Leave');
   await a.api('POST', '/SyncPlay/Leave');
   const groepen = await a.api('GET', '/SyncPlay/List');
-  regressies['server-17352'] = { groep_opgeruimd: !groepen.some(g => g.GroupId === id) };
+  regressies.expliciet_verlaten = { groep_opgeruimd: !groepen.some(g => g.GroupId === id) };
   return { begin_ms, eind_ms, hervat_ms, playing_ms, paren, sessies, regressies, ...(xwd ? { rasteropnamen } : {}) };
 }
 
@@ -322,7 +331,15 @@ export async function meet(opdracht, cfg, login) {
       cfg.namen[1], login, afsluiten));
     const xwd = cfg.cdp ? xwdLezer(cfg.xwd) : null;
     if (xwd) afsluiten.push(() => xwd.sluit());
-    if (opdracht === 'watchfunctie') return await fase('groepsfunctieproef', () => functieproef(cfg, a, b));
+    if (opdracht === 'watchfunctie') {
+      const nrs = ['server-17351', 'server-16241', 'server-16964', 'server-18422', 'server-17654', 'server-17352',
+        'web-8408', 'web-8396', 'web-8690', 'web-8727'];
+      const uit = Object.fromEntries(nrs.map(nr => [nr, { status: 'niet gemeten', reden: 'proef niet bereikt' }]));
+      uit['desktop-1290'] = { status: 'niet gemeten', reden: 'de desktop-proef staat in S4' };
+      try { await functieproef(cfg, a, b, uit); }
+      catch (fout) { uit.groepsproef = onderbroken('groepsbediening', fout); }
+      return uit;
+    }
     return await fase('groepsmeting', () => groepsrun(cfg, a, b, xwd));
   } finally { for (const sluit of afsluiten.reverse()) await sluit(); }
 }
@@ -348,49 +365,104 @@ async function versiesEnSporen(cfg, a) {
   const bron = p.locator('.selectSource:visible');
   if (!await bron.count() || await bron.locator('option').count() < 2) return resultaat;
   const bronnen = await bron.locator('option').evaluateAll(opts => opts.map(o => ({ id: o.value, naam: o.text })));
-  const gekozen = bronnen.find(o => /Multispoor/i.test(o.naam)) ?? bronnen.at(-1);
+  const standaard = await bron.inputValue();
+  const gekozen = bronnen.find(o => o.id !== standaard);
+  if (!gekozen) return resultaat;
   await bron.selectOption(gekozen.id);
   const audio = p.locator('.selectAudio:visible'), subs = p.locator('.selectSubtitles:visible');
   let indices;
   if (await audio.count() && await subs.count()) {
-    const kies = async veld => {
-      const index = await veld.locator('option').last().getAttribute('value');
+    const kiesAndere = async veld => {
+      const huidig = await veld.inputValue();
+      const opties = await veld.locator('option').evaluateAll(opts => opts.map(o => o.value));
+      const index = opties.find(v => v !== huidig && /^\d+$/.test(v));
+      if (index === undefined) return null;
       await veld.selectOption(index);
       return Number(index);
     };
-    indices = [await kies(audio), await kies(subs)];
+    const selectie = [await kiesAndere(audio), await kiesAndere(subs)];
+    if (selectie.every(index => index !== null)) indices = selectie;
   }
   await speel.click();
   let s;
   try {
     s = await wachtOp(async () => {
       const [sessie] = await actieveSessies(cfg);
-      return sessie?.NowPlayingItem?.Id === cfg.versieItem && sessie.PlayState?.PositionTicks > 0 && sessie;
+      const id = sessie?.NowPlayingItem?.Id;
+      return (id === cfg.versieItem || bronnen.some(o => o.id === id)) && sessie.PlayState?.PositionTicks > 0 && sessie;
     }, 'versie start niet', 18000);
   } catch (fout) { if (fout.fase !== 'versie start niet') throw fout; }
-  resultaat['server-18422'] = { ok: !!s && s.PlayState.MediaSourceId === gekozen.id, tweede_bron_gestart: !!s };
+  const tweedeBron = !!s && s.PlayState.MediaSourceId === gekozen.id;
+  resultaat['server-18422'] = { ok: tweedeBron, aflevering_gestart: !!s, tweede_bron_gestart: tweedeBron };
   if (indices) resultaat['server-16964'] = {
-    ok: !!s && s.PlayState.AudioStreamIndex === indices[0] && s.PlayState.SubtitleStreamIndex === indices[1],
+    ok: tweedeBron && s.PlayState.AudioStreamIndex === indices[0] && s.PlayState.SubtitleStreamIndex === indices[1],
     gekozen: indices, gemeld: s ? [s.PlayState.AudioStreamIndex, s.PlayState.SubtitleStreamIndex] : null
   };
   return resultaat;
 }
 
-async function functieproef(cfg, a, b) {
+async function hlsNaCorrectie(cfg, a, b) {
+  const ontbreekt = reden => ({ status: 'niet reproduceerbaar in de simulatie', reden });
+  if (!cfg.hlsItem) return ontbreekt('de HEVC-testclip ontbreekt');
+  await startFilm(a, { ...cfg, item: cfg.hlsItem });
+  try {
+    await wachtOp(async () => (await actieveSessies(cfg)).every(s => s?.NowPlayingItem?.Id === cfg.hlsItem && s.PlayState?.PositionTicks > 0),
+      'de twee deelnemers spelen de HEVC-testclip niet', 25000);
+  } catch (fout) {
+    if (fout.fase !== 'de twee deelnemers spelen de HEVC-testclip niet') throw fout;
+    return ontbreekt(fout.fase);
+  }
+  const begin = b.segmenten.length;
+  for (const sec of [15, 3]) {
+    await a.api('POST', '/SyncPlay/Seek', { PositionTicks: sec * 10000000 });
+    await wacht(4000);
+  }
+  const segmenten = b.segmenten.slice(begin), fouten = segmenten.filter(status => status >= 400);
+  return segmenten.length ? { ok: fouten.length === 0, segmenten: segmenten.length, segmentfouten_na_seek: fouten }
+    : ontbreekt('geen HLS-segment van de HEVC-testclip in de twee correctievensters');
+}
+
+async function naVenstersSluiten(cfg, a, b, id) {
+  await wachtOp(async () => (await a.api('GET', '/SyncPlay/' + id)).Participants.length === 2, 'sluitproef mist de tweede deelnemer');
+  // Beide browserprocessen sluiten met een actieve groep. Een aparte waarnemer leest de resterende leden.
+  await Promise.all([a.page.context().browser().close(), b.page.context().browser().close()]);
+  const begin = nu();
+  let groep;
+  do {
+    const res = await fetch(cfg.url + '/SyncPlay/List', { headers: { Authorization: cfg.beheer }, redirect: 'error' });
+    if (!res.ok) throw meetfout('waarnemer kan na het sluiten de groepslijst niet lezen');
+    groep = (await res.json()).find(g => g.GroupId === id);
+    if (!groep) break;
+    await wacht(1000);
+  } while (nu() - begin < 30000);
+  return { ok: !groep, observatie_ms: nu() - begin, resterende_deelnemers: groep?.Participants.length ?? 0 };
+}
+
+async function functieproef(cfg, a, b, uit) {
   const id = await fase('groep maken en lid worden', () => openGroep(a, b));
-  await fase('groepsfilm starten', () => afspelen(a, cfg));
-  await wachtOp(async () => (await videoStand(b.page))?.[1] > 500, 'tweede deelnemer start niet (#17351)');
-  const uit = { 'server-17351': { ok: true, spelende_deelnemers: 2 } };
+  try {
+    await fase('groepsfilm starten', () => afspelen(a, cfg));
+    await wachtOp(async () => (await videoStand(b.page))?.[1] > 500, 'tweede deelnemer start niet (#17351)');
+  } catch (fout) {
+    if (!['eerste deelnemer speelt niet', 'tweede deelnemer start niet (#17351)'].includes(fout.fase)) throw fout;
+    uit['server-17351'] = { ok: false, reden: fout.fase };
+    uit['server-17352'] = await naVenstersSluiten(cfg, a, b, id);
+    for (const nr of ['server-16241', 'server-16964', 'server-17654', 'server-18422', 'web-8408', 'web-8396', 'web-8690', 'web-8727']) {
+      uit[nr] = { status: 'niet reproduceerbaar in de simulatie', reden: 'de afspeelproef heeft geen twee spelende deelnemers' };
+    }
+    return;
+  }
+  uit['server-17351'] = { ok: true, spelende_deelnemers: 2 };
   const seek = await seekProef(a, b);
   const [pa, pb] = await Promise.all([videoStand(a.page), videoStand(b.page)]);
   uit['server-16241'] = { ok: !!pa && !!pb && Math.abs(pa[1] - pb[1]) <= 1000 && pa[1] >= 9000 && pb[1] >= 9000 };
   const meldingen = seek['web-8396'].ready_posities_ms;
   uit['web-8408'] = { ...seek['web-8408'], ok: meldingen.length === 1 };
   uit['web-8396'] = { ...seek['web-8396'], ok: meldingen.length > 0 && meldingen.every(t => Math.abs(t - 10000) <= 1000) };
-  const hls = seek['server-17654'];
-  uit['server-17654'] = hls.segmenten ? { ...hls, ok: !hls.segmentfouten_na_seek.length }
-    : { status: 'niet reproduceerbaar in de simulatie', reden: 'geen HLS-segment in het seekvenster' };
-  Object.assign(uit, await versiesEnSporen(cfg, a));
+  try { Object.assign(uit, await versiesEnSporen(cfg, a)); }
+  catch (fout) { uit['server-16964'] = uit['server-18422'] = onderbroken('alternatieve aflevering en sporen', fout); }
+  try { uit['server-17654'] = await hlsNaCorrectie(cfg, a, b); }
+  catch (fout) { uit['server-17654'] = onderbroken('HLS na positiecorrectie', fout); }
   await a.api('POST', '/SyncPlay/SetNewQueue', {
     PlayingQueue: [cfg.item, cfg.volgende], PlayingItemPosition: 0, StartPositionTicks: cfg.duurTicks - 5 * 10000000
   });
@@ -412,8 +484,8 @@ async function functieproef(cfg, a, b) {
   const sprong = soloVoor && soloNa ? Math.abs(soloNa[1] - soloVoor[1] - (soloNa[0] - soloVoor[0]) * soloVoor[2]) : null;
   uit['web-8727'] = { ok: b.ready.length === klaarVoor && ((soloVoor === null && soloNa === null) || (sprong !== null && sprong < 1000)),
     ready_van_vertrokken_client: b.ready.length - klaarVoor, onverwachte_positiewijziging_ms: sprong };
-  await a.api('POST', '/SyncPlay/Leave');
-  uit['server-17352'] = { ok: !(await a.api('GET', '/SyncPlay/List')).some(g => g.GroupId === id) };
-  uit['desktop-1290'] = { status: 'niet gemeten', reden: 'de Ready-positie van de echte desktop wordt in S4 getoetst' };
-  return uit;
+  const groep = await a.api('GET', '/SyncPlay/' + id);
+  await b.page.goto(cfg.url + '/web/', { waitUntil: 'domcontentloaded' });
+  await sluitAan(b, groep.GroupName);
+  uit['server-17352'] = await naVenstersSluiten(cfg, a, b, id);
 }
