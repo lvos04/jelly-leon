@@ -13,7 +13,9 @@
     "build_jobs": 4,
     "export": "--load",
     "exitcode": 0,
-    "slotregel": "#33 DONE 8.0s"
+    "slotregel": "#33 DONE 8.0s",
+    "commando": "docker buildx build -f deploy/allinone/Dockerfile --build-context jelly-leon-web=\"$WEB_EXPORT\" --build-arg FORK_VERSION=12.4.0-jl.1 --build-arg VCS_REF=5d8784c635ea012065b3b2d312117e73fc88d7ae --build-arg WEB_REF=5ced8a24601e30038cafae5dab2f0520b3325427 --build-arg BUILD_JOBS=4 --load -t jelly-leon:p6 .",
+    "sloten": "stackslot nice -n 10 met docker-build.lock op een leesbare bestandsdescriptor"
   },
   "controle": {
     "commando": "docker image inspect jelly-leon:p6 --format '{{.Id}}'",

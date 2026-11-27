@@ -7,14 +7,22 @@ opslag hoort volgens de bron bij de huidige implementatie.
 
 | Module | Na uitzetten | Na de beheeractie ‘gegevens verwijderen’ |
 | --- | --- | --- |
-| Devices | `data/jelly-leon/devices/devices.db` met instellingen en afspeelsessies | De geregistreerde beheerroutes bieden deze actie nog niet aan. |
-| Quality | `data/jelly-leon/quality/quality.db` met instellingen, bevindingen, onderdrukkingen en scans | De geregistreerde beheerroutes bieden deze actie nog niet aan. |
+| Devices | `data/jelly-leon/devices/devices.db` met de tabellen `instellingen` en `playback_sessions` | De geregistreerde beheerroutes bieden deze actie nog niet aan. |
+| Quality | `data/jelly-leon/quality/quality.db` met de tabellen `instellingen`, `findings`, `suppressions` en `scans` | De geregistreerde beheerroutes bieden deze actie nog niet aan. |
 
-De paden zijn relatief aan de configuratiemap. Core beheert de database
-`data/jelly-leon/core/core.db` en de map `data/jelly-leon/secrets/`.
-SQLite kan naast een database ook de bijbehorende `-wal` en `-shm` aanmaken.
-De modules delen de pluginconfiguratie en de versieaanduiding
-`jelly-leon/datamap-versie`. Die versieaanduiding beschermt de terugval.
+De paden zijn relatief aan de configuratiemap. In de gebouwde revisie
+`5d8784c635ea` bevat `data/jelly-leon/core/core.db` de gedeelde tabellen
+`hub_jti`, `idempotentie`, `outbox` en `jobs`. Core beheert ook de map
+`data/jelly-leon/secrets/`. SQLite kan zelf `sqlite_sequence` aanmaken voor
+een tabel met een automatisch oplopende sleutel en naast een database de
+bestanden `-wal` en `-shm` bijhouden.
+
+De bundel staat onder `plugins/JellyLeon_<versie>/`. De schakelstanden staan
+in `plugins/configurations/Jellyfin.Plugin.JellyLeon.xml`. De versieaanduiding
+`jelly-leon/datamap-versie` beschermt de terugval. De beheercode voor de
+schakelaars en de registratie van de routes staan in `PluginModuleSwitches`
+en `RouteTable`. De aparte afhandeling van `UserDeleted` verwijdert de
+persoonsgegevens van één verwijderd proefaccount.
 
 Voor de handmatige controle in de simulator blijft de oorspronkelijke koude
 kopie bewaard. Op een afzonderlijke, gestopte testkopie kan de beheerder de
