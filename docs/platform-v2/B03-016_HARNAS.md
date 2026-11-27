@@ -209,6 +209,8 @@ eerste beeld vielen buiten ±10%. De startlast lag in alle drie sessies boven 4,
 
 De stockrooktest met `hero.mp4` leverde zes positieve clientcontroles op. WebKit 26.6 opende de lokale
 startpagina, maar de afspeelpagina crashte. Ook met softwareweergave hield de WebKit-pagina op te werken.
+De herhaling op `b76b065274` gaf exitcode 1. Een losse lokale WebKit-pagina kreeg bij hetzelfde MP4-bestand
+mediafout 4 met een beeldbreedte van nul en een afspeeltijd van nul seconden.
 De gewone databasevergelijking vond nul verschillen. De extra favoriet in de negatieve proef leverde in `UserData`
 één rij alleen in A en één rij alleen in B op. [Poortproeven](test-evidence/b03-060-poort.json)
 

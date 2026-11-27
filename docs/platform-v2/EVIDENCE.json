@@ -165,9 +165,9 @@
     "validatie": "Unit-getest; Sim-getest; NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte NAS)",
     "bewijs": "tools/b03-harnas/b03h/apparaten.py meet K1 t/m K9 per stockprofiel en webclient. docs/platform-v2/test-evidence/b03-060-meetsets.json bevat de devset (3), testset (18), 25 A5-items, ToS/BBB, 11 formaatgevallen en het ASS-recept. De volledige herbouw en SHA-256-controle van 38 bron- en formaatbestanden staan in docs/platform-v2/test-evidence/b03-060-corpuscontrole.json. De unittests toetsen twee starts en drie herhalingen met een tijdmarge van 10%. Het JLT-40-commando staat in tools/b03-harnas/README.md.",
     "blokkade": "NIET GEVALIDEERD (hardware): echte tv's, telefoons, A310 en UHD 770; NIET GEVALIDEERD (echte NAS).",
-    "opmerking": "NIET GEMETEN (machinelast). De definitieve S-P40-50-baseline ontbreekt. De stockpoging staat in docs/platform-v2/test-evidence/b03-060-voormeting.json en .md. De spelersimulator gaf 6/6 foutstarts en 6/6 positieve controles correct. Vijf eerste-beeldtijden vielen buiten ±10% bij hoge last (b03-060-codecproef.json). In de stockrooktest startte WebKit, maar de afspeelpagina crashte. Zes van zeven clientcontroles waren positief (b03-060-poort.json). Audio niet stil wacht op S-G2-35. Emulator- en desktopuitkomsten zijn overgenomen met bronverwijzing. De winstmeting JLT-40 hoort bij S-G4-47.",
+    "opmerking": "NIET GEMETEN (machinelast). De definitieve S-P40-50-baseline ontbreekt. De stockpoging staat in docs/platform-v2/test-evidence/b03-060-voormeting.json en .md. De spelersimulator gaf 6/6 foutstarts en 6/6 positieve controles correct. Vijf eerste-beeldtijden vielen buiten ±10% bij hoge last (b03-060-codecproef.json). In de stockrooktest startte WebKit, maar de afspeelpagina crashte. Zes van zeven clientcontroles waren positief. De hercontrole gaf exit 1 en het losse testbestand gaf in WebKit mediafout 4 (b03-060-poort.json). Audio niet stil wacht op S-G2-35. Emulator- en desktopuitkomsten zijn overgenomen met bronverwijzing. De winstmeting JLT-40 hoort bij S-G4-47.",
     "repo": "jelly-leon",
-    "bijgewerkt": "2026-11-27"
+    "bijgewerkt": "2026-11-28"
   },
   {
     "id": "B03-030",

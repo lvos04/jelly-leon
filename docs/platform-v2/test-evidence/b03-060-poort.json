@@ -77,5 +77,36 @@
     "omgeving": "netwerkloze lokale testcontainer, alleen-lezen broncode",
     "exit": 0,
     "slotregel": "80 passed in 3.33s"
+  },
+  "hercontrole": {
+    "bronrevisie": "b76b0652744580dedd8af7fbdad36cad635b3585",
+    "harnas_sha256": "f34a910b2c87dfaf3c1e77127d1abb366a81215eca09d4c5ee367bfd966eba9e",
+    "begin_clientmatrix": "2026-11-27T23:07:01Z",
+    "eind_clientmatrix": "2026-11-27T23:08:32Z",
+    "exitcodes": {
+      "clientmatrix": 1,
+      "diffrun": 0,
+      "diffrun-negatief": 1,
+      "webkit-videoproef": 1
+    },
+    "clientcontroles": {
+      "web-chromium": "Sim-getest (rooktest geslaagd)",
+      "web-firefox": "Sim-getest (rooktest geslaagd)",
+      "web-webkit": "Sim-mislukt",
+      "ua-webos": "Sim-getest (UA-simulatie, geen echte decoder)",
+      "ua-tizen": "Sim-getest (UA-simulatie, geen echte decoder)",
+      "legacy": "Sim-getest (gemeten: legacy-auth geweigerd op API-routes; statische stream speelt)",
+      "webdir": "Sim-getest (rooktest geslaagd)"
+    },
+    "losse_webkit_videoproef": {
+      "tijd": 0,
+      "breedte": 0,
+      "fout": 4,
+      "speelt": false
+    },
+    "diffrun_verschillen": {
+      "diffrun": 0,
+      "diffrun-negatief": 2
+    }
   }
 }
