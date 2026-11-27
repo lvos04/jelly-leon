@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import tempfile
 from contextlib import nullcontext
@@ -13,6 +12,7 @@ from pathlib import Path
 from . import bewijs, meetslot
 from .corpus import CORPUS, manifest
 from .corpus.generator import BEVROREN
+from .corpus.r_f6_jlt50 import bronscheiding
 from .jfapi import HttpFout
 from .segmentbron import IS_VERSIE, IS_ZIP_SHA, PROFIELEN, lees_set, lokale_jelly, stock_sessie
 from .segmentmeting import GROEPEN, SOORTEN, evalueer, gepaard
@@ -148,6 +148,7 @@ def meet(a: argparse.Namespace, items: list[dict], profielen: list[str]) -> int:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="b03h segmenten")
     sub = p.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("bronscheiding", help="controleer de bronvensters van de ontwikkelset tegen receptversie 2")
     s = sub.add_parser("spike", help="S-IS: uitsluitend de laadproef op lokale synthetische ontwikkelitems")
     s.add_argument("--intro-pakket", required=True, type=Path)
     s.add_argument("--uit", required=True, type=Path)
@@ -165,6 +166,9 @@ def main(argv: list[str] | None = None) -> int:
     m.add_argument("--uit", required=True, type=Path)
     a = p.parse_args(argv)
     try:
+        if a.cmd == "bronscheiding":
+            print(json.dumps(bronscheiding(CORPUS), ensure_ascii=False))
+            return 0
         if a.cmd == "spike":
             data = spike(a.intro_pakket)
             schrijf(a.uit, data)
@@ -188,8 +192,6 @@ def main(argv: list[str] | None = None) -> int:
                     or s["intro_skipper"]["versie"] != IS_VERSIE or s["zichtbare_segmenten"] < 1):
                 raise ValueError("S-IS-bewijs wijkt af van de meetbasis")
         items = bevroren_set(a.set, a.manifest_sha256)
-        if os.environ.get("STACKSLOT") == "1" and os.path.samestat(os.fstat(9), (meetslot.LOCK_DIR / meetslot.STACK_LOCK).stat()):
-            return meet(a, items, profielen)
         with meetslot.exclusief_slot():
             return meet(a, items, profielen)
     except HttpFout as fout:

@@ -26,7 +26,7 @@ def test_lange_montage_en_aantallen(tmp_path, monkeypatch):
     monkeypatch.setattr(generator.Ffmpeg, "versie", lambda _: {})
     pad, m = generator.maak("f6-segmenten", versie="2", schaal="vol", uitvoer=tmp_path, corpus=tmp_path)
     items = json.loads((pad / "grondwaarheid.json").read_text())["afleveringen"]
-    assert m["seed"] == 20261127 and m["versie"] == "2" and len({i["bestand"] for i in items}) == 61
+    assert m["seed"] == 20261127 and m["versie"] == "2" and len({i["bestand"] for i in items}) == 62
     types = Counter()
     for i in items:
         labels = i["segmenten"]
@@ -34,6 +34,8 @@ def test_lange_montage_en_aantallen(tmp_path, monkeypatch):
         types.update(soorten)
         if i["familie"] == "film":
             assert "intro" not in soorten and soorten.count("outro") == 2
+        elif i["augmentatie"] == "zonder_intro":
+            assert "intro" not in soorten and "post_credit" in soorten and i["duur_s"] == 1320
         else:
             assert i["duur_s"] == 22 * 60
             intro = next(v for v in labels if v["label"] == "intro")
@@ -46,3 +48,16 @@ def test_lange_montage_en_aantallen(tmp_path, monkeypatch):
 def test_receptversie_verkeerd(tmp_path):
     with pytest.raises(ValueError, match="onbekende versie"):
         generator.maak("f6-segmenten", versie="onbekend", uitvoer=tmp_path)
+
+
+def test_broncontrole_weigert_devfragment_en_onbekende_audiobron(tmp_path):
+    series = tmp_path / "afgeleid" / "series"
+    series.mkdir(parents=True)
+    for nummer in range(8):
+        pad = series / f"{nummer}.grondwaarheid.json"
+        pad.write_text(json.dumps({"segmenten": [{"bron": "BB 0-1s"}]}))
+    assert recept.bronscheiding(tmp_path)["overlap"] == 0
+    for bron, reden in [("BB 101-102s", "overlapt"), ("BB 0-1s + audio onbekend", "onbekend")]:
+        pad.write_text(json.dumps({"segmenten": [{"bron": bron}]}))
+        with pytest.raises(ValueError, match=reden):
+            recept.bronscheiding(tmp_path)

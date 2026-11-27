@@ -6,6 +6,7 @@ import fcntl
 import os
 import signal
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -123,6 +124,28 @@ def test_na_wachten_blijft_het_slot_vast_tot_het_einde_van_de_proef(tmp_path: Pa
                                      bij_wachten=lambda _: fcntl.flock(ander, fcntl.LOCK_UN)):
             assert meetslot.slot_bezet(pad)
     assert not meetslot.slot_bezet(pad)
+
+
+def test_stackslot_geerfd_en_vreemd_slot_blijft_bezet(tmp_path: Path):
+    code = """
+import os, sys
+from pathlib import Path
+from b03h import meetslot
+os.dup2(int(sys.argv[1]), 9)
+with meetslot.exclusief_slot(lock_dir=Path(sys.argv[2]), timeout=0) as wachttijd:
+    assert wachttijd == 0
+"""
+    slot = tmp_path / "stack.lock"
+    slot.touch()
+    with slot.open("rb") as fd, (tmp_path / "ander.lock").open("wb") as ander:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        for bestand, verwacht in [(fd, 0), (ander, 1)]:
+            gevolg = subprocess.run([sys.executable, "-c", code, str(bestand.fileno()), str(tmp_path)],
+                                    pass_fds=(bestand.fileno(),), env={**os.environ, "STACKSLOT": "1",
+                                    "PYTHONPATH": str(Path(meetslot.__file__).resolve().parents[1])}, capture_output=True, check=False)
+            assert gevolg.returncode == verwacht
+            assert meetslot.slot_bezet(slot)
+        assert b"SlotWachttijdVerstreken" in gevolg.stderr
 
 
 def test_cpu_meting_eigen_processen():
