@@ -1,0 +1,106 @@
+{
+  "stap": "S-P6-30",
+  "datum": "2026-11-27",
+  "stock_image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "stock_tegen_stock": {
+    "commando": "python -m b03h diffrun [--negatieve-proef] --uit \"$RAPPORT\"",
+    "metingen": [
+      {
+        "begonnen": "2026-11-27T21:30:17Z",
+        "negatieve_proef": false,
+        "scenario": {
+          "a": {
+            "handelingen": 14,
+            "items": 17,
+            "gebruikers": 1
+          },
+          "b": {
+            "handelingen": 14,
+            "items": 17,
+            "gebruikers": 1
+          }
+        },
+        "tabellen": 33,
+        "afwijkende_tabellen": [],
+        "exitcode": 0,
+        "slotregel": "0 verschillen buiten de vaste uitzonderingen"
+      },
+      {
+        "begonnen": "2026-11-27T21:37:51Z",
+        "negatieve_proef": true,
+        "scenario": {
+          "a": {
+            "handelingen": 14,
+            "items": 17,
+            "gebruikers": 1
+          },
+          "b": {
+            "handelingen": 15,
+            "items": 17,
+            "gebruikers": 1
+          }
+        },
+        "tabellen": 33,
+        "afwijkende_tabellen": [
+          "UserData"
+        ],
+        "exitcode": 1,
+        "slotregel": "2 verschillen buiten de uitzonderingen"
+      }
+    ]
+  },
+  "stock_clientmatrix": {
+    "commando": "python -m b03h clientmatrix --onderdelen web,ua,legacy,webdir --uit \"$RAPPORT\"",
+    "uitgevoerde_pogingen": [
+      {
+        "uitvoering": "standaard",
+        "exitcode": 1,
+        "slotregel": "b03h.web.WebFout: harnas faalde: Error: page.waitForTimeout: Page crashed"
+      },
+      {
+        "uitvoering": "met softwareweergave",
+        "exitcode": 1,
+        "slotregel": "b03h.web.WebFout: harnas faalde: Error: page.waitForTimeout: Page crashed"
+      }
+    ],
+    "browsers_voor_afbreken": [
+      "Chromium: rooktest doorlopen",
+      "Firefox: rooktest doorlopen",
+      "WebKit: pagina gecrasht"
+    ],
+    "aparte_deelmeting": {
+      "commando": "python -m b03h clientmatrix --onderdelen ua,legacy,webdir --uit \"$RAPPORT\"",
+      "exitcode": 0,
+      "slotregel": "[22:27:24] clientmatrix geschreven: $WERK/clientmatrix-overig.json",
+      "clients": [
+        {
+          "client": "webos via UA-simulatie (Chromium-engine)",
+          "status": "Sim-getest (UA-simulatie, geen echte decoder)",
+          "besluit": "DirectPlay",
+          "afspeelproef": true
+        },
+        {
+          "client": "tizen via UA-simulatie (Chromium-engine)",
+          "status": "Sim-getest (UA-simulatie, geen echte decoder)",
+          "besluit": "DirectPlay",
+          "afspeelproef": true
+        },
+        {
+          "client": "derden-client met legacy-headers (gesimuleerd: X-Emby-Token, X-MediaBrowser-Token, X-Emby-Authorization, api_key)",
+          "status": "Sim-getest (gemeten: legacy-auth geweigerd op API-routes; statische stream speelt)",
+          "afwijkingen": []
+        },
+        {
+          "client": "chromium 153.0.8010.12 tegen een server met --webdir (stock-web uit de stock-image)",
+          "status": "Sim-getest (rooktest geslaagd)",
+          "besluit": "DirectPlay",
+          "afspeelproef": true
+        }
+      ]
+    },
+    "niet_uitgevoerd": [
+      "Fysieke clients",
+      "Aanmelden en hervatten op de gemigreerde datamap met stock-web en Android (JLT-60)."
+    ]
+  }
+}
