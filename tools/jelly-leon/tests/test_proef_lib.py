@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 import sys
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
@@ -140,8 +141,10 @@ def test_boom_en_ruwe_treffers(tmp_path: Path) -> None:
     assert pl.ruwe_treffers(tmp_path, vormen) == {"N": ["sub/a.db"], "D": ["geheim/c"]}
     assert pl.ruwe_treffers(tmp_path, vormen, overslaan=("geheim/",)) == {"N": ["sub/a.db"]}
     assert pl.ruwe_treffers(tmp_path / "bestaat-niet", vormen) == {}
-    (tmp_path / "logboek.bin").write_bytes(b"\xff" + vormen["bytes-le"] + b"\x00")
-    assert pl.ruwe_treffers(tmp_path, vormen)["bytes-le"] == ["logboek.bin"]
+    account = uuid.UUID(gebruiker)
+    (tmp_path / "logboek.bin").write_bytes(b"\xff" + account.bytes_le + b"\x00" + account.bytes)
+    treffers = pl.ruwe_treffers(tmp_path, vormen)
+    assert treffers["bytes-le"] == treffers["bytes"] == ["logboek.bin"]
     assert pl.IPV4.search("adres 192.0.2.20 hier") and not pl.IPV4.search("2026-11-11T10:00:00.123Z 12.4.0-jl.0")
 
 

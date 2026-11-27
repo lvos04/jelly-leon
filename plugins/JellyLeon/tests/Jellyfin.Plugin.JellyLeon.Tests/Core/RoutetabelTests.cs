@@ -7,10 +7,13 @@ using Jellyfin.Plugin.JellyLeon.Api;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
@@ -29,6 +32,29 @@ public sealed class RoutetabelTests
             .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && t != typeof(JellyLeonVersionController))
             .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly).Select(m => (t, m)))
             .Where(p => !p.m.IsSpecialName);
+
+    [Fact]
+    public async Task Connectorroutes_StaanElkEenKeerInDeMvcEndpoints()
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.Services.AddControllers().AddApplicationPart(typeof(Plugin).Assembly);
+        await using var app = builder.Build();
+        app.MapControllers();
+
+        var routes = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(bron => bron.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Select(endpoint => (Pad: "/" + endpoint.RoutePattern.RawText?.TrimStart('/'), Endpoint: endpoint))
+            .Where(route => route.Pad.StartsWith("/connector/v1/", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(route => route.Endpoint.Metadata.GetRequiredMetadata<HttpMethodMetadata>().HttpMethods
+                .Select(methode => (Methode: methode, route.Pad)))
+            .ToArray();
+        var verwacht = RouteTable.Alle.Where(r => r.Auth == JlAuth.Hub).Select(r => (r.Methode, r.Pad));
+        Assert.NotEmpty(routes);
+        Assert.Empty(RouteSleutel.Dubbel(routes));
+        Assert.Equal(verwacht.OrderBy(r => r.Pad, StringComparer.Ordinal).ThenBy(r => r.Methode, StringComparer.Ordinal),
+            routes.OrderBy(r => r.Pad, StringComparer.Ordinal).ThenBy(r => r.Methode, StringComparer.Ordinal));
+    }
 
     [Fact]
     public void ElkeActie_LooptViaDePipelineEnKomtOvereenMetDeTabel()
