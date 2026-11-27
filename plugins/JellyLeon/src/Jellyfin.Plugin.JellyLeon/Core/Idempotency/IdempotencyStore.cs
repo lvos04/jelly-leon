@@ -15,8 +15,13 @@ internal sealed class IdempotencyStore
     private readonly JlDatabase _db;
 
     public IdempotencyStore(CoreDatabase db)
+        : this(db.Db)
     {
-        _db = db.Db;
+    }
+
+    internal IdempotencyStore(JlDatabase db)
+    {
+        _db = db;
     }
 
     /// <summary>Start een verzoek. Geeft het bewaarde antwoord terug bij een herhaling, anders <c>null</c>.</summary>

@@ -309,6 +309,31 @@ internal static partial class OpenApiBouwer
           "observed_at": { "type": "string", "format": "date-time" }
         }
       },
+      "ModuleAantallen": {
+        "type": "object", "additionalProperties": { "type": "integer", "format": "int64", "minimum": 0 },
+        "description": "Aantal rijen per eigen moduletabel, inclusief instellingen."
+      },
+      "ModuleExport": {
+        "type": "object", "additionalProperties": false, "required": ["created_at", "module", "schema_version", "tables", "counts"],
+        "properties": {
+          "created_at": { "type": "string", "format": "date-time" },
+          "module": { "type": "string", "enum": ["devices", "quality"] },
+          "schema_version": { "type": "integer", "enum": [1] },
+          "tables": {
+            "type": "object", "additionalProperties": { "type": "array", "items": { "type": "object" } },
+            "description": "Instellingen en rijen uit playback_sessions (Devices) of findings, suppressions en scans (Quality). Accountverwijzingen zijn per module gepseudonimiseerd."
+          },
+          "counts": { "$ref": "#/components/schemas/ModuleAantallen" }
+        }
+      },
+      "ModuleWisVerzoek": {
+        "type": "object", "additionalProperties": false, "required": ["export_sha256"],
+        "properties": { "export_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "SHA-256 van de ongewijzigde bytes van de gedownloade beheerexport." } }
+      },
+      "ModuleWisResultaat": {
+        "type": "object", "additionalProperties": false, "required": ["counts", "applied"],
+        "properties": { "counts": { "$ref": "#/components/schemas/ModuleAantallen" }, "applied": { "type": "boolean" } }
+      },
       "ModuleInstellingen": {
         "type": "object", "additionalProperties": false, "required": ["bewaar_dagen"],
         "properties": { "bewaar_dagen": { "type": "integer", "minimum": 1, "maximum": 365 } }
@@ -391,6 +416,11 @@ internal static partial class OpenApiBouwer
             codes.Add(413);
         }
 
+        if (route.AntwoordSchema == "ModuleExport")
+        {
+            codes.Add(409);
+        }
+
         if (route.Idempotentie == JlIdem.Verplicht)
         {
             codes.UnionWith([400, 409, 422]);
@@ -428,6 +458,13 @@ internal static partial class OpenApiBouwer
             parameters.Add(Parameter("limit", "query", false, "integer", "1 tot 200"));
         }
 
+        if (route.WisModule is not null)
+        {
+            var dryRun = Parameter("dry_run", "query", false, "boolean", "Standaard een voorbeeld. Alleen false voert de verwijdering uit.");
+            dryRun["schema"]!["default"] = true;
+            parameters.Add(dryRun);
+        }
+
         if (route.Idempotentie == JlIdem.Verplicht)
         {
             parameters.Add(Parameter("Idempotency-Key", "header", true, "string", "UUID; dezelfde sleutel met hetzelfde verzoek geeft het oorspronkelijke antwoord met Idempotent-Replay: true"));
@@ -450,6 +487,24 @@ internal static partial class OpenApiBouwer
                     ["application/json"] = new JsonObject { ["schema"] = new JsonObject { ["$ref"] = "#/components/schemas/" + schema } },
                 },
             };
+        }
+
+        if (route.AntwoordSchema == "ModuleExport")
+        {
+            antwoorden["200"]!["headers"] = new JsonObject
+            {
+                ["ETag"] = new JsonObject
+                {
+                    ["description"] = "SHA-256 van de exacte JSON-bytes tussen dubbele aanhalingstekens.",
+                    ["schema"] = new JsonObject { ["type"] = "string" },
+                },
+            };
+            antwoorden["409"]!["description"] = "Het opslagschema past niet bij deze moduleversie (export_schema_changed).";
+        }
+
+        if (route.WisModule is not null)
+        {
+            antwoorden["409"]!["description"] = "Export ontbreekt, is beschadigd of verlopen (export_required), gegevens of schema zijn gewijzigd (export_changed, export_schema_changed), de verwijdering zou andere rijen raken (purge_conflict), of de idempotentiesleutel is in gebruik.";
         }
 
         var operatie = new JsonObject

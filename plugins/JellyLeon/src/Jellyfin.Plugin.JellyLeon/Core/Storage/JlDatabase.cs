@@ -115,7 +115,7 @@ internal sealed class JlDatabase
         return rijen;
     }
 
-    private static SqliteCommand Opdracht(SqliteConnection verbinding, string sql, (string Naam, object? Waarde)[] parameters)
+    internal static SqliteCommand Opdracht(SqliteConnection verbinding, string sql, (string Naam, object? Waarde)[] parameters)
     {
         var opdracht = verbinding.CreateCommand();
 #pragma warning disable CA2100 // SQL-tekst komt uitsluitend uit vaste tekst in de plugin; waarden gaan altijd als parameter.

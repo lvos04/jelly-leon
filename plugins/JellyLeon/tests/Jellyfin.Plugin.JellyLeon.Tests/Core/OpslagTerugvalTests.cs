@@ -5,7 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -150,6 +152,58 @@ public sealed class OpslagTerugvalTests : IDisposable
         finally
         {
             await herstart.StopAsync(stop);
+        }
+    }
+
+    [Theory]
+    [InlineData("devices")]
+    [InlineData("quality")]
+    public async Task BeheerexportEnWisroute_VerifierenDeGedownloadeBytesViaHttp(string slug)
+    {
+        var stop = TestContext.Current.CancellationToken;
+        SessiesToegestaan();
+        using var host = Host(Maak(Path.Combine(_map, "data")), Maak(Path.Combine(_map, "cache")));
+        await host.StartAsync(stop);
+        try
+        {
+            var module = Assert.IsAssignableFrom<ModuleBasis>(host.Services.GetRequiredService<ModuleRegistry>().Zoek(slug));
+            var standaard = module.LeesInstellingen();
+            module.SchrijfInstellingen(17, standaard.Etag);
+            using var client = Client(host);
+            var basis = "/media/v1/" + slug;
+            async Task<HttpResponseMessage> Wis(string hash)
+            {
+                using var verzoek = new HttpRequestMessage(HttpMethod.Post, basis + "/data/purge?dry_run=false");
+                verzoek.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+                verzoek.Content = JsonContent.Create(new { export_sha256 = hash });
+                return await client.SendAsync(verzoek, stop);
+            }
+
+            using var zonder = await Wis(Convert.ToHexStringLower(SHA256.HashData(Array.Empty<byte>())));
+            Assert.Equal(HttpStatusCode.Conflict, zonder.StatusCode);
+            using var download = await client.GetAsync(basis + "/export", stop);
+            Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+            var inhoud = await download.Content.ReadAsByteArrayAsync(stop);
+            var sha256 = Convert.ToHexStringLower(SHA256.HashData(inhoud));
+            Assert.Equal("\"" + sha256 + "\"", download.Headers.ETag!.Tag);
+            Assert.Equal(17, (int)JsonNode.Parse(inhoud)!["tables"]!["instellingen"]![0]!["bewaar_dagen"]!);
+
+            var beheerder = _auth.Wie;
+            _auth.Wie = new SessieIdentiteit(Guid.NewGuid(), false, false);
+            using var verboden = await Wis(sha256);
+            Assert.Equal(HttpStatusCode.Forbidden, verboden.StatusCode);
+            Assert.Equal(17, (int)module.LeesInstellingen().Waarde["bewaar_dagen"]!);
+            _auth.Wie = beheerder;
+            using var gewist = await Wis(sha256);
+            Assert.Equal(HttpStatusCode.OK, gewist.StatusCode);
+            var resultaat = JsonNode.Parse(await gewist.Content.ReadAsByteArrayAsync(stop))!;
+            Assert.True((bool)resultaat["applied"]!);
+            Assert.Equal(1, (long)resultaat["counts"]!["instellingen"]!);
+            Assert.True(JsonNode.DeepEquals(standaard.Waarde, module.LeesInstellingen().Waarde));
+        }
+        finally
+        {
+            await host.StopAsync(stop);
         }
     }
 

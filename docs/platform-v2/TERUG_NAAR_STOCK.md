@@ -1,35 +1,70 @@
 # Terug naar stock met Devices en Quality
 
-De beheerder ziet de geregistreerde modules via `GET /media/v1/modules`. De
-schakelaar `PUT /media/v1/modules/{slug}` bewaart de stand in de
-pluginconfiguratie. Uitzetten beëindigt het gebruik van de module. De volgende
-opslag hoort volgens de bron bij de huidige implementatie.
+Een beheerder leest de schakelstanden met `GET /media/v1/modules` en zet een
+module uit via `PUT /media/v1/modules/{slug}`. Uitzetten stopt het verzamelen.
+De beheerexport en de wisactie blijven bereikbaar voor een persoonlijke
+beheerderssessie, ook nadat de module is uitgezet.
 
-| Module | Na uitzetten | Na de beheeractie ‘gegevens verwijderen’ |
+| Module | Eigen tabellen die na uitzetten bewaard blijven | Na de wisactie |
 | --- | --- | --- |
-| Devices | `data/jelly-leon/devices/devices.db` met de tabellen `instellingen` en `playback_sessions` | De geregistreerde beheerroutes bieden deze actie nog niet aan. |
-| Quality | `data/jelly-leon/quality/quality.db` met de tabellen `instellingen`, `findings`, `suppressions` en `scans` | De geregistreerde beheerroutes bieden deze actie nog niet aan. |
+| Devices | `instellingen`, `playback_sessions` in `data/jelly-leon/devices/devices.db` | Beide tabellen zijn leeg. De bewaartermijn valt terug op 30 dagen. |
+| Quality | `instellingen`, `findings`, `suppressions`, `scans` in `data/jelly-leon/quality/quality.db` | Alle vier tabellen zijn leeg. De bewaartermijn valt terug op 90 dagen. |
 
-De paden zijn relatief aan de configuratiemap. In de gebouwde revisie
-`5d8784c635ea` bevat `data/jelly-leon/core/core.db` de gedeelde tabellen
-`hub_jti`, `idempotentie`, `outbox` en `jobs`. Core beheert ook de map
-`data/jelly-leon/secrets/`. SQLite kan zelf `sqlite_sequence` aanmaken voor
-een tabel met een automatisch oplopende sleutel en naast een database de
-bestanden `-wal` en `-shm` bijhouden.
+## Exporteren, controleren en wissen
 
-De bundel staat onder `plugins/JellyLeon_<versie>/`. De schakelstanden staan
-in `plugins/configurations/Jellyfin.Plugin.JellyLeon.xml`. De versieaanduiding
-`jelly-leon/datamap-versie` beschermt de terugval. De beheercode voor de
-schakelaars en de registratie van de routes staan in `PluginModuleSwitches`
-en `RouteTable`. De aparte afhandeling van `UserDeleted` verwijdert de
-persoonsgegevens van één verwijderd proefaccount.
+1. Zet de module uit als het verzamelen moet stoppen. Gebruik voor `{slug}`
+   de waarde `devices` of `quality`.
+2. Download `GET /media/v1/{slug}/export` en bewaar de originele JSON-bytes.
+   De export bevat tijdstip, modulenaam, schemaversie, rijen en aantallen per
+   tabel. Accountverwijzingen zijn per module gepseudonimiseerd. Vergelijk de
+   SHA-256 van het gedownloade bestand met de ETag, zonder de aanhalingstekens.
+3. Stuur `POST /media/v1/{slug}/data/purge?dry_run=true` met een
+   `Idempotency-Key` (UUID) en de JSON-body
+   `{"export_sha256":"<sha256-van-het-bestand>"}`. Controleer de aantallen en
+   `applied: false`. Zonder queryparameter geeft de route ook dit voorbeeld.
+4. Bevestig met dezelfde body, `dry_run=false` en een nieuwe
+   `Idempotency-Key`. Een antwoord met `applied: true` geeft de aantallen
+   gewiste rijen. Herhaal bij een onderbroken verbinding hetzelfde verzoek
+   met dezelfde sleutel om het bewaarde antwoord op te vragen.
 
-Voor de handmatige controle in de simulator blijft de oorspronkelijke koude
-kopie bewaard. Op een afzonderlijke, gestopte testkopie kan de beheerder de
-pluginbundel en, na veiligstelling, de eigen opslagmap van de betreffende module
-weghalen. Handmatig opruimen levert geen bewijs voor de ontbrekende beheeractie.
-JLT-61(c) vraagt ook een verse export, een vergelijking van kijkgegevens per
-gebruiker en afspelen met de stock-image.
+De server bewaart per module de laatste export als `beheerexport.json` naast
+de moduledatabase en leest het bestand na het schrijven terug. Een volgende
+export vervangt dat bestand. Bij het wissen vergelijkt de server zowel het
+opgeslagen bestand als de actuele rijen met de opgegeven hash. Het UTC-tijdstip
+in de export mag hoogstens 24 uur oud zijn. Verificatie en verwijdering delen
+één SQLite-schrijftransactie. Een gewijzigde rij vraagt ook bij gelijke
+aantallen een nieuwe export. Een fout in een van de tabellen draait de
+hele verwijdering terug.
+
+Een aangemelde gebruiker zonder beheerrecht krijgt HTTP 403. Een ontbrekend,
+verlopen of beschadigd archief geeft HTTP 409 met `details.reason`
+`export_required`. Bij gewijzigde gegevens geeft HTTP 409 de reden
+`export_changed`. Een schemawijziging of een onverwachte nevenwijziging
+tijdens het wissen leidt eveneens tot weigering.
+
+## Restanten op de testkopie
+
+Na het wissen blijven het lege moduleschema, de beheerexport en eventuele
+bestaande migratiekopieën aanwezig. SQLite beheert zelf zijn volgnummer in
+`sqlite_sequence` en de bestanden `-wal` en `-shm`. De module bewaart
+herhaalantwoorden per verzoek in `jelly-leon/{slug}/beheerherhaling.db`
+onder de cachemap. De idempotentielaag herkent verzoeken gedurende 24 uur
+en ruimt verlopen antwoorden op bij het volgende wis- of voorbeeldverzoek.
+De gedeelde kerndatabase, de andere module, de bibliotheek, de kijkgegevens
+en de MediaGuard-voortgang vallen buiten de wisactie.
+
+De paden onder `data/` zijn relatief aan de configuratiemap. De pluginbundel
+staat onder `plugins/JellyLeon_<versie>/`. De schakelstanden staan in
+`plugins/configurations/Jellyfin.Plugin.JellyLeon.xml`. Ook de kernopslag,
+de geheimenmap en de versieaanduiding `jelly-leon/datamap-versie` blijven
+aanwezig. De afzonderlijke `UserDeleted`-afhandeling beheert de
+persoonsgegevens van één verwijderd account.
+
+Bewaar de koude kopie en de gedownloade exports. Op een afzonderlijke,
+gestopte testkopie kan de beheerder daarna de pluginbundel en de eigen
+data- en cachemap van de gekozen module weghalen. De integrale
+JLT-61(c)-proef vergelijkt vervolgens de kijkgegevens per gebruiker, de
+mediamap en de restanten, en controleert het afspelen met stock.
 
 ## Toegestane wijzigingen in de Jellyfin-database
 

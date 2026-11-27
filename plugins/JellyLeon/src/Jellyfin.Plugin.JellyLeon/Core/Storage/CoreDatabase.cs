@@ -3,13 +3,17 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Storage;
 /// <summary>De gedeelde kerntabellen en de afzonderlijke opslag voor de kinderprofielen.</summary>
 internal sealed class CoreDatabase
 {
-    private static readonly string[] _migraties =
-    [
-        """
-        CREATE TABLE hub_jti(iss TEXT NOT NULL, jti TEXT NOT NULL, exp INTEGER NOT NULL, methode TEXT NOT NULL,
-            pad TEXT NOT NULL, idem TEXT, PRIMARY KEY(iss, jti));
+    internal const string IdempotentieTabel = """
         CREATE TABLE idempotentie(scope TEXT NOT NULL, sleutel TEXT NOT NULL, verzoek_hash TEXT NOT NULL,
             staat TEXT NOT NULL, status INTEGER, body TEXT, etag TEXT, gemaakt INTEGER NOT NULL, PRIMARY KEY(scope, sleutel));
+        """;
+
+    private static readonly string[] _migraties =
+    [
+        $"""
+        CREATE TABLE hub_jti(iss TEXT NOT NULL, jti TEXT NOT NULL, exp INTEGER NOT NULL, methode TEXT NOT NULL,
+            pad TEXT NOT NULL, idem TEXT, PRIMARY KEY(iss, jti));
+        {IdempotentieTabel}
         CREATE TABLE outbox(seq INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT NOT NULL UNIQUE, module TEXT NOT NULL,
             json TEXT NOT NULL, gemaakt INTEGER NOT NULL);
         CREATE TABLE jobs(id INTEGER PRIMARY KEY AUTOINCREMENT, soort TEXT NOT NULL, module TEXT NOT NULL,

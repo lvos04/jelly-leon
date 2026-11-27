@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Http;
@@ -47,6 +49,16 @@ internal sealed class JlResult : IActionResult
         return result;
     }
 
+    private Stream? DownloadInhoud { get; init; }
+
+    public static JlResult Download(HttpResponse response, Stream bestand, string sha256)
+    {
+        response.RegisterForDispose(bestand);
+        var antwoord = new JlResult(200, (string?)null) { DownloadInhoud = bestand };
+        antwoord.Headers["ETag"] = "\"" + sha256 + "\"";
+        return antwoord;
+    }
+
     public static JlResult Fout(JlException fout, string traceId)
     {
         var body = new JsonObject
@@ -83,6 +95,18 @@ internal sealed class JlResult : IActionResult
         }
 
         response.Headers["Cache-Control"] = "no-store";
+        if (DownloadInhoud is { } bestand)
+        {
+            using (bestand)
+            {
+                response.ContentType = "application/json; charset=utf-8";
+                response.ContentLength = bestand.Length;
+                await bestand.CopyToAsync(response.Body, context.HttpContext.RequestAborted).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
         if (Body is null)
         {
             return;

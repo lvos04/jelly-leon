@@ -29,7 +29,12 @@ internal sealed class QualityModule : ModuleBasis
     private readonly Core.Outbox.Outbox _outbox;
 
     public QualityModule(JlPaths paden, SecretStore geheimen, Core.Outbox.Outbox outbox)
-        : base(paden, ModuleSlug, 90, _migraties)
+        : base(paden, ModuleSlug, 90, _migraties, geheimen,
+            [
+                new("findings", "id", "item", "code", "ernst", "gemaakt"),
+                new("suppressions", "item", "code", "gebruiker", "gemaakt"),
+                new("scans", "id", "klaar", "bestanden", "bevindingen"),
+            ])
     {
         _geheimen = geheimen;
         _outbox = outbox;

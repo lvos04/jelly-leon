@@ -28,7 +28,8 @@ internal sealed class DevicesModule : ModuleBasis
     private readonly Core.Outbox.Outbox _outbox;
 
     public DevicesModule(JlPaths paden, SecretStore geheimen, Core.Outbox.Outbox outbox)
-        : base(paden, ModuleSlug, 30, _migraties)
+        : base(paden, ModuleSlug, 30, _migraties, geheimen,
+            [new("playback_sessions", "sessie", "gebruiker", "apparaat", "methode", "hardware", "gestart", "gestopt")])
     {
         _geheimen = geheimen;
         _outbox = outbox;

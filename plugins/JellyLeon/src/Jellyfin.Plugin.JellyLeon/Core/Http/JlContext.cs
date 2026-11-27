@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Jellyfin.Plugin.JellyLeon.Core.Idempotency;
 using Microsoft.AspNetCore.Http;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Http;
@@ -25,6 +26,8 @@ internal sealed class JlContext
     public JsonObject? Body { get; init; }
 
     public string? IfMatch { get; init; }
+
+    public IdempotencyStore? Idempotentie { get; init; }
 
     public string? IdemScope { get; init; }
 

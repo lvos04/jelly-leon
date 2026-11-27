@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Jellyfin.Plugin.JellyLeon.Core.Secrets;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Modules;
@@ -17,11 +18,12 @@ internal abstract class ModuleBasis : IJellyLeonModule
     private const string InstellingenTabel =
         "CREATE TABLE instellingen(id INTEGER PRIMARY KEY CHECK(id = 1), bewaar_dagen INTEGER NOT NULL, versie INTEGER NOT NULL);";
 
-    protected ModuleBasis(JlPaths paden, string slug, int standaardBewaarDagen, IEnumerable<string> migraties)
+    protected ModuleBasis(JlPaths paden, string slug, int standaardBewaarDagen, IEnumerable<string> migraties, SecretStore geheimen, ModuleTabel[] tabellen)
     {
         Slug = slug;
         StandaardBewaarDagen = standaardBewaarDagen;
         Db = new JlDatabase(paden, paden.ModuleDb(slug), [InstellingenTabel, .. migraties]);
+        Gegevensbeheer = new ModuleGegevensbeheer(Db, paden, slug, geheimen, tabellen);
     }
 
     public string Slug { get; }
@@ -35,6 +37,8 @@ internal abstract class ModuleBasis : IJellyLeonModule
     public abstract IReadOnlyList<string> JobTypes { get; }
 
     public abstract IReadOnlyList<PersoonsgegevenRegel> Persoonsgegevens { get; }
+
+    public ModuleGegevensbeheer Gegevensbeheer { get; }
 
     protected JlDatabase Db { get; }
 

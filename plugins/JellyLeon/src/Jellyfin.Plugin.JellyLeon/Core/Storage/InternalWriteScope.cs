@@ -14,7 +14,11 @@ internal sealed class InternalWriteScope
         _paden = paden;
     }
 
-    public void SchrijfAtomisch(string pad, ReadOnlySpan<byte> inhoud)
+    public void SchrijfAtomisch(string pad, ReadOnlySpan<byte> inhoud) => SchrijfAtomisch(pad, inhoud, null);
+
+    public void SchrijfAtomisch(string pad, Action<Stream> schrijf) => SchrijfAtomisch(pad, default, schrijf);
+
+    private void SchrijfAtomisch(string pad, ReadOnlySpan<byte> inhoud, Action<Stream>? schrijf)
     {
         _paden.EisVeiligBestand(pad);
         // Bestaande weigering van een onveilig oud tijdelijk pad behouden, ook al gebruiken we die naam niet meer.
@@ -28,7 +32,15 @@ internal sealed class InternalWriteScope
             {
                 aangemaakt = true;
                 _paden.EisGeopendBestand(stroom, tijdelijk);
-                stroom.Write(inhoud);
+                if (schrijf is null)
+                {
+                    stroom.Write(inhoud);
+                }
+                else
+                {
+                    schrijf(stroom);
+                }
+
                 stroom.Flush(true);
                 _paden.EisGeopendBestand(stroom, tijdelijk);
             }

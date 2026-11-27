@@ -42,7 +42,8 @@ internal sealed record RouteSpec(
     string AntwoordSchema,
     string? VerzoekSchema = null,
     bool IfMatch = false,
-    string? Vrijstelling = null)
+    string? Vrijstelling = null,
+    string? WisModule = null)
 {
     public bool HeeftBody => VerzoekSchema is not null;
 }
@@ -70,9 +71,13 @@ internal static class RouteTable
         new("privacy.kid.get", "GET", "/media/v1/privacy/kid-profiles/{id}", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Geen, "Voorstel en effectieve kinderstatus van het gekozen account", "Kinderprofiel"),
         new("privacy.kid.confirm", "POST", "/media/v1/privacy/kid-profiles/confirm", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Bevestig het gekozen account als kind of volwassene", "Kinderprofiel", "KinderprofielBevestiging", IfMatch: true),
         new("planner.status", "GET", "/media/v1/planner", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Planner: mag er batchwerk draaien en waarom niet (aantallen en vaste woorden)", "Planner"),
+        new("devices.export", "GET", "/media/v1/devices/export", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Geen, "Devices exporteren en de opgeslagen JSON teruglezen", "ModuleExport"),
+        new("devices.purge", "POST", "/media/v1/devices/data/purge", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Devices wissen na verificatie van de actuele export van hoogstens 24 uur oud", "ModuleWisResultaat", "ModuleWisVerzoek", WisModule: "devices"),
         new("devices.status", "GET", "/media/v1/devices/status", JlAuth.SessieBeheerder, "devices", JlIdem.Geen, "Devices: status (aantallen)", "ModuleStatus"),
         new("devices.settings.get", "GET", "/media/v1/devices/settings", JlAuth.SessieBeheerder, "devices", JlIdem.Geen, "Devices: instellingen van de module", "ModuleInstellingen"),
         new("devices.settings.put", "PUT", "/media/v1/devices/settings", JlAuth.SessieBeheerder, "devices", JlIdem.Verplicht, "Devices: instellingen wijzigen", "ModuleInstellingen", "ModuleInstellingenVerzoek", IfMatch: true),
+        new("quality.export", "GET", "/media/v1/quality/export", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Geen, "Quality exporteren en de opgeslagen JSON teruglezen", "ModuleExport"),
+        new("quality.purge", "POST", "/media/v1/quality/data/purge", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Quality wissen na verificatie van de actuele export van hoogstens 24 uur oud", "ModuleWisResultaat", "ModuleWisVerzoek", WisModule: "quality"),
         new("quality.status", "GET", "/media/v1/quality/status", JlAuth.SessieBeheerder, "quality", JlIdem.Geen, "Quality: status (aantallen)", "ModuleStatus"),
         new("quality.settings.get", "GET", "/media/v1/quality/settings", JlAuth.SessieBeheerder, "quality", JlIdem.Geen, "Quality: instellingen van de module", "ModuleInstellingen"),
         new("quality.settings.put", "PUT", "/media/v1/quality/settings", JlAuth.SessieBeheerder, "quality", JlIdem.Verplicht, "Quality: instellingen wijzigen", "ModuleInstellingen", "ModuleInstellingenVerzoek", IfMatch: true),
