@@ -41,6 +41,7 @@ REPO = E2E.parents[2]
 sys.path.insert(0, str(REPO / "tools" / "b03-harnas"))
 sys.path.insert(0, str(REPO / "tools" / "jelly-leon"))
 
+from b03h.diffrun import modulelijst, stel_modules_in  # noqa: E402
 from b03h.jfapi import Http, wacht_klaar  # noqa: E402
 from proef_lib import maskeer_url_geheimen  # noqa: E402
 from upgrade_proef import FILM_REL, FILMS, MUSIC, OLD_IMAGE, STOCK_NEW_IMAGE, differences, docker  # noqa: E402
@@ -106,7 +107,7 @@ class Kant:
         self.name = f"{work.name}-{label}"
         self.port = 0
 
-    def start(self) -> str:
+    def start(self, *, zonder_plugin: bool = False) -> str:
         import socket
 
         with socket.socket() as sock:
@@ -114,10 +115,15 @@ class Kant:
             self.port = sock.getsockname()[1]
         cache = self.work / f"cache-{self.label}"
         cache.mkdir(mode=0o700, exist_ok=True)
+        extra = []
+        if zonder_plugin:
+            leeg = self.work / "lege-pluginbundel"
+            leeg.mkdir(mode=0o700)
+            extra = ["-v", f"{leeg}:/usr/share/jelly-leon/plugins:ro"]
         docker("run", "-d", "--name", self.name, "--user", f"{os.getuid()}:{os.getgid()}", "--memory", "3g",
                "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "-e", "TZ=UTC",
                "-p", f"127.0.0.1:{self.port}:8096", "-v", f"{self.config}:/config", "-v", f"{cache}:/cache",
-               "-v", f"{self.music}:{MUSIC}:ro", "-v", f"{self.films}:{FILMS}:ro", self.image)
+               "-v", f"{self.music}:{MUSIC}:ro", "-v", f"{self.films}:{FILMS}:ro", *extra, self.image)
         return wacht_klaar(self.url, timeout=300).get("Version", "")
 
     @property
@@ -144,6 +150,7 @@ def collect(kant: Kant, password: str) -> dict[str, Any]:
     items = api.doe("GET", "/Items", {"userId": uid, "recursive": "true", "includeItemTypes": "Movie,Audio",
                                       "fields": "Path,MediaStreams,MediaSources,ProviderIds,Tags", "sortBy": "SortName"})
     out["/Items"] = items
+    out["/Users/{id}/Items"] = api.doe("GET", f"/Users/{uid}/Items", {"recursive": "true", "sortBy": "SortName"})
     for item in items.get("Items", []):
         iid = item["Id"]
         out[f"/Items/{iid}"] = api.doe("GET", f"/Items/{iid}", {"userId": uid})
@@ -162,6 +169,41 @@ def collect(kant: Kant, password: str) -> dict[str, Any]:
     out["/SyncPlay/List"] = api.doe("GET", "/SyncPlay/List")
     openapi = api.doe("GET", "/api-docs/openapi.json")
     return {"antwoorden": normalize(out), "openapi": openapi}
+
+
+def meet_modulestanden(kant: Kant, password: str, stock: dict) -> dict:
+    api, _ = login(kant.url, "jl-compat-beheer", password)
+    modules, _ = modulelijst(api)
+    standen = {f"alleen {slug}": {slug} for slug in sorted(modules)}
+    standen.update({"alle aan": set(modules), "weer uit": set()})
+    rapport = {}
+    for label, gewenst in standen.items():
+        actief = stel_modules_in(api, gewenst)
+        antwoorden = collect(kant, password)["antwoorden"]
+        na, _ = modulelijst(api)
+        if na != {slug: slug in gewenst for slug in modules}:
+            raise ValueError(f"Onverwachte modulestand na de meting '{label}'.")
+        rapport[label] = {"actief": actief, "aantal": len(antwoorden), "verschillen": diff_paths(stock, antwoorden)}
+    return rapport
+
+
+def meet_zonder_plugin(kant: Kant, password: str, stock: dict) -> dict:
+    # Alleen de koude kopie van de forkdata aanpassen. De lege, alleen-lezen bundel voorkomt
+    # dat de normale entrypoint de verwijderde DLL bij de herstart opnieuw installeert.
+    dlls = list((kant.config / "plugins").glob("JellyLeon_*/Jellyfin.Plugin.JellyLeon.dll"))
+    if len(dlls) != 1:
+        raise ValueError("In de koude kopie moet precies één geïnstalleerde plugin-DLL staan.")
+    dlls[0].unlink()
+    kant.start(zonder_plugin=True)
+    try:
+        api, _ = login(kant.url, "jl-compat-beheer", password)
+        status, _, _ = api.ruw("GET", "/media/v1/modules")
+        if status != 404 or dlls[0].exists():
+            raise ValueError(f"Verwijderde plugin nog aanwezig (moduleroute HTTP {status}).")
+        antwoorden = collect(kant, password)["antwoorden"]
+        return {"moduleroute_http": status, "aantal": len(antwoorden), "verschillen": diff_paths(stock, antwoorden)}
+    finally:
+        kant.stop()
 
 
 def normalize_global_servers(document: dict[str, Any], test_url: str) -> object:
@@ -208,6 +250,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
     parser.add_argument("--stock-image", default=STOCK_NEW_IMAGE)
     parser.add_argument("--werkmap", default=None)
     parser.add_argument("--report", type=Path)
+    parser.add_argument("--moduleproef", action="store_true", help="vergelijk elke modulestand en een koude kopie zonder plugin met stock")
+    parser.add_argument("--negatieve-proef", action="store_true",
+                        help="verander één gemeten productnaam in het forkantwoord vóór de vergelijking")
     args = parser.parse_args(argv)
     work = Path(tempfile.mkdtemp(prefix="jl-compat-", dir=args.werkmap))
     music, films, base = work / "media-muziek", work / "media-films", work / "config-basis"
@@ -280,6 +325,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
         basis.stop()
         add("datamap ingericht met stock 12.x", len(items) >= 2, f"{len(items)} items (testfilm + WAV)")
         kanten = {}
+        moduleproeven = {}
         for label, image in (("stock", args.stock_image), ("jelly-leon", args.image)):
             config = work / f"config-{label}"
             shutil.copytree(base, config, symlinks=True)
@@ -289,10 +335,21 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
                 kanten[label] = collect(kant, password)
                 kanten[label]["versie"] = versie
                 kanten[label]["url"] = kant.url
+                if label == "jelly-leon" and args.moduleproef:
+                    moduleproeven = meet_modulestanden(kant, password, kanten["stock"]["antwoorden"])
             finally:
                 kant.stop()
+        if args.moduleproef:
+            config = work / "config-zonder-plugin"
+            shutil.copytree(work / "config-jelly-leon", config, symlinks=True)
+            zonder = Kant("zonder-plugin", args.image, config, work, music, films)
+            moduleproeven["plugin verwijderd"] = meet_zonder_plugin(zonder, password, kanten["stock"]["antwoorden"])
+            for naam, meting in moduleproeven.items():
+                add(naam, not meting["verschillen"], f"{meting['aantal']} antwoorden, {len(meting['verschillen'])} verschillen")
         add("zelfde serverversie", kanten["stock"]["versie"] == kanten["jelly-leon"]["versie"],
             f"stock {kanten['stock']['versie']}, Jelly Leon {kanten['jelly-leon']['versie']}")
+        if args.negatieve_proef:
+            kanten["jelly-leon"]["antwoorden"]["/System/Info/Public"]["ProductName"] += " (negatieve proef)"
         verschillen = differences(kanten["stock"]["antwoorden"], kanten["jelly-leon"]["antwoorden"])
         pbi = [k for k in kanten["stock"]["antwoorden"] if k.startswith("PlaybackInfo")]
         besluiten = {k: [(s.get("SupportsDirectPlay"), s.get("SupportsTranscoding"), bool(s.get("TranscodingUrl")))
@@ -309,12 +366,13 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - één doorlop
         )
         add("OpenAPI van de server: alleen additief onder /media/v1 en /connector/v1", not problemen,
             f"toegevoegd: {toegevoegd}" + ("; " + "; ".join(problemen[:6]) if problemen else ""))
-        result = {"verschillen": verschillen, "playbackinfo_besluiten": besluiten, "openapi_toegevoegd": toegevoegd,
+        result = {"verschillen": verschillen, "moduleproeven": moduleproeven, "negatieve_proef": args.negatieve_proef,
+                  "playbackinfo_besluiten": besluiten, "openapi_toegevoegd": toegevoegd,
                   "openapi_problemen": problemen, "vergeleken": sorted(kanten["stock"]["antwoorden"])}
-    except (RuntimeError, subprocess.TimeoutExpired, OSError, KeyError) as exc:
+    except (RuntimeError, subprocess.TimeoutExpired, OSError, KeyError, ValueError) as exc:
         add("uitvoering", False, f"{type(exc).__name__}: {str(exc)}")
     finally:
-        for label in ("basis", "stock", "jelly-leon"):
+        for label in ("basis", "stock", "jelly-leon", "zonder-plugin"):
             docker("rm", "-f", f"{work.name}-{label}", check=False)
         shutil.rmtree(work, ignore_errors=True)
     passed = bool(steps) and all(s["geslaagd"] for s in steps)

@@ -130,20 +130,28 @@ def modulelijst(api: Http) -> tuple[dict[str, bool], str]:
     return modules, etag
 
 
-def zet_alle_modules_aan(api: Http) -> list[str]:
+def stel_modules_in(api: Http, actief: set[str] | None) -> list[str]:
+    """Stel de volledige modulelijst in; None selecteert alle geregistreerde modules."""
     modules, etag = modulelijst(api)
-    verwacht = dict.fromkeys(modules, True)
+    if actief is not None and actief - modules.keys():
+        raise ValueError("Een gevraagde module ontbreekt in de plugin.")
+    verwacht = {slug: actief is None or slug in actief for slug in modules}
     for slug, aan in modules.items():
-        if not aan:
-            api.doe("PUT", f"/media/v1/modules/{slug}", body={"enabled": True},
+        if aan != verwacht[slug]:
+            api.doe("PUT", f"/media/v1/modules/{slug}", body={"enabled": verwacht[slug]},
                     headers={"If-Match": etag, "Idempotency-Key": str(uuid.uuid4())})
             standen, etag = modulelijst(api)
-            if standen.get(slug) is not True:
-                raise ValueError(f"Module {slug} is na het aanzetten nog uit of ontbreekt.")
+            if standen.get(slug) is not verwacht[slug]:
+                toestand = "nog uit" if verwacht[slug] else "nog aan"
+                raise ValueError(f"Module {slug} is na het schakelen {toestand} of ontbreekt.")
     standen, _ = modulelijst(api)
     if standen != verwacht:
         raise ValueError("De actieve modules wijken af van de opgevraagde modulelijst.")
-    return sorted(standen)
+    return sorted(slug for slug, aan in standen.items() if aan)
+
+
+def zet_alle_modules_aan(api: Http) -> list[str]:
+    return stel_modules_in(api, None)
 
 
 def scenario(server: StockServer, extra: bool = False, alle_modules: bool = False) -> dict[str, Any]:

@@ -105,6 +105,29 @@ def test_compat_redacts_terminal_and_json_on_runtime_error(
         pytest.fail("Synthetische sleutelwaarde zichtbaar in de uitvoer")
 
 
+@pytest.mark.parametrize(("negatief", "code"), [(False, 0), (True, 1)])
+def test_compat_productnaam_bepaalt_de_exitcode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, compat_proef: list[str], negatief: bool, code: int,
+) -> None:
+    antwoorden = {"/System/Info/Public": {"ProductName": "Proefserver"}, "PlaybackInfo film": {
+        "MediaSources": [{"SupportsDirectPlay": True, "SupportsTranscoding": True, "TranscodingUrl": "/film"}],
+    }}
+    monkeypatch.setattr(compat_api, "collect", lambda *_: {"antwoorden": deepcopy(antwoorden), "openapi": {"paths": {}}})
+    assert compat_api.main([*compat_proef, *(["--negatieve-proef"] if negatief else [])]) == code
+    rapport = json.loads((tmp_path / "compat.json").read_text())
+    assert rapport["negatieve_proef"] is negatief
+    assert len(rapport["verschillen"]) == int(negatief)
+    if negatief:
+        assert "/System/Info/Public/ProductName" in rapport["verschillen"][0]
+
+
+def test_zonder_plugin_vereist_eerst_de_gekopieerde_dll(tmp_path: Path) -> None:
+    kant = Mock(config=tmp_path)
+    with pytest.raises(ValueError, match="precies één"):
+        compat_api.meet_zonder_plugin(kant, "test", {})
+    kant.start.assert_not_called()
+
+
 @pytest.mark.parametrize("direct_play_zonder_spoor, verwacht", [(True, True), (False, False)])
 def test_playbackinfo_requires_explicit_track_to_transcode_it(
     monkeypatch: pytest.MonkeyPatch, direct_play_zonder_spoor: bool, verwacht: bool,
