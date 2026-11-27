@@ -20,7 +20,7 @@ from .baseline import _lees_transcodelog
 from .corpus import CORPUS, UITVOER, manifest
 from .corpus.ffmpeg import Ffmpeg
 from .corpus.generator import BEVROREN, RECEPTEN, setnaam
-from .desktop import CLIENTBUILD, DESKTOP_IMAGE
+from .desktop import BINARY, CLIENTBUILD, DESKTOP_IMAGE
 from .jfapi import HttpFout
 from .stock import STOCK_IMAGE, WERK, StockServer, profiel
 from .watchrollen import rollenproef
@@ -59,12 +59,15 @@ def controle_baseline(pad: Path) -> bool:
     d = json.loads(pad.read_text(encoding="utf-8"))
     if (not isinstance(d, dict) or not isinstance(d.get("images"), dict) or not isinstance(d.get("metingen"), list)
             or bewijs.controleer(d) or d["label"] != "definitief-forkbasis" or d["images"].get("stock") != STOCK_IMAGE
-            or d.get("fasefouten") or not d.get("metingen")):
+            or d.get("werkpakket", "B03-016") != "B03-016" or d.get("fasefouten") or not d.get("metingen")):
         raise ValueError("S-P40-50 leverde geen geldige definitieve stockbaseline op de forkdigest")
     for systeem in watchmeting.SYSTEMEN:
         metingen = [m for m in d["metingen"] if m["systeem"] == systeem]
-        if not metingen or any(m["image"] != STOCK_IMAGE or m["n"] <= 0 or len({r["last"].get("run") for r in m["runs"]}) < 3 or
-                               not all(r["last"]["geldig"] is True for r in m["runs"]) for m in metingen):
+        verwachte_clients = {"F5-B1-dp-beslissing-chromium", "F5-B1-dp-beslissing-firefox"}
+        if not verwachte_clients.issubset({m["id"] for m in metingen}):
+            raise ValueError(f"S-P40-50 mist afspeelbeslissingen van de twee webclients voor {systeem}")
+        if any(m["image"] != STOCK_IMAGE or m["n"] <= 0 or len({r["last"].get("run") for r in m["runs"]}) < 3 or
+               not all(r["last"]["geldig"] is True for r in m["runs"]) for m in metingen):
             raise ValueError(f"onvolledige of ongeldige S-P40-50-runs voor {systeem}")
     return True
 
@@ -208,6 +211,11 @@ def meet(a: argparse.Namespace, document: dict, logmap: Path, poging: Path) -> i
         heeft_desktop = desktopbewijs.get("status") == "Sim-getest"
         if not heeft_desktop:
             scenario_status["S4"] = {"status": "Geblokkeerd", "reden": "desktoprooktest S-P40-90 ontbreekt"}
+        elif not (a.desktopbouw / BINARY).is_file():
+            heeft_desktop = False
+            scenario_status["S4"] = {"status": "Geblokkeerd", "reden": "uitvoerbare desktopbuild van S-P40-90 ontbreekt in deze proef"}
+        else:
+            document["desktop_sha256"] = manifest.sha256_bestand(a.desktopbouw / BINARY)
         # Een nieuw desktopvenster per proef houdt aanmelding, hervatpunt en profiel gescheiden.
         with ExitStack() as kalibratie:
             cdp = kalibratie.enter_context(watchomgeving.desktop(server, net, a.desktopbouw, a.desktop_image, werk)) if heeft_desktop else {}
@@ -229,9 +237,11 @@ def meet(a: argparse.Namespace, document: dict, logmap: Path, poging: Path) -> i
             return 3
         assert kalibraties
         document["kalibratie"] = kalibraties
+        if not heeft_desktop:
+            kalibraties["chromium"]["Xvfb"] = {**scenario_status["S4"], "bruikbaar_voor_M1": False}
         for reeks in kalibraties.values():
             for methode, proef in reeks.items():
-                proef["bruikbaar_voor_M1"] = proef["max_ms"] <= (20 if methode == "currentTime" else 100)
+                proef["bruikbaar_voor_M1"] = "max_ms" in proef and proef["max_ms"] <= (20 if methode == "currentTime" else 100)
         if any(r["currentTime"]["max_ms"] > 20 for r in kalibraties.values()):
             raise ValueError("meetonzekerheid currentTime boven de S1-marge van 20 ms")
         if heeft_desktop and kalibraties["chromium"]["Xvfb"]["max_ms"] > 100:
@@ -241,7 +251,7 @@ def meet(a: argparse.Namespace, document: dict, logmap: Path, poging: Path) -> i
         document["kalibratie"]["adb exec-out screencap"] = adb
         document["rollenproef"] = rollenproef(server, wachtwoord)
         # De doorvoer geldt uitsluitend voor de tweede deelnemer van S3.
-        url_b, scenario_status["S3"] = stapel.enter_context(watchomgeving.netem(server, net))
+        url_b, scenario_status["S3"] = stapel.enter_context(watchomgeving.netem(server, net, a.netem_image))
         for scenario, (film, eerste, tweede) in SCENARIOS.items():
             if (scenario == "S3" and not url_b) or (scenario == "S4" and not heeft_desktop):
                 continue
@@ -279,6 +289,9 @@ def meet(a: argparse.Namespace, document: dict, logmap: Path, poging: Path) -> i
             for systeem, runs in per_systeem.items():
                 document["metingen"] += watchmeting.metrieken(scenario, systeem, STOCK_IMAGE, runs)
             scenario_status[scenario] = {**scenario_status.get(scenario, {}), "status": "Sim-getest", "runs_per_stockprofiel": a.runs}
+            if scenario == "S5":
+                telling = {s: sum(r["uitkomst"]["stilstandperioden"] for r in rs) for s, rs in per_systeem.items()}
+                scenario_status[scenario].update(stilstandperioden=telling, ten_minste_tien_per_profiel=all(n >= 10 for n in telling.values()))
         document.update(schema=bewijs.SCHEMA, status="Sim-getest", eind=meetslot.nu())
         bewijs.schrijf(a.uit, document)
         return 0
@@ -304,7 +317,7 @@ def functieproef(a: argparse.Namespace) -> int:
         wachtwoord = secrets.token_urlsafe(24)
         doc["zichtbaarheid"] = rollenproef(server, wachtwoord)
         bewaar(a.uit, doc)
-        with watchomgeving.netwerk(server) as net, watchomgeving.netem(server, net) as (_, netproef):
+        with watchomgeving.netwerk(server) as net, watchomgeving.netem(server, net, a.netem_image) as (_, netproef):
             doc["tc_proef"] = netproef
         bewaar(a.uit, doc)
         items = jf.items()
@@ -332,9 +345,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--framecode-set", type=Path, default=UITVOER / setnaam(RECEPTEN["f1-framecode"], "vol", watchmeting.SEED))
     p.add_argument("--desktopbouw", type=Path, default=CLIENTBUILD)
     p.add_argument("--desktop-image", default=DESKTOP_IMAGE)
+    p.add_argument("--netem-image", help="optionele lokale proefimage met tc en sleep, op vaste digest of lokaal image-ID")
     p.add_argument("--label", choices=sorted(bewijs.LABELS), default="definitief-forkbasis")
     p.add_argument("--runs", type=int, default=5)
     a = p.parse_args(argv)
+    if a.netem_image and not (bewijs.DIGEST_RE.search(a.netem_image) or
+                              (a.netem_image.startswith("sha256:") and bewijs.DIGEST_RE.fullmatch("@" + a.netem_image))):
+        p.error("de netem-proefimage vereist een vaste digest")
     if a.runs < watchmeting.MIN_RUNS:
         p.error("minstens vijf runs per scenario en systeem")
     a.uit = a.uit.resolve()

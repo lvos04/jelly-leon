@@ -49,8 +49,8 @@ def beoordeel_spoor(spoor: dict, scenario: str) -> dict:
         raise ValueError("playing-event na hervatten ontbreekt bij een deelnemer")
     vorige = [begin, begin]
     eerste = paren[0]
-    drift, stilstand, perioden = [], 0.0, 0
-    stond_stil = False
+    drift, stilstandperioden = [], []
+    duur_stil = 0.0
     for a, b in paren:
         for i, (tijd, positie, snelheid) in enumerate((a, b)):
             delta = getal(tijd) - vorige[i]
@@ -58,9 +58,10 @@ def beoordeel_spoor(spoor: dict, scenario: str) -> dict:
                 raise ValueError("ongeldig of onderbroken positiespoor")
         # De niet-gesmoorde deelnemer A meet de stilstand van de groep bij S5.
         if a[2] == 0:
-            perioden += int(not stond_stil)
-            stilstand += a[0] - vorige[0]
-        stond_stil = a[2] == 0
+            duur_stil += a[0] - vorige[0]
+        elif duur_stil:
+            stilstandperioden.append(duur_stil)
+            duur_stil = 0.0
         zelfde_tijd = max(a[0], b[0])
         if scenario != "S2" or zelfde_tijd - begin >= 30_000:
             positie_a = a[1] + (zelfde_tijd - a[0]) * a[2]
@@ -69,9 +70,12 @@ def beoordeel_spoor(spoor: dict, scenario: str) -> dict:
         vorige = [a[0], b[0]]
     if max(eind - t for t in vorige) > 250 or not all(paren[-1][i][1] > eerste[i][1] for i in (0, 1)):
         raise ValueError("einde van het spoor of voortgang van een deelnemer ontbreekt")
+    if duur_stil:
+        stilstandperioden.append(duur_stil)
     return {"n_paren": len(paren), "drift_p50_ms": statistiek.kwantiel(drift, .5),
             "drift_p95_ms": statistiek.kwantiel(drift, .95), "drift_max_ms": max(drift),
-            "iedereen_speelt_ms": max(speelt) - hervat, "stilstand_ms": stilstand, "stilstandperioden": perioden}
+            "iedereen_speelt_ms": max(speelt) - hervat, "stilstand_ms": sum(stilstandperioden),
+            "stilstandperioden": len(stilstandperioden), "stilstand_per_periode_ms": stilstandperioden}
 
 
 def metrieken(scenario: str, systeem: str, image: str, runs: list[dict[str, Any]]) -> list[dict]:

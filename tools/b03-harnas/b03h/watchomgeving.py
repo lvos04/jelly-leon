@@ -61,26 +61,32 @@ def netwerk(server: StockServer):
 
 
 @contextmanager
-def netem(server: StockServer, net: str):
+def netem(server: StockServer, net: str, image: str | None = None):
     """De proef en B's doorvoer delen één nieuw netwerknamespace. Alleen daarin is NET_ADMIN beschikbaar."""
     with ExitStack() as stapel:
         poort = 8097
         # tc uit de stockimage. Een ontbrekend programma, kernelmodule of recht wordt als S3-blokkade geboekt.
-        cid = tijdelijk(stapel, "--network", net, "--cap-drop", "ALL", "--cap-add", "NET_ADMIN", "--security-opt",
-                        "no-new-privileges", "-p", f"{urlsplit(server.url).hostname}::{poort}",
-                        "--entrypoint", "sleep", server.image, "infinity")
+        try:
+            cid = tijdelijk(stapel, "--network", net, "--cap-drop", "ALL", "--cap-add", "NET_ADMIN", "--security-opt",
+                            "no-new-privileges", "-p", f"{urlsplit(server.url).hostname}::{poort}",
+                            "--entrypoint", "sleep", image or server.image, "infinity")
+        except subprocess.CalledProcessError as fout:
+            yield None, {"status": "niet gemeten", "reden": "eigen proefcontainer met NET_ADMIN kon niet starten",
+                         "exitcode_docker": fout.returncode}
+            return
         proef = docker("exec", cid, "tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", "80ms", "20ms",
                        "loss", "1%", check=False)
         if proef.returncode:
             yield None, {"status": "niet gemeten", "reden": "tc netem niet beschikbaar in de proefcontainer",
-                         "exitcode_tc": proef.returncode}
+                         "exitcode_tc": proef.returncode, "image": image or server.image}
             return
         qdisc = docker("exec", cid, "tc", "qdisc", "show", "dev", "eth0").stdout
         if not all(x in qdisc for x in ("netem", "80ms", "20ms", "1%")):
             raise ValueError("S3: netwerkcondities niet bevestigd in de proefcontainer")
         tijdelijk(stapel, "--network", f"container:{cid}", *BEPERKT, NODE_IMAGE, "node", "-e", DOORVOER,
                   str(poort), "testserver", "8096")
-        yield lokaal_adres(cid, poort), {"status": "tc gecontroleerd", "vertraging_ms": 80, "spreiding_ms": 20, "verlies_pct": 1}
+        yield lokaal_adres(cid, poort), {"status": "tc gecontroleerd", "vertraging_ms": 80, "spreiding_ms": 20,
+                                          "verlies_pct": 1, "image": image or server.image}
 
 
 @contextmanager

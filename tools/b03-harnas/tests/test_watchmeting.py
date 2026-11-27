@@ -102,9 +102,9 @@ def test_definitieve_baseline_beide_profielen_en_digest(tmp_path):
 
     pad = tmp_path / "baseline.json"
     runs = [{"last": {"loadavg_voor": [1, 2, 3], "run": i, "geldig": True}} for i in range(3)]
-    ms = [bewijs.metriek(id="proef", functie="F1", omschrijving="proef", methode="tellen", systeem=s,
+    ms = [bewijs.metriek(id="F5-B1-dp-beslissing-" + browser, functie="F5", omschrijving="proef", methode="tellen", systeem=s,
                          soort="telling", image=STOCK_IMAGE, seed=None, runs=runs, waarde={"k": 3}, interval=None, n=3)
-          for s in watchmeting.SYSTEMEN]
+          for s in watchmeting.SYSTEMEN for browser in ("chromium", "firefox")]
     d = {"schema": bewijs.SCHEMA, "label": "definitief-forkbasis", "images": {"stock": STOCK_IMAGE}, "metingen": ms}
     pad.write_text(json.dumps(d))
     assert watchtogether.controle_baseline(pad)
@@ -204,6 +204,8 @@ def test_matrices_en_bewijs_via_normale_ingang(monkeypatch, tmp_path, spoor):
     monkeypatch.setattr(wt, "startcontrole", lambda _: schema)
     monkeypatch.setattr(wt, "meetvenster", lambda: nullcontext(None))
     monkeypatch.setattr(wt, "WERK", tmp_path)
+    monkeypatch.setattr(wt, "BEWIJSMAP", tmp_path)
+    (tmp_path / "b03-016-desktop-spike.json").write_text(json.dumps({"status": "Sim-getest"}))
     monkeypatch.setattr(wt, "bronmedia", lambda *_: ({}, {}, 236000))
     jf = SimpleNamespace(zet_encoding=lambda e: e, a=SimpleNamespace(headers={"Authorization": "synthetisch"}),
                          items=lambda: [{"Path": k, "Id": k} for k in ("hero", "sintel", "hevc", "framecode")])
@@ -237,7 +239,10 @@ def test_matrices_en_bewijs_via_normale_ingang(monkeypatch, tmp_path, spoor):
 
     monkeypatch.setattr(wt.web, "harnas", browser)
     uit = tmp_path / "meting.json"
-    assert wt.main(["--uit", str(uit)]) == 0
+    binary = tmp_path / wt.BINARY
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"testclient")
+    assert wt.main(["--uit", str(uit), "--desktopbouw", str(tmp_path)]) == 0
     d = json.loads(uit.read_text())
     assert not bewijs.controleer(d)
     assert set(d["scenarios"]) == set(wt.SCENARIOS)
@@ -252,8 +257,13 @@ def test_bouwslot_tijdens_elke_leesactie_vast(monkeypatch, tmp_path):
 
     monkeypatch.setattr(meetslot, "LOCK_DIR", tmp_path)
     monkeypatch.setattr(meetslot, "loadavg", lambda: (1, 1, 1))
+    monkeypatch.setattr(meetslot.CpuMeting, "start", lambda self: self)
+    monkeypatch.setattr(meetslot.CpuMeting, "stop", lambda self: {"andere_kernen": 0.0})
     monkeypatch.setattr(meetslot, "actieve_zware_sloten", lambda *_: [])
-    actie = lambda: [meetslot.slot_bezet(tmp_path / naam) for naam in meetslot.ZWARE_SLOTEN]  # noqa: E731
+
+    def actie():
+        return [meetslot.slot_bezet(tmp_path / naam) for naam in meetslot.ZWARE_SLOTEN]
+
     last, sloten = watchtogether.meet_run("stock-best", 0, [], actie, 4)
     assert last["geldig"] and sloten == [True, True]
     assert actie() == [False, False]

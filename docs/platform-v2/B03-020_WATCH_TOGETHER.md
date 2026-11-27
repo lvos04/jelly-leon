@@ -28,6 +28,8 @@ Het meetvenster sluit de overige stacksloten uit. De startcontrole en elke run g
 | S4 | Chromium en de echte desktop onder Xvfb met de bevroren framecode | Framenummer uit het Xvfb-scherm en gelijktijdige browserpositie. De desktoprooktest van S-P40-90 bepaalt of deze combinatie beschikbaar is |
 | S5 | Firefox en een Chromium-deelnemer met Sintel 1080p | Alleen de download van Chromium wordt begrensd tot 1,5 Mbit/s. De referentieclient meet de groepsstilstand |
 
+Voor S3 probeert het harnas eerst de netwerkruimte van een aparte proefcontainer. Als de stockimage geen `tc` bevat, accepteert `--netem-image` een lokale testimage met `tc` en `sleep` op digest. De netwerkproef verandert uitsluitend de eigen containerinterface.
+
 Elk scenario gebruikt minstens vijf onafhankelijke runs per stockprofiel van vijf minuten. De volgorde wisselt per ronde. Beide profielen krijgen dezelfde handmatige QSV-serverinstellingen. Stock-best krijgt per apparaat de vijf SyncPlay-waarden uit het profiel. Iedere run krijgt nieuwe gebruikers en aparte clients. [Stock-bestprofiel](../../tools/b03-harnas/profielen/stock-best.json)
 
 ## Kalibratie en interpretatie

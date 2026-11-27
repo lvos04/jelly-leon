@@ -207,10 +207,12 @@ async function groepsrun(cfg, a, b, xwd) {
   // Werkelijk geselecteerde afspeelpaden van de twee eigen clients, terwijl ze in de groep spelen.
   const sessies = await sessiePaden(cfg);
   const begin_ms = nu();
-  const paren = [];
+  const paren = [], rasteropnamen = [];
   let frameVorige = xwd ? xwd.lees(46) : 0, cycli = 0, gewijzigd = begin_ms;
   function desktopStand() {
-    const f = xwd.lees(46), tijd = nu();
+    const voor = nu(), f = xwd.lees(46), na = nu();
+    const tijd = (voor + na) / 2;
+    rasteropnamen.push([voor, na, f]);
     if (f < 24 && frameVorige > cfg.framePeriodeMs / frameMs - 25) cycli++;
     if (f !== frameVorige) gewijzigd = tijd;
     frameVorige = f;
@@ -229,7 +231,7 @@ async function groepsrun(cfg, a, b, xwd) {
   await a.api('POST', '/SyncPlay/Leave');
   const groepen = await a.api('GET', '/SyncPlay/List');
   regressies['server-17352'] = { groep_opgeruimd: !groepen.some(g => g.GroupId === id) };
-  return { begin_ms, eind_ms, hervat_ms, playing_ms, paren, sessies, regressies };
+  return { begin_ms, eind_ms, hervat_ms, playing_ms, paren, sessies, regressies, ...(xwd ? { rasteropnamen } : {}) };
 }
 
 async function sessiePaden(cfg) {
@@ -362,9 +364,13 @@ async function functieproef(cfg, a, b) {
   await b.api('POST', '/SyncPlay/Leave');
   await wachtOp(async () => (await a.api('GET', '/SyncPlay/' + id)).Participants.length === 1, 'deelnemer verliet groep niet');
   const klaarVoor = b.ready.length;
+  const soloVoor = await videoStand(b.page);
   await a.api('POST', '/SyncPlay/Seek', { PositionTicks: 3 * 10000000 });
   await wacht(1500);
-  uit['web-8727'] = { ok: b.ready.length === klaarVoor, ready_van_vertrokken_client: b.ready.length - klaarVoor };
+  const soloNa = await videoStand(b.page);
+  const sprong = soloVoor && soloNa ? Math.abs(soloNa[1] - soloVoor[1] - (soloNa[0] - soloVoor[0]) * soloVoor[2]) : null;
+  uit['web-8727'] = { ok: b.ready.length === klaarVoor && ((soloVoor === null && soloNa === null) || (sprong !== null && sprong < 1000)),
+    ready_van_vertrokken_client: b.ready.length - klaarVoor, onverwachte_positiewijziging_ms: sprong };
   await a.api('POST', '/SyncPlay/Leave');
   uit['server-17352'] = { ok: !(await a.api('GET', '/SyncPlay/List')).some(g => g.GroupId === id) };
   uit['server-18121'] = { status: 'niet reproduceerbaar in de simulatie', reden: 'de Android-app is geen deelnemer aan deze twee browsers' };
