@@ -34,7 +34,7 @@ Status: **Bezig**; **Sim-getest**; **NIET GEVALIDEERD (echte NAS)**; **NIET GEVA
 | levenscyclus-022 | exitcode 0; RESULTAAT: GESLAAGD (59/59) |
 | image-guard | exitcode 0; in orde: geen beperkt gelicentieerde testdata in image jelly-leon:lokaal-48293b48a |
 | terugzet | exitcode 0; RESULTAAT: GESLAAGD (10/10) |
-| upgrade | exitcode 0; RESULTAAT: GESLAAGD (18/18) |
+| upgrade | exitcode 0; RESULTAAT: GESLAAGD (18/18). Bij JLT-61(b) gaf stock 10.11.11 op de gemigreerde datamap HTTP 500. De proef herkende daarin geen expliciete downgradeweigering. |
 | compat-api | exitcode 0; RESULTAAT: GESLAAGD (5/5) |
 | upstream-runtime | exitcode 0; RESULTAAT: GESLAAGD (6/6) |
 | pluginproef | exitcode 0; RESULTAAT: GESLAAGD {'JLT-64': {'geslaagd': 17, 'totaal': 17}, 'JLT-65': {'geslaagd': 17, 'totaal': 17}, 'JLT-68': {'geslaagd': 83, 'totaal': 83}} |
@@ -55,7 +55,7 @@ De pluginsuite telt 359 tests zonder skips. De forktoolsuite telt 424 tests zond
 
 NIET GEVALIDEERD (echte NAS): de plugin draait nog op geen echte NAS; gebruiker moet de NAS-metingen uitvoeren. NIET GEVALIDEERD (echte Hub): de koppeling is alleen tegen de Hub-simulator getest. Besluit B1 bij de gebruiker: de serverroute voor pluginconfiguratie en een harde koppeling op de database; tevens de lege gedeelde tmpfs als /cache en het opvolgen van Verplicht 3. Geen absolute garantie afgeleid uit de groene simulatieproeven.
 
-Gebouwd: één pluginassembly met Core en de prototypes Devices en Quality, analyzer, opslag- en startgrens, web-configgenerator. De IStartupFilter-spike is lokaal beproefd; volledige acceptatie en doorvoering blijven vervolgwerk. Nog open: export/import per module met preview_hash, de webhaakmodule en de modules WatchTogether, Recommendations, Subtitles en Segments. JLT-64/65/68 en volledige acceptatiemeting worden in S-G1-10 geboekt; Hub/web in S-G1-12, foutcatalogus/idempotentie in S-G1-14, privacy in S-G1-18, mountstatus in S-G1-20 en MediaGuard-vervoer in S-G1-50. Restgrenzen van deel 1 blijven gelden (ADR-0032): vooraf gelegde harde databasekoppeling en wissel door dezelfde UID tussen controle en openen; serverroute voor pluginconfiguratie; lege gedeelde tmpfs. Op de NAS nog meten: leegte van /dev/shm bij start; modus, eigenaar en grootte van tmpfs-/cache; preset Apps, NFSv4-ACL’s en fs.protected_hardlinks. Deze stap wijzigt deel 1 niet.
+Gebouwd: één pluginassembly met Core en de prototypes Devices en Quality, analyzer, opslag- en startgrens, web-configgenerator. De IStartupFilter-spike is lokaal beproefd; volledige acceptatie en doorvoering blijven vervolgwerk. Nog open: export/import per module met preview_hash, de webhaakmodule en de modules WatchTogether, Recommendations, Subtitles en Segments. JLT-64/65/68 en volledige acceptatiemeting worden in S-G1-10 geboekt; Hub-koppeling in S-G1-12, webhaakmodule in S-G1-60, foutcatalogus/idempotentie in S-G1-14, privacy in S-G1-18, mountstatus in S-G1-20 en MediaGuard-vervoer in S-G1-50. Restgrenzen van deel 1 blijven gelden (ADR-0032): vooraf gelegde harde databasekoppeling en wissel door dezelfde UID tussen controle en openen; serverroute voor pluginconfiguratie; lege gedeelde tmpfs. De tmpfs-proef van deel 1h begon met eigenaar 568 op /config. Bij een eerste start als root met een andere eigenaar kan de eigenaarswissel al zijn uitgevoerd voordat de app de tmpfs afkeurt. Op de NAS nog meten: leegte van /dev/shm bij start; modus, eigenaar en grootte van tmpfs-/cache; preset Apps, NFSv4-ACL’s en fs.protected_hardlinks. Deze stap wijzigt deel 1 niet.
 
 ## Boeking en CI
 
