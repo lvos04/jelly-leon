@@ -14,12 +14,17 @@ veiligste uitleg.
 
 1. **Koppelen in twee stappen.** `POST /media/v1/hub-link/verify` berekent de vingerafdruk van de geplakte set en
    bewaart niets. `PUT /media/v1/hub-link` pint de set alleen als de beheerder dezelfde vingerafdruk meestuurt en de
-   `service_id` een UUID is. `DELETE` verwijdert de pin. Alleen een beheerder van de server mag dit; een kinderprofiel
-   nooit.
+   `service_id` een UUID is. De vingerafdruk omvat alle JWT- en policy-sleutels volgens §4.5. De beheerder neemt de
+   afzonderlijke `service_id` over uit de Hub-registratie. Bij rotatie vergelijkt de beheerder de nieuwe vingerafdruk
+   opnieuw. `DELETE` verwijdert de pin. De vier beheerroutes vereisen een persoonlijke sessie van een volwassen
+   serverbeheerder. Een API-sleutel zonder gebruiker en een kinderprofiel met beheerrecht krijgen geen toegang.
 2. **Alleen publiek materiaal, en alleen in de geheimenmap.** De pin (`hub-pin.json`) staat onder
    `/config/data/jelly-leon/secrets/` (map 0700, bestand 0600). In de plugininstellingen (XML van de server), in
    exports, in antwoorden en in logregels staat geen sleutel. `PluginConfiguration` heeft geen veld voor een geheim;
-   een test bewaakt dat.
+   een test bewaakt dat. Iedere connectoraanroep controleert opnieuw de inhoud en rechten van het geopende bestand en
+   de rechten van de geheimenmap. Een beschadigde, onleesbare of te ruim toegankelijke pin geeft de connector
+   401 `unauthorized` met reden `not_linked`. De persoonlijke beheerroute meldt dan de status `not_linked` met reden
+   `koppelstatus_onleesbaar`.
 3. **Zonder pin**: elke connectorroute geeft 401 `unauthorized` met reden `not_linked`. Een token van een andere Hub
    → 401 `unknown_key`.
 4. **Dienst-JWT**: een token met `token_use: hub_service` wordt alleen aanvaard als `service_id` gelijk is aan de
@@ -45,6 +50,9 @@ veiligste uitleg.
 10. **Back-ups**: het itemtype `backups` meldt per database de omvang en de migratiekopieën met `dekking: onbekend`.
     De plugin maakt zelf geen back-up van de server; of de map `/config` in de back-up van de NAS zit, weet de plugin
     niet en beweert ze dus ook niet.
+11. **Herhaling van mutaties.** De plugin reserveert de `jti` in de kerndatabase vóór uitvoering. Na heropening
+    geldt dezelfde reservering. Een identieke herhaling op een route met verplichte idempotentie kan uitsluitend het
+    al bewaarde antwoord terugkrijgen. Een mislukte eerste uitvoering verleent geen tweede uitvoeringsrecht.
 
 ## Open punten voor het contract (gemeld, niet zelf beslist)
 
@@ -52,9 +60,19 @@ veiligste uitleg.
   die er is blijft de MediaGuard-status in Jelly Leon `onbekend` (ADR-0021; B03-009 bouwt tegen een simulator).
 - De controle op `service_id` (punt 4), de betekenis van `worker` (punt 8) en het ontbreken van `hub_link` (punt 5)
   zijn uitleg van deze repo; het contract zou ze moeten vastleggen.
+- Voor C1.3-JL-06 volgt de plugin §4.5 voor de vingerafdruk. Een dienst-JWT moet daarnaast dezelfde `service_id`
+  bevatten als de lokale registratie. Het bewijs voor deze twee controles staat bij C1.3-JL-06 in EVIDENCE.
 
 ## Verificatie
 
-xunit (`BeheerTests`, `ConnectorTests`, `HubTokenTests`) en JLT-68 met een Hub-simulator die echte Ed25519-tokens
-tekent: zonder pin, gepinde set, rol kind, herhaald `jti`, verlopen token. De echte Hub en de echte NAS zijn
-**NIET GEVALIDEERD**.
+De lokale Hub-simulator ondertekent testtokens met een onafhankelijke Ed25519-bibliotheek. `HubTokenTests`,
+`HubSleutelTests` en `BeheerTests` toetsen onder meer het type van `aud`, de grens van 120 seconden met 30 seconden
+klokspeling, rolvoorrang, pinrotatie, twee gelijktijdige verzoeken en herhaling na heropening van de echte SQLite-opslag.
+`ConnectorTests` toetsen de zichtbare velden en de drie actieroutes. `PrivacyTests` doorzoeken de geserialiseerde
+plugin-XML, module-exports en antwoorden op de waarden van testsleutels en een gebruikt token.
+
+De afzonderlijke serverproef `tools/jelly-leon/e2e/plugin_proef.py --alleen-hub` gebruikt een lege bibliotheek,
+wegwerpsessies en één lokale server. Zij herhaalt hetzelfde token na een procesherstart en doorzoekt de serverlog,
+plugin-XML, instellingen en de beheerexports van Devices en Quality. EVIDENCE onderscheidt de metingen in het
+pluginharnas van de uitvoering op een server.
+De echte Hub en de echte NAS zijn **NIET GEVALIDEERD**.

@@ -361,13 +361,13 @@
   },
   {
     "id": "C1.3-JL-06",
-    "status": "Niet gestart",
-    "validatie": "Niet getest",
-    "bewijs": "—",
-    "blokkade": "",
-    "opmerking": "Moment P4 (B03-017, plugin): pin via het dashboard met service_id (RV4), §4.2–§4.7, zonder pin 401 not_linked, events alleen via poll, propose/apply/rollback 501.",
+    "status": "Bezig",
+    "validatie": "Unit-getest; Sim-getest; NIET GEVALIDEERD (echte Hub); NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "S-G1-12. De Hub-simulator ondertekent tokens met eigen testsleutels. HubTokenTests, HubSleutelTests en BeheerTests meten de weigeringen, heropening van SQLite, twee gelijktijdige verzoeken, rotatie en de rechten op de pin. ConnectorTests en PrivacyTests meten de grenzen van antwoorden, plugin-XML en module-exports. Zie docs/adr/ADR-0031-b03-017-hub-koppeling-jl4-en-connectorgrenzen.md. Op bouwcommit 6d8a5069c9 waren 55 gerichte Hub-tests en alle 418 plugintests groen. De voor-na-proef voor Devices en Quality behield de hashes van synthetische kijkgegevens en voortgang.",
+    "blokkade": "NIET GEVALIDEERD (echte Hub): pinnen en tokens zijn alleen met de Hub-simulator en met testsleutels gemeten. NIET GEVALIDEERD (echte NAS).",
+    "opmerking": "De simulatie gebruikt de productiecode van de plugin in het testproces. Herstart van de volledige server en doorzoeken van de serverlog zijn aparte onderdelen van plugin_proef.py --alleen-hub. De onafhankelijke herreview staat open.",
     "repo": "jelly-leon",
-    "bijgewerkt": "2026-11-10"
+    "bijgewerkt": "2026-11-28"
   },
   {
     "id": "C1.3-JL-07",
@@ -413,11 +413,11 @@
     "id": "B03-017",
     "status": "Bezig",
     "validatie": "Unit-getest; Sim-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (echte Hub)",
-    "bewijs": "Broncommit 48293b48ac48644e0d4433cf3193a96fbf35eac4; lokale image jelly-leon:lokaal-48293b48a; image-ID sha256:09c2bb379cf09e0895a794dcf4979b3171d015d942dda67a67ad42231f43741b; revisionlabel gelijk aan de broncommit. De daaropvolgende vastlegging wijzigt uitsluitend bewijs en documentatie, geen imagebron. Lokale pluginsuite, negatieve analyzerbouw, T-JL-REGISTER en 424 forktooltests; alle imageproeven uit P-jelly-leon job image. Uitkomsten en grenzen: docs/platform-v2/test-evidence/s-g1-16-deel2-bewijs-image.md. Bestaande CI op de broncommit: Jelly Leon CI 44223144485; de CI-uitkomst van de nieuwe bewijscommit wordt afzonderlijk vastgelegd in het externe RAPPORT-A-BOUW-2b.md. BG-03 (3d82967a4d): het deel kinderprofielen is lokaal beproefd met KinderprofielPrivacyTests en PrivacyTests. Zie de bewijsrij B03-010.",
+    "bewijs": "Broncommit 48293b48ac48644e0d4433cf3193a96fbf35eac4; lokale image jelly-leon:lokaal-48293b48a; image-ID sha256:09c2bb379cf09e0895a794dcf4979b3171d015d942dda67a67ad42231f43741b; revisionlabel gelijk aan de broncommit. De daaropvolgende vastlegging wijzigt uitsluitend bewijs en documentatie, geen imagebron. Lokale pluginsuite, negatieve analyzerbouw, T-JL-REGISTER en 424 forktooltests; alle imageproeven uit P-jelly-leon job image. Uitkomsten en grenzen: docs/platform-v2/test-evidence/s-g1-16-deel2-bewijs-image.md. Bestaande CI op de broncommit: Jelly Leon CI 44223144485; de CI-uitkomst van de nieuwe bewijscommit wordt afzonderlijk vastgelegd in het externe RAPPORT-A-BOUW-2b.md. BG-03 (3d82967a4d): het deel kinderprofielen is lokaal beproefd met KinderprofielPrivacyTests en PrivacyTests. Zie de bewijsrij B03-010. S-G1-12. De metingen aan de Hub-koppeling staan in C1.3-JL-06 en ADR-0031.",
     "blokkade": "NIET GEVALIDEERD (echte NAS): de plugin draait nog op geen echte NAS; gebruiker moet de NAS-metingen uitvoeren. NIET GEVALIDEERD (echte Hub): de koppeling is alleen tegen de Hub-simulator getest. Besluit B1 bij de gebruiker: de serverroute voor pluginconfiguratie en een harde koppeling op de database; tevens de lege gedeelde tmpfs als /cache en het opvolgen van Verplicht 3. Geen absolute garantie afgeleid uit de groene simulatieproeven.",
     "opmerking": "Gebouwd: één pluginassembly met Core en de prototypes Devices en Quality, analyzer, opslag- en startgrens, web-configgenerator. De IStartupFilter-spike is lokaal beproefd; volledige acceptatie en doorvoering blijven vervolgwerk. Nog open: export/import per module met preview_hash, de webhaakmodule en de modules WatchTogether, Recommendations, Subtitles en Segments. JLT-64/65/68 en volledige acceptatiemeting worden in S-G1-10 geboekt; Hub-koppeling in S-G1-12, webhaakmodule in S-G1-60, foutcatalogus/idempotentie in S-G1-14, privacy in S-G1-18, mountstatus in S-G1-20 en MediaGuard-vervoer in S-G1-50. Restgrenzen van deel 1 blijven gelden (ADR-0032): vooraf gelegde harde databasekoppeling en wissel door dezelfde UID tussen controle en openen; serverroute voor pluginconfiguratie; lege gedeelde tmpfs. Op de NAS nog meten: leegte van /dev/shm bij start; modus, eigenaar en grootte van tmpfs-/cache; preset Apps, NFSv4-ACL’s en fs.protected_hardlinks. Deze stap wijzigt deel 1 niet.",
     "repo": "jelly-leon",
-    "bijgewerkt": "2026-11-27"
+    "bijgewerkt": "2026-11-28"
   },
   {
     "id": "JLT-65",
@@ -432,12 +432,12 @@
   {
     "id": "JLT-68",
     "status": "Bezig",
-    "validatie": "Unit-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte Hub)",
-    "bewijs": "S-G1-10. De lokale MVC-test in RoutetabelTests.cs telt acht connectorroutes met elk één HTTP-methode en pad. De pluginsuite omvat de weigeringen zonder pin, bij de kinderrol en bij herhaling van een mutatie.",
-    "blokkade": "De volledige contractmeting op beide servers en het doorzoeken van hun log- en exportgegevens staan open. De beveiligingsreview volgt in S-G1-12.",
-    "opmerking": "De proef vóór authenticatie volgt in S-G1-14. Voor de Hub-koppeling is alleen de simulator gebruikt.",
+    "validatie": "Unit-getest; Sim-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte Hub)",
+    "bewijs": "S-G1-10. De lokale MVC-test in RoutetabelTests.cs telt acht connectorroutes met elk één HTTP-methode en pad. De pluginsuite omvat de weigeringen zonder pin, bij de kinderrol en bij herhaling van een mutatie. S-G1-12. De Hub-simulator in het pluginharnas toetst de pin, tokens, rolvoorrang, herhaling en de drie 501-actieroutes. Zie C1.3-JL-06.",
+    "blokkade": "De volledige contractmeting op beide servers en het doorzoeken van hun log- en exportgegevens staan open. De onafhankelijke herreview van het herstel staat open.",
+    "opmerking": "De volledige proef op fork en stock is nog niet uitgevoerd. De proef vóór authenticatie volgt in S-G1-14. Voor de Hub-koppeling is alleen de simulator gebruikt.",
     "repo": "jelly-leon",
-    "bijgewerkt": "2026-11-27"
+    "bijgewerkt": "2026-11-28"
   },
   {
     "id": "I24-24-03",
