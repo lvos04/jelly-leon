@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import tempfile
 import uuid
 from contextlib import ExitStack
@@ -21,6 +22,10 @@ CLIENTS = ("chromium", "firefox", "webkit", "webos", "tizen")
 SYSTEMEN = ("stock-standaard", "stock-best")
 UITGESTELD = "NIET GEMETEN (machinelast)"
 BASIS = baseline.EVIDENCE_MAP / "b03-016-baseline-definitief-forkbasis.json"
+
+
+class ApparaatFout(WebFout):
+    """Een onvolledige meting met een bericht dat uitsluitend bevroren gevalnamen bevat."""
 
 
 def basisprobleem(pad: Path) -> str | None:
@@ -54,14 +59,14 @@ def devices_aan(sessie: baseline.Sessie) -> None:
 
 def lees_start(geval: dict, groep: str, i: dict) -> dict:
     if i.get("fout") or not i.get("besluit_gemeten") or not isinstance(i.get("geforceerd_ok"), bool):
-        raise WebFout(f"{geval['id']}: afspeelactie, PlaybackInfo of statische proef ontbreekt")
+        raise ApparaatFout(f"{geval['id']}: afspeelactie, PlaybackInfo of statische proef ontbreekt")
     duur = (i.get("laatste") or {}).get("t", 0)
     if i["besluit"] == "DirectPlay" and not i["orakel_ok"] and i["herstel_ms"] is None and duur < 60000:
-        raise WebFout(f"{geval['id']}: de observatie van automatisch herstel eindigde vóór de grens van 60 s")
+        raise ApparaatFout(f"{geval['id']}: de observatie van automatisch herstel eindigde vóór de grens van 60 s")
     if geval.get("middel") and not i.get("foutmiddel_actief"):
-        raise WebFout(f"{geval['id']}: het bevroren foutmiddel was niet actief in de browser")
+        raise ApparaatFout(f"{geval['id']}: het bevroren foutmiddel was niet actief in de browser")
     if groep in ("ass", "srt") and not i["ondertitel"]:
-        raise WebFout(f"{geval['id']}: geen geselecteerd ondertitelspoor voor K7")
+        raise ApparaatFout(f"{geval['id']}: geen geselecteerd ondertitelspoor voor K7")
     # Alleen bewezen geschiktheid telt mee. De headless test heeft geen bevestigde HDR-uitvoer of client-tonemapper.
     return {"id": geval["id"], "groep": groep, "classificatie": (
                 "onterechte Direct Play" if i["besluit"] == "DirectPlay" and not i["orakel_ok"] else i["besluit"]),
@@ -93,17 +98,20 @@ def meet_client(sessie: baseline.Sessie, client: str, groepen: dict, f5: Path, s
                     paden = [c["pad"] for c in batch]
                     if set(paden) - sessie.items.keys():
                         raise ValueError(f"{client}/{groep}: bevroren item ontbreekt in de bibliotheek")
-                    web = sessie.web("chromium" if client in UA else client, paden, "apparaten", **opties)
+                    try:
+                        web = sessie.web("chromium" if client in UA else client, paden, "apparaten", **opties)
+                    except WebFout as exc:
+                        raise ApparaatFout(f"{client}/{groep}: browserharnas kon de afspeelproef niet uitvoeren") from exc
                     versies.add(web["versie"])
                     verwacht = [(sessie.items[c["pad"]]["Id"], start) for c in batch for start in (1, 2)]
                     if [(i["id"], i["start"]) for i in web["items"]] != verwacht:
-                        raise WebFout(f"{client}/{groep}: onvolledige of verwisselde starts")
+                        raise ApparaatFout(f"{client}/{groep}: onvolledige of verwisselde starts")
                     for c, paar in zip(batch, batched(web["items"], 2), strict=True):
                         rijen.extend(lees_start(c, groep, i) for i in paar)
     finally:
         sessie.jf.a.doe("POST", "/Users/Configuration", body=standaard)
     if len(versies) != 1:
-        raise WebFout(f"{client}: geen eenduidige browserversie")
+        raise ApparaatFout(f"{client}: geen eenduidige browserversie")
     metingen = {}
     for groep, deel in groupby(rijen, key=lambda r: r["groep"]):
         beide = list(deel)
@@ -128,7 +136,10 @@ def meet(d: dict, sets: Path, fork: str | None, runs: int, splits: set[str], uit
             images["jelly-leon"] = fork
         for naam, image in images.items():
             server = context.enter_context(StockServer(naam, image=image, werk=werk, koppelingen=mounts, gpu_verplicht=True, cpus="4"))
-            server.start()
+            # Elke sessie heeft een nieuwe tijdelijke werkmap. De fork controleert de rechten op beide volumes.
+            for sub in ("config", "cache"):
+                (server.map / sub).mkdir(mode=0o700, parents=True)
+            server.start(schoon=False)
             server.inrichten(bibliotheken)
             sessies[naam] = baseline.Sessie(server)
             d["images"][naam] = {"referentie": image, "image_id": server.digest(), "serverversie": server.info["Version"]}
@@ -204,9 +215,11 @@ def main(argv: list[str] | None = None) -> int:
         except baseline.GeenGeldigeRun as exc:
             d.update(status=UITGESTELD, ongeldige_pogingen=exc.pogingen)
             d["redenen"].append(str(exc))
-        except (ValueError, OSError, WebFout) as exc:
+        except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as exc:
             d["status"] = "Meetproef afgebroken"
-            d["redenen"].append(str(exc))
+            # Ruwe HTTP- en procesfouten kunnen sessiegegevens bevatten. Alleen eigen, gecontroleerde meldingen publiceren.
+            d["redenen"].append(str(exc) if type(exc) in (ValueError, ApparaatFout) else
+                                f"{type(exc).__name__} tijdens de lokale meetproef")
     d["eind"] = meetslot.nu()
     rapport.schrijf(a.uit, d)
     print(d["status"])

@@ -140,6 +140,16 @@
     "bijgewerkt": "2026-11-27"
   },
   {
+    "id": "B03-060",
+    "status": "Bezig",
+    "validatie": "Unit-getest; NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "tools/b03-harnas/b03h/apparaten.py meet K1 t/m K9 per stockprofiel en webclient. docs/platform-v2/test-evidence/b03-060-meetsets.json bevat aparte SHA-256-manifesten voor de devset (3) en testset (18), met de 25 A5-items, ToS/BBB, 11 formaatgevallen en het ASS-recept. De unittests toetsen de twee starts, de classificatie van een liegende codec en drie herhalingen met een tijdmarge van 10%. Het JLT-40-commando staat in tools/b03-harnas/README.md.",
+    "blokkade": "NIET GEVALIDEERD (hardware): echte tv's, telefoons, A310 en UHD 770; NIET GEVALIDEERD (echte NAS).",
+    "opmerking": "NIET GEMETEN (machinelast). De definitieve S-P40-50-baseline ontbreekt. De meetpoging staat in docs/platform-v2/test-evidence/b03-060-voormeting.json en .md. Audio niet stil wacht op S-G2-35. De clientmatrix en de desktoprooktest zijn overgenomen met bronverwijzing. De winstmeting JLT-40 hoort bij S-G4-47.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-27"
+  },
+  {
     "id": "B03-030",
     "status": "Bezig",
     "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",

@@ -37,9 +37,14 @@ export async function geforceerdeProef(page, itemId) {
   bron.searchParams.set('MediaSourceId', itemId);
   const token = await page.evaluate(() => JSON.parse(localStorage.getItem('jellyfin_credentials')).Servers.find((s) => s.AccessToken).AccessToken);
   const auth = (route) => route.continue({ headers: { ...route.request().headers(), Authorization: `MediaBrowser Token="${token}"` } });
+  let status = null;
+  const opAntwoord = (r) => {
+    if (r.url() === bron.href && r.request().method() === 'GET') status = r.status();
+  };
   await page.route(bron.href, auth);
+  page.on('response', opAntwoord);
   try {
-    return await page.evaluate(async (url) => {
+    const speelt = await page.evaluate(async (url) => {
       const v = document.createElement('video');
       v.muted = true;
       document.body.append(v);
@@ -62,7 +67,10 @@ export async function geforceerdeProef(page, itemId) {
         v.remove();
       }
     }, bron.href);
+    if (status !== 200 && status !== 206) throw new Error('Statische bron niet geleverd, HTTP ' + (status ?? 'onbekend'));
+    return speelt;
   } finally {
+    page.off('response', opAntwoord);
     await page.unroute(bron.href, auth);
   }
 }

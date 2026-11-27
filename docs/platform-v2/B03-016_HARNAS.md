@@ -49,7 +49,7 @@ image-guard in CI controleert dat). Er is dus geen Custom App-formulier voor; de
 ## 2. Clientmatrix (deel b)
 
 `python -m b03h clientmatrix` start een wegwerp-stockserver (127.0.0.1, media alleen-lezen) en doet per client een rooktest
-met `hero.mp4` (orakel: binnen 15 s currentTime ≥ 2 s, beeld, geen fout en geen stilte bij een item met audio).
+met `hero.mp4` (orakel: binnen 15 s currentTime ≥ 2 s, beeld, geen fout en controle op audiodecodering waar beschikbaar).
 
 | Client / omgeving | Rol | Hoe | Label |
 |---|---|---|---|

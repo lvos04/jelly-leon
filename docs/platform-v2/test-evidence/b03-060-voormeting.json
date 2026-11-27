@@ -1,0 +1,205 @@
+{
+  "schema": "b03-060/apparaten/1",
+  "begin": "2026-11-27T21:49:37Z",
+  "status": "NIET GEMETEN (machinelast)",
+  "basis": "b03-016-baseline-definitief-forkbasis.json",
+  "runs_gevraagd": 3,
+  "split": "beide",
+  "meetsets": "b03-060-meetsets.json",
+  "loadavg": [
+    7.2,
+    7.89,
+    7.49
+  ],
+  "grens": 4.0,
+  "systemen": {
+    "stock-standaard": {
+      "chromium": {
+        "rol": "webclient op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      },
+      "firefox": {
+        "rol": "webclient op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      },
+      "webkit": {
+        "rol": "webclient op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      },
+      "webos": {
+        "rol": "tv-UA in Chromium op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      },
+      "tizen": {
+        "rol": "tv-UA in Chromium op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      }
+    },
+    "stock-best": {
+      "chromium": {
+        "rol": "webclient op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      },
+      "firefox": {
+        "rol": "webclient op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      },
+      "webkit": {
+        "rol": "webclient op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      },
+      "webos": {
+        "rol": "tv-UA in Chromium op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      },
+      "tizen": {
+        "rol": "tv-UA in Chromium op stock",
+        "runs": [],
+        "metingen": {
+          "K1": null,
+          "K2": null,
+          "K3": null,
+          "K4": null,
+          "K5": null,
+          "K6": null,
+          "K7": null,
+          "K8": null,
+          "K9": null
+        }
+      }
+    }
+  },
+  "audio_niet_stil": "niet gemeten",
+  "overgenomen_clientproeven": {
+    "telefoon": {
+      "bron": "jelly-leon-clients/docs/platform-v2/test-evidence/p4-0-jc3-android-emulator.json",
+      "uitkomst": "Android-telefoon: afspelen aangetoond in het clientharnas."
+    },
+    "tablet": {
+      "bron": "jelly-leon-clients/docs/platform-v2/EVIDENCE.json#B03-016",
+      "uitkomst": "Tablet: binnen 4 GiB drie OOM-kills; bij 5 GiB één van drie herhalingen positief. Vervolg S-P40-70."
+    },
+    "tv": {
+      "bron": "jelly-leon-clients/docs/platform-v2/test-evidence/p4-0-jc3-android-emulator.json",
+      "uitkomst": "Android TV: afspelen aangetoond in het clientharnas."
+    },
+    "desktop": {
+      "bron": "docs/platform-v2/test-evidence/b03-016-desktop-spike.json",
+      "uitkomst": "Desktop 2.0.0: hero.mp4 afgespeeld en hervat in S-P40-90."
+    }
+  },
+  "images": {},
+  "redenen": [
+    "De definitieve baseline van S-P40-50 ontbreekt.",
+    "De éénminuutslast overschrijdt de meetgrens."
+  ],
+  "sets_sha256": {
+    "a5": "458bc1c21a81373dab326917e95bb4b8e59e937308be438da9ff4646eb3ea0cd",
+    "extra": "c8608cc2e7f58df4a61180a2e739501d23866f83856f6ddd9b03ef59709e60ac",
+    "formaten": "c1f931fdc3798d69f64f5568b7b9def5811969a1398d9b067d8d5efb141780e6",
+    "ass": "649671d6cf69e3f65c9914a6a5c95c8ab3f4e0242579f690e12bb6c5141932ee",
+    "srt": "a77ba9ad48ea40f96c00f43bffbffc224865bb2acce7189e7ec319b450b318ed",
+    "devset": "d341d97ac185cba1bed8361a3a1d315ec315a2f9ffb71edd9ccce402adcc631b",
+    "testset": "45fd9d01c24f40b4b5796858875b0561ca71ceae42992a7bd90f423d69fbb4ef"
+  },
+  "eind": "2026-11-27T21:49:37Z"
+}

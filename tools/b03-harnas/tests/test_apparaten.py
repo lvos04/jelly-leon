@@ -133,7 +133,7 @@ def test_cli_drie_afwisselende_systemen_en_gescheiden_splits(tmp_path, monkeypat
             return {"versie": "unit", "items": items}
 
     def server(naam, **kwargs):
-        return nullcontext(SimpleNamespace(start=lambda: None, inrichten=lambda _: None, digest=lambda: "test",
+        return nullcontext(SimpleNamespace(map=tmp_path / naam, start=lambda **_: None, inrichten=lambda _: None, digest=lambda: "test",
                                            info={"Version": "12.4"}, container_id=naam))
 
     monkeypatch.setattr(apparaten, "basisprobleem", lambda _: None)
