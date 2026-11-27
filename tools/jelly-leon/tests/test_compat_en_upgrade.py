@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from argparse import Namespace
 from copy import deepcopy
 from pathlib import Path
 from unittest.mock import Mock
@@ -224,3 +225,19 @@ def test_hervatpunt_verandert_alleen_de_hash_van_de_betrokken_gebruiker():
     na = upgrade_proef.gebruikershashes(opname)
     assert voor["ouder"] == na["ouder"]
     assert voor["gast"] != na["gast"]
+
+
+def test_mediahash_telt_beide_bibliotheken_en_ziet_een_gewijzigde_byte(tmp_path: Path):
+    proef = upgrade_proef.Proef(Namespace(werkmap=tmp_path))
+    proef.music.mkdir()
+    proef.films.mkdir()
+    (proef.music / "item").write_bytes(b"abc")
+    film = proef.films / "item"
+    film.write_bytes(b"def")
+    voor = proef.media_hashes()
+    film.write_bytes(b"deg")
+    na = proef.media_hashes()
+    assert voor.keys() == na.keys() == {"media-muziek/item", "media-films/item"}
+    assert voor["media-muziek/item"] == na["media-muziek/item"]
+    assert voor["media-films/item"] != na["media-films/item"]
+    assert upgrade_proef.digest(voor) != upgrade_proef.digest(na)

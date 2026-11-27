@@ -507,6 +507,7 @@ class Proef:
         self.config.mkdir()
         self.make_media()
         media_before = self.media_hashes()
+        self.result["media_sha256"] = {"voor": digest(media_before), "bestanden_voor": len(media_before)}
         old = Server(self, OLD_IMAGE, "oud")
         new = Server(self, self.args.image, "jellyleon")
         stock = Server(self, self.args.stock_image, "stock")
@@ -588,7 +589,9 @@ class Proef:
 
             # 6. JLT-61 (b): alleen de oude image op de gemigreerde datamap
             self.negative_old_image(old, new, after)
-            r.add("mediabestanden onaangeroerd (sha256 vóór = na)", self.media_hashes() == media_before,
+            media_after = self.media_hashes()
+            self.result["media_sha256"].update(na=digest(media_after), bestanden_na=len(media_after))
+            r.add("mediabestanden onaangeroerd (sha256 vóór = na)", bool(media_before) and media_after == media_before,
                   f"{len(media_before)} bestanden")
         finally:
             for server in (old, new, stock):
@@ -675,6 +678,7 @@ def main(argv: list[str] | None = None) -> int:
         "verschillen_voor_na": proef.result.get("na", {}).get("verschillen"),
         "rapport_voor": proef.result.get("voor", {}).get("rapport"),
         "gebruikers_sha256": proef.result.get("gebruikers_sha256", {}),
+        "media_sha256": proef.result.get("media_sha256", {}),
         "diffrun": proef.result.get("diffrun"),
         "negatief_oude_image": proef.result.get("negatief_oude_image"),
         "jlt_61_b": proef.result.get("jlt_61_b"),
