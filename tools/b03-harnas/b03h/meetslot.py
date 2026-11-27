@@ -57,6 +57,10 @@ def actieve_zware_sloten(lock_dir: Path = LOCK_DIR) -> list[str]:
     return [naam for naam in ZWARE_SLOTEN if slot_bezet(lock_dir / naam)]
 
 
+class SlotWachttijdVerstreken(TimeoutError):
+    """Het proces kon de proef binnen de opgegeven wachttijd niet starten."""
+
+
 @contextmanager
 def exclusief_slot(naam: str = STACK_LOCK, lock_dir: Path = LOCK_DIR, timeout: float = 7200.0,
                    bij_wachten: object = None) -> Iterator[float]:
@@ -74,7 +78,7 @@ def exclusief_slot(naam: str = STACK_LOCK, lock_dir: Path = LOCK_DIR, timeout: f
             # in dit proces vast zodra flock terugkeert, ook bij een rij wachtende bouwketens.
             wacht = subprocess.run(["flock", "-x", "-w", str(max(0, timeout)), str(fd)], pass_fds=(fd,), check=False)
             if wacht.returncode == 1:
-                raise TimeoutError(f"{pad} niet vrij binnen {timeout:.0f} s") from None
+                raise SlotWachttijdVerstreken(f"{pad} niet vrij binnen {timeout:.0f} s") from None
             wacht.check_returncode()
         yield time.monotonic() - begin
     finally:

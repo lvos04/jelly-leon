@@ -69,7 +69,8 @@ def beoordeel(cdp: dict[str, Any]) -> str:
 
 def draai(build: Path, image: str, desktop_image: str, uitmap: Path, resultaat: dict[str, Any]) -> None:
     WERK.mkdir(parents=True, exist_ok=True)
-    with meetslot.exclusief_slot(bij_wachten=lambda s: print(s, flush=True)), ExitStack() as stapel:
+    with meetslot.exclusief_slot(bij_wachten=lambda s: print(s, flush=True)) as wachttijd, ExitStack() as stapel:
+        resultaat["stackslot_wacht_s"] = round(wachttijd, 3)
         werk = Path(stapel.enter_context(tempfile.TemporaryDirectory(dir=WERK)))
         netwerk = docker("network", "create", "--internal", "--ipv6=false", "--opt", "com.docker.network.bridge.inhibit_ipv4=true",
                          f"b03016-desktop-{uuid.uuid4().hex}").stdout.strip()
@@ -150,6 +151,8 @@ def main(argv: list[str] | None = None) -> int:
         document.update(status="Sim-mislukt", reden=str(fout))
     except subprocess.CalledProcessError as fout:
         document.update(status="Sim-mislukt", reden=f"Docker-opdracht {fout.cmd[1]} gaf exitcode {fout.returncode}")
+    except meetslot.SlotWachttijdVerstreken:
+        document.update(status="Sim-mislukt", reden="wachttijd voor het gedeelde stackslot verstreken vóór de desktopstart")
     except subprocess.TimeoutExpired:
         document.update(status="Sim-mislukt", reden="tijdlimiet van de lokale proef verstreken")
     except (OSError, ValueError, RuntimeError) as fout:

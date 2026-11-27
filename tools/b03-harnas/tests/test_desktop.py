@@ -53,3 +53,21 @@ def test_ontbrekende_build_start_geen_proef(tmp_path):
     bewijs = json.loads(uit.read_text())
     assert "desktopbuild ontbreekt" in bewijs["reden"]
     assert "cdp" not in bewijs
+
+
+def test_timeout_van_stackslot_wordt_vastgelegd_zonder_desktopmeting(tmp_path, monkeypatch):
+    binary = tmp_path / desktop.BINARY
+    binary.parent.mkdir(parents=True)
+    binary.touch(mode=0o700)
+    monkeypatch.setattr(desktop, "WERK", tmp_path)
+
+    def slot_bezet(**_):
+        raise desktop.meetslot.SlotWachttijdVerstreken
+
+    monkeypatch.setattr(desktop.meetslot, "exclusief_slot", slot_bezet)
+    uit = tmp_path / "bewijs.json"
+    assert desktop.main(["--build", str(tmp_path), "--uit", str(uit)]) == 1
+    bewijs = json.loads(uit.read_text())
+    assert bewijs["status"] == "Sim-mislukt"
+    assert "stackslot" in bewijs["reden"]
+    assert "cdp" not in bewijs
