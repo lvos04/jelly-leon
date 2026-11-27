@@ -211,3 +211,16 @@ def test_report_redacts_secrets() -> None:
     report.secrets.append("geheim-wachtwoord")
     report.add("stap", True, "aanmelden met geheim-wachtwoord gelukt")
     assert "geheim-wachtwoord" not in report.steps[0]["detail"] and "<geheim>" in report.steps[0]["detail"]
+@pytest.mark.parametrize(("gebruikers", "items"), [({}, ["film"]), ({"gast": {}}, [])])
+def test_gebruikershashes_weigeren_lege_opname(gebruikers, items):
+    with pytest.raises(RuntimeError, match="nul gebruikers of nul items"):
+        upgrade_proef.gebruikershashes({"gebruikers": gebruikers, "items": items})
+
+
+def test_hervatpunt_verandert_alleen_de_hash_van_de_betrokken_gebruiker():
+    opname = {"gebruikers": {"ouder": {"Played": True}, "gast": {"PlaybackPositionTicks": 30}}, "items": ["film"]}
+    voor = upgrade_proef.gebruikershashes(opname)
+    opname["gebruikers"]["gast"]["PlaybackPositionTicks"] += 1
+    na = upgrade_proef.gebruikershashes(opname)
+    assert voor["ouder"] == na["ouder"]
+    assert voor["gast"] != na["gast"]

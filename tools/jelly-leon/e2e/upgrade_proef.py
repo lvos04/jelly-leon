@@ -100,6 +100,13 @@ def digest(data: object) -> str:
     return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
+def gebruikershashes(opname: dict[str, Any]) -> dict[str, str]:
+    """Hash de gemeten waarden van iedere proefgebruiker op dit meetmoment."""
+    if not opname["gebruikers"] or not opname["items"]:
+        raise RuntimeError("Geen vergelijkbare opname: nul gebruikers of nul items.")
+    return {naam: digest(waarden) for naam, waarden in opname["gebruikers"].items()}
+
+
 def iso_seconds(value: object) -> object:
     """Datums op de seconde in UTC vergelijken (12.x schrijft soms een andere notatie van hetzelfde moment)."""
     if not isinstance(value, str) or not value:
@@ -507,6 +514,7 @@ class Proef:
             if not self.seed(old):
                 return False
             before = self.snapshot(old)
+            self.result["gebruikers_sha256"] = {"voor": gebruikershashes(before)}
             self.expected_present(before, "VÓÓR (10.11.11)")
             old.stop()
             for target in (self.backup, self.stock_copy, self.diff_stock, self.diff_jl):
@@ -521,6 +529,7 @@ class Proef:
                   ver == self.args.expected_version and new.info.get("ProductName") == "Jellyfin Server",
                   f"versie {ver}, product {new.info.get('ProductName')}, server {new.info.get('ServerName')}")
             after = self.snapshot(new)
+            self.result["gebruikers_sha256"]["na"] = gebruikershashes(after)
             diff = differences(before, after)
             self.result["na"] = {"sha256": digest(after), "rapport": after, "verschillen": diff}
             r.add("VÓÓR = NA per gebruiker (gezien, aantal, datum, hervatpunt, favoriet, beoordeling, spoorkeuze, "
@@ -565,6 +574,7 @@ class Proef:
                   f"sha256 vóór {db_before[:16]}…, teruggezet {db_restored[:16]}…")
             old.start(self.config)
             restored = self.snapshot(old)
+            self.result["gebruikers_sha256"]["teruggezet"] = gebruikershashes(restored)
             rdiff = differences(before, restored)
             token, _ = self.login(old, ADMIN, "jl-upgrade-beheer")
             stream = self.http(old, token).ruw("GET", f"/Audio/{self.ids['wav']}/stream", {"static": "true"},
@@ -661,6 +671,7 @@ def main(argv: list[str] | None = None) -> int:
         "na_sha256": proef.result.get("na", {}).get("sha256"),
         "verschillen_voor_na": proef.result.get("na", {}).get("verschillen"),
         "rapport_voor": proef.result.get("voor", {}).get("rapport"),
+        "gebruikers_sha256": proef.result.get("gebruikers_sha256", {}),
         "diffrun": proef.result.get("diffrun"),
         "negatief_oude_image": proef.result.get("negatief_oude_image"),
         "jlt_61_b": proef.result.get("jlt_61_b"),
