@@ -1,0 +1,610 @@
+{
+  "soort": "lokale spelersimulator",
+  "testset_sha256": "45fd9d01c24f40b4b5796858875b0561ca71ceae42992a7bd90f423d69fbb4ef",
+  "runs": [
+    {
+      "run": 1,
+      "browser": "153.0.8010.12",
+      "loadavg_voor": [
+        4.76,
+        5.46,
+        6.17
+      ],
+      "rijen": [
+        {
+          "id": "test-chromium-mpeg2-ts",
+          "groep": "testset",
+          "classificatie": "onterechte Direct Play",
+          "waargenomen_ms": 211,
+          "hdr_toegestaan": true,
+          "foutcodes": [
+            4
+          ],
+          "start": 1,
+          "besluit": "DirectPlay",
+          "orakel_ok": false,
+          "geforceerd_ok": false,
+          "herstel_ms": 211,
+          "eerste_frame_ms": 40,
+          "tijd_tot_2s_ms": null,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "test-chromium-mpeg2-ts",
+          "groep": "testset",
+          "classificatie": "onterechte Direct Play",
+          "waargenomen_ms": 207,
+          "hdr_toegestaan": true,
+          "foutcodes": [
+            4
+          ],
+          "start": 2,
+          "besluit": "DirectPlay",
+          "orakel_ok": false,
+          "geforceerd_ok": false,
+          "herstel_ms": 207,
+          "eerste_frame_ms": 34,
+          "tijd_tot_2s_ms": null,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "controle",
+          "groep": "testset",
+          "classificatie": "DirectPlay",
+          "waargenomen_ms": 10032,
+          "hdr_toegestaan": true,
+          "foutcodes": [],
+          "start": 1,
+          "besluit": "DirectPlay",
+          "orakel_ok": true,
+          "geforceerd_ok": true,
+          "herstel_ms": null,
+          "eerste_frame_ms": 16,
+          "tijd_tot_2s_ms": 2075,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "controle",
+          "groep": "testset",
+          "classificatie": "DirectPlay",
+          "waargenomen_ms": 10066,
+          "hdr_toegestaan": true,
+          "foutcodes": [],
+          "start": 2,
+          "besluit": "DirectPlay",
+          "orakel_ok": true,
+          "geforceerd_ok": true,
+          "herstel_ms": null,
+          "eerste_frame_ms": 15,
+          "tijd_tot_2s_ms": 2084,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        }
+      ],
+      "eerste_start": {
+        "K1": {
+          "k": 1,
+          "n": 2,
+          "wilson95": {
+            "punt": 0.5,
+            "onder": 0.094531,
+            "boven": 0.905469,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 2)",
+          "gevallen": [
+            "test-chromium-mpeg2-ts"
+          ]
+        },
+        "K2": {
+          "test-chromium-mpeg2-ts": 211
+        },
+        "K3": {
+          "k": 1,
+          "n": 2,
+          "wilson95": {
+            "punt": 0.5,
+            "onder": 0.094531,
+            "boven": 0.905469,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 2)"
+        },
+        "K4": {
+          "k": 1,
+          "n": 1,
+          "wilson95": {
+            "punt": 1.0,
+            "onder": 0.206549,
+            "boven": 1.0,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 1)",
+          "geforceerd_speelt_zonder_hdr_bevestiging": 0
+        },
+        "K5": {
+          "aantal": 0,
+          "transcodes": 0
+        },
+        "K6": {
+          "videotranscodes": 0,
+          "hardware": {
+            "k": 0,
+            "n": 0,
+            "wilson95": null,
+            "gate": "smoke-gate (n = 0)"
+          },
+          "hardware_onbekend": 0,
+          "hls_zonder_sessieinfo": 0,
+          "frames_per_s": {},
+          "cpu_kernen_per_transcode": {}
+        },
+        "K7": {
+          "actieve_sporen": 0,
+          "ingebrand": 0,
+          "onnodig": 0
+        },
+        "K8": "afzonderlijke vergelijking onder gelijke encoding.xml in JLT-46",
+        "K9": "n.v.t. bij één rendernode; routering en uitval in JLT-44/45"
+      }
+    },
+    {
+      "run": 2,
+      "browser": "153.0.8010.12",
+      "loadavg_voor": [
+        4.9,
+        5.43,
+        6.13
+      ],
+      "rijen": [
+        {
+          "id": "test-chromium-mpeg2-ts",
+          "groep": "testset",
+          "classificatie": "onterechte Direct Play",
+          "waargenomen_ms": 216,
+          "hdr_toegestaan": true,
+          "foutcodes": [
+            4
+          ],
+          "start": 1,
+          "besluit": "DirectPlay",
+          "orakel_ok": false,
+          "geforceerd_ok": false,
+          "herstel_ms": 216,
+          "eerste_frame_ms": 33,
+          "tijd_tot_2s_ms": null,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "test-chromium-mpeg2-ts",
+          "groep": "testset",
+          "classificatie": "onterechte Direct Play",
+          "waargenomen_ms": 212,
+          "hdr_toegestaan": true,
+          "foutcodes": [
+            4
+          ],
+          "start": 2,
+          "besluit": "DirectPlay",
+          "orakel_ok": false,
+          "geforceerd_ok": false,
+          "herstel_ms": 212,
+          "eerste_frame_ms": 27,
+          "tijd_tot_2s_ms": null,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "controle",
+          "groep": "testset",
+          "classificatie": "DirectPlay",
+          "waargenomen_ms": 10054,
+          "hdr_toegestaan": true,
+          "foutcodes": [],
+          "start": 1,
+          "besluit": "DirectPlay",
+          "orakel_ok": true,
+          "geforceerd_ok": true,
+          "herstel_ms": null,
+          "eerste_frame_ms": 17,
+          "tijd_tot_2s_ms": 2075,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "controle",
+          "groep": "testset",
+          "classificatie": "DirectPlay",
+          "waargenomen_ms": 10028,
+          "hdr_toegestaan": true,
+          "foutcodes": [],
+          "start": 2,
+          "besluit": "DirectPlay",
+          "orakel_ok": true,
+          "geforceerd_ok": true,
+          "herstel_ms": null,
+          "eerste_frame_ms": 18,
+          "tijd_tot_2s_ms": 2052,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        }
+      ],
+      "eerste_start": {
+        "K1": {
+          "k": 1,
+          "n": 2,
+          "wilson95": {
+            "punt": 0.5,
+            "onder": 0.094531,
+            "boven": 0.905469,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 2)",
+          "gevallen": [
+            "test-chromium-mpeg2-ts"
+          ]
+        },
+        "K2": {
+          "test-chromium-mpeg2-ts": 216
+        },
+        "K3": {
+          "k": 1,
+          "n": 2,
+          "wilson95": {
+            "punt": 0.5,
+            "onder": 0.094531,
+            "boven": 0.905469,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 2)"
+        },
+        "K4": {
+          "k": 1,
+          "n": 1,
+          "wilson95": {
+            "punt": 1.0,
+            "onder": 0.206549,
+            "boven": 1.0,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 1)",
+          "geforceerd_speelt_zonder_hdr_bevestiging": 0
+        },
+        "K5": {
+          "aantal": 0,
+          "transcodes": 0
+        },
+        "K6": {
+          "videotranscodes": 0,
+          "hardware": {
+            "k": 0,
+            "n": 0,
+            "wilson95": null,
+            "gate": "smoke-gate (n = 0)"
+          },
+          "hardware_onbekend": 0,
+          "hls_zonder_sessieinfo": 0,
+          "frames_per_s": {},
+          "cpu_kernen_per_transcode": {}
+        },
+        "K7": {
+          "actieve_sporen": 0,
+          "ingebrand": 0,
+          "onnodig": 0
+        },
+        "K8": "afzonderlijke vergelijking onder gelijke encoding.xml in JLT-46",
+        "K9": "n.v.t. bij één rendernode; routering en uitval in JLT-44/45"
+      }
+    },
+    {
+      "run": 3,
+      "browser": "153.0.8010.12",
+      "loadavg_voor": [
+        4.42,
+        5.27,
+        6.06
+      ],
+      "rijen": [
+        {
+          "id": "test-chromium-mpeg2-ts",
+          "groep": "testset",
+          "classificatie": "onterechte Direct Play",
+          "waargenomen_ms": 228,
+          "hdr_toegestaan": true,
+          "foutcodes": [
+            4
+          ],
+          "start": 1,
+          "besluit": "DirectPlay",
+          "orakel_ok": false,
+          "geforceerd_ok": false,
+          "herstel_ms": 228,
+          "eerste_frame_ms": 27,
+          "tijd_tot_2s_ms": null,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "test-chromium-mpeg2-ts",
+          "groep": "testset",
+          "classificatie": "onterechte Direct Play",
+          "waargenomen_ms": 208,
+          "hdr_toegestaan": true,
+          "foutcodes": [
+            4
+          ],
+          "start": 2,
+          "besluit": "DirectPlay",
+          "orakel_ok": false,
+          "geforceerd_ok": false,
+          "herstel_ms": 208,
+          "eerste_frame_ms": 27,
+          "tijd_tot_2s_ms": null,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "controle",
+          "groep": "testset",
+          "classificatie": "DirectPlay",
+          "waargenomen_ms": 10057,
+          "hdr_toegestaan": true,
+          "foutcodes": [],
+          "start": 1,
+          "besluit": "DirectPlay",
+          "orakel_ok": true,
+          "geforceerd_ok": true,
+          "herstel_ms": null,
+          "eerste_frame_ms": 17,
+          "tijd_tot_2s_ms": 2055,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        },
+        {
+          "id": "controle",
+          "groep": "testset",
+          "classificatie": "DirectPlay",
+          "waargenomen_ms": 10016,
+          "hdr_toegestaan": true,
+          "foutcodes": [],
+          "start": 2,
+          "besluit": "DirectPlay",
+          "orakel_ok": true,
+          "geforceerd_ok": true,
+          "herstel_ms": null,
+          "eerste_frame_ms": 16,
+          "tijd_tot_2s_ms": 2062,
+          "redenen": "",
+          "hls": false,
+          "transcoding_info": null,
+          "cpu_kernen": null,
+          "ingebrand": false,
+          "ondertitel": null,
+          "extern_mogelijk": false,
+          "videobereik": "SDR",
+          "audio_niet_stil": "niet gemeten",
+          "foutmiddel_actief": true
+        }
+      ],
+      "eerste_start": {
+        "K1": {
+          "k": 1,
+          "n": 2,
+          "wilson95": {
+            "punt": 0.5,
+            "onder": 0.094531,
+            "boven": 0.905469,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 2)",
+          "gevallen": [
+            "test-chromium-mpeg2-ts"
+          ]
+        },
+        "K2": {
+          "test-chromium-mpeg2-ts": 228
+        },
+        "K3": {
+          "k": 1,
+          "n": 2,
+          "wilson95": {
+            "punt": 0.5,
+            "onder": 0.094531,
+            "boven": 0.905469,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 2)"
+        },
+        "K4": {
+          "k": 1,
+          "n": 1,
+          "wilson95": {
+            "punt": 1.0,
+            "onder": 0.206549,
+            "boven": 1.0,
+            "methode": "wilson-95"
+          },
+          "gate": "smoke-gate (n = 1)",
+          "geforceerd_speelt_zonder_hdr_bevestiging": 0
+        },
+        "K5": {
+          "aantal": 0,
+          "transcodes": 0
+        },
+        "K6": {
+          "videotranscodes": 0,
+          "hardware": {
+            "k": 0,
+            "n": 0,
+            "wilson95": null,
+            "gate": "smoke-gate (n = 0)"
+          },
+          "hardware_onbekend": 0,
+          "hls_zonder_sessieinfo": 0,
+          "frames_per_s": {},
+          "cpu_kernen_per_transcode": {}
+        },
+        "K7": {
+          "actieve_sporen": 0,
+          "ingebrand": 0,
+          "onnodig": 0
+        },
+        "K8": "afzonderlijke vergelijking onder gelijke encoding.xml in JLT-46",
+        "K9": "n.v.t. bij één rendernode; routering en uitval in JLT-44/45"
+      }
+    }
+  ],
+  "herhaalbaarheid_simulator": {
+    "geldig": false,
+    "aantal_runs": 3,
+    "verschillen": [
+      {
+        "run": 2,
+        "geval": [
+          "testset",
+          "test-chromium-mpeg2-ts",
+          1
+        ],
+        "veld": "eerste_frame_ms",
+        "eerste": 40,
+        "herhaling": 33
+      },
+      {
+        "run": 2,
+        "geval": [
+          "testset",
+          "test-chromium-mpeg2-ts",
+          2
+        ],
+        "veld": "eerste_frame_ms",
+        "eerste": 34,
+        "herhaling": 27
+      },
+      {
+        "run": 2,
+        "geval": [
+          "testset",
+          "controle",
+          2
+        ],
+        "veld": "eerste_frame_ms",
+        "eerste": 15,
+        "herhaling": 18
+      },
+      {
+        "run": 3,
+        "geval": [
+          "testset",
+          "test-chromium-mpeg2-ts",
+          1
+        ],
+        "veld": "eerste_frame_ms",
+        "eerste": 40,
+        "herhaling": 27
+      },
+      {
+        "run": 3,
+        "geval": [
+          "testset",
+          "test-chromium-mpeg2-ts",
+          2
+        ],
+        "veld": "eerste_frame_ms",
+        "eerste": 34,
+        "herhaling": 27
+      }
+    ]
+  }
+}

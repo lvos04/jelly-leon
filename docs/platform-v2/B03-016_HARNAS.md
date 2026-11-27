@@ -191,6 +191,27 @@ stockimage de bevroren bytes op. De SHA-256-controle herkende een afwijkend ASS-
 Het meetrapport vermeldt nul geldige stockruns bij een éénminuutslast van 7,20 en een ontbrekende definitieve baseline.
 [Corpuscontrole](test-evidence/b03-060-corpuscontrole.json) · [Meetpoging](test-evidence/b03-060-voormeting.md)
 
+Met de bevroren foutenset en de vastgezette Chromium-installatie kan de negatieve controle afzonderlijk draaien.
+De lokale spelersimulator biedt het MPEG-2-bestand aan met het liegende codecprofiel. Na een echte decoderfout
+schakelt de speler over op WebM. Een apart WebM-controlebestand toetst de gewone en de geforceerde Direct Play.
+Drie browsersessies starten beide bestanden elk twee keer en leggen de uitkomsten en de tijdspreiding vast.
+
+```bash
+PYTHONPATH=tools/b03-harnas "$B03_LOCK_DIR/stackslot" nice -n 10 python3.12 tools/b03-harnas/proeven/f5_codec.py \
+  --sets "$B03_UITVOER" --uit docs/platform-v2/test-evidence/b03-060-codecproef.json
+```
+
+In de drie simulatorsessies leverde het MPEG-2-bestand zes keer mediafout 4 op. Elke start verscheen als
+`onterechte Direct Play`. Het herstelbeeld ging na 207–228 ms vooruit. De zes starts van het controlebestand
+haalden zowel de gewone als de geforceerde afspeelproef. De beslissingen waren gelijk. Vijf tijden tot het
+eerste beeld vielen buiten ±10%. De startlast lag in alle drie sessies boven 4,0.
+[Negatieve browserproef](test-evidence/b03-060-codecproef.json)
+
+De stockrooktest met `hero.mp4` leverde zes positieve clientcontroles op. WebKit 26.6 opende de lokale
+startpagina, maar de afspeelpagina crashte. Ook met softwareweergave hield de WebKit-pagina op te werken.
+De gewone databasevergelijking vond nul verschillen. De extra favoriet in de negatieve proef leverde in `UserData`
+één rij alleen in A en één rij alleen in B op. [Poortproeven](test-evidence/b03-060-poort.json)
+
 De historische A5-matrix koos Direct Play voor 16/25 items in Chromium, 17/25 in Firefox en 21/25 in WebKit.
 Bij WebKit speelde één gekozen item, Sintel, niet af. Dit zijn de referentiecijfers van de historische sessie.
 [Bronmatrix van 10 november](test-evidence/b03-016-baseline-voormeting-12.4/dp-matrix.json)

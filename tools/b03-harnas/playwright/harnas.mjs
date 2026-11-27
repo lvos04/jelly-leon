@@ -252,7 +252,8 @@ async function speelItem(page, item, opts) {
     // Volledig herladen (niet alleen de hash): een vastgelopen speler of foutdialoog mag het volgende item niet blokkeren.
     await page.goto('about:blank').catch(() => {});
     await page.goto(base + '/web/#/home', { waitUntil: 'domcontentloaded' }).catch(() => {});
-    await page.waitForTimeout(800);
+    // Een gecrashte afspeelpagina heeft al een fout op de meetrij. Behoud die rij voor de clientmatrix.
+    await page.waitForTimeout(800).catch(() => {});
   }
   return res;
 }

@@ -1,0 +1,81 @@
+{
+  "schema": "b03-060/poort/1",
+  "basisrevisie": "9383f7c6c157624e1fac2c5af40c12877bb29afc",
+  "harnas_sha256_bij_herhaling": "260726bd179e1dc0d318182c7e40a9dac75446c188555aa207947bec099f514f",
+  "clientmatrix": {
+    "onderdelen": "web,ua,legacy,webdir",
+    "eerste_exit": 1,
+    "eerste_slotregel": "b03h.web.WebFout: harnas faalde: Error: page.waitForTimeout: Page crashed",
+    "webkit_start_exit": 0,
+    "webkit_start_slotregel": "WebKit 26.6 Lokale startcontrole",
+    "herhaling_exit": 0,
+    "herhaling_omgeving": "Softwareweergave met LIBGL_ALWAYS_SOFTWARE=1 en WEBKIT_DISABLE_DMABUF_RENDERER=1. De opruiming behoudt een fout op de betrokken afspeelrij.",
+    "begin_herhaling": "2026-11-27T22:51:46Z",
+    "eind_herhaling": "2026-11-27T22:53:08Z",
+    "clients": [
+      {
+        "client": "chromium 153.0.8010.12",
+        "status": "Sim-getest (rooktest geslaagd)",
+        "besluit": "DirectPlay",
+        "orakel_ok": true
+      },
+      {
+        "client": "firefox 155.0",
+        "status": "Sim-getest (rooktest geslaagd)",
+        "besluit": "DirectPlay",
+        "orakel_ok": true
+      },
+      {
+        "client": "webkit 26.6",
+        "status": "Sim-mislukt",
+        "besluit": null,
+        "orakel_ok": null,
+        "fout": "Error: page.evaluate: Target page, context or browser has been closed"
+      },
+      {
+        "client": "webos via UA-simulatie",
+        "status": "Sim-getest (UA-simulatie, geen echte decoder)",
+        "besluit": "DirectPlay",
+        "orakel_ok": true
+      },
+      {
+        "client": "tizen via UA-simulatie",
+        "status": "Sim-getest (UA-simulatie, geen echte decoder)",
+        "besluit": "DirectPlay",
+        "orakel_ok": true
+      },
+      {
+        "client": "Legacy-headers",
+        "status": "Sim-getest (gemeten: legacy-auth geweigerd op API-routes; statische stream speelt)"
+      },
+      {
+        "client": "Stockweb via --webdir",
+        "status": "Sim-getest (rooktest geslaagd)",
+        "besluit": "DirectPlay",
+        "orakel_ok": true
+      }
+    ]
+  },
+  "databaseproeven": {
+    "diffrun": {
+      "exit": 0,
+      "slotregel": "0 verschillen buiten de vaste uitzonderingen",
+      "verschillen_buiten_uitzonderingen": 0,
+      "verschillen_per_tabel": {}
+    },
+    "diffrun-negatief": {
+      "exit": 1,
+      "slotregel": "2 verschillen buiten de uitzonderingen",
+      "verschillen_buiten_uitzonderingen": 2,
+      "verschillen_per_tabel": {
+        "UserData": 2
+      }
+    }
+  },
+  "opslaggrens": {
+    "proef": "tools/jelly-leon/tests/test_entrypoint_opslaggrens.py",
+    "omgeving": "netwerkloze lokale testcontainer, alleen-lezen broncode",
+    "exit": 0,
+    "slotregel": "80 passed in 3.33s"
+  }
+}
