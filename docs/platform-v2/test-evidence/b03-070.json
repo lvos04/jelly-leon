@@ -1,0 +1,137 @@
+{
+  "werkpakket": "B03-070",
+  "stap": "S-P40-66",
+  "datum": "2026-11-27",
+  "status": "Bezig",
+  "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+  "manifest": "b03-016-corpus/f6-segmenten.v2.vol.manifest.json",
+  "manifest_sha256": "c7ce932ba83d373d01792d757e0c002e38727e8807f36f0125b5d8840f0f0b6c",
+  "set_sha256": "1c164525681fc4e3bc4492a1e3ccadd39717e4b6746805784eaac5d346c9559d",
+  "recept": "f6-segmenten",
+  "versie": "2",
+  "seed": 20261127,
+  "schaal": "vol",
+  "aantallen": {
+    "beschermd": 63,
+    "intro": 60,
+    "intro_buiten_is_venster": 20,
+    "mid_credit": 16,
+    "outro": 78,
+    "post_credit": 17,
+    "preview": 30,
+    "recap": 48,
+    "seizoensvariant_nieuwe_op": 28
+  },
+  "bestanden": 63,
+  "media": 62,
+  "afleveringen": 61,
+  "films": 1,
+  "totaal_bytes": 4283646818,
+  "licentie_beperkt": false,
+  "gegenereerde_set_opgeruimd": true,
+  "broncontrole": {
+    "SHA256SUMS.bron.txt": {
+      "ok": true,
+      "bestanden": 34
+    },
+    "SHA256SUMS.ondertitels.txt": {
+      "ok": true,
+      "bestanden": 75
+    },
+    "SHA256SUMS.afgeleid.txt": {
+      "ok": true,
+      "bestanden": 31
+    }
+  },
+  "bronscheiding": {
+    "ontwikkelafleveringen": 8,
+    "ontwikkelvensters": 31,
+    "receptvensters": 33,
+    "overlap": 0
+  },
+  "setcontrole": {
+    "sha256sum_c": "OK",
+    "fouten": []
+  },
+  "herhaling": {
+    "beschermd": 63,
+    "herhalingen": 2,
+    "items": 62,
+    "n_per_deelgroep": {
+      "intro_buiten_is_venster": 20,
+      "seizoensvariant_nieuwe_op": 28
+    },
+    "n_per_type": {
+      "intro": 60,
+      "outro": 78,
+      "preview": 30,
+      "recap": 48
+    },
+    "scores_sha256": "89e17f002b41b903c0dadcce97682732133a679738987e7653d4eeefd31cf890",
+    "soort": "vaste API-fixture"
+  },
+  "negatieve_fixture": {
+    "verschuiving_s": 10,
+    "intro_f1_voor": 1.0,
+    "intro_f1_na": 0.0
+  },
+  "andere_negatieve_proeven": {
+    "kandidaat_zonder_recht": 403,
+    "afwijking_publicatie_ticks": 1,
+    "guard_beperkt_label_exit": 1
+  },
+  "stock_image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "S-IS": {
+    "versie": "12.0.8.0",
+    "pakket_sha256": "a898f2e451a5421e02d09efb9c11d7fe3226ea122605260a3c57811ce01963ff",
+    "status": "in wachtrij",
+    "reden": "De lokale laadproef wacht op een gedeeld testslot."
+  },
+  "metingen": {
+    "status": "NIET GEMETEN (machinelast)",
+    "meetpoging": {
+      "profiel": "stock-standaard",
+      "gevraagde_runs": 3,
+      "geldige_runs": 0,
+      "exitcode": 3,
+      "slotregel": "NIET GEMETEN (machinelast) — loadavg 5.78 / 6.57 / 6.77, grens 4,00, definitieve baseline S-P40-50 ontbreekt",
+      "loadavg_1_5_15": [
+        5.78,
+        6.57,
+        6.77
+      ],
+      "lastgrens": 4.0,
+      "definitieve_baseline_aanwezig": false
+    },
+    "stock-standaard": {
+      "status": "NIET GEMETEN (machinelast)",
+      "scores": null
+    },
+    "is-standaard": {
+      "status": "NIET GEMETEN (machinelast)",
+      "scores": null
+    },
+    "is-ruim": {
+      "status": "NIET GEMETEN (machinelast)",
+      "scores": null
+    },
+    "jelly-leon": {
+      "status": "niet gemeten",
+      "scores": null,
+      "reden": "De kandidaat- en publicatielezer zijn beproefd op vaste API-antwoorden. De module volgt in S-G2-40."
+    },
+    "gepaard_verschil_jl_min_is": null
+  },
+  "preregistratie": {
+    "bestand": "tools/b03-harnas/README.md",
+    "kop": "JLT-50",
+    "commit": "4bd04d5811",
+    "drempels_in_code": "tools/b03-harnas/b03h/segmentmeting.py",
+    "voor_detectorafstemming": true
+  },
+  "echte_series": {
+    "pioneer_one_bevestigde_labels": 0,
+    "status": "Geblokkeerd",
+    "blokkade": "NIET GEVALIDEERD (echte NAS): winst op echte series zonder bevestigde Pioneer One-labels (BG-34) en zonder eigen bibliotheek-steekproef."
+  }
+}

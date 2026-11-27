@@ -6,8 +6,20 @@ from pathlib import Path
 
 import pytest
 
-from b03h.corpus import generator
+from b03h.corpus import generator, manifest
 from b03h.corpus import r_f6_jlt50 as recept
+
+
+def test_bewijs_verwijst_naar_dezelfde_bevroren_set_als_de_meetlat():
+    bewijsmap = generator.BEVROREN.parent
+    bewijs = json.loads((bewijsmap / "b03-070.json").read_text())
+    pad = bewijsmap / bewijs["manifest"]
+    assert pad == generator.BEVROREN / "f6-segmenten.v2.vol.manifest.json"
+    assert manifest.sha256_bestand(pad) == bewijs["manifest_sha256"]
+    vast = json.loads(pad.read_text())
+    assert manifest.inhoud_sha256(vast["bestanden"]) == vast["set_sha256"] == bewijs["set_sha256"]
+    assert bewijs["seed"] == vast["seed"] and bewijs["aantallen"] == vast["aantallen"]
+    assert bewijs["herhaling"]["n_per_type"] == {k: vast["aantallen"][k] for k in ("intro", "outro", "recap", "preview")}
 
 
 def test_lange_montage_en_aantallen(tmp_path, monkeypatch):
