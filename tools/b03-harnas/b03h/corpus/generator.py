@@ -35,6 +35,7 @@ from .r_f2_dsyn import maak as f2
 from .r_f3_ondertitels import maak as f3
 from .r_f4_tqc import maak as f4
 from .r_f5_fouten import maak as f5
+from .r_f6_jlt50 import maak as f6_jlt50
 from .r_f6_segmenten import maak as f6
 
 REPO = Path(__file__).resolve().parents[4]
@@ -81,8 +82,12 @@ def _markeer_beperkt(map_: Path) -> None:
 
 def maak(naam: str, *, schaal: str = "klein", seed: int | None = None, ffmpeg: str = "docker",
          parameters: dict | None = None, uitvoer: Path = UITVOER, corpus: Path = CORPUS, bevries: bool = False,
-         vervang: bool = False, map_bevroren: Path = BEVROREN) -> tuple[Path, dict]:
+         vervang: bool = False, map_bevroren: Path = BEVROREN, versie: str | None = None) -> tuple[Path, dict]:
     recept = RECEPTEN[naam]
+    if (naam, versie) == ("f6-segmenten", "2"):
+        recept = Recept(naam, "2", "F6", "lange testset JLT-50", f6_jlt50, seed=20261127)
+    elif versie is not None and versie != recept.versie:
+        raise ValueError(f"onbekende versie {versie} voor {naam}")
     seed = recept.seed if seed is None else seed
     uitvoer.mkdir(parents=True, exist_ok=True)
     doel = uitvoer / setnaam(recept, schaal, seed)
@@ -129,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     pm.add_argument("recept", choices=sorted(RECEPTEN))
     pm.add_argument("--schaal", choices=["klein", "vol"], default="klein")
     pm.add_argument("--seed", type=int)
+    pm.add_argument("--versie", help="receptversie (F6: 1 voor de oorspronkelijke set, 2 voor JLT-50)")
     pm.add_argument("--ffmpeg", choices=["docker", "host"], default="docker")
     pm.add_argument("--param", action="append", default=[], metavar="k=v")
     pm.add_argument("--uitvoer", type=Path, default=UITVOER)
@@ -152,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
             k, _, v = kv.partition("=")
             params[k] = json.loads(v) if v[:1] in "[{0123456789-tf" and v not in ("", "-") else v
         doel, m = maak(a.recept, schaal=a.schaal, seed=a.seed, ffmpeg=a.ffmpeg, parameters=params, uitvoer=a.uitvoer,
-                       bevries=a.bevries, vervang=a.vervang)
+                       bevries=a.bevries, vervang=a.vervang, versie=a.versie)
         print(json.dumps({"set": str(doel), "set_sha256": m["set_sha256"], "bestanden": len(m["bestanden"]),
                           "totaal_bytes": m["totaal_bytes"], "aantallen": m["aantallen"], "beperkt": m["licentie_beperkt"],
                           "duur_s": m["duur_s"], "bevroren": m.get("bevroren")}, ensure_ascii=False, indent=1))
