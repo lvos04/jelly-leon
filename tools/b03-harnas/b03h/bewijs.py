@@ -40,6 +40,8 @@ def controleer(document: dict[str, Any]) -> list[str]:
     if document.get("label") not in LABELS:
         fouten.append(f"label {document.get('label')!r} niet in {sorted(LABELS)}")
     images = document.get("images") or {}
+    if not images:
+        fouten.append("geen image met vaste digest opgegeven")
     for naam, ref in images.items():
         if not DIGEST_RE.search(str(ref)):
             fouten.append(f"image {naam} zonder vaste digest: {ref}")
