@@ -92,10 +92,11 @@ flock <WERKMAP>/.lokaal/stack.lock \
 
 ## Android-clientproef na de overname (JLT-70)
 
-Met deze opdracht maakt de proefrun een overdracht voor het clientharnas van S-P40-70. Gebruik voor `$IMAGE` de lokale testimage en voor `$UIT` een lege map buiten de Git-werkboom.
+Met deze opdracht maakt de proefrun een overdracht voor het clientharnas van S-P40-70. Gebruik de lokale testimage
+(`$IMAGE`), een lege map buiten de Git-werkboom (`$UIT`) en het testslot onder de gedeelde werkmap (`$WERKMAP`).
 
 ```bash
-stackslot nice -n 10 python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker \
+"$WERKMAP/.lokaal/stackslot" nice -n 10 python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker \
   --browser chromium --jellyfin-image "$IMAGE" --uitvoer "$UIT" --clientproef
 ```
 

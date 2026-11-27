@@ -157,3 +157,10 @@ en hervatten in Chromium (eerste PositionTicks 224 008 750 tegen 222 276 007 ove
 
 Na afloop opgeruimd: containers, werkmappen en testsets (BG-38); de Emby-image en `jelly-leon:qa` zijn lokaal verwijderd
 (opnieuw op te halen/bouwen op digest en commit).
+
+
+## JLT-70 · Overdracht voor de Android-emulator (S-P40-32)
+
+`proefrun.py --clientproef` bewaart de Jelly Leon-configuratie met de testmedia en per testgebruiker het item en
+het hervatpunt uit de eerste overzetting. Het clientharnas kan deze server opnieuw starten. De telefoonemulator en de
+officiële Android-app volgen in S-P40-70 in `jelly-leon-clients`. [Gebruik en bestandsformaat](../../tools/emby-overname/README.md#android-clientproef-na-de-overname-jlt-70)
