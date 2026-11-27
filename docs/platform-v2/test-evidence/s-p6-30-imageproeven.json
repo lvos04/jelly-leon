@@ -18,7 +18,9 @@
       "uitvoering": "niet uitgevoerd"
     },
     "guard-image": {
-      "uitvoering": "niet uitgevoerd"
+      "commando": "nice -n 10 env PYTHONPATH=tools/b03-harnas \"$PY\" -m b03h guard --image jelly-leon:p6",
+      "exitcode": 0,
+      "slotregel": "in orde: geen beperkt gelicentieerde testdata in image jelly-leon:p6"
     },
     "compat": {
       "uitvoering": "niet uitgevoerd"
@@ -51,5 +53,110 @@
     ]
   },
   "niet_gevalideerd": "NIET GEVALIDEERD (echte NAS): echte bibliotheek en echte datamap (N-P6-09, N-P6-12)",
-  "meetmoment_utc": "2026-11-27T22:04:53Z"
+  "poortcontroles": [
+    {
+      "meting": "fork",
+      "commando": "\"$PY\" tools/jelly-leon/check_fork_consistency.py",
+      "exitcode": 0,
+      "slotregel": "Forkconsistentie in orde: basis v12.4 (83d0d0e7f76e), forkversie 12.4.0-jl.1."
+    },
+    {
+      "meting": "patches",
+      "commando": "\"$PY\" tools/jelly-leon/patch_register_check.py",
+      "exitcode": 0,
+      "slotregel": "Patchregister in orde."
+    },
+    {
+      "meting": "gedrag",
+      "commando": "\"$PY\" tools/jelly-leon/upstream_gedrag_check.py --overzicht",
+      "exitcode": 0,
+      "slotregel": "Upstream-gedrag (serverdeel) in orde: 14 ankers gevonden, 8 runtime-tests gekoppeld, alle UG-verwijzingen bekend."
+    },
+    {
+      "meting": "drift-forgejo",
+      "commando": "\"$PY\" tools/jelly-leon/contract_drift.py --online --github",
+      "exitcode": 0,
+      "slotregel": "Contractkopieën in orde (online tegen Forgejo): 2 bestanden byte-gelijk aan leon/ai-server-manager@d392f5277; historie ongewijzigd: CONTRACT_1.2_CONFORMITEIT.md."
+    },
+    {
+      "meting": "unit-jl",
+      "commando": "\"$PY\" -m pytest -q tools/jelly-leon/tests",
+      "exitcode": 1,
+      "slotregel": "51 failed, 384 passed, 15 skipped in 27.72s"
+    },
+    {
+      "meting": "unit-opslag",
+      "commando": "python -m pytest -q tools/jelly-leon/tests/test_entrypoint_opslaggrens.py (in de lokale testcontainer)",
+      "exitcode": 0,
+      "slotregel": "80 passed in 3.36s"
+    },
+    {
+      "meting": "unit-jl-eind",
+      "commando": "nice -n 10 \"$PY\" -m pytest -q -rs tools/jelly-leon/tests --ignore=tools/jelly-leon/tests/test_entrypoint_opslaggrens.py",
+      "exitcode": 0,
+      "slotregel": "370 passed, 15 skipped in 22.40s"
+    },
+    {
+      "meting": "unit-harnas-eind",
+      "commando": "nice -n 10 env PYTHONPATH=tools/b03-harnas \"$PY\" -m pytest -q tools/b03-harnas/tests",
+      "exitcode": 0,
+      "slotregel": "148 passed in 126.66s (0:02:06)"
+    },
+    {
+      "meting": "unit-diff",
+      "commando": "PYTHONPATH=tools/b03-harnas \"$PY\" -m pytest -q tools/b03-harnas/tests/test_diffrun.py",
+      "exitcode": 0,
+      "slotregel": "10 passed in 0.85s"
+    },
+    {
+      "meting": "unit-hashes",
+      "commando": "\"$PY\" -m pytest -q tools/jelly-leon/tests/test_compat_en_upgrade.py",
+      "exitcode": 0,
+      "slotregel": "19 passed in 0.10s"
+    },
+    {
+      "meting": "lint-harnas",
+      "commando": "ruff check --config tools/b03-harnas/ruff.toml tools/b03-harnas",
+      "exitcode": 0,
+      "slotregel": "All checks passed!"
+    },
+    {
+      "meting": "lint-jl-eind",
+      "commando": "ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon",
+      "exitcode": 0,
+      "slotregel": "All checks passed!"
+    },
+    {
+      "meting": "schell",
+      "commando": "shellcheck -s sh deploy/allinone/entrypoint.sh deploy/allinone/healthcheck.sh",
+      "exitcode": 0,
+      "slotregel": "(geen uitvoer)"
+    },
+    {
+      "meting": "workflows",
+      "commando": "actionlint .github/workflows/jelly-leon-ci.yml .github/workflows/upstream-sync.yml",
+      "exitcode": 0,
+      "slotregel": "(geen uitvoer)"
+    },
+    {
+      "meting": "guard-git",
+      "commando": "PYTHONPATH=tools/b03-harnas \"$PY\" -m b03h guard --git .",
+      "exitcode": 0,
+      "slotregel": "in orde: geen beperkt gelicentieerde testdata in repo ."
+    },
+    {
+      "meting": "guard-bereik",
+      "commando": "PYTHONPATH=tools/b03-harnas \"$PY\" -m b03h guard --bereik . origin/ccr-c133d7a0-kuz1cv..HEAD",
+      "exitcode": 0,
+      "slotregel": "in orde: geen beperkt gelicentieerde testdata in commits origin/ccr-c133d7a0-kuz1cv..HEAD"
+    },
+    {
+      "meting": "contract-eind",
+      "commando": "\"$PY\" -m pytest -q tools/jelly-leon/tests/test_evidence_contract.py tools/jelly-leon/tests/test_contract_drift.py tools/jelly-leon/tests/test_manifest_1_3.py",
+      "exitcode": 0,
+      "slotregel": "80 passed in 0.14s"
+    }
+  ],
+  "opslaggrenstests": "De eerste volledige hostrun trof de permissies van de gedeelde mapstructuur. De opslaggrenstests zijn daarna in een gewone, onprivilegieerde testcontainer uitgevoerd. De overige forktests liepen apart. De eindresultaten staan per commando in poortcontroles.",
+  "meetmoment_utc": "2026-11-27T22:18:37Z"
 }
