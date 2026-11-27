@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import shutil
 import socket
 import subprocess
@@ -42,6 +43,8 @@ HIER = Path(__file__).resolve().parent
 TOOL = HIER.parent
 sys.path.insert(0, str(HIER))
 sys.path.insert(0, str(TOOL))
+
+from e2e import clientproef  # noqa: E402
 
 from loggende_proxy import LoggendeProxy  # noqa: E402
 from mediaguard_sim import MediaGuardSim  # noqa: E402
@@ -258,15 +261,16 @@ class Jellyfin:
         self.anoniem = Http(url, {"Authorization": JL_CLIENT})
         self.admin: Http | None = None
 
-    def wizard(self) -> None:
+    def wizard(self, wachtwoord: str = WACHTWOORD_BEHEER) -> str:
         self.anoniem.doe("POST", "/Startup/Configuration", body={"UICulture": "nl", "MetadataCountryCode": "US",
                                                                  "PreferredMetadataLanguage": "nl"})
         self.anoniem.doe("GET", "/Startup/User")
-        self.anoniem.doe("POST", "/Startup/User", body={"Name": "jlbeheer", "Password": WACHTWOORD_BEHEER})
+        self.anoniem.doe("POST", "/Startup/User", body={"Name": "jlbeheer", "Password": wachtwoord})
         self.anoniem.doe("POST", "/Startup/RemoteAccess", body={"EnableRemoteAccess": False, "EnableAutomaticPortMapping": False})
         self.anoniem.doe("POST", "/Startup/Complete")
-        auth = self.anoniem.doe("POST", "/Users/AuthenticateByName", body={"Username": "jlbeheer", "Pw": WACHTWOORD_BEHEER})
+        auth = self.anoniem.doe("POST", "/Users/AuthenticateByName", body={"Username": "jlbeheer", "Pw": wachtwoord})
         self.admin = Http(self.url, {"Authorization": JL_CLIENT + f', Token="{auth["AccessToken"]}"'})
+        return auth["AccessToken"]
 
     def sleutel(self, app: str) -> str:
         assert self.admin
@@ -543,13 +547,82 @@ def zet_kijk(emby: Emby, uid: str, item: dict[str, Any], soort: str, waarde: Any
         log_regels.append(f"spoorkeuze {welk} gezet voor {item.get('Path')}")
 
 
+def start_archiefdoel(werk: Path, prefix: str, naam: str, containers: list[str], verwacht: set[str],
+                      beheerwachtwoord: str) -> tuple[Jellyfin, str, set[str]]:
+    """Start een leeg lokaal doel met dezelfde mediamount als de eerste overzetting."""
+    config, cache = werk / f"{prefix}-config", werk / f"{prefix}-cache"
+    config.mkdir()
+    cache.mkdir()
+    poort = vrije_poort()
+    docker("run", "-d", "--name", naam, "--user", f"{os.getuid()}:{os.getgid()}", "-p", f"127.0.0.1:{poort}:8096",
+           "-v", f"{config}:/config", "-v", f"{cache}:/cache", "-v", f"{werk / 'bib' / 'jl'}:{JL_ROOT}:ro",
+           "--memory", "1536m", "--cpus", "4", DOEL_IMAGE)
+    containers.append(naam)
+    jl = Jellyfin(f"http://127.0.0.1:{poort}")
+    wacht(jl.url + "/System/Info/Public")
+    sessie = met_herhaling(lambda: jl.wizard(beheerwachtwoord))
+    for bib, soort in ((FILMS, "movies"), (SERIES, "tvshows")):
+        jl.bibliotheek(bib, soort, f"{JL_ROOT}/{bib}")
+    einde = time.time() + 600
+    volgende_scan = time.time() + 45
+    while time.time() < einde and not verwacht <= {i["Path"][len(JL_ROOT) + 1:] for i in jl.items() if i.get("Path")}:
+        if time.time() > volgende_scan:
+            ververs(jl.admin)
+            volgende_scan = time.time() + 90
+        time.sleep(5)
+    time.sleep(10)
+    return jl, sessie, {i["Path"][len(JL_ROOT) + 1:] for i in jl.items() if i.get("Path")}
+
+
+def importeer_archief(uitvoer: Path, werkmap: Path, jl: Jellyfin, toegang: Path, archief: Path) -> dict[str, Any]:
+    tool = Tool(uitvoer, "", jl.url, {"jl": toegang})
+    basis = tool.basis(archief=archief, werkmap=werkmap)
+    _, proef = tool.draai("proefrun", *basis)
+    akkoord = tool.akkoord(proef, "plan")
+    _, over = tool.draai("overzetten", *basis, "--akkoord", str(akkoord))
+    return over
+
+
+def clientgebruikers(jl: Jellyfin, naar_jl: dict[str, str], waarheid: dict[str, dict[str, dict[str, Any]]],
+                     items: list[Item], beheerwachtwoord: str) -> list[dict[str, Any]]:
+    """Toets de bronwaarde aan Verder kijken via de eigen aanmelding van iedere proefgebruiker."""
+    assert jl.admin
+    gebruikers = jl.gebruikers()
+    doelen = {i.emby.pad: f"{JL_ROOT}/{i.jl_doel or i.jl[0].pad}" for i in items if i.emby and i.jl and i.verwacht == "gekoppeld"}
+    uit = []
+    for bron, naam in naar_jl.items():
+        uid = gebruikers[naam]["Id"]
+        wachtwoord = beheerwachtwoord
+        if bron != "beheerder":
+            wachtwoord = secrets.token_urlsafe(24)
+            jl.admin.doe("POST", "/Users/Password", {"userId": uid}, body={"NewPw": wachtwoord})
+        client = JL_CLIENT.replace("jl-b03015-harnas", "jlt70-clientproef")
+        auth = jl.anoniem.doe("POST", "/Users/AuthenticateByName", headers={"Authorization": client}, body={"Username": naam, "Pw": wachtwoord})
+        als = Http(jl.url, {"Authorization": client + f', Token="{auth["AccessToken"]}"'})
+        hervat = als.doe("GET", "/UserItems/Resume", {"userId": uid, "fields": "Path", "limit": "100"})["Items"]
+        als.doe("POST", "/Sessions/Logout")
+        verwacht = {doelen[pd]: e["positie"] for pd, e in waarheid[bron].items() if pd in doelen and e["positie"] > 0 and not e["gezien"]}
+        for item in hervat:
+            punt = verwacht.get(item.get("Path"))
+            if punt is not None and punt == item["UserData"]["PlaybackPositionTicks"] and not item["UserData"]["Played"]:
+                uit.append({"naam": naam, "wachtwoord": wachtwoord, "item_id": item["Id"], "verwacht_ticks": punt})
+                break
+        else:
+            raise ValueError(f"Geen exact overgenomen hervatpunt voor proefgebruiker {naam}.")
+    return uit
+
+
 def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één doorlopend scenario
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--modus", choices=("corpus", "synthetisch"), default="synthetisch")
     p.add_argument("--uitvoer", required=True)
     p.add_argument("--corpus", default=str(CORPUS))
     p.add_argument("--ffmpeg", choices=("auto", "host", "docker"), default="auto")
-    p.add_argument("--behoud", action="store_true", help="containers en testset niet opruimen (alleen voor diagnose)")
+    bewaren = p.add_mutually_exclusive_group()
+    bewaren.add_argument("--clientproef", action="store_true",
+                         help="bewaar na een volledige proef de doelconfiguratie, media en clientproef/clientproef.json "
+                              "voor JLT-70 in een lege uitvoermap buiten de repo")
+    bewaren.add_argument("--behoud", action="store_true", help="containers en testset niet opruimen (alleen voor diagnose)")
     p.add_argument("--browser", choices=("geen", "chromium"), default="geen",
                    help="JLT-70 clientdeel: de webclient van de doelserver in een echte browser (Playwright-harnas van "
                         "B03-016; vraagt `npm ci` in tools/b03-harnas/playwright en Chromium)")
@@ -560,13 +633,21 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
     DOEL_IMAGE = args.jellyfin_image
 
     uitvoer = Path(args.uitvoer).resolve()
-    uitvoer.mkdir(parents=True, exist_ok=True)
+    if args.clientproef:
+        try:
+            clientproef.bereid_uitvoer_voor(uitvoer, TOOL.parents[1])
+        except (ValueError, OSError) as fout:
+            p.error(str(fout))
+    else:
+        uitvoer.mkdir(parents=True, exist_ok=True)
     werk = uitvoer / "werk"
     bewijs = Bewijs(args.modus)
     run_id = uuid.uuid4().hex
     containers: list[str] = []
     proxies: list[LoggendeProxy] = []
     mg: MediaGuardSim | None = None
+    overdracht = None
+    sleutels_waarden: dict[str, str] = {}
     code = 1
     try:
         for image in (EMBY_IMAGE, JL_IMAGE, DOEL_IMAGE):
@@ -930,39 +1011,13 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         mg.stop()
         docker("stop", "-t", "20", naam_emby)
         docker("stop", "-t", "20", naam_jl)
-        for sub in ("jl2-config", "jl2-cache"):
-            (werk / sub).mkdir(exist_ok=True)
-        p_jl2 = vrije_poort()
         naam_jl2 = f"jlb03015-jl2-{run_id}"
-        docker("run", "-d", "--name", naam_jl2, "--user", f"{os.getuid()}:{os.getgid()}", "-p", f"127.0.0.1:{p_jl2}:8096",
-               "-v", f"{werk / 'jl2-config'}:/config", "-v", f"{werk / 'jl2-cache'}:/cache",
-               "-v", f"{werk / 'bib' / 'jl'}:{JL_ROOT}:ro", "--memory", "1536m", "--cpus", "4", DOEL_IMAGE)
-        containers.append(naam_jl2)
-        jl2_url = f"http://127.0.0.1:{p_jl2}"
-        wacht(jl2_url + "/System/Info/Public")
-        jl2 = Jellyfin(jl2_url)
-        met_herhaling(jl2.wizard)
-        sleutel_jl2 = jl2.sleutel("jelly-leon-overname")
-        (werk / "geheimen" / "jl-api-key").write_text(sleutel_jl2 + "\n")
-        sleutels_waarden["jl2"] = sleutel_jl2
-        for naam, soort in ((FILMS, "movies"), (SERIES, "tvshows")):
-            jl2.bibliotheek(naam, soort, f"{JL_ROOT}/{naam}")
-        einde = time.time() + 600
-        volgende_scan = time.time() + 45
-        while time.time() < einde and not verwacht_jl <= {i["Path"][len(JL_ROOT) + 1:] for i in jl2.items() if i.get("Path")}:
-            if time.time() > volgende_scan:
-                ververs(jl2.admin)
-                volgende_scan = time.time() + 90
-            time.sleep(5)
-        time.sleep(10)
-        gescand2 = {i["Path"][len(JL_ROOT) + 1:] for i in jl2.items() if i.get("Path")}
+        jl2, _, gescand2 = start_archiefdoel(werk, "jl2", naam_jl2, containers, verwacht_jl, WACHTWOORD_BEHEER)
         bewijs.check("JLT-70", "herimport: lege Jellyfin heeft de bibliotheek gescand", verwacht_jl <= gescand2,
                      sorted(verwacht_jl - gescand2)[:10])
-        tool2 = Tool(uitvoer, "", jl2_url, sleutels)
-        werk2 = uitvoer / "werkmap-herimport"
-        _, proef5 = tool2.draai("proefrun", *tool2.basis(archief=archief_na, werkmap=werk2))
-        akkoord5 = tool2.akkoord(proef5, "plan")
-        _, over5 = tool2.draai("overzetten", *tool2.basis(archief=archief_na, werkmap=werk2), "--akkoord", str(akkoord5))
+        sleutels_waarden["jl2"] = jl2.sleutel("jelly-leon-overname")
+        sleutels["jl"].write_text(sleutels_waarden["jl2"] + "\n")
+        over5 = importeer_archief(uitvoer, uitvoer / "werkmap-herimport", jl2, sleutels["jl"], archief_na)
         bewijs.check("JLT-70", "herimport uit het archief op een lege Jellyfin (Emby gestopt): verantwoord", over5["verantwoord"],
                      over5["totaal"])
         controleer_overname(bewijs, "JLT-70", items_recept, waarheid_kill, jl2, jl2.gebruikers(), naar_jl,
@@ -970,6 +1025,32 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                             label="herimport uit archief")
         bewijs.data["rapporten"] = {"proefrun_1": proef1["rapport"], "overzetting_1": over1["rapport"], "delta": over3["rapport"],
                                     "na_kill": over4["rapport"], "herimport": over5["rapport"]}
+        if args.clientproef and all(c["ok"] for c in bewijs.data["controles"]):
+            # De delta- en afbreekproeven hebben de laatste hervatpunten van Bram en Gast verbruikt.
+            # Gebruik dezelfde eerste bronexport op een leeg doel, zonder de doorgeteste geschiedenis te wijzigen.
+            docker("stop", "-t", "20", naam_jl2)
+            naam_client = f"jlb03015-client-{run_id}"
+            beheerwachtwoord = secrets.token_urlsafe(24)
+            client, sessie, gescand = start_archiefdoel(werk, "client", naam_client, containers, verwacht_jl, beheerwachtwoord)
+            if not verwacht_jl <= gescand:
+                raise ValueError("De clientserver heeft de testmedia niet volledig gescand.")
+            from emby_overname.hulp import schrijf_atomisch  # noqa: PLC0415
+
+            sessiebestand = werk / "geheimen" / "clientsessie"
+            schrijf_atomisch(sessiebestand, sessie, modus=0o600)
+            sleutels_waarden["clientsessie"] = sessie
+            clientrapport = werk / "client-import"
+            clientrapport.mkdir()
+            over_client = importeer_archief(clientrapport, clientrapport / "werkmap", client, sessiebestand, archief_voor)
+            if not over_client["verantwoord"] or over_client["totaal"] != over1["totaal"]:
+                raise ValueError("De aantallen van de clientovername wijken af van de eerste overzetting.")
+            gebruikers = clientgebruikers(client, naar_jl, waarheid, items_recept, beheerwachtwoord)
+            overdracht = {"schema": clientproef.SCHEMA, "image": DOEL_IMAGE, "datamap": "config", "media": "media",
+                          "gebruikers": gebruikers}
+            client.admin.doe("POST", "/Sessions/Logout")
+            docker("stop", "-t", "20", naam_client)
+            bewijs.check("JLT-70", "clientoverdracht: per aangemelde gebruiker een exact hervatpunt uit de eerste overzetting",
+                         True, {"gebruikers": len(gebruikers)})
         code = 0 if all(c["ok"] for c in bewijs.data["controles"]) else 1
     except Exception as fout:  # noqa: BLE001 - alles vastleggen in het bewijs
         import traceback
@@ -982,17 +1063,36 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
             bewijs.data["mediaguard_sim"] = mg.samenvatting()
         for proxy in proxies:
             proxy.stop()
-        bewijs.schrijf(uitvoer / "bewijs.json")
-        if not args.behoud:
-            for naam in containers:
-                docker("rm", "-f", "-v", naam, check=False)
-            if werk.exists():
-                subprocess.run(["docker", "run", "--rm", "--user", "0:0", "--network", "none", "-v", f"{werk}:/w",
-                                "--entrypoint", "/bin/rm", JL_IMAGE, "-rf", "/w/emby-config", "/w/jl-config", "/w/jl-cache",
-                                "/w/jl2-config", "/w/jl2-cache"], capture_output=True, check=False, timeout=300)
-                shutil.rmtree(werk, ignore_errors=True)
+        code = rond_proef_af(uitvoer, bewijs, containers, args.behoud, code, overdracht, sleutels_waarden)
         log(f"klaar: {bewijs.data.get('samenvatting')} → {uitvoer / 'bewijs.json'}")
     return code
+
+
+def rond_proef_af(uitvoer: Path, bewijs: Bewijs, containers: list[str], behoud: bool, code: int,
+                  overdracht: dict[str, Any] | None, sleutels: dict[str, str]) -> int:
+    if behoud:
+        bewijs.schrijf(uitvoer / "bewijs.json")
+        return code
+    werk = uitvoer / "werk"
+    try:
+        for naam in containers:
+            docker("rm", "-f", "-v", naam, check=False)
+        bewijs.schrijf(uitvoer / "bewijs.json")
+        if code == 0 and overdracht is not None:
+            try:
+                clientproef.publiceer(uitvoer, overdracht, sleutels.values())
+            except (OSError, ValueError) as fout:
+                bewijs.check("JLT-70", "clientoverdracht publiceren", False, str(fout))
+                bewijs.schrijf(uitvoer / "bewijs.json")
+                return 1
+        return code
+    finally:
+        if werk.exists():
+            subprocess.run(["docker", "run", "--rm", "--user", "0:0", "--network", "none", "-v", f"{werk}:/w",
+                            "--entrypoint", "/bin/rm", JL_IMAGE, "-rf", "/w/emby-config", "/w/jl-config", "/w/jl-cache",
+                            "/w/jl2-config", "/w/jl2-cache", "/w/client-config", "/w/client-cache"],
+                           capture_output=True, check=False, timeout=300)
+            shutil.rmtree(werk, ignore_errors=True)
 
 
 # --- controles -----------------------------------------------------------------------------------------------------

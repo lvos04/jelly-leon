@@ -89,3 +89,25 @@ python -m pytest -q tools/emby-overname/tests                         # unit + s
 flock <WERKMAP>/.lokaal/stack.lock \
   python tools/emby-overname/e2e/proefrun.py --modus corpus --uitvoer <map>   # echte Emby + stock Jellyfin 12.4 (JLT-70…73)
 ```
+
+## Android-clientproef na de overname (JLT-70)
+
+Met deze opdracht maakt de proefrun een overdracht voor het clientharnas van S-P40-70. Gebruik voor `$IMAGE` de lokale testimage en voor `$UIT` een lege map buiten de Git-werkboom.
+
+```bash
+stackslot nice -n 10 python tools/emby-overname/e2e/proefrun.py --modus synthetisch --ffmpeg docker \
+  --browser chromium --jellyfin-image "$IMAGE" --uitvoer "$UIT" --clientproef
+```
+
+Na een succesvolle proef staat het pakket in `<uitvoermap>/clientproef/` (0700). De eerste bronexport wordt met dezelfde
+overnametool op een leeg Jelly Leon-doel ingelezen. Zo krijgt ook een gebruiker die in de latere deltaproef een film
+uitkeek het oorspronkelijke hervatpunt. De proef meldt iedere gebruiker op het doel aan en vergelijkt de ticks uit
+*Verder kijken* met de gemeten bronwaarde.
+
+`clientproef.json` (0600) heeft schema `jelly-leon/clientproef/1`. Start de daarin genoemde `image` met `datamap` op
+`/config` (schrijfbaar) en `media` op `/data/media` (alleen-lezen). Beide paden zijn relatief aan het JSON-bestand.
+Elke rij in `gebruikers` bevat `naam`, een voor deze run gegenereerd `wachtwoord`, het Jelly Leon-`item_id` en
+`verwacht_ticks` als positief geheel aantal eenheden van 100 ns. Kies voor de emulator een gewone proefgebruiker.
+
+Bewaar het pakket uitsluitend lokaal. Publiceer alleen meetuitkomsten en verwijder de map `clientproef/` na S-P40-70.
+De gewone proefrun ruimt zijn testservers, configuraties en media op.
