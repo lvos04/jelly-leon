@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 from . import legacy
@@ -35,6 +36,12 @@ def afspelen(rij: dict) -> bool | None:
 def vergelijk(stock: dict, fork: dict) -> tuple[int, dict]:
     if stock.get("server") != STOCK_IMAGE or fork.get("server") in (None, "", STOCK_IMAGE):
         raise ValueError("Stockreferentie of eindimage ontbreekt of wijkt af.")
+    if not stock.get("testitem") or stock["testitem"] != fork.get("testitem"):
+        raise ValueError("De twee matrices vereisen hetzelfde testitem.")
+    dagen = {datetime.fromisoformat(s["begin"]).astimezone(UTC).date() for rapport in (stock, fork)
+             for s in [rapport, *rapport.get("eerdere_sessies", [])]}
+    if len(dagen) != 1:
+        raise ValueError("De stockreferentie en alle eindimagemetingen moeten op dezelfde UTC-dag beginnen.")
     metingen = fork.get("actieve_modules", {})
     modules = metingen.get("ingebouwde_webclient")
     if not fork.get("alle_modules") or not modules or modules != metingen.get("stock_webdir"):
@@ -57,7 +64,8 @@ def vergelijk(stock: dict, fork: dict) -> tuple[int, dict]:
     if not any(r["stock"] is True for r in uitkomsten.values()):
         raise ValueError("Geen enkele spelende stockrol als referentie.")
     code = 1 if regressies else 2 if onbeslist else 0
-    return code, {"actieve_modules": modules, "clients": uitkomsten, "regressies": regressies, "onbeslist": onbeslist}
+    return code, {"meetdag_utc": dagen.pop().isoformat(), "actieve_modules": modules, "clients": uitkomsten,
+                  "regressies": regressies, "onbeslist": onbeslist}
 
 
 def main(argv: list[str] | None = None) -> int:

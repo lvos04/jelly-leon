@@ -1,0 +1,38 @@
+{
+  "stap": "S-P6-31",
+  "servercommit": "5d8784c635ea012065b3b2d312117e73fc88d7ae",
+  "JLT-64": {
+    "negatieve_proef": {
+      "wijziging": "/System/Info/Public/ProductName",
+      "vergeleken_antwoorden": 19,
+      "aantal_verschillen": 1,
+      "exitcode": 1,
+      "slotregel": "RESULTAAT: MISLUKT (4/5)"
+    },
+    "extra_paden": [
+      "/connector/v1/apply",
+      "/connector/v1/discover",
+      "/connector/v1/events",
+      "/connector/v1/evidence/{id}",
+      "/connector/v1/health",
+      "/connector/v1/items",
+      "/connector/v1/propose",
+      "/connector/v1/rollback",
+      "/media/v1/devices/settings",
+      "/media/v1/devices/status",
+      "/media/v1/hub-link",
+      "/media/v1/hub-link/verify",
+      "/media/v1/modules",
+      "/media/v1/modules/{slug}",
+      "/media/v1/planner",
+      "/media/v1/privacy/register",
+      "/media/v1/quality/settings",
+      "/media/v1/quality/status",
+      "/media/v1/version"
+    ],
+    "extra_schemas": [
+      "schema ForkVersionInfo"
+    ],
+    "openapi_afwijkingen": []
+  }
+}

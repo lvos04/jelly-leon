@@ -32,6 +32,9 @@ def harnas(opdracht: str, cfg: dict[str, Any], timeout: float = 1800, pogingen: 
             fout.pogingen = poging + 1
             if poging == pogingen - 1:
                 raise
+        except subprocess.TimeoutExpired as fout:
+            fout.pogingen = poging + 1
+            raise
     raise AssertionError("onbereikbaar")
 
 
