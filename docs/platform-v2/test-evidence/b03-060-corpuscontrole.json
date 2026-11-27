@@ -1,0 +1,72 @@
+{
+  "schema": "b03-060/corpuscontrole/1",
+  "gecontroleerd": "2026-11-27T22:02:07+00:00",
+  "bron_ffmpeg": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "uitvoering": "Lokale stream-copy met de ffmpeg-binary en bibliotheken uit de vastgezette stockimage.",
+  "meetsets_manifest": "b03-060-meetsets.json",
+  "groepen": {
+    "a5": {
+      "gevallen": 25,
+      "sha256": "458bc1c21a81373dab326917e95bb4b8e59e937308be438da9ff4646eb3ea0cd"
+    },
+    "extra": {
+      "gevallen": 2,
+      "sha256": "c8608cc2e7f58df4a61180a2e739501d23866f83856f6ddd9b03ef59709e60ac"
+    },
+    "formaten": {
+      "gevallen": 11,
+      "sha256": "c1f931fdc3798d69f64f5568b7b9def5811969a1398d9b067d8d5efb141780e6"
+    },
+    "ass": {
+      "gevallen": 1,
+      "sha256": "649671d6cf69e3f65c9914a6a5c95c8ab3f4e0242579f690e12bb6c5141932ee"
+    },
+    "srt": {
+      "gevallen": 1,
+      "sha256": "a77ba9ad48ea40f96c00f43bffbffc224865bb2acce7189e7ec319b450b318ed"
+    },
+    "devset": {
+      "gevallen": 3,
+      "sha256": "d341d97ac185cba1bed8361a3a1d315ec315a2f9ffb71edd9ccce402adcc631b"
+    },
+    "testset": {
+      "gevallen": 18,
+      "sha256": "45fd9d01c24f40b4b5796858875b0561ca71ceae42992a7bd90f423d69fbb4ef"
+    }
+  },
+  "recepten": {
+    "f5-fouten": {
+      "seed": 20261109,
+      "schaal": "vol",
+      "set_sha256": "9559e2796271f69c119d11aea9a0c0ee97b8b96a11dd5e085dcb0fd57cb119cc",
+      "bestanden": 18,
+      "bevriezen": "gelijk aan bevroren manifest",
+      "sha256sum_c": "OK",
+      "ffmpeg": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+      "afgewezen_hostvariant": {
+        "ffmpeg": "ffmpeg version 8.0.1-3ubuntu2 Copyright (c) 2000-2025 the FFmpeg developers",
+        "set_sha256": "891672a7f62ae0c8e00556518fada883c0b9f61902c6ab0b3285ece771efa6c0",
+        "afwijkende_bestanden": [
+          "formaten/sintel-60s-ass.mkv"
+        ]
+      }
+    },
+    "ass": {
+      "seed": 20261109,
+      "schaal": "vol",
+      "set_sha256": "e7f2309e7dde116ace555454e84579537b3a0be468d5c1854f74adeac55e38bb",
+      "bestanden": 2,
+      "bevriezen": "gelijk aan bevroren manifest",
+      "sha256sum_c": "OK",
+      "ffmpeg": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+      "afgewezen_hostvariant": {
+        "ffmpeg": "ffmpeg version 8.0.1-3ubuntu2 Copyright (c) 2000-2025 the FFmpeg developers",
+        "set_sha256": "fb2a37290aaa7ff3da3351d0b4820bcb2c013d73f8cf6ce209347a9e3ed4de67",
+        "afwijkende_bestanden": [
+          "formaten/sintel-60s-ass.mkv"
+        ]
+      }
+    }
+  },
+  "bron_en_formaatbestanden_gecontroleerd": 38
+}

@@ -60,20 +60,23 @@ def metrieken(rijen: list[dict]) -> dict:
 
 
 def herhaalbaarheid(runs: list[dict]) -> dict:
-    """Vergelijk per geval én start, ook als een ander item precies de omgekeerde afwijking heeft."""
     if len(runs) < 3 or not all(run["last"]["geldig"] for run in runs):
         raise ValueError("minstens drie geldige runs vereist")
+    return vergelijk_herhalingen([(run["last"]["run"], run["rijen"]) for run in runs])
 
-    def per_start(run):
-        index = {(r["groep"], r["id"], r["start"]): r for r in run["rijen"]}
-        if not index or len(index) != len(run["rijen"]) or any((*k[:2], 3 - k[2]) not in index or k[2] not in (1, 2) for k in index):
+
+def vergelijk_herhalingen(runs: list[tuple[int, list[dict]]]) -> dict:
+    """Vergelijk per geval én start. Ook de losse spelersimulator kan zijn spreiding laten zien."""
+    def per_start(rijen):
+        index = {(r["groep"], r["id"], r["start"]): r for r in rijen}
+        if not index or len(index) != len(rijen) or any((*k[:2], 3 - k[2]) not in index or k[2] not in (1, 2) for k in index):
             raise ValueError("lege, dubbele of ontbrekende start")
         return index
 
-    eerste = per_start(runs[0])
+    eerste = per_start(runs[0][1])
     verschillen = []
-    for run in runs[1:]:
-        nieuw = per_start(run)
+    for nummer, rijen in runs[1:]:
+        nieuw = per_start(rijen)
         if nieuw.keys() != eerste.keys():
             raise ValueError("verschillende gevallen in de herhalingen")
         for sleutel, r in eerste.items():
@@ -84,7 +87,7 @@ def herhaalbaarheid(runs: list[dict]) -> dict:
                 if veld.endswith("_ms") and a is not None and b is not None:
                     gelijk = abs(b - a) <= a * 0.10
                 if not gelijk:
-                    verschillen.append({"run": run["last"]["run"], "geval": sleutel, "veld": veld, "eerste": a, "herhaling": b})
+                    verschillen.append({"run": nummer, "geval": sleutel, "veld": veld, "eerste": a, "herhaling": b})
     return {"geldig": not verschillen, "aantal_runs": len(runs), "verschillen": verschillen}
 
 

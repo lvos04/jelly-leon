@@ -31,13 +31,18 @@ class ApparaatFout(WebFout):
 def basisprobleem(pad: Path) -> str | None:
     if not pad.is_file():
         return "De definitieve baseline van S-P40-50 ontbreekt."
-    d = json.loads(pad.read_text())
-    if d.get("label") != "definitief-forkbasis" or d.get("images", {}).get("stock") != STOCK_IMAGE:
+    try:
+        d = json.loads(pad.read_text())
+    except (OSError, ValueError):
+        return "Het bewijsbestand van S-P40-50 is onleesbaar."
+    if not isinstance(d, dict) or not isinstance(d.get("images"), dict) or not isinstance(d.get("metingen"), list):
+        return "De definitieve baseline van S-P40-50 is onvolledig."
+    if d.get("label") != "definitief-forkbasis" or d["images"].get("stock") != STOCK_IMAGE:
         return "S-P40-50 ontbreekt voor de vastgezette forkbasis-digest."
     if bewijs.controleer(d) or d.get("fasefouten"):
         return "De definitieve baseline van S-P40-50 is onvolledig."
     verwacht = {(s, f"F5-{meting}-{b}") for s in SYSTEMEN for b in rapport.VERWACHT for meting in ("B1-dp-beslissing", "K3-dp-effectief")}
-    geldig = {(m["systeem"], m["id"]) for m in d["metingen"] if m["n"] == 25 and
+    geldig = {(m["systeem"], m["id"]) for m in d["metingen"] if m["image"] == STOCK_IMAGE and m["n"] == 25 and
               len({r["last"]["run"] for r in m["runs"] if r["last"]["geldig"]}) >= 3}
     if verwacht - geldig:
         return "Drie geldige dp- en orakelruns per stockprofiel en browser ontbreken in S-P40-50."

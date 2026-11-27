@@ -100,6 +100,11 @@ def test_meetpoging_zonder_basis_start_geen_server(tmp_path, monkeypatch):
     assert all(not v["runs"] and set(v["metingen"].values()) == {None} for clients in d["systemen"].values() for v in clients.values())
     assert d["status"] in uit.with_suffix(".md").read_text()
     assert apparaten.basisprobleem(baseline.EVIDENCE_MAP / "b03-016-baseline-voormeting-12.4.json")
+    basis = tmp_path / "basis.json"
+    basis.write_text("{")
+    assert "onleesbaar" in apparaten.basisprobleem(basis)
+    basis.write_text(json.dumps({"label": "definitief-forkbasis", "images": {"stock": apparaten.STOCK_IMAGE}}))
+    assert "onvolledig" in apparaten.basisprobleem(basis)
 
 
 def test_cli_drie_afwisselende_systemen_en_gescheiden_splits(tmp_path, monkeypatch):

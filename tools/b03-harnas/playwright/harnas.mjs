@@ -76,9 +76,11 @@ async function stopEncodering(page, playSessionId) {
 async function speelItem(page, item, opts) {
   const vang = { profiel: null, antwoord: null, hls: false, statisch: false, ingebrand: false };
   const isBesluit = (r) => r.method() === 'POST' && new URL(r.url()).pathname.toLowerCase() === `/items/${item.id}/playbackinfo`.toLowerCase();
+  let eersteBesluit = null;
   const opVerzoek = (r) => {
     const u = r.url();
-    if (isBesluit(r) && !vang.profiel) {
+    if (isBesluit(r) && !eersteBesluit) {
+      eersteBesluit = r;
       try {
         const aanvraag = r.postDataJSON();
         vang.profiel = aanvraag?.DeviceProfile ?? null;
@@ -96,8 +98,8 @@ async function speelItem(page, item, opts) {
     if (/\/(Videos|Audio)\/[0-9a-f]+\/stream/i.test(u) && /static=true/i.test(u)) vang.statisch = true;
   };
   const opAntwoord = async (r) => {
-    if (isBesluit(r.request()) && !vang.antwoord && r.ok()) {
-      try { vang.antwoord ??= await r.json(); } catch { /* leeg */ }
+    if (r.request() === eersteBesluit && r.ok()) {
+      try { vang.antwoord = await r.json(); } catch { /* leeg */ }
     }
   };
   page.on('request', opVerzoek);
@@ -124,15 +126,13 @@ async function speelItem(page, item, opts) {
     let ok = false;
     let tot2 = null;
     let herstel = null;
-    let vorige = null;
-    let bewegendSinds = null;
+    let vorigeNaFout = null;
     let info = null;
     let cpu0 = null;
     let cpuBegin = null;
     let cpuKernen = null;
     const grens = opts.orakelMs;
     const muurBegin = performance.now();
-    let laatsteVoortgang = 0;
     let laatsteSessiepeiling = -500;
     while (true) {
       const s = await page.evaluate(() => {
@@ -146,14 +146,6 @@ async function speelItem(page, item, opts) {
         throw new Error('Klik of meetklok ontbreekt');
       }
       spoor.push(s);
-      const loopt = !s.p && !s.err && s.w > 0;
-      const beweegt = loopt && vorige && s.ct > vorige.ct;
-      if (!loopt || (vorige && s.ct < vorige.ct) || s.t - laatsteVoortgang > 500) bewegendSinds = null;
-      if (beweegt) {
-        if (bewegendSinds === null) bewegendSinds = Math.round(s.t);
-        laatsteVoortgang = s.t;
-      }
-      vorige = s;
       const dp = vang.antwoord?.MediaSources?.[0]?.SupportsDirectPlay;
       if (opts.apparaten && vang.hls && !info && s.t - laatsteSessiepeiling >= 500) {
         laatsteSessiepeiling = s.t;
@@ -180,8 +172,13 @@ async function speelItem(page, item, opts) {
         if (cpu0 !== null && einde !== null && nu?.video_direct === false) cpuKernen = (einde - cpu0) * 1000 / (performance.now() - cpuBegin);
       }
       if (ok && (!opts.apparaten || !vang.hls || cpuKernen !== null || s.t >= grens)) break;
-      if (opts.apparaten && dp && !ok && (s.fout || vang.teruggevallen || s.t >= grens)) {
-        if (s.t <= 60000 && beweegt && bewegendSinds !== null) { herstel = bewegendSinds; break; }
+      if (opts.apparaten && dp && !ok && (s.fout || vang.hls || s.t >= grens)) {
+        // Twee opeenvolgende waarnemingen ná de mislukte start bewijzen dat het herstelde beeld vooruitgaat.
+        if (vorigeNaFout && s.t <= 60000 && !s.p && !s.err && s.w > 0 && s.ct > vorigeNaFout.ct) {
+          herstel = Math.round(s.t);
+          break;
+        }
+        vorigeNaFout = s;
         if (s.t >= 60000) break;
       } else if (s.t >= grens) break;
       await page.waitForTimeout(100);

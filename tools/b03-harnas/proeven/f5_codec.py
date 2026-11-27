@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from b03h import apparaatrapport, apparaatset, apparaten
+from b03h import apparaatrapport, apparaatset, apparaten, meetslot
 from b03h.corpus import CORPUS, UITVOER
 from b03h.corpus.manifest import sha256_bestand
 from b03h.stock import GEBRUIKER, WACHTWOORD
@@ -94,6 +94,8 @@ def main() -> int:
     media = apparaatset.media_pad(geval["pad"], CORPUS)
     if sha256_bestand(script) != geval["middel_sha256"] or sha256_bestand(media) != geval["media_sha256"]:
         raise ValueError("de proef vereist het bevroren foutbestand en bijbehorend init-script")
+    verwacht = [(item, start) for item in (ITEM, CONTROLE) for start in (1, 2)]
+    runs = []
     with tempfile.TemporaryDirectory() as tmp:
         herstel = Path(tmp) / "herstel.webm"
         subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=96x64:r=12", "-t", "4",
@@ -102,21 +104,28 @@ def main() -> int:
             draad = threading.Thread(target=server.serve_forever)
             draad.start()
             try:
-                web = harnas("apparaten", {"browser": "chromium", "url": f"http://localhost:{server.server_port}",
-                                          "gebruiker": GEBRUIKER, "wachtwoord": WACHTWOORD, "initScript": str(script),
-                                          "items": [{"id": ITEM, "naam": geval["id"]}, {"id": CONTROLE, "naam": "controle"}]})
+                for nummer in range(1, 4):
+                    last = [round(x, 2) for x in meetslot.loadavg()]
+                    web = harnas("apparaten", {"browser": "chromium", "url": f"http://localhost:{server.server_port}",
+                                              "gebruiker": GEBRUIKER, "wachtwoord": WACHTWOORD, "initScript": str(script),
+                                              "items": [{"id": ITEM, "naam": geval["id"]}, {"id": CONTROLE, "naam": "controle"}]})
+                    if [(i["id"], i.get("start")) for i in web["items"]] != verwacht:
+                        raise ValueError("De twee starts van het foutbestand en het controlebestand zijn vereist.")
+                    rijen = [apparaten.lees_start(geval if i["id"] == ITEM else {"id": "controle"}, "testset", i) for i in web["items"]]
+                    runs.append({"run": nummer, "browser": web["versie"], "loadavg_voor": last, "rijen": rijen,
+                                 "eerste_start": apparaatrapport.metrieken([r for r in rijen if r["start"] == 1])})
             finally:
                 server.shutdown()
                 draad.join()
-    rijen = [apparaten.lees_start(geval if i["id"] == ITEM else {"id": "controle"}, "testset", i) for i in web["items"]]
-    bewijs = {"soort": "lokale spelersimulator", "browser": web["versie"], "testset_sha256": bevroren["groepen"]["testset"]["sha256"],
-              "rijen": rijen, "eerste_start": apparaatrapport.metrieken([r for r in rijen if r["start"] == 1])}
+    bewijs = {"soort": "lokale spelersimulator", "testset_sha256": bevroren["groepen"]["testset"]["sha256"], "runs": runs,
+              "herhaalbaarheid_simulator": apparaatrapport.vergelijk_herhalingen([(r["run"], r["rijen"]) for r in runs])}
     a.uit.parent.mkdir(parents=True, exist_ok=True)
     a.uit.write_text(json.dumps(bewijs, indent=2, ensure_ascii=False) + "\n")
-    goed = len(rijen) == 4 and all((r["classificatie"] == "onterechte Direct Play" and bool(r["foutcodes"])
-                                  and r["herstel_ms"] is not None and not r["geforceerd_ok"])
-                                 if r["id"] == geval["id"] else (r["orakel_ok"] and r["geforceerd_ok"]) for r in rijen)
-    print("2/2 onterechte Direct Plays met herstel, 2/2 controles speelbaar" if goed else "De browserproef wijkt af; zie het rapport")
+    goed = all((r["classificatie"] == "onterechte Direct Play" and bool(r["foutcodes"])
+                and r["herstel_ms"] is not None and not r["geforceerd_ok"])
+               if r["id"] == geval["id"] else (r["besluit"] == "DirectPlay" and r["orakel_ok"] and r["geforceerd_ok"])
+               for run in runs for r in run["rijen"])
+    print("6/6 onterechte Direct Plays met herstel, 6/6 controles speelbaar" if goed else "De browserproef wijkt af; zie het rapport")
     return 0 if goed else 1
 
 

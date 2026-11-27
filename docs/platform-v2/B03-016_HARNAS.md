@@ -186,6 +186,11 @@ eventuele afgewezen pogingen in het JSON-rapport. De herhaalcontrole vergelijkt 
 hetzelfde item en startnummer met de eerste geldige run. De tijdmarge is ±10%. De eerste stock-standaardrun vergelijkt
 alle 25 individuele A5-beslissingen met analyse 5, ook als twee verschillen elkaar in het totaal opheffen.
 
+De volledige recepten `f5-fouten` en `ass` leverden met ffmpeg 8.1.3 en de bibliotheken uit de vastgezette
+stockimage de bevroren bytes op. De SHA-256-controle herkende een afwijkend ASS-bestand bij systeem-ffmpeg 8.0.1.
+Het meetrapport vermeldt nul geldige stockruns bij een éénminuutslast van 7,20 en een ontbrekende definitieve baseline.
+[Corpuscontrole](test-evidence/b03-060-corpuscontrole.json) · [Meetpoging](test-evidence/b03-060-voormeting.md)
+
 De historische A5-matrix koos Direct Play voor 16/25 items in Chromium, 17/25 in Firefox en 21/25 in WebKit.
 Bij WebKit speelde één gekozen item, Sintel, niet af. Dit zijn de referentiecijfers van de historische sessie.
 [Bronmatrix van 10 november](test-evidence/b03-016-baseline-voormeting-12.4/dp-matrix.json)
