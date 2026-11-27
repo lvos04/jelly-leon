@@ -1,0 +1,100 @@
+{
+  "fase": "functies",
+  "aangevraagd_label": "definitief-forkbasis",
+  "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "pogingen": [
+    {
+      "poging": 1,
+      "wachttijd_s": 120.0,
+      "last": {
+        "systeem": "stock-standaard",
+        "run": 0,
+        "begin": "2026-11-27T21:09:41Z",
+        "eind": "2026-11-27T21:09:42Z",
+        "loadavg_voor": [
+          6.54,
+          8.06,
+          7.76
+        ],
+        "loadavg_na": [
+          6.54,
+          8.06,
+          7.76
+        ],
+        "cpu": {
+          "duur_s": 0.765,
+          "machine_kernen": 6.364,
+          "eigen_kernen": 0.026,
+          "container_kernen": 0.993,
+          "andere_kernen": 5.345
+        },
+        "zware_sloten_voor": [],
+        "zware_sloten_na": [],
+        "geldig": false,
+        "reden": "loadavg(1 min) 6.54 > 4.0 v\u00f3\u00f3r de run; andere processen gebruikten 5.34 kernen > 4.0"
+      }
+    },
+    {
+      "poging": 2,
+      "wachttijd_s": 120.0,
+      "last": {
+        "systeem": "stock-standaard",
+        "run": 0,
+        "begin": "2026-11-27T21:11:42Z",
+        "eind": "2026-11-27T21:11:42Z",
+        "loadavg_voor": [
+          6.33,
+          7.41,
+          7.55
+        ],
+        "loadavg_na": [
+          6.33,
+          7.41,
+          7.55
+        ],
+        "cpu": {
+          "duur_s": 0.267,
+          "machine_kernen": 3.069,
+          "eigen_kernen": 0.037,
+          "container_kernen": 0.959,
+          "andere_kernen": 2.072
+        },
+        "zware_sloten_voor": [],
+        "zware_sloten_na": [],
+        "geldig": false,
+        "reden": "loadavg(1 min) 6.33 > 4.0 v\u00f3\u00f3r de run"
+      }
+    },
+    {
+      "poging": 3,
+      "wachttijd_s": 120.0,
+      "last": {
+        "systeem": "stock-standaard",
+        "run": 0,
+        "begin": "2026-11-27T21:13:42Z",
+        "eind": "2026-11-27T21:13:42Z",
+        "loadavg_voor": [
+          5.6,
+          6.8,
+          7.31
+        ],
+        "loadavg_na": [
+          5.6,
+          6.8,
+          7.31
+        ],
+        "cpu": {
+          "duur_s": 0.258,
+          "machine_kernen": 4.582,
+          "eigen_kernen": 0.078,
+          "container_kernen": 1.052,
+          "andere_kernen": 3.452
+        },
+        "zware_sloten_voor": [],
+        "zware_sloten_na": [],
+        "geldig": false,
+        "reden": "loadavg(1 min) 5.60 > 4.0 v\u00f3\u00f3r de run"
+      }
+    }
+  ]
+}

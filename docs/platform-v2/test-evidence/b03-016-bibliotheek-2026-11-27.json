@@ -1,0 +1,42 @@
+{
+  "id": "I06-06-05",
+  "gemeten_op": "2026-11-27T21:10:56+00:00",
+  "omgeving": "Lokale stock-wegwerpserver van S-P40-50 na de scan van het gecontroleerde corpus.",
+  "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "methode": "Eén alleen-lezen SQLite-transactie na het scannen. Bij films en afleveringen zijn dit het aantal items en het aantal verschillende paden. Bij ondertitels zijn het aantal sporen met type Subtitle en het aantal bijbehorende items geteld.",
+  "metingen": {
+    "films": {
+      "sql": "SELECT COUNT(*), COUNT(DISTINCT Path) FROM BaseItems WHERE Type='MediaBrowser.Controller.Entities.Movies.Movie'",
+      "uitkomst": [
+        40,
+        40
+      ]
+    },
+    "series": {
+      "sql": "SELECT COUNT(*) FROM BaseItems WHERE Type='MediaBrowser.Controller.Entities.TV.Series'",
+      "uitkomst": [
+        3
+      ]
+    },
+    "afleveringen": {
+      "sql": "SELECT COUNT(*), COUNT(DISTINCT Path) FROM BaseItems WHERE Type='MediaBrowser.Controller.Entities.TV.Episode'",
+      "uitkomst": [
+        14,
+        14
+      ]
+    },
+    "genummerde_afleveringen_met_bestaande_serie": {
+      "sql": "SELECT COUNT(*) FROM BaseItems AS e JOIN BaseItems AS s ON s.Id=e.SeriesId WHERE e.Type='MediaBrowser.Controller.Entities.TV.Episode' AND s.Type='MediaBrowser.Controller.Entities.TV.Series' AND e.IndexNumber IS NOT NULL",
+      "uitkomst": [
+        14
+      ]
+    },
+    "ondertitelsporen_en_items": {
+      "sql": "SELECT COUNT(*), COUNT(DISTINCT b.Id) FROM MediaStreamInfos AS m JOIN BaseItems AS b ON b.Id=m.ItemId WHERE m.StreamType=2",
+      "uitkomst": [
+        16,
+        6
+      ]
+    }
+  }
+}

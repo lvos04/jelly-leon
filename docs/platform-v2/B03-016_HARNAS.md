@@ -116,8 +116,8 @@ een eigen `B03_LOCK_DIR`. Het veld `stackslot_wacht_s` meet de wachttijd op dat 
   (`profielen/stock-best.json`: handmatige QSV op `/dev/dri/renderD128` met tonemapping en low-power, de
   client-instellingen per functie). De config-sha256 per systeem staat in het bewijs. "Aantoonbaar beter" alleen tegen
   stock-best; alleen tegen stock-standaard heet het "beter dan de standaardinstelling".
-- **Voormeting en definitief apart gelabeld:** `--label voormeting-12.4` (nu) of `definitief-forkbasis` (P4-0, met
-  `--image` op de 12.x-digest van de forkbasis).
+- De historische sessies van 10 november 2026 hebben het label `voormeting-12.4`. S-P40-50 meet opnieuw op dezelfde
+  vastgezette 12.4-digest. Nieuwe geldige metingen krijgen `definitief-forkbasis`.
 - `python -m b03h rapport <baseline.json>` toont per metriek de steekproefgrootte, het interval, de image, de seed en
   de éénminuutslast vóór elke run van beide sessies. Bij een telling vergelijkt het rapport de afzonderlijke herhalingen.
   Het JSON-bewijs bevat ook de meetmethode en de belasting na afloop.
@@ -130,6 +130,29 @@ een eigen `B03_LOCK_DIR`. Het veld `stackslot_wacht_s` meet de wachttijd op dat 
   scenario's zonder bibliotheekitems. Na het weglaten van de uitzonderingskolommen telt elk exemplaar van een rij mee.
 - De eerste rij van elke functie (B03-020, -030, -040, -052/054-voorbereiding, -060, -070) levert haar eigen metingen in dit
   raamwerk; hier staan de gemeenschappelijke voormetingen (Direct Play, transcode op de iGPU, functie-API's).
+
+### Meetpoging op de forkbasis van 27 november 2026 (B03-016)
+
+De lokale stockserver meldde versie 12.4.0 en gebruikte de vastgezette image
+`docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771`.
+De eerste run van het profiel `stock-standaard` in de fase `functies` leverde drie ongeldige pogingen op.
+
+| Poging | Aanvang (UTC) | Loadavg vóór de run (1 min) | CPU van andere processen (kernen) |
+|---:|---|---:|---:|
+| 1 | 21:09:41 | 6,54 | 5,345 |
+| 2 | 21:11:42 | 6,33 | 2,072 |
+| 3 | 21:13:42 | 5,60 | 3,452 |
+
+Alle drie overschreden de lastgrens van 4,0. Het harnas stopte met exitcode 1. Met nul geldige runs is er geen interval
+voor deze sessie. De definitieve meting van beide profielen, de herhaalsessie en de vergelijking van stock met de fork
+staan open. [Lastgegevens van alle drie de pogingen](test-evidence/b03-016-afgewezen-functies-2026-11-27.json)
+
+### Bibliotheekscan van de lokale testserver (I06-06-05)
+
+Op 27 november 2026 indexeerde stock 12.4 op de forkbasis-digest 40 films en 14 afleveringen. Elke film en elke
+aflevering had een eigen pad. Alle afleveringen hadden een afleveringsnummer en verwezen naar een van de drie series.
+De database koppelde 16 ondertitelsporen aan 6 items. De SQL-controle las de database van de wegwerpserver na de scan.
+Absolute anime-nummering, muziek en live-tv zijn in deze proef niet gecontroleerd. [SQL-query's en meetwaarden](test-evidence/b03-016-bibliotheek-2026-11-27.json)
 
 ## 4. Wat hier NIET gevalideerd kan worden
 

@@ -204,7 +204,7 @@ dezelfde controle-run met negatieve proef (run 42728331528: groen).
 | Echte tv's, telefoons, tablets, receivers (D15) | NIET GEVALIDEERD (hardware) | emulators en UA-simulatie hebben geen AC3/DTS/DV-decoders; JLT-69 |
 | Swiftfin, Safari, Apple TV | NIET GEVALIDEERD (Mac/Xcode) | geen Mac |
 | NAS, HDD-pool, echte bibliotheek | NIET GEVALIDEERD (echte NAS) | — |
-| Definitieve baselines op de forkbasis-digest | open (P4-0) | de fork draait nog op 10.11.11 (B03-014) |
+| Definitieve baselines op de forkbasis-digest | open (P4-0) | S-P40-50 gebruikte dezelfde vastgezette 12.4-image. Drie pogingen boven de lastgrens leverden nul geldige runs op. [Meetgegevens van 27 november](test-evidence/b03-016-afgewezen-functies-2026-11-27.json) |
 | F3-testsplit: "verkeerde taal" en OPUS-MT-uitvoer als goed document | ontbreekt | geen andere talen voor Pioneer One; OPUS-MT is P5 (optionele app) |
 | PGS/VobSub, TrueHD/DTS/Atmos, DV-profiel 7, echte anime | ontbreekt in het corpus | CORPUS.md §4; JLT-47 deels Geblokkeerd |
 | WebKit en het audio-orakel in CI | alleen lokaal getoetst | runner zonder audiohardware (§2.2) |
