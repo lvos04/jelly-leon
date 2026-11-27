@@ -84,8 +84,9 @@
   "S-IS": {
     "versie": "12.0.8.0",
     "pakket_sha256": "a898f2e451a5421e02d09efb9c11d7fe3226ea122605260a3c57811ce01963ff",
-    "status": "in wachtrij",
-    "reden": "De lokale laadproef wacht op een gedeeld testslot."
+    "status": "Geblokkeerd",
+    "reden": "Na twee uur wachten op een gedeeld testslot was de laadproef met het ongewijzigde pakket nog niet gestart. De compatibiliteit en zichtbaarheid van segmenten zijn onbevestigd.",
+    "datum_status": "2026-11-28"
   },
   "metingen": {
     "status": "NIET GEMETEN (machinelast)",
@@ -108,11 +109,13 @@
       "scores": null
     },
     "is-standaard": {
-      "status": "NIET GEMETEN (machinelast)",
+      "status": "Geblokkeerd",
+      "meting": "NIET GEMETEN (machinelast)",
       "scores": null
     },
     "is-ruim": {
-      "status": "NIET GEMETEN (machinelast)",
+      "status": "Geblokkeerd",
+      "meting": "NIET GEMETEN (machinelast)",
       "scores": null
     },
     "jelly-leon": {
