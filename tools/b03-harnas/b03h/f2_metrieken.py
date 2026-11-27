@@ -115,6 +115,11 @@ def beoordeel_ranglijsten(ranglijsten: Mapping[str, Mapping[str, Sequence[str]]]
     vast = {"S-REC", "S-SIM", "S-LAT", "S-RND", "POP"}
     if any(not vast.issubset(rijen) for rijen in ranglijsten.values()):
         raise ValueError("stock-baseline ontbreekt")
+    aantal_tmdb = sum("S-TMDB" in rijen for rijen in ranglijsten.values())
+    if aantal_tmdb not in (0, len(profielen)):
+        raise ValueError("S-TMDB ontbreekt voor een deel van het cohort")
+    if aantal_tmdb:
+        vast.add("S-TMDB")
     categorieen = sorted({s for rijen in ranglijsten.values() for s in rijen if s.startswith("categorie/")})
     systemen = sorted(vast) + categorieen
     verwisseld = geschudde_holdout(profielen, seed)
@@ -133,11 +138,15 @@ def beoordeel_ranglijsten(ranglijsten: Mapping[str, Mapping[str, Sequence[str]]]
     beste_cat, beste_stock = {}, {}
     for m in ("NDCG@10", "Recall@10"):
         beste_cat[m] = max(categorieen or ["S-REC"], key=lambda s: gemiddelde(list(punten[s][m].values())))
-        beste_stock[m] = max(["S-REC", beste_cat[m], "S-SIM", "S-LAT"], key=lambda s: gemiddelde(list(punten[s][m].values())))
+        keuzes = ["S-REC", beste_cat[m], "S-SIM", "S-LAT"]
+        if aantal_tmdb:
+            keuzes.append("S-TMDB")
+        beste_stock[m] = max(keuzes, key=lambda s: gemiddelde(list(punten[s][m].values())))
     for naam, keuze in (("S-REC-best", beste_cat), ("S-BEST", beste_stock)):
         rapport[naam] = {**rapport[keuze["NDCG@10"]], **{m: rapport[s][m] for m, s in keuze.items()}, "gekozen": keuze}
-    rapport["S-TMDB"] = {"status": "niet gemeten", "reden": "remote provider vraagt netwerkverkeer naar TMDb"}
-    rapport["S-BEST"]["volledig"] = False
+    if not aantal_tmdb:
+        rapport["S-TMDB"] = {"status": "niet gemeten", "reden": "remote provider vraagt netwerkverkeer naar TMDb"}
+    rapport["S-BEST"]["volledig"] = bool(aantal_tmdb)
     for systeem in [*sorted(vast), "S-REC-best", "S-BEST"]:
         keuze = rapport[systeem].get("gekozen", {})
         rapport[systeem]["verschil_met_POP"] = {

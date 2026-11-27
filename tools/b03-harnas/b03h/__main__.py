@@ -7,10 +7,11 @@ import sys
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    hulp = ("gebruik: python -m b03h {corpus|guard|baseline|apparaten|segmenten|diffrun|legacy|clientmatrix|desktop|rapport|watchtogether} …\n"
+    hulp = ("gebruik: python -m b03h {corpus|guard|baseline|baseline-f2|apparaten|segmenten|diffrun|legacy|clientmatrix|desktop|rapport|watchtogether} …\n"
             "  corpus        corpusgenerator (recepten F1–F6, manifest, bevriezen, opruimen)\n"
             "  guard         CI-guard testdatalicenties (repo, commitbereik, image, map)\n"
             "  baseline      baselinemetingen tegen stock jellyfin/jellyfin (stock-standaard en stock-best)\n"
+            "  baseline-f2   aanbevelingen: dataset, lekbewaking en stockmetingen (B03-030)\n"
             "  apparaten     K1–K9 per client en stockprofiel op de bevroren F5-sets (B03-060/JLT-40)\n"
             "  segmenten     meetlat JLT-50 en Intro Skipper-laadproef op lokale testdata\n"
             "  diffrun       differentiële controle-run (twee kopieën van dezelfde datamap)\n"
@@ -29,6 +30,8 @@ def main(argv: list[str] | None = None) -> int:
         from .guard import main as m
     elif onderdeel == "baseline":
         from .baseline import main as m
+    elif onderdeel == "baseline-f2":
+        from .baseline_f2 import main as m
     elif onderdeel == "apparaten":
         from .apparaten import main as m
     elif onderdeel == "segmenten":

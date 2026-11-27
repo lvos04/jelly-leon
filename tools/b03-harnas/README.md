@@ -9,6 +9,7 @@ Gereedschap voor de **ontwikkelmachine en CI** (nooit op de NAS, nooit in de Jel
 | corpusgenerator | `python -m b03h corpus …` | recepten F1–F6 + ASS + groot bestand, grondwaarheid, sha256-manifest, bevriezen, opruimen |
 | CI-guard | `python -m b03h guard --git . / --bereik . A..B / --image REF / --map DIR` | weigert beperkt gelicentieerde testdata (BG-37) en media in de repo |
 | baselines | `python -m b03h baseline --metingen dp,orakel,transcode,functies --runs 3` | stock-standaard en stock-best, meetprotocol, n + Wilson |
+| aanbevelingen | `python -m b03h baseline-f2 dml/lekproef/meet …` | Bevroren catalogus, gepaarde evaluatie en twee stockruns. [Meetprocedure B03-030](../../docs/platform-v2/B03-030_AANBEVELINGEN.md) |
 | clientmatrix | `python -m b03h clientmatrix --onderdelen web,ua,webdir,legacy,telefoon,tablet,tv,tv36` | rooktest hero.mp4 per client |
 | controle-run | `python -m b03h diffrun [--negatieve-proef] [--toegestaan module.json]` | stock tegen stock (of Jelly Leon) op kopieën van één datamap |
 | legacy-client | `python -m b03h legacy --uit …` | wat 12.x doet met X-Emby-Token, api_key, … |

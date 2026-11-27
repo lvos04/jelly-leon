@@ -81,6 +81,13 @@ def test_stockselectie_over_cohort_en_lekproef_met_positieve_controle():
         rijen[u]["S-SIM"] = list(andere[u])
     lek = beoordeel_ranglijsten(rijen, profielen, cat, 41)["systemen"]["S-SIM"]["geschud_NDCG_verschil_met_POP"]
     assert lek["onder"] == 1
+    rijen["a"]["S-TMDB"] = ["a"]
+    with pytest.raises(ValueError, match="deel van het cohort"):
+        beoordeel_ranglijsten(rijen, profielen, cat, 41)
+    for u in rijen:
+        rijen[u]["S-TMDB"] = [u]
+    compleet = beoordeel_ranglijsten(rijen, profielen, cat, 41)["systemen"]["S-BEST"]
+    assert compleet["volledig"] and compleet["gekozen"] == {"NDCG@10": "S-TMDB", "Recall@10": "S-TMDB"}
     del rijen["a"]["S-RND"]
     with pytest.raises(ValueError, match="ontbreekt"):
         beoordeel_ranglijsten(rijen, profielen, cat, 41)
