@@ -613,9 +613,9 @@ internal static class SchemaControle
             return;
         }
 
-        if (schema["enum"] is JsonArray toegestaan && !toegestaan.Any(e => e!.GetValue<string>() == waarde.GetValue<string>()))
+        if (schema["enum"] is JsonArray toegestaan && !toegestaan.Any(e => JsonNode.DeepEquals(e, waarde)))
         {
-            fouten.Add($"{pad}: '{waarde.GetValue<string>()}' staat niet in de enum");
+            fouten.Add($"{pad}: waarde staat niet in de enum");
         }
 
         if (schema["pattern"] is JsonNode patroon && !Regex.IsMatch(waarde.GetValue<string>(), patroon.GetValue<string>()))

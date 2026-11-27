@@ -271,7 +271,8 @@ internal sealed class Harnas : IDisposable
         http.Response.Body = inhoud;
         await resultaat.ExecuteResultAsync(actieContext);
         inhoud.Position = 0;
-        return new Antwoord(resultaat.Status, inhoud.Length == 0 ? null : JsonNode.Parse(inhoud), resultaat.Headers);
+        var antwoord = inhoud.Length == 0 ? null : await JsonNode.ParseAsync(inhoud, cancellationToken: http.RequestAborted);
+        return new Antwoord(resultaat.Status, antwoord, resultaat.Headers);
     }
 
     public Task<Antwoord> RoepHub(string routeId, string token, string? body = null, string[]? kop = null, string? query = null) =>

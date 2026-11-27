@@ -903,14 +903,20 @@ def jl4_proef(args: argparse.Namespace, openapi: bytes) -> int:
             status, inhoud, _ = plugin.sessie_vraag(kijker, *plugin._laatste, kop={"Idempotency-Key": str(uuid.uuid4())})
             plugin.fout("JLT-68", "persoonlijke kindersessie met beheerrecht", (status, inhoud, b""), 403, "forbidden", "kid_profile")
             plugin.hub_herstart(ww[BEHEER])
-            plugin.hub_rotatie()
             pad = f"/Plugins/{PLUGIN_ID}/Configuration"
             configuratie = plugin.beheer.http.doe("GET", pad)
             plugin.beheer.http.doe("POST", pad, body=configuratie)
             xml = server.config / "plugins/configurations/Jellyfin.Plugin.JellyLeon.xml"
+            teksten = {"plugin-XML": xml.read_text(), "instellingen": json.dumps(configuratie)}
+            for slug in ("devices", "quality"):
+                export = plugin.beheer.http.doe("GET", f"/media/v1/{slug}/export")
+                v.test("JLT-68", "beheerexport van " + slug, isinstance(export, dict) and export.get("module") == slug)
+                teksten["beheerexport " + slug] = json.dumps(export)
+            plugin.hub_rotatie()
             server.stop()
+            teksten["serverlog"] = server.logtekst()
             waarden = [waarde for sleutel, waarde in v.geheimen.items() if sleutel.startswith(("hubsleutel:", "hubtoken:", "diensttoken:"))]
-            for naam, tekst in (("serverlog", server.logtekst()), ("plugin-XML", xml.read_text()), ("instellingen", json.dumps(configuratie))):
+            for naam, tekst in teksten.items():
                 v.test("JLT-68", naam + " zonder Hub-sleutels of JWT's",
                        bool(tekst) and not any(x in tekst for x in waarden), f"{len(tekst)} tekens gecontroleerd")
         except (RuntimeError, subprocess.SubprocessError, OSError, KeyError, ValueError) as fout:

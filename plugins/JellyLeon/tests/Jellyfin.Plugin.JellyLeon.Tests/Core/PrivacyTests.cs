@@ -210,6 +210,17 @@ public sealed class PrivacyTests : IDisposable
             Assert.DoesNotContain("TV Woonkamer", tekst, StringComparison.Ordinal);
         }
 
+        // Controleer de volledige beheerexports terwijl de pin actief is, ook op de policy-sleutel.
+        foreach (var slug in new[] { "devices", "quality" })
+        {
+            var export = await _h.Roep(slug + ".export");
+            Assert.Equal(200, export.Status);
+            var inhoud = export.Json!.ToJsonString();
+            Assert.DoesNotContain(sleutel, inhoud, StringComparison.Ordinal);
+            Assert.DoesNotContain(beleidsleutel, inhoud, StringComparison.Ordinal);
+            Assert.DoesNotContain(token, inhoud, StringComparison.Ordinal);
+        }
+
         // De pin zelf staat alleen in de geheimenmap.
         var metPin = Directory.GetFiles(_h.Map, "*", SearchOption.AllDirectories)
             .Where(b => !b.EndsWith(".db", StringComparison.Ordinal) && !b.Contains(".db-", StringComparison.Ordinal))

@@ -18,7 +18,7 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Storage;
 /// koppelen (<c>ATTACH</c>, <c>VACUUM INTO</c>); buiten Core.Storage is elke andere weg naar een databaseverbinding een
 /// bouwfout (JL0002, ADR-0032).
 /// </summary>
-internal sealed class JlDatabase
+internal sealed partial class JlDatabase
 {
     private const int MaxKopieen = 3;
     private static readonly TimeSpan _bewaartermijn = TimeSpan.FromDays(30);

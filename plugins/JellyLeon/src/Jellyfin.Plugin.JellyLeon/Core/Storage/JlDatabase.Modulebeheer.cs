@@ -4,61 +4,29 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Threading;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
-using Jellyfin.Plugin.JellyLeon.Core.Idempotency;
-using Jellyfin.Plugin.JellyLeon.Core.Secrets;
+using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Microsoft.Data.Sqlite;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Storage;
 
-/// <summary>Vaste tabel en kolommen uit de migraties van één module, in sleutelvolgorde.</summary>
-internal sealed record ModuleTabel(string Naam, params string[] Kolommen);
-
-/// <summary>De beheerexport en het transactioneel wissen van uitsluitend de daarin opgenomen moduletabellen.</summary>
-internal sealed class ModuleGegevensbeheer
+// De gecontroleerde moduleverbinding bezit de bestandshandles, rijlezer en transactie.
+internal sealed partial class JlDatabase
 {
-    private static readonly TimeSpan _maxLeeftijd = TimeSpan.FromHours(24);
-    private readonly JlDatabase _db;
-    private readonly JlPaths _paden;
-    private readonly InternalWriteScope _bestanden;
-    private readonly string _exportPad;
-    private readonly string _slug;
-    private readonly SecretStore _geheimen;
-    private readonly ModuleTabel[] _tabellen;
-    private readonly Lazy<IdempotencyStore> _herhalingen;
+    private static readonly TimeSpan _maxExportleeftijd = TimeSpan.FromHours(24);
 
-    public ModuleGegevensbeheer(JlDatabase db, JlPaths paden, string slug, SecretStore geheimen, ModuleTabel[] tabellen)
+    public (Stream Inhoud, string Sha256) MaakModuleExport(ModuleGegevensbeheer module, TimeProvider klok) => Met(v =>
     {
-        _db = db;
-        _paden = paden;
-        _bestanden = new InternalWriteScope(paden);
-        _exportPad = Path.Combine(paden.ModuleDir(slug), "beheerexport.json");
-        _slug = slug;
-        _geheimen = geheimen;
-        _herhalingen = new Lazy<IdempotencyStore>(
-            () => new IdempotencyStore(new JlDatabase(paden, Path.Combine(paden.CacheRoot, slug, "beheerherhaling.db"), [CoreDatabase.IdempotentieTabel])),
-            LazyThreadSafetyMode.PublicationOnly);
-        _tabellen = [new("instellingen", "id", "bewaar_dagen", "versie"), .. tabellen];
-    }
-
-    // Ook een geweigerd wisverzoek mag geen bestaande verzoeken uit de kerndatabase laten verlopen.
-    // De modulecache bewaart per verzoek een ondoorzichtige sleutel zonder account-ID of sessiepseudoniem.
-    public IdempotencyStore Herhalingen => _herhalingen.Value;
-
-    public string VerzoekSleutel(string scope, string sleutel) => _geheimen.OpaakId("beheerherhaling-" + _slug, scope + "\n" + sleutel);
-
-    public (Stream Inhoud, string Sha256) MaakExport(TimeProvider klok) => _db.Met(v =>
-    {
+        var exportPad = ModuleExportPad(module);
         using var transactie = v.BeginTransaction(deferred: false);
         using var verwacht = SHA256.Create();
-        _bestanden.SchrijfAtomisch(_exportPad, doel =>
+        _bestanden.SchrijfAtomisch(exportPad, doel =>
         {
             using var inhoud = new CryptoStream(doel, verwacht, CryptoStreamMode.Write, leaveOpen: true);
-            SchrijfExport(v, inhoud, klok.GetUtcNow());
+            SchrijfExport(module, v, inhoud, klok.GetUtcNow());
         });
 
-        var export = OpenExport() ?? throw Fouten.OpslagOnbeschikbaar();
+        var export = OpenExport(exportPad) ?? throw Fouten.OpslagOnbeschikbaar();
         try
         {
             var hash = SHA256.HashData(export);
@@ -78,11 +46,12 @@ internal sealed class ModuleGegevensbeheer
         }
     });
 
-    public JsonObject Wis(string exportSha256, bool dryRun, TimeProvider klok) => _db.Met(v =>
+    public JsonObject WisModule(ModuleGegevensbeheer module, string exportSha256, bool dryRun, TimeProvider klok) => Met(v =>
     {
         // Ook een tweede verbinding kan tussen de vergelijking en de laatste DELETE geen rijen wijzigen.
+        var exportPad = ModuleExportPad(module);
         using var transactie = v.BeginTransaction(deferred: false);
-        using var archief = OpenExport();
+        using var archief = OpenExport(exportPad);
         if (archief is null || Convert.ToHexStringLower(SHA256.HashData(archief)) != exportSha256
             || !LeesExporttijd(archief, out var gemaakt))
         {
@@ -90,14 +59,14 @@ internal sealed class ModuleGegevensbeheer
         }
 
         var leeftijd = klok.GetUtcNow() - gemaakt;
-        if (leeftijd < TimeSpan.Zero || leeftijd > _maxLeeftijd)
+        if (leeftijd < TimeSpan.Zero || leeftijd > _maxExportleeftijd)
         {
             throw Fouten.Conflict("export_required");
         }
 
         using var hash = SHA256.Create();
         using var controle = new CryptoStream(Stream.Null, hash, CryptoStreamMode.Write);
-        var aantallen = SchrijfExport(v, controle, gemaakt);
+        var aantallen = SchrijfExport(module, v, controle, gemaakt);
         controle.FlushFinalBlock();
         if (Convert.ToHexStringLower(hash.Hash!) != exportSha256)
         {
@@ -106,14 +75,14 @@ internal sealed class ModuleGegevensbeheer
 
         if (!dryRun)
         {
-            var verwachtTotaal = JlDatabase.Getal(v, "SELECT total_changes()");
-            foreach (var tabel in _tabellen)
+            var verwachtTotaal = Getal(v, "SELECT total_changes()");
+            foreach (var tabel in module.Tabellen)
             {
                 var verwacht = aantallen[tabel.Naam]!.GetValue<long>();
-                JlDatabase.Voer(v, "DELETE FROM main." + tabel.Naam);
+                Voer(v, "DELETE FROM main." + tabel.Naam);
                 verwachtTotaal += verwacht;
                 // changes() telt de eigen DELETE. total_changes() telt ook triggers en cascades.
-                if (JlDatabase.Getal(v, "SELECT changes()") != verwacht || JlDatabase.Getal(v, "SELECT total_changes()") != verwachtTotaal)
+                if (Getal(v, "SELECT changes()") != verwacht || Getal(v, "SELECT total_changes()") != verwachtTotaal)
                 {
                     throw Fouten.Conflict("purge_conflict");
                 }
@@ -124,13 +93,23 @@ internal sealed class ModuleGegevensbeheer
         return new JsonObject { ["counts"] = aantallen, ["applied"] = !dryRun };
     });
 
-    private Stream? OpenExport()
+    private string ModuleExportPad(ModuleGegevensbeheer module)
     {
-        _paden.EisVeiligBestand(_exportPad);
+        if (!string.Equals(Pad, _paden.ModuleDb(module.Slug), StringComparison.Ordinal))
+        {
+            throw Fouten.OpslagOnbeschikbaar();
+        }
+
+        return Path.Combine(_paden.ModuleDir(module.Slug), "beheerexport.json");
+    }
+
+    private Stream? OpenExport(string exportPad)
+    {
+        _paden.EisVeiligBestand(exportPad);
         FileStream bestand;
         try
         {
-            bestand = new FileStream(_exportPad, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+            bestand = new FileStream(exportPad, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
         }
         catch (IOException fout) when (fout is FileNotFoundException or DirectoryNotFoundException)
         {
@@ -139,7 +118,7 @@ internal sealed class ModuleGegevensbeheer
 
         try
         {
-            _paden.EisGeopendBestand(bestand, _exportPad);
+            _paden.EisGeopendBestand(bestand, exportPad);
             return bestand;
         }
         catch
@@ -168,19 +147,19 @@ internal sealed class ModuleGegevensbeheer
         }
     }
 
-    private JsonObject SchrijfExport(SqliteConnection v, Stream doel, DateTimeOffset gemaakt)
+    private static JsonObject SchrijfExport(ModuleGegevensbeheer module, SqliteConnection v, Stream doel, DateTimeOffset gemaakt)
     {
         using var json = new Utf8JsonWriter(doel);
         json.WriteStartObject();
         json.WriteString("created_at", gemaakt);
-        json.WriteString("module", _slug);
+        json.WriteString("module", module.Slug);
         json.WriteNumber("schema_version", 1);
         json.WriteStartObject("tables");
         var aantallen = new JsonObject();
-        foreach (var tabel in _tabellen)
+        foreach (var tabel in module.Tabellen)
         {
             // De tabelnaam en sorteersleutel komen uitsluitend uit de moduledefinitie.
-            using var opdracht = JlDatabase.Opdracht(v, "SELECT * FROM main." + tabel.Naam + " ORDER BY " + string.Join(", ", tabel.Kolommen));
+            using var opdracht = Opdracht(v, "SELECT * FROM main." + tabel.Naam + " ORDER BY " + string.Join(", ", tabel.Kolommen), []);
             using var rijen = opdracht.ExecuteReader();
             if (!tabel.Kolommen.SequenceEqual(Enumerable.Range(0, rijen.FieldCount).Select(rijen.GetName), StringComparer.Ordinal))
             {
@@ -204,7 +183,7 @@ internal sealed class ModuleGegevensbeheer
                             json.WriteNumber(kolom, getal);
                             break;
                         case string tekst:
-                            json.WriteString(kolom, kolom == "gebruiker" ? _geheimen.OpaakId("export-" + _slug, tekst) : tekst);
+                            json.WriteString(kolom, kolom == "gebruiker" ? module.ExportGebruiker(tekst) : tekst);
                             break;
                         default:
                             throw Fouten.Conflict("export_schema_changed");

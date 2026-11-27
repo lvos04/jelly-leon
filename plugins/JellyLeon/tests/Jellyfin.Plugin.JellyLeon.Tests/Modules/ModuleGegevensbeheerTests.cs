@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
@@ -36,6 +37,20 @@ public sealed class ModuleGegevensbeheerTests : IDisposable
     }
 
     public void Dispose() => _h.Dispose();
+
+    [Fact]
+    public void ModulebeheerWeigertDeKerndatabaseVoorLezenEnWissen()
+    {
+        var kern = _h.Dienst<CoreDatabase>().Db;
+        var beheer = _h.Dienst<DevicesModule>().Gegevensbeheer;
+        kern.Met(v => JlDatabase.Getal(v, "SELECT 1"));
+        var vooraf = BestandHash(kern.Pad);
+
+        Assert.Equal("storage_unavailable", Assert.Throws<JlException>(() => kern.MaakModuleExport(beheer, _h.Klok)).Code);
+        Assert.Equal("storage_unavailable", Assert.Throws<JlException>(() => kern.WisModule(beheer, string.Empty, false, _h.Klok)).Code);
+        Assert.Equal(vooraf, BestandHash(kern.Pad));
+        Assert.False(File.Exists(ExportPad("devices")));
+    }
 
     [Theory]
     [InlineData("devices", "quality")]
@@ -174,7 +189,7 @@ public sealed class ModuleGegevensbeheerTests : IDisposable
         Assert.Equal("export_required", (await Wis(slug, verkeerdeHash)).Reden);
         File.Copy(ExportPad(ander), ExportPad(slug), overwrite: true);
         Assert.Equal("export_changed", (await Wis(slug, verkeerdeHash)).Reden);
-        File.WriteAllText(ExportPad(slug), "{}");
+        await File.WriteAllTextAsync(ExportPad(slug), "{}", TestContext.Current.CancellationToken);
         Assert.Equal("export_required", (await Wis(slug, sha256)).Reden);
         Assert.Equal("export_required", (await Wis(slug, BestandHash(ExportPad(slug)))).Reden);
         File.Delete(ExportPad(slug));
@@ -303,7 +318,8 @@ public sealed class ModuleGegevensbeheerTests : IDisposable
         Assert.Equal(200, antwoord.Status);
         var sha256 = BestandHash(ExportPad(slug));
         Assert.Equal("\"" + sha256 + "\"", antwoord.Kop["ETag"]);
-        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(File.ReadAllBytes(ExportPad(slug))), antwoord.Json));
+        var bytes = await File.ReadAllBytesAsync(ExportPad(slug), TestContext.Current.CancellationToken);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(bytes), antwoord.Json));
         Assert.Empty(SchemaControle.Afwijkingen(OpenApiBouwer.Bouw(), "ModuleExport", antwoord.Json));
         return (antwoord.Json!, sha256);
     }
