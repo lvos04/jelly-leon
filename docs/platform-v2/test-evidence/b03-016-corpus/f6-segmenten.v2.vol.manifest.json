@@ -1,0 +1,427 @@
+{
+  "schema": "jelly-leon/b03-016-testset-manifest/1",
+  "recept": "f6-segmenten",
+  "versie": "2",
+  "seed": 20261127,
+  "schaal": "vol",
+  "parameters": {},
+  "ffmpeg": {
+    "modus": "docker",
+    "versie": "ffmpeg version 8.1.3-Jellyfin Copyright (c) 2000-2026 the FFmpeg developers",
+    "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "bronnen": [
+    {
+      "pad": "blender/bbb/uitgepakt/bbb_sunflower_1080p_30fps_normal.mp4",
+      "sha256": "ae51005850b0ff757fe60c3dd7a12d754d3cd2397d87d939b55235e457f97658",
+      "licentie": "CC BY 3.0 (Blender Foundation, Big Buck Bunny)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/caminandes/02_gran_dillama_1080p.mp4",
+      "sha256": "468e6743c674689a728726bbe4bb4b2a65bd8702a89f021af26a8bb4d450eebd",
+      "licentie": "CC BY 3.0 (Blender Foundation, Caminandes)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/caminandes/Caminandes_Llamigos-1080p.mp4",
+      "sha256": "826513349ecf02d83b22f414514704e3bba10ff28fb45408a6cdf6cc57bacc06",
+      "licentie": "CC BY 3.0 (Blender Foundation, Caminandes)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/cosmos/Cosmos_Laundromat_First_Cycle_2k.mp4",
+      "sha256": "039ff018ecebf0746a3d6b68e74de10c2fc3f2e99122131efb795d5e81512354",
+      "licentie": "CC BY-SA 4.0 (Blender Foundation, Cosmos Laundromat)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/5-EndTitle.mp3",
+      "sha256": "1b2bab76f405b30d1f00d845987496f808c538860af3f30322f5417a9a8c3a74",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/ED-ME-5.1-DVD.ac3",
+      "sha256": "e78c5b5a2f09b3cf85e288d2e1d7101755250388475277bb03a3ea12e63dc22c",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/ed/elephantsdream-720-h264-st-aac.mov",
+      "sha256": "6fc295e0e92835316ec95929ccfc664b05ed2434f673e6f5e684f98f7558a547",
+      "licentie": "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/hero/hero.mp4",
+      "sha256": "1a2d85e9a0303c1c0eb320b2b755705551a5344b3c60dc3ced8166d93d329800",
+      "licentie": "CC BY 4.0 (Blender Studio, Hero)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/sintel/Sintel.2010.1080p.mkv",
+      "sha256": "fae11ed41b2c99dfbeabce7ea5458446e21e7b840a982f510f2341919c3d9920",
+      "licentie": "CC BY 3.0 (Blender Foundation, Sintel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    },
+    {
+      "pad": "blender/tos/uitgepakt/tears_of_steel_1080p.mov",
+      "sha256": "99486359be7e3681168a0fe94e1cbb0284c48b57b2a3ce7df4fa75e185987a15",
+      "licentie": "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+      "beperkt": false,
+      "in_corpusmanifest": true
+    }
+  ],
+  "licenties": [
+    "CC BY 2.5 (Blender Foundation / NIMk, Elephants Dream)",
+    "CC BY 3.0 (Blender Foundation, Big Buck Bunny)",
+    "CC BY 3.0 (Blender Foundation, Caminandes)",
+    "CC BY 3.0 (Blender Foundation, Sintel)",
+    "CC BY 3.0 (Blender Foundation, Tears of Steel)",
+    "CC BY 4.0 (Blender Studio, Hero)",
+    "CC BY-SA 4.0 (Blender Foundation, Cosmos Laundromat)"
+  ],
+  "licentie_beperkt": false,
+  "aantallen": {
+    "beschermd": 63,
+    "intro": 60,
+    "intro_buiten_is_venster": 20,
+    "mid_credit": 16,
+    "outro": 78,
+    "post_credit": 17,
+    "preview": 30,
+    "recap": 48,
+    "seizoensvariant_nieuwe_op": 28
+  },
+  "bestanden": [
+    {
+      "pad": "films/Meetfilm/Meetfilm.mkv",
+      "grootte": 25870953,
+      "sha256": "16dceb3573178b68b1e97724647ba3436a17ca3d6d0646a4d40aaa3bf8ff18f6"
+    },
+    {
+      "pad": "grondwaarheid.json",
+      "grootte": 45084,
+      "sha256": "813fa7b10e9cbf7edcd6b9876d2e939d086518aed1ba3edf07c0d05fec9a1375"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 01/B03 Meetserie A S01E01.mkv",
+      "grootte": 74948016,
+      "sha256": "4dd14a30bc215e6202e02fd948691b33ebf37b2822344d710386a3b88d65f3fc"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 01/B03 Meetserie A S01E02.mkv",
+      "grootte": 74974572,
+      "sha256": "c2c3b33b1594750a82e5561a7f03641adebc706065e958cb2421389cc404d608"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 01/B03 Meetserie A S01E03.mkv",
+      "grootte": 73813361,
+      "sha256": "6b3451fdd10870c64959eb1cdbd6947ce99e439f0a283e81342ecc16e7123e04"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 01/B03 Meetserie A S01E04.mkv",
+      "grootte": 74726630,
+      "sha256": "1be8194529e0047164e285ba262dcbdac5fc2730b9446a87f2176015cb9fb51b"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 01/B03 Meetserie A S01E05.mkv",
+      "grootte": 73040010,
+      "sha256": "5a99d5e558ec69f4fe525b70531c6239664ac9773d28faa295dc76a792651c4c"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 01/B03 Meetserie A S01E06.mkv",
+      "grootte": 72969943,
+      "sha256": "4be5b74ad17532ade6534fb77d38b363b6946d19e8fe60cf543771487fc912c6"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 02/B03 Meetserie A S02E01.mkv",
+      "grootte": 73579498,
+      "sha256": "a9d4d43619932ae4eec6464da0e53434cd32df1a81014e27489608199be9cf0d"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 02/B03 Meetserie A S02E02.mkv",
+      "grootte": 77788616,
+      "sha256": "e5e774331a1122d52cb0f5c0fa6f20e767f8cafc67ba4d712a66d831a6468e9b"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 02/B03 Meetserie A S02E03.mkv",
+      "grootte": 71235852,
+      "sha256": "7e57d7c084bd03d3a63618a5841c017d6081f2bf4128228e326362aff7135b3c"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 02/B03 Meetserie A S02E04.mkv",
+      "grootte": 40734746,
+      "sha256": "da7f1bf3bcb142371de2b408387bf4173ef2cbe1504866ecaa771de16ec29b09"
+    },
+    {
+      "pad": "series/B03 Meetserie A/Season 02/B03 Meetserie A S02E05.mkv",
+      "grootte": 74586514,
+      "sha256": "4f1688cd7363818c4a7f47361e369370dc2274aee5118a34daf1cc4c74d4bea2"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 01/B03 Meetserie B S01E01.mkv",
+      "grootte": 74448932,
+      "sha256": "c3bbf7e51b7851eeabbcaee5b74d5a0b1d47a9de98c4af6b7fb9c0b4ff1325bb"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 01/B03 Meetserie B S01E02.mkv",
+      "grootte": 72617814,
+      "sha256": "e0a3a3e34537595ce3147cfff48dfa34c17abe723563c628fce5e844864634c2"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 01/B03 Meetserie B S01E03.mkv",
+      "grootte": 75226599,
+      "sha256": "61a5e722a9e7e3efa53eb7607e4d07678a0b75d56b3ef358c2e4271a4d7c56a6"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 01/B03 Meetserie B S01E04.mkv",
+      "grootte": 72781165,
+      "sha256": "d613ac50f14bfd3420c2239d60b5f8ff0cfc58c71ba95cd9bb6580d24141f0c7"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 01/B03 Meetserie B S01E05.mkv",
+      "grootte": 75991006,
+      "sha256": "3518576b65ec4f1ecee4d0fe4a63c8d77025c4788ad561fff95a4659c8851cd7"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 01/B03 Meetserie B S01E06.mkv",
+      "grootte": 75420166,
+      "sha256": "49125d740ba728e11220ceb579ea063020990e582625e5734528e3c8c9ca9922"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 02/B03 Meetserie B S02E01.mkv",
+      "grootte": 72137628,
+      "sha256": "ae1126f5d9b4300b9d4a949e0c0ecd2cd58663f4996ce14a8e7c92f321be51c4"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 02/B03 Meetserie B S02E02.mkv",
+      "grootte": 73687429,
+      "sha256": "46dd9eb9e48d4e913537d90bab203a80ee7302b6d6d6425bcf946e8866226981"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 02/B03 Meetserie B S02E03.mkv",
+      "grootte": 39511996,
+      "sha256": "0a5b5f157fe1be5f12a36c4065953915193f504ad76e79b88e06830f97b7e738"
+    },
+    {
+      "pad": "series/B03 Meetserie B/Season 02/B03 Meetserie B S02E04.mkv",
+      "grootte": 72489274,
+      "sha256": "ef79bc29f1919b411cc2f7e1dc673d47fe9f73e38d7a47115af4afe4f1a2431a"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 01/B03 Meetserie C S01E01.mkv",
+      "grootte": 75087539,
+      "sha256": "f831743114021a6e568ad3372622e5298be997774df33314108cd9fb620cc329"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 01/B03 Meetserie C S01E02.mkv",
+      "grootte": 74675025,
+      "sha256": "693e2205ca8751ff1373ef3beba01f3c0343ff829fe5f4946334d1c614dbf101"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 01/B03 Meetserie C S01E03.mkv",
+      "grootte": 74797596,
+      "sha256": "32a65bef5e9b8e8955728100030becbf4dac31b019339eb59c5f55b2881855d9"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 01/B03 Meetserie C S01E04.mkv",
+      "grootte": 70023165,
+      "sha256": "1ec166f920caecb16a8149e3119df287b656d94da7360e78dc363e0829f93240"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 01/B03 Meetserie C S01E05.mkv",
+      "grootte": 74682466,
+      "sha256": "b21a98719a1dfc6de05205a8547a7a2103a1a140b1be7b3fd65ca24f271818ec"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 01/B03 Meetserie C S01E06.mkv",
+      "grootte": 72665260,
+      "sha256": "4aa77c7f38ecba3e97a76389ee5e6e60665ec072098dd3fe8ecfb2b88f0efe37"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 02/B03 Meetserie C S02E01.mkv",
+      "grootte": 72884086,
+      "sha256": "b8cfbd7988abe50415b3f38093ef27919c65eeed05493d6fec183d84705cd507"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 02/B03 Meetserie C S02E02.mkv",
+      "grootte": 40305742,
+      "sha256": "625924409c63ef8e7f049a0264eb17d4f1c07266bd804f6dda8d779b0a9eadae"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 02/B03 Meetserie C S02E03.mkv",
+      "grootte": 74983460,
+      "sha256": "17d30a129277da37e75467c2cec79005d5bebebd27e4a1393c66ba2670f29f2f"
+    },
+    {
+      "pad": "series/B03 Meetserie C/Season 02/B03 Meetserie C S02E04.mkv",
+      "grootte": 72580468,
+      "sha256": "c70ef4019a70c1d6c105434f60e761a549611e95dc655103f3b04a864291c558"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 01/B03 Meetserie D S01E01.mkv",
+      "grootte": 74634821,
+      "sha256": "0320f05e91c4bac60d82fe80fa023776990f49efbc12a42712dbe1fbc9393b15"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 01/B03 Meetserie D S01E02.mkv",
+      "grootte": 71974296,
+      "sha256": "2c0e4f248ca4ee6981f3a366c5c378d34b95462999dc525c83a9c42bad6b60c3"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 01/B03 Meetserie D S01E03.mkv",
+      "grootte": 75533362,
+      "sha256": "d75f89a9193b929476535e4f1f2882280a65410d5baf322919df204769a565f6"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 01/B03 Meetserie D S01E04.mkv",
+      "grootte": 76150727,
+      "sha256": "f75223469ffd60f9a5098ee04838e176b4bd3d55e341da36fbf31d372047d5c0"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 01/B03 Meetserie D S01E05.mkv",
+      "grootte": 72154389,
+      "sha256": "9c416f379f92afe56a2243cdeedfb9891d1b7d63b54fbd2330f81b3324fed3aa"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 01/B03 Meetserie D S01E06.mkv",
+      "grootte": 68031132,
+      "sha256": "90cb1d5e4a6414fd426761937ab614bb76b5fe2977d5f987e64b4f3ce975557f"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 02/B03 Meetserie D S02E01.mkv",
+      "grootte": 41958346,
+      "sha256": "1aa6dbdfec18a87a540633f20268bd6af3ccb95c4b2687cb5812d1d0192680c1"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 02/B03 Meetserie D S02E02.mkv",
+      "grootte": 71974248,
+      "sha256": "d332deeda3ad79ed56ccdd64e3f104982459ac7d7221b3d4885f8ebd58ea3692"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 02/B03 Meetserie D S02E03.mkv",
+      "grootte": 73325508,
+      "sha256": "8f474283e44b5316b00e99424e69df241c21e8d05e50cf802d1b4c03469a695c"
+    },
+    {
+      "pad": "series/B03 Meetserie D/Season 02/B03 Meetserie D S02E04.mkv",
+      "grootte": 73222603,
+      "sha256": "eb62c1a89be1baf9ae8791344b6522be952452485ed77dedd27bc186f2e84817"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 01/B03 Meetserie E S01E01.mkv",
+      "grootte": 71688327,
+      "sha256": "23097d191798ef909bf22a17fc090e7d65b3eda7d2d734d6966e9ab5d4d57a76"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 01/B03 Meetserie E S01E02.mkv",
+      "grootte": 71992402,
+      "sha256": "4690b7c82c7b3736a66dd9cd6639ddd069da8851cd4c59478793e9c043cee9aa"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 01/B03 Meetserie E S01E03.mkv",
+      "grootte": 71335128,
+      "sha256": "be400e9a35e25dfc9b684b50b1c158df3b0630770b14c1db04a4aebda9ac950d"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 01/B03 Meetserie E S01E04.mkv",
+      "grootte": 72765157,
+      "sha256": "43ff3aef4cfaec8f797b245f00b1b0c50330af0c17cb81a109feb658046775b4"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 01/B03 Meetserie E S01E05.mkv",
+      "grootte": 75851327,
+      "sha256": "9ec3d614d0d1daf903098fdb9bedb8596b8dd796a9756d07ec7cfd2eeaff6f46"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 01/B03 Meetserie E S01E06.mkv",
+      "grootte": 40234010,
+      "sha256": "de817600e4a0aaaad7215a44be15c91d1185dfaebe53303ff0bbaa22539e0fdf"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 02/B03 Meetserie E S02E01.mkv",
+      "grootte": 67803230,
+      "sha256": "510ce48dcd3c60e1e0ff9924ea44bcdbe92e56db988c1c8c466e075638aab65f"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 02/B03 Meetserie E S02E02.mkv",
+      "grootte": 71875433,
+      "sha256": "e5750fde61618ea260019ae2f87264c107aded822307e16939566972afe7c484"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 02/B03 Meetserie E S02E03.mkv",
+      "grootte": 71459031,
+      "sha256": "8d9716cc2f6f6da75ae0c298b1424769c99b20d3fb466621c660d29e563a0aac"
+    },
+    {
+      "pad": "series/B03 Meetserie E/Season 02/B03 Meetserie E S02E04.mkv",
+      "grootte": 68713897,
+      "sha256": "dc36293db461be0d74bd6118c44dad9b4b1d02fda7e88998471fd48a80bc80f5"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 01/B03 Meetserie F S01E01.mkv",
+      "grootte": 70750195,
+      "sha256": "c2d17de630f6a69a496fed5445fb1aff930b02ae90500fab8098e18dd0d35785"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 01/B03 Meetserie F S01E02.mkv",
+      "grootte": 72623120,
+      "sha256": "f4b280830e2891afed69300967460ac64eb2950b617e21265a1df9ac03cfa897"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 01/B03 Meetserie F S01E03.mkv",
+      "grootte": 72004128,
+      "sha256": "432e4767fc5ea900eaa0f505c22e27d6cdd3c1fb531ad571d53bcd4181119d28"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 01/B03 Meetserie F S01E04.mkv",
+      "grootte": 73173777,
+      "sha256": "4993da5a3bd1117688f0e64fdc30f0c5fd8456b93cc4222392c366daa4f01fee"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 01/B03 Meetserie F S01E05.mkv",
+      "grootte": 39591830,
+      "sha256": "c66ba1331649d75b69b29c719f211b10479d3cba4a049368b11a3d679e928b7d"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 01/B03 Meetserie F S01E06.mkv",
+      "grootte": 71048491,
+      "sha256": "64ddb7a84e21d5ea15894417cfbe40cbb45442afb23534cdb506696ccef21a75"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 02/B03 Meetserie F S02E01.mkv",
+      "grootte": 73447146,
+      "sha256": "b45804485f139835a82b08579fd6397261ca9560243756c04ac5950f3f0910c4"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 02/B03 Meetserie F S02E02.mkv",
+      "grootte": 68177035,
+      "sha256": "939e1893844c3751401fca2d7a7a67540438e8bf548afdcd5584034ec7bd274d"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 02/B03 Meetserie F S02E03.mkv",
+      "grootte": 73875468,
+      "sha256": "2f99101b130027b8beb99fc5d0e8c36035f4135e3fb6734baeaaff62f897527f"
+    },
+    {
+      "pad": "series/B03 Meetserie F/Season 02/B03 Meetserie F S02E04.mkv",
+      "grootte": 70967643,
+      "sha256": "f9662a200cdbfab37a961d7c5a5ccf1efd79e0fe385779555868dbb54cab6ea0"
+    }
+  ],
+  "set_sha256": "1c164525681fc4e3bc4492a1e3ccadd39717e4b6746805784eaac5d346c9559d",
+  "totaal_bytes": 4283646818,
+  "duur_s": 2037.9,
+  "bevroren_op": "2026-11-27T22:35:38Z"
+}

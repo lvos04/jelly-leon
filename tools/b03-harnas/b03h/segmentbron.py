@@ -100,7 +100,9 @@ def _analyse(jf: Jellyfin, profiel: str) -> dict:
     actueel = jf.a.doe("GET", pad)
     if (actueel["AnalysisPercent"], actueel["AnalysisLengthLimit"]) != venster:
         raise ValueError("verkeerd Intro Skipper-venster")
-    taak = next(t for t in jf.a.doe("GET", "/ScheduledTasks") if t["Key"] == "IntroSkipperDetectSegmentsTask")
+    taak = next((t for t in jf.a.doe("GET", "/ScheduledTasks") if t["Key"] == "IntroSkipperDetectSegmentsTask"), None)
+    if taak is None:
+        raise ValueError("S-IS geblokkeerd: de detectietaak van Intro Skipper ontbreekt")
     vorig = taak.get("LastExecutionResult")
     taakpad = f"/ScheduledTasks/{taak['Id']}"
     jf.a.doe("POST", f"/ScheduledTasks/Running/{taak['Id']}")

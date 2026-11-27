@@ -91,6 +91,7 @@ df -h "$KETEN"
 "$PY" -m b03h segmenten bronscheiding
 "$SLOT" nice -n 10 "$PY" -m b03h corpus maak f6-segmenten --versie 2 --schaal vol --seed 20261127 --bevries
 "$PY" -m b03h corpus controleer "$SET"
+"$PY" tools/b03-harnas/tests/herhaal_segmenten.py "$SET" "$VAST"
 
 "$SLOT" nice -n 10 "$PY" -m b03h segmenten spike --intro-pakket "$IS_PAKKET" --uit "$KETEN/s-is.json"
 STACKSLOTEN=1 "$SLOT" nice -n 10 "$PY" -m b03h segmenten meet \

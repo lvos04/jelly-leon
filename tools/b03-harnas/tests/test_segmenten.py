@@ -112,6 +112,37 @@ def test_onbruikbaar_kandidaatantwoord_geweigerd(veld, waarde):
         segmentbron.lees_set(jf, [item()], True, False)
 
 
+@pytest.mark.parametrize("profiel,venster", [("is-standaard", (25, 10)), ("is-ruim", (50, 20))])
+def test_is_leest_het_ingestelde_venster_en_vraagt_een_nieuwe_analyse(profiel, venster):
+    config = {"AnalysisPercent": 25, "AnalysisLengthLimit": 10, "OverigeInstelling": True}
+    taak = {"Id": ITEM, "Key": "IntroSkipperDetectSegmentsTask"}
+    plugin = {"Id": ITEM, "Name": "Intro Skipper", "Status": "Active", "Version": segmentbron.IS_VERSIE}
+    taken = []
+    gestart = []
+
+    def doe(methode, pad, *, body=None):
+        if pad == f"/Plugins/{ITEM}/Configuration":
+            if methode == "POST":
+                assert body["OverigeInstelling"] is True
+                config.update(body)
+            return config.copy()
+        if pad == f"/ScheduledTasks/Running/{ITEM}":
+            assert methode == "POST"
+            gestart.append(ITEM)
+            return None
+        assert methode == "GET"
+        return {"/Plugins": [plugin], "/ScheduledTasks": taken,
+                f"/ScheduledTasks/{ITEM}": {"State": "Idle", "LastExecutionResult": {"Status": "Completed"}}}[pad]
+
+    jf = SimpleNamespace(a=SimpleNamespace(doe=doe))
+    with pytest.raises(ValueError, match="detectietaak.*ontbreekt"):
+        segmentbron._analyse(jf, profiel)
+    taken.append(taak)
+    resultaat = segmentbron._analyse(jf, profiel)
+    assert (resultaat["venster_procent"], resultaat["venster_minuten"]) == venster
+    assert gestart == [ITEM]
+
+
 def test_publicatie_op_een_tick_en_schaduw_afzonderlijk():
     jf = Testserver()
     jf.publiek["Items"][0]["EndTicks"] -= 1
