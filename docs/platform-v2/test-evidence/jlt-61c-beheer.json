@@ -29,11 +29,11 @@
       "slotregel": "Patchregister in orde."
     },
     {
-      "proef": "Vaste SQL op gevulde, tijdelijke SQLite-tabellen",
+      "proef": "Zelfstandige SQLite-voor-na-proef op gevulde testbestanden met de tabeldefinities en wisopdracht uit de plugin",
       "exitcode": 0,
-      "uitkomst": "Devices leegde twee eigen tabellen en Quality vier. Bij beide bleven twee controlerijen gelijk. Een nevenwijziging leidde tot een volledige rollback.",
+      "uitkomst": "Devices leegde twee eigen tabellen en Quality vier. Voor beide modules bleven twee controlerijen in de doeldatabase behouden. De SHA-256 van de andere moduledatabase, kijkgegevens, MediaGuard-voortgang en kernopslag was na de weigering en na het wissen viermaal gelijk aan vóór. Een tweede schrijver werd tijdens verificatie en wissen geblokkeerd. Een nevenwijziging werd integraal teruggedraaid.",
       "commando": "python3 ../metingen/controle_sql.py",
-      "slotregel": "Quality: 4 eigen tabellen geleegd, 2 vreemde rijen identiek; nevenwijziging teruggedraaid."
+      "slotregel": "Quality: 4 eigen tabellen leeg, 2 controlerijen en 4 bestanden gelijk, rollback en schrijfslot bevestigd."
     },
     {
       "proef": "Gepubliceerde OpenAPI naast de routetabel en de schemaspecificatie",
@@ -79,5 +79,19 @@
     "De integrale terugkeer naar de stock-image op dezelfde pluginvrije testkopie met aanmelden, afspelen, gebruikers- en mediahashes en de negatieve restantenproef.",
     "NIET GEVALIDEERD (echte NAS): echte bibliotheek en echte datamap (N-P6-09, N-P6-12)."
   ],
-  "getoetste_code": "f67cd4f05f36fd592b676e1dd8a477ddab776aa9"
+  "getoetste_code": "f67cd4f05f36fd592b676e1dd8a477ddab776aa9",
+  "herhalen": {
+    "plugin": "dotnet test plugins/JellyLeon.Plugins.sln -c Release --filter 'FullyQualifiedName~ModuleGegevensbeheerTests|FullyQualifiedName~BeheerexportEnWisroute'",
+    "zelfstandige_proeven": "De twee meetscripts staan bij RAPPORT-A-BOUW.md in de map metingen. Voer ze uit vanuit de eigen kloon.",
+    "meetscripts": [
+      {
+        "bestand": "metingen/controle_sql.py",
+        "sha256": "f4a48fabbb28ab39471b5df502322634af5335d42f4588d37514b192f9e2028f"
+      },
+      {
+        "bestand": "metingen/controle_openapi.py",
+        "sha256": "7f770332906d6fa786d5b21a5d1b00f061df39c878ce4e86ef91af0703865966"
+      }
+    ]
+  }
 }
