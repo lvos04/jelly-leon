@@ -425,7 +425,12 @@
   "Prioriteit": "P1",
   "Afhankelijkheid": "Gemeenschappelijk (B03-014…019, synthese): mediacorpus + corpusgenerator + CI-guard testdata, baselinemeting standaard Jellyfin met harnasraamwerk en exclusief meetslot; besluit O-1 (BG-37) (MovieLens-licentie); gemeenschappelijk: B03-016",
   "Bron": "https://files.grouplens.org/datasets/movielens/ml-latest-small-README.html",
-  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md"
+  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
+  "status": "Bezig",
+  "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+  "bewijs": "Drempels M1–M10: test-evidence/b03-030-preregistratie.json. Meetpogingen en datasetcontroles: test-evidence/b03-030-proeven.json. D-SYN opnieuw bitgelijk bevroren (240 films, 60 afleveringen, 6 gebruikers). D-ML gebouwd en opgeruimd (8269 films). Bij één globaal T voldoen maximaal 30 gebruikers aan de tijdseisen, 29 met een evalueerbare holdout bij het gekozen T. Vereist voor M1: 100. De geschudde lektest herkende de bekende lekbron op beide datasets. NDCG@10, Recall@10, coverage en ILD hebben gedeelde JSON-handvoorbeelden.",
+  "blokkade": "NIET GEVALIDEERD (echte NAS): echte bibliotheek en echte kijkgeschiedenis (JLT-15).",
+  "opmerking": "NIET GEMETEN (machinelast). Nul geldige stockruns. S-P40-50 heeft alleen afgewezen pogingen. S-TMDB niet gemeten wegens extern netwerk. G-F2-0: receptreview, stockcijfers met intervallen, spreiding en scantijd staan open. D-SYN is uitsluitend functioneel bewijs. De .NET-CLI jl-rec-eval en de herhaling op de forkbasisdigest horen bij S-G2-22. Zie B03-030_AANBEVELINGEN.md."
  },
  {
   "ID": "B03-031",

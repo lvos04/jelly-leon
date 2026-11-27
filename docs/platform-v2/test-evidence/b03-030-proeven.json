@@ -1,0 +1,149 @@
+{
+  "werkpakket": "B03-030",
+  "datum": "2026-11-27",
+  "status": "Bezig",
+  "meting": "NIET GEMETEN (machinelast)",
+  "broncommit_harnas": "03dbfcefad7204ab062b565b27ea1a1bae724c4e",
+  "seed": 20261109,
+  "aangevraagde_image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "basisbewijs": "b03-016-afgewezen-functies-2026-11-27.json",
+  "preregistratie": "b03-030-preregistratie.json",
+  "D-SYN": {
+    "dataset_sha256": "222be95ec0d81c842cf54cead3ace4887bccb7d423f6805cf9f4c565f0e2610c",
+    "manifest": "b03-016-corpus/f2-dsyn.v1.vol.manifest.json",
+    "bevriezen": "gelijk aan bevroren manifest",
+    "sha256sum_c": "OK",
+    "manifestbestanden": 621,
+    "mediastubs": 300,
+    "film": 240,
+    "serie": 20,
+    "aflevering": 60,
+    "huishoudens": 3,
+    "gebruikers": 6,
+    "T_per_profiel": {
+      "fan": "2026-06-26T05:00:00Z",
+      "kind": "2026-07-01T15:00:00Z",
+      "ouder1": "2026-06-29T02:00:00Z",
+      "ouder2": "2026-06-24T21:00:00Z",
+      "partner1": "2026-06-26T06:00:00Z",
+      "partner2": "2026-06-24T20:00:00Z"
+    },
+    "bibliotheek_op_schijf": {
+      "bestanden": 620,
+      "logische_bytes": 10008927,
+      "toegewezen_bytes": 11141120
+    },
+    "stock": {
+      "status": "NIET GEMETEN (machinelast)",
+      "reden": "loadavg(1 min) 6.46 boven 4.0 / definitieve baseline van S-P40-50 ontbreekt (alleen afgewezen pogingen)",
+      "loadavg_1min": 6.46,
+      "lastgrens": 4.0,
+      "geldige_runs": 0
+    },
+    "offline_lekproef": {
+      "n": 6,
+      "trekkingen": 1000,
+      "loting_min_POP": {
+        "punt": -0.00303,
+        "onder": -0.116084,
+        "boven": 0.106993,
+        "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+      },
+      "positieve_controle_min_POP": {
+        "punt": 0.825263,
+        "onder": 0.69426,
+        "boven": 0.943793,
+        "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+      },
+      "loting_significant_boven_POP": false,
+      "controle_onderscheidt_lek": true
+    }
+  },
+  "D-ML": {
+    "dataset": "D-ML",
+    "dataset_sha256": "696d65a3dfceac7c45750ad32df2c259311949efec81f0f144fdfb91ebc9e436",
+    "catalogus": 8269,
+    "n": 29,
+    "T": "2016-12-11T16:36:27Z",
+    "bovengrens_n": 30,
+    "minimum_n": 100,
+    "cohort_voldoende": false,
+    "stubs": {
+      "bestanden": 16538,
+      "logische_bytes": 273357202,
+      "toegewezen_bytes": 304828416,
+      "set_sha256": "479e3ba64941231ca60190ab3e530f96183279ff1a8b4838e48e5f584a62ae8a",
+      "opgeruimd": true
+    },
+    "controle_globaal_T": "Onafhankelijke directe telling op 592 verschillende begintijdstippen bevestigt bovengrens 30.",
+    "stock": {
+      "status": "NIET GEMETEN (machinelast)",
+      "reden": "loadavg(1 min) 6.50 boven 4.0 / definitieve baseline van S-P40-50 ontbreekt (alleen afgewezen pogingen)",
+      "loadavg_1min": 6.5,
+      "lastgrens": 4.0,
+      "geldige_runs": 0
+    },
+    "offline_lekproef": {
+      "n": 29,
+      "trekkingen": 1000,
+      "loting_min_POP": {
+        "punt": -0.030097,
+        "onder": -0.076693,
+        "boven": 0.003072,
+        "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+      },
+      "positieve_controle_min_POP": {
+        "punt": 0.873746,
+        "onder": 0.782013,
+        "boven": 0.95039,
+        "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+      },
+      "loting_significant_boven_POP": false,
+      "controle_onderscheidt_lek": true
+    }
+  },
+  "stockroutes": {
+    "systemen": [
+      "S-REC",
+      "S-REC-best",
+      "S-SIM",
+      "S-LAT",
+      "S-RND",
+      "POP",
+      "S-BEST"
+    ],
+    "cijfers": null,
+    "spreiding_twee_runs": null,
+    "scantijd_s": null,
+    "S-TMDB": "niet gemeten: remote provider vraagt netwerkverkeer naar TMDb",
+    "broncontroles": {
+      "B9": {
+        "bron": "HomeSectionType",
+        "sectietypen": [
+          "None",
+          "SmallLibraryTiles",
+          "LibraryButtons",
+          "ActiveRecordings",
+          "Resume",
+          "ResumeAudio",
+          "LatestMedia",
+          "NextUp",
+          "LiveTv",
+          "ResumeBook"
+        ],
+        "persoonlijke_aanbevelingsrij": false
+      },
+      "B11": {
+        "bron": "TmdbMovieSimilarProvider en SimilarItemsManager",
+        "remote_aanbevelingen": true,
+        "vereist_selectie": true,
+        "meting": "niet gemeten: S-TMDB vraagt de externe dienst"
+      }
+    }
+  },
+  "vervolg": {
+    "G-F2-0": "Onafhankelijke receptreview en twee geldige stockruns met scantijd en spreiding staan open.",
+    "G-F2-2": "S-G2-22 herhaalt stock op de exacte forkbasisdigest. De .NET-CLI jl-rec-eval gebruikt dezelfde handvoorbeelden voor de vier metrieken.",
+    "JLT-15": "NIET GEVALIDEERD (echte NAS): echte bibliotheek en echte kijkgeschiedenis (JLT-15)."
+  }
+}
