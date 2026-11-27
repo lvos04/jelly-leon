@@ -128,6 +128,21 @@ JLT-70 21/21, JLT-71 11/11, JLT-72 7/7, JLT-73 17/17) met de echte `emby/embyser
 Emby, Emby-kijkgegevens vóór en na identiek, herimport exact. Bewijs:
 `test-evidence/p40/b03-015-proefrun-corpus-jelly-leon-12.4.json`; testset en containers daarna opgeruimd (BG-38).
 
+### MediaGuard-kandidaat op 27 november 2026
+
+Dezelfde MediaGuard-kandidaat uit kernrevisie `88f734f8` doorliep met stock Jellyfin 12.4 en met
+`jelly-leon:lokaal-48293b48a` telkens 25 tests en 125 controles. Bij een kijksessie op elk van beide
+mediaservers pauzeerde de encoder (b4 en b5). Toen Jelly Leon uitviel, bleef de encoder voor de Emby-kijker
+gepauzeerd en bleef Emby gekoppeld (b6). Ook toen Jelly Leon een verkeerde sleutel weigerde, met HTTP 401,
+bleef Emby de sessieaanvragen beantwoorden (b8b). De Emby-verzoekvormen van de kandidaat kwamen allemaal
+voor bij de vorige release (b9).
+
+Bij de upgrade vanaf 1.3.0-aio en bij het terugzetten behield MediaGuard de beschermde gegevens van 177
+gevulde tabellen, inclusief de open overdracht (1 vóór en 1 na). In de contractproef bleef de Emby-kijkgeschiedenis
+van de gemeten testgebruiker voor de tweede testfilm gelijk. De sessie-API bootste de kijksessies na.
+De proef met echte spelers en de Emby-installatie van de gebruiker hoort bij P6.
+[Contractrapport van media-guard-ultimate, S-P40-20, commit 5dd90a3](/leon/media-guard-ultimate/src/commit/5dd90a3f265e70155e8c50acdc18ab7a0a631e11/tests/contract/mediaserver/RESULTS.md).
+
 ## 9. GitHub Actions
 
 Run **42753563000** (*Jelly Leon CI*, commit `d6a064278` — alle code van deze ronde; daarna alleen documentatie, bewijs,
@@ -159,8 +174,8 @@ niet aangepaste smoketest (oude aanmeldheaders in 12.x, gerepareerd in `49481a22
 - **JLT-62** (overname van een bestaande Jellyfin-installatie: schrijfopties, mountcontrole, bestaande plugins): niet
   gebouwd in deze ronde. B03-015 deel B geldt alleen als D07 een Jellyfin-installatie meet; de gebruiker gebruikt Emby.
 - **JLT-67:** geen 12.y-tag (zie §7).
-- **Δ-MG-AUTH en Δ-MG-DUAL** (media-guard-ultimate): niet geleverd; zonder die levering geen B03-batch op de NAS en
-  `mediaguard: onbekend` (gate P4-0).
+- **Δ-MG-AUTH en Δ-MG-DUAL** wachtten bij de meting van 10 november op levering door media-guard-ultimate.
+  Sectie 8 bevat de contractproef van 27 november met de lokale Jelly Leon-image.
 - Baselines B03-016 op de 12.x-digest van de forkbasis: de forkbasis is dezelfde 12.4-digest als de voormeting; een
   nieuwe definitieve meetsessie onder het meetslot is in deze ronde niet gedraaid.
 - Echte NAS, echte Emby (D07), echte apparaten (D15), Swiftfin/Safari: NIET GEVALIDEERD.
