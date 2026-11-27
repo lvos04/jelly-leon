@@ -67,7 +67,10 @@ def test_hernoemd_beperkt_bestand_via_hash(monkeypatch: pytest.MonkeyPatch):
 
 def test_echte_lijst_beperkte_hashes():
     hashes = guard.beperkte_hashes()
-    assert len(hashes) == 16  # 6 afleveringen + 10 fanondertitels (CORPUS.md)
+    assert len(hashes) == 21
+    assert sum(v.startswith("CC BY-NC-SA") for v in hashes.values()) == 16  # 6 afleveringen en 10 fanondertitels
+    assert {v for v in hashes.values() if v.startswith("D-ML ")} == {
+        "D-ML onderzoeksarchief", "D-ML links.csv", "D-ML movies.csv", "D-ML ratings.csv", "D-ML tags.csv"}
     assert all(len(h) == 64 for h in hashes)
 
 
