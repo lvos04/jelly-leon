@@ -147,15 +147,21 @@ async function deelnemer(cfg, soort, url, naam, login, afsluiten) {
 
 async function openGroep(a, b) {
   const menu = 'button[aria-label="SyncPlay"]:visible, .headerSyncButton:visible';
-  await a.page.locator(menu).first().click();
-  const gemaakt = a.page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/SyncPlay/New') && r.request().method() === 'POST');
-  await a.page.locator('[role=menuitem]:visible, .actionSheetMenuItem:visible').filter({ hasText: /nieuw|new/i }).first().click();
-  const id = (await (await gemaakt).json()).GroupId;
-  if (b.sluitAan) await b.sluitAan();
-  else {
+  await fase('SyncPlay-menu van de eerste deelnemer ontbreekt', () => a.page.locator(menu).first().click());
+  const [gemaakt] = await fase('stockclient maakt geen nieuwe groep', () => Promise.all([
+    a.page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/SyncPlay/New') && r.request().method() === 'POST'),
+    a.page.locator('[role=menuitem]:visible, .actionSheetMenuItem:visible').filter({ hasText: /nieuw|new/i }).first().click()
+  ]));
+  const { GroupId: id, GroupName: naam } = await gemaakt.json();
+  if (b.sluitAan) await b.sluitAan(naam);
+  else await fase('de aangemaakte groep ontbreekt in de tweede stockclient', async () => {
+    // Stock bewaart de lijst tot een minuut. Deze deelnemer is ingelogd en heeft nog geen actieve groep.
+    await b.page.reload({ waitUntil: 'domcontentloaded' });
     await b.page.locator(menu).first().click();
-    await b.page.getByRole('button', { name: /deelnemen|join/i }).first().click();
-  }
+    const rij = b.page.locator('[role=menu] li:visible').filter({ hasText: naam });
+    const klassiek = b.page.locator('.actionSheetMenuItem:visible').filter({ hasText: naam });
+    await rij.getByRole('button', { name: /deelnemen|join/i }).or(klassiek).first().click();
+  });
   await wachtOp(async () => (await a.api('GET', '/SyncPlay/' + id)).Participants.length === 2, 'tweede deelnemer ontbreekt');
   return id;
 }

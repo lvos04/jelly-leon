@@ -29,9 +29,10 @@ export async function openDesktop(cfg, afsluiten, wachtOp) {
       'desktop opent de testserver niet');
     if (web.id !== eerste.id) { p.sluit(); p = await verbind(cfg.cdp, web, gebeurtenis); }
   }
-  async function klik(selector) {
+  async function klik(selector, groep = '') {
     const pos = await wachtOp(() => p.evalueer(`(() => {
-      const e = [...document.querySelectorAll(${JSON.stringify(selector)})].find(e => e.offsetParent);
+      const e = [...document.querySelectorAll(${JSON.stringify(selector)})].find(e =>
+        e.offsetParent && (e.closest('li') || e).textContent.includes(${JSON.stringify(groep)}));
       if (!e) return null;
       e.scrollIntoView({block:'center'}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2};
     })()`), 'desktopbediening ontbreekt');
@@ -56,9 +57,10 @@ export async function openDesktop(cfg, afsluiten, wachtOp) {
     await klik('.manualLoginForm button[type=submit]');
     await wachtOp(() => autorisatie, 'desktop heeft geen ingelogde sessie');
   }
-  async function sluitAan() {
+  async function sluitAan(naam) {
+    await p.stuur('Page.reload');
     await klik('button[aria-label="SyncPlay"], .headerSyncButton');
-    await klik('button[aria-label*="Join"], button[aria-label*="Deelnemen"], [role=menu] li button');
+    await klik('[role=menu] li button, .actionSheetMenuItem', naam);
   }
   async function api(method, pad) {
     const status = await p.evalueer(`fetch(${JSON.stringify(pad)}, {method:${JSON.stringify(method)}, redirect:'error',

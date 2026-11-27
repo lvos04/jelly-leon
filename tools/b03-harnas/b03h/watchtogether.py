@@ -16,7 +16,7 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 from . import bewijs, meetslot, watchmeting, watchomgeving, web
-from .baseline import _lees_transcodelog
+from .baseline import REPO, _lees_transcodelog
 from .corpus import CORPUS, UITVOER, manifest
 from .corpus.ffmpeg import Ffmpeg
 from .corpus.generator import BEVROREN, RECEPTEN, setnaam
@@ -141,6 +141,7 @@ def startcontrole(pad: Path) -> dict:
     baseline = controle_baseline(pad)
     return {"datum": meetslot.nu(), "loadavg": last, "lastgrens": min(4.0, meetslot.LASTGRENS),
             "baseline_s_p40_50": "aanwezig" if baseline else "ontbreekt",
+            **({"baseline_sha256": manifest.sha256_bestand(pad)} if baseline else {}),
             "meten": baseline and last[0] <= min(4.0, meetslot.LASTGRENS)}
 
 
@@ -181,6 +182,7 @@ def vereis_afspeelpad(scenario: str, sessies: list, nieuwe_logs: list[Path]) -> 
 
 def meet(a: argparse.Namespace, document: dict, logmap: Path, poging: Path) -> int:
     grens = document["startcontrole"]["lastgrens"]
+    document["harnas_commit"] = subprocess.check_output(["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True).strip()
     WERK.mkdir(parents=True, exist_ok=True)
     with ExitStack() as stapel:
         werk = Path(stapel.enter_context(tempfile.TemporaryDirectory(dir=WERK))).resolve()
@@ -219,6 +221,8 @@ def meet(a: argparse.Namespace, document: dict, logmap: Path, poging: Path) -> i
         # Een nieuw desktopvenster per proef houdt aanmelding, hervatpunt en profiel gescheiden.
         with ExitStack() as kalibratie:
             cdp = kalibratie.enter_context(watchomgeving.desktop(server, net, a.desktopbouw, a.desktop_image, werk)) if heeft_desktop else {}
+            if cdp:
+                document["desktop_image_id"] = cdp["desktop_image_id"]
 
             def kalibreer():
                 uit = {}
@@ -321,8 +325,10 @@ def functieproef(a: argparse.Namespace) -> int:
             doc["tc_proef"] = netproef
         bewaar(a.uit, doc)
         items = jf.items()
-        hero = next(i for i in items if i["Path"].endswith("/Hero/Hero.mp4"))
-        sintel = next(i for i in items if i["Path"].endswith("/Sintel/Sintel.mkv"))
+        hero = next((i for i in items if i["Path"].endswith("/Hero/Hero.mp4")), None)
+        sintel = next((i for i in items if i["Path"].endswith("/Sintel/Sintel.mkv")), None)
+        if hero is None or sintel is None:
+            raise ValueError("de bibliotheekscan mist Hero of Sintel voor de groepsproef")
         versie = next((i for i in items if len(i.get("MediaSources", [])) > 1 and "/Versieproef/" in i["Path"]), {})
         namen = maak_kijkers(server, wachtwoord, "meetkijker")
         cfg = {"url": server.url, "namen": namen, "wachtwoord": wachtwoord, "beheer": jf.a.headers["Authorization"],

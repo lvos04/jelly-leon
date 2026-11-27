@@ -216,7 +216,7 @@ def test_matrices_en_bewijs_via_normale_ingang(monkeypatch, tmp_path, spoor):
     monkeypatch.setattr(wt, "maak_kijkers", lambda s, w, prefix: [prefix + "-a", prefix + "-b"])
     monkeypatch.setattr(wt, "rollenproef", lambda *_: {"rollen": {}})
     monkeypatch.setattr(wt.watchomgeving, "netwerk", lambda *_: nullcontext("testnet"))
-    monkeypatch.setattr(wt.watchomgeving, "desktop", lambda *_: nullcontext({"cid": "desktop", "cdp": "sim"}))
+    monkeypatch.setattr(wt.watchomgeving, "desktop", lambda *_: nullcontext({"cid": "desktop", "cdp": "sim", "desktop_image_id": "synthetisch"}))
     monkeypatch.setattr(wt.watchomgeving, "netem", lambda *_: nullcontext(("http://localhost", {})))
     monkeypatch.setattr(wt.watchomgeving, "adb_nulproef", lambda *_: {"max_ms": 15})
     logbestanden = []
