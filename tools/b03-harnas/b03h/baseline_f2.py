@@ -43,6 +43,10 @@ def voorwaarde(basis: Path, last: float) -> list[str]:
     if not basis.is_file():
         return [*redenen, "definitieve baseline van S-P40-50 ontbreekt"]
     doc = json.loads(basis.read_text())
+    pogingen = doc.get("pogingen", [])
+    if (doc.get("aangevraagd_label") == "definitief-forkbasis" and pogingen
+            and all(r.get("last", {}).get("geldig") is False for r in pogingen)):
+        return [*redenen, "definitieve baseline van S-P40-50 ontbreekt (alleen afgewezen pogingen)"]
     if doc.get("label") != "definitief-forkbasis" or doc.get("images", {}).get("stock") != STOCK_IMAGE:
         return [*redenen, "baseline van S-P40-50 mist het definitieve label of de forkbasisdigest"]
     if bewijs.controleer(doc) or doc.get("fasefouten"):
@@ -196,6 +200,8 @@ def main(argv: list[str] | None = None) -> int:
     d = lees_dml(a.dml_archief) if a.dml_archief else lees_dsyn(a.dsyn)
     commit = subprocess.check_output(["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True).strip()
     doc = {**d.samenvatting(), "commit": commit, "seed": SEED}
+    if d.naam == "D-ML":
+        doc.update({"minimum_n": MIN_GEBRUIKERS, "cohort_voldoende": len(d.profielen) >= MIN_GEBRUIKERS})
     if a.actie == "lekproef":
         toets = lekproef(d, SEED)
         schrijf(a.uit, {**doc, "proef": "offline lekbewaking", **toets})

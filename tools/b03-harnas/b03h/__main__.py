@@ -7,7 +7,8 @@ import sys
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    hulp = ("gebruik: python -m b03h {corpus|guard|baseline|baseline-f2|apparaten|segmenten|diffrun|legacy|clientmatrix|desktop|rapport|watchtogether} …\n"
+    hulp = ("gebruik: python -m b03h {corpus|guard|baseline|baseline-f2|apparaten|segmenten|diffrun|legacy|"
+            "clientmatrix|desktop|rapport|watchtogether} …\n"
             "  corpus        corpusgenerator (recepten F1–F6, manifest, bevriezen, opruimen)\n"
             "  guard         CI-guard testdatalicenties (repo, commitbereik, image, map)\n"
             "  baseline      baselinemetingen tegen stock jellyfin/jellyfin (stock-standaard en stock-best)\n"

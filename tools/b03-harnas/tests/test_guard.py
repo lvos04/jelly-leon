@@ -96,15 +96,15 @@ def test_commitbereik_vangt_ook_later_verwijderd(tmp_path: Path):
 def test_image_modus_zonder_media_regel():
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w") as tar:
-        for naam, data in (("jellyfin/jellyfin-web/assets/audio/silence.mp3", b"ID3"), ("data/ratings.csv", MOVIELENS_KOP.encode())):
+        for naam, data in (("jellyfin/jellyfin-web/assets/audio/silence.mp3", b"ID3"), ("data/ratings.csv", MOVIELENS_KOP.encode()),
+                           ("data/omgedoopt", guard.MARKERING.encode())):
             info = tarfile.TarInfo(naam)
             info.size = len(data)
             tar.addfile(info, io.BytesIO(data))
     buf.seek(0)
-    with tarfile.open(fileobj=buf, mode="r") as tar:
-        items = [(m.name, tar.extractfile(m).read()) for m in tar if m.isfile()]
-    vondsten = guard.controleer(items, media_regel=False)
-    assert [v.pad for v in vondsten] == ["data/ratings.csv"]
+    with tarfile.open(fileobj=buf, mode="r|") as tar:
+        vondsten = guard.controleer(guard.bestanden_export(tar), media_regel=False)
+    assert [v.pad for v in vondsten] == ["data/ratings.csv", "data/omgedoopt"]
 
 
 def test_deze_repo_is_schoon():

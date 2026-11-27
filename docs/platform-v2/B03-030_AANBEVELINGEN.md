@@ -13,6 +13,7 @@ mkdir -p "$B03_CORPUS" "$WERK/rapporten"
 "$SLOT" nice -n 10 python -m b03h corpus maak f2-dsyn --schaal vol --bevries
 DSYN="$B03_UITVOER/f2-dsyn-v1-vol-s20261109"
 python -m b03h corpus controleer "$DSYN"
+"$SLOT" nice -n 10 python tools/b03-harnas/f2_routeproef.py --dsyn "$DSYN"
 python -m b03h baseline-f2 dml --map "$WERK/dml" --dsyn "$DSYN" --uit "$WERK/rapporten/dml.json"
 python -m b03h baseline-f2 lekproef --dsyn "$DSYN" --uit "$WERK/rapporten/lek-dsyn.json"
 python -m b03h baseline-f2 lekproef --dml-archief "$WERK/dml/ml-latest-small.zip" --uit "$WERK/rapporten/lek-dml.json"

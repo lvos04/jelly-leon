@@ -132,27 +132,26 @@ def bestanden_map(map_: Path) -> Iterator[tuple[str, bytes | None]]:
         yield pad.relative_to(map_).as_posix(), pad.read_bytes() if pad.stat().st_size <= MAX_LEES else None
 
 
+def bestanden_export(tar: tarfile.TarFile) -> Iterator[tuple[str, bytes | None]]:
+    """Controleer ook kleine bestanden met onbekende extensie op de bronhash of licentiemarkering."""
+    for lid in tar:
+        if lid.isfile():
+            bestand = tar.extractfile(lid) if lid.size <= MAX_LEES else None
+            yield lid.name, bestand.read() if bestand is not None else None
+
+
 def bestanden_image(ref: str) -> Iterator[tuple[str, bytes | None]]:
-    """Leest het bestandssysteem van een image (docker create + export, gestreamd); inhoud alleen voor kandidaten."""
+    """Lees de geëxporteerde image in één doorgang met dezelfde inhoudsgrens als de mapcontrole."""
     cid = subprocess.run(["docker", "create", ref], capture_output=True, text=True, check=True).stdout.strip()
     try:
-        proc = subprocess.Popen(["docker", "export", cid], stdout=subprocess.PIPE)
-        assert proc.stdout is not None
-        with tarfile.open(fileobj=proc.stdout, mode="r|") as tar:
-            for lid in tar:
-                if not lid.isfile():
-                    continue
-                naam = lid.name
-                ext = Path(naam).suffix.lower()
-                kandidaat = ext in MEDIA_EXT | ONDERTITEL_EXT | {".csv", ".json", ".ts"} or lid.size >= (1 << 20)
-                inhoud = None
-                if kandidaat and lid.size <= MAX_LEES:
-                    f = tar.extractfile(lid)
-                    inhoud = f.read() if f else None
-                yield naam, inhoud
-        proc.wait()
+        with subprocess.Popen(["docker", "export", cid], stdout=subprocess.PIPE) as proc:
+            assert proc.stdout is not None
+            with proc.stdout, tarfile.open(fileobj=proc.stdout, mode="r|") as tar:
+                yield from bestanden_export(tar)
+            if proc.wait() != 0:
+                raise RuntimeError("Docker-export onvolledig, imagecontrole afgebroken")
     finally:
-        subprocess.run(["docker", "rm", "-f", cid], capture_output=True, check=False)
+        subprocess.run(["docker", "rm", "-f", "-v", cid], capture_output=True, check=False)
 
 
 def controleer(bron: Iterable[tuple[str, bytes | None]], *, media_regel: bool = True) -> list[Vondst]:
