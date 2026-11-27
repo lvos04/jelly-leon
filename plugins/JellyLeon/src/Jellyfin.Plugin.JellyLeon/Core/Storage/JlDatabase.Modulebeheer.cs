@@ -159,7 +159,7 @@ internal sealed partial class JlDatabase
         foreach (var tabel in module.Tabellen)
         {
             // De tabelnaam en sorteersleutel komen uitsluitend uit de moduledefinitie.
-            using var opdracht = Opdracht(v, "SELECT * FROM main." + tabel.Naam + " ORDER BY " + string.Join(", ", tabel.Kolommen), []);
+            using var opdracht = Opdracht(v, "SELECT * FROM main." + tabel.Naam + " ORDER BY " + string.Join(", ", tabel.Kolommen));
             using var rijen = opdracht.ExecuteReader();
             if (!tabel.Kolommen.SequenceEqual(Enumerable.Range(0, rijen.FieldCount).Select(rijen.GetName), StringComparer.Ordinal))
             {
