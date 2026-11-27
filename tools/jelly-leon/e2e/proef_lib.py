@@ -196,7 +196,7 @@ def vergelijk_db(a1: Path, a2: Path, b: Path) -> dict[str, dict[str, Any]]:
     """Per tabel het oordeel van `vergelijk_tabel`; een tabel of kolom die alleen in één run bestaat is een afwijking."""
     da1, da2, db = lees_db(a1), lees_db(a2), lees_db(b)
     uit: dict[str, dict[str, Any]] = {}
-    for naam in sorted(set(da1) | set(db)):
+    for naam in sorted(set(da1) | set(da2) | set(db)):
         if naam not in da1 or naam not in db or naam not in da2:
             uit[naam] = {"oordeel": "afwijking", "reden": "tabel bestaat niet in elke run", "masker": [], "rijen": {}}
         elif da1[naam][0] != db[naam][0] or da1[naam][0] != da2[naam][0]:

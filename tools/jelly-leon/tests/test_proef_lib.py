@@ -109,6 +109,24 @@ def test_databasevergelijking(tmp_path: Path) -> None:
     assert pl.lees_db(kopie)["UserData"] == (["ItemId", "Gespeeld"], [("item", 1)])
 
 
+def test_schema_afwijking_bij_hernoemde_kolom_of_tabel_in_alleen_tweede_controle(tmp_path: Path) -> None:
+    a1, a2, b = [_db(tmp_path / naam, "1", 10) for naam in ("a1.db", "a2.db", "b.db")]
+    with sqlite3.connect(b) as db:
+        db.execute("ALTER TABLE UserData RENAME COLUMN Gespeeld TO Hervatpunt")
+    with sqlite3.connect(a2) as db:
+        db.execute("CREATE TABLE Extra(Id INTEGER)")
+    oordelen = pl.vergelijk_db(a1, a2, b)
+    assert oordelen["UserData"]["oordeel"] == "afwijking"
+    assert oordelen["UserData"]["reden"] == "kolommen verschillen"
+    assert oordelen["Extra"]["oordeel"] == "afwijking"
+
+
+def test_gewisselde_rijkoppeling_in_stock_geeft_geen_uitspraak() -> None:
+    a1 = [(1, "a"), (2, "b")]
+    a2 = [(1, "b"), (2, "a")]
+    assert pl.vergelijk_tabel(["id", "waarde"], a1, a2, a1)["oordeel"] == "ruis_onvergelijkbaar"
+
+
 def test_boom_en_ruwe_treffers(tmp_path: Path) -> None:
     gebruiker = "5b0f1d0a-6c1e-4f67-9d5e-0a1b2c3d4e5f"
     (tmp_path / "sub").mkdir()
@@ -122,6 +140,8 @@ def test_boom_en_ruwe_treffers(tmp_path: Path) -> None:
     assert pl.ruwe_treffers(tmp_path, vormen) == {"N": ["sub/a.db"], "D": ["geheim/c"]}
     assert pl.ruwe_treffers(tmp_path, vormen, overslaan=("geheim/",)) == {"N": ["sub/a.db"]}
     assert pl.ruwe_treffers(tmp_path / "bestaat-niet", vormen) == {}
+    (tmp_path / "logboek.bin").write_bytes(b"\xff" + vormen["bytes-le"] + b"\x00")
+    assert pl.ruwe_treffers(tmp_path, vormen)["bytes-le"] == ["logboek.bin"]
     assert pl.IPV4.search("adres 192.0.2.20 hier") and not pl.IPV4.search("2026-11-11T10:00:00.123Z 12.4.0-jl.0")
 
 

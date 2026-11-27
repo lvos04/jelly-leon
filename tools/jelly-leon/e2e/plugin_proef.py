@@ -83,6 +83,10 @@ class Verslag:
         self.regels: list[dict[str, Any]] = []
         self.geheimen: dict[str, str] = {}
 
+    @property
+    def geslaagd(self) -> bool:
+        return bool(self.regels) and all(r["geslaagd"] for r in self.regels)
+
     def test(self, jlt: str, naam: str, ok: bool, detail: str = "") -> bool:
         for geheim in self.geheimen.values():
             detail = detail.replace(geheim, "<geheim>")
@@ -873,7 +877,7 @@ def main(argv: list[str] | None = None) -> int:
         for s in servers:
             docker("rm", "-f", s.naam, check=False)
         shutil.rmtree(werk, ignore_errors=True)
-    geslaagd = bool(v.regels) and all(r["geslaagd"] for r in v.regels)
+    geslaagd = v.geslaagd
     per_jlt = {j: {"geslaagd": sum(r["geslaagd"] for r in v.regels if r["jlt"] == j), "totaal": sum(1 for r in v.regels if r["jlt"] == j)}
                for j in sorted({r["jlt"] for r in v.regels})}
     if args.rapport:
