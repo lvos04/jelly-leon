@@ -250,14 +250,24 @@
     "bijgewerkt": "2026-11-27"
   },
   {
+    "id": "JLT-66",
+    "status": "Bezig",
+    "validatie": "NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (hardware)",
+    "bewijs": "S-P6-31 heeft tools/jelly-leon/e2e en tools/b03-harnas op de P4-belastingproef gecontroleerd. Op revisie 2133c51d1b3f staat de specificatie in het bouwplan. Een uitvoerbare proef voor vier streams, een bezette lane en de batchachterstand ontbreekt.",
+    "blokkade": "De belastingproef uit S-G1-40 ontbreekt. NIET GEVALIDEERD (echte NAS) en NIET GEVALIDEERD (hardware) voor de gecombineerde belasting met de A310 en UHD 770 (N-P6-10).",
+    "opmerking": "Geen simulatierun, geen meting van live-prioriteit en geen meetinvoer voor BG-07.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-27"
+  },
+  {
     "id": "JLT-67",
     "status": "Niet gestart",
     "validatie": "Niet getest",
     "bewijs": "Mechanisme klaar (6793f07dc, 102738f17): herbasisresultaat per core-patch, ankercontrole en UG-runtimetests op de runtime van de nieuwe tag in upstream-sync.yml.",
-    "blokkade": "Geen 12.y-tag: v12.4 is op 2026-11-10 de nieuwste stabiele tag van jellyfin/jellyfin en jellyfin-web.",
-    "opmerking": "Uitvoeren zodra upstream v12.5 of een 12.4.x publiceert.",
+    "blokkade": "De nieuwste stabiele servertag was v12.4 op 2026-11-27. Een volgende stabiele tag in 12.x ontbreekt.",
+    "opmerking": "upstream_sync.py kies gaf voor beide sporen geen kandidaat. git ls-remote bevestigde v12.4. De lokale herbasisproef volgt bij een nieuwe tag.",
     "repo": "jelly-leon",
-    "bijgewerkt": "2026-11-10"
+    "bijgewerkt": "2026-11-27"
   },
   {
     "id": "C1.3-ALG-01",
