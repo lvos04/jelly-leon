@@ -181,7 +181,48 @@
     "extra_schemas": [
       "schema ForkVersionInfo"
     ],
-    "openapi_afwijkingen": []
+    "openapi_afwijkingen": [],
+    "sdk": {
+      "generator_zonder_plugin": {
+        "total": 1,
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "openapi_drift_exitcode": 0,
+      "extra_paden_met_plugin": [
+        "/connector/v1/apply",
+        "/connector/v1/discover",
+        "/connector/v1/events",
+        "/connector/v1/evidence/{id}",
+        "/connector/v1/health",
+        "/connector/v1/items",
+        "/connector/v1/propose",
+        "/connector/v1/rollback",
+        "/media/v1/devices/settings",
+        "/media/v1/devices/status",
+        "/media/v1/hub-link",
+        "/media/v1/hub-link/verify",
+        "/media/v1/modules",
+        "/media/v1/modules/{slug}",
+        "/media/v1/planner",
+        "/media/v1/privacy/register",
+        "/media/v1/quality/settings",
+        "/media/v1/quality/status",
+        "/media/v1/version"
+      ],
+      "suite": {
+        "exitcode": 0,
+        "projecten_met_testuitvoer": 17,
+        "totaal": 4206,
+        "geslaagd": 4190,
+        "mislukt": 0,
+        "overgeslagen": 16
+      },
+      "volledig_groen": true,
+      "samenvatting": "De SDK genereerde de specificatie opnieuw zonder plugin. Die was bytegelijk aan de vastgelegde OpenAPI. De solution met de P6-DLL gaf 4190 geslaagde, 0 mislukte en 16 overgeslagen tests. Het door de tests opgehaalde document bevat 19 extra pluginpaden."
+    }
   },
   "JLT-66": {
     "uitvoerbare_P4_proef": false,
@@ -196,6 +237,12 @@
     "gebruikers": 5,
     "voor_na_en_teruggezet_gelijk": true,
     "mediabestanden": 2,
-    "mediahash_gelijk": true
+    "mediahash_gelijk": true,
+    "MediaGuard_overgenomen": {
+      "bron": "S-P6-33, media-guard-ultimate 31e3fcb, upgradebewijs",
+      "gevulde_tabellen_per_richting": 177,
+      "verloren_beschermde_rijen": 0,
+      "gewijzigde_beschermde_rijen": 0
+    }
   }
 }
