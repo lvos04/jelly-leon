@@ -128,6 +128,27 @@ def test_zonder_plugin_vereist_eerst_de_gekopieerde_dll(tmp_path: Path) -> None:
     kant.start.assert_not_called()
 
 
+def test_modulestand_en_antwoorden_gebruiken_dezelfde_sessie(monkeypatch: pytest.MonkeyPatch) -> None:
+    sessie = Mock(), "beheer"
+    aanmelden = Mock(return_value=sessie)
+    monkeypatch.setattr(compat_api, "login", aanmelden)
+    api_stand = {"proef": False}
+    monkeypatch.setattr(compat_api, "modulelijst", lambda _api: (api_stand.copy(), "stand"))
+
+    def instellen(_api: Mock, gewenst: set[str]) -> list[str]:
+        api_stand["proef"] = "proef" in gewenst
+        return sorted(gewenst)
+
+    monkeypatch.setattr(compat_api, "stel_modules_in", instellen)
+    lezen = Mock(return_value={"antwoorden": {"route": []}})
+    monkeypatch.setattr(compat_api, "collect", lezen)
+    kant = Mock()
+    metingen = compat_api.meet_modulestanden(kant, "proef", {"route": []})
+    assert set(metingen) == {"alleen proef", "alle aan", "weer uit"}
+    aanmelden.assert_called_once()
+    assert all(aanroep.args == (kant, "proef", sessie) for aanroep in lezen.call_args_list)
+
+
 @pytest.mark.parametrize("direct_play_zonder_spoor, verwacht", [(True, True), (False, False)])
 def test_playbackinfo_requires_explicit_track_to_transcode_it(
     monkeypatch: pytest.MonkeyPatch, direct_play_zonder_spoor: bool, verwacht: bool,

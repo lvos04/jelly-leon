@@ -141,8 +141,8 @@ def login(url: str, user: str, password: str) -> tuple[Http, str]:
     return Http(url, {"Authorization": CLIENT + f', Token="{auth["AccessToken"]}"'}), auth["User"]["Id"]
 
 
-def collect(kant: Kant, password: str) -> dict[str, Any]:
-    api, uid = login(kant.url, "jl-compat-beheer", password)
+def collect(kant: Kant, password: str, sessie: tuple[Http, str] | None = None) -> dict[str, Any]:
+    api, uid = sessie or login(kant.url, "jl-compat-beheer", password)
     out: dict[str, Any] = {}
     info = Http(kant.url).doe("GET", "/System/Info/Public")
     out["/System/Info/Public"] = {k: info.get(k) for k in ("ProductName", "Version", "Id", "StartupWizardCompleted")}
@@ -172,14 +172,15 @@ def collect(kant: Kant, password: str) -> dict[str, Any]:
 
 
 def meet_modulestanden(kant: Kant, password: str, stock: dict) -> dict:
-    api, _ = login(kant.url, "jl-compat-beheer", password)
+    sessie = login(kant.url, "jl-compat-beheer", password)
+    api, _ = sessie
     modules, _ = modulelijst(api)
     standen = {f"alleen {slug}": {slug} for slug in sorted(modules)}
     standen.update({"alle aan": set(modules), "weer uit": set()})
     rapport = {}
     for label, gewenst in standen.items():
         actief = stel_modules_in(api, gewenst)
-        antwoorden = collect(kant, password)["antwoorden"]
+        antwoorden = collect(kant, password, sessie)["antwoorden"]
         na, _ = modulelijst(api)
         if na != {slug: slug in gewenst for slug in modules}:
             raise ValueError(f"Onverwachte modulestand na de meting '{label}'.")
@@ -196,11 +197,12 @@ def meet_zonder_plugin(kant: Kant, password: str, stock: dict) -> dict:
     dlls[0].unlink()
     kant.start(zonder_plugin=True)
     try:
-        api, _ = login(kant.url, "jl-compat-beheer", password)
+        sessie = login(kant.url, "jl-compat-beheer", password)
+        api, _ = sessie
         status, _, _ = api.ruw("GET", "/media/v1/modules")
         if status != 404 or dlls[0].exists():
             raise ValueError(f"Verwijderde plugin nog aanwezig (moduleroute HTTP {status}).")
-        antwoorden = collect(kant, password)["antwoorden"]
+        antwoorden = collect(kant, password, sessie)["antwoorden"]
         return {"moduleroute_http": status, "aantal": len(antwoorden), "verschillen": diff_paths(stock, antwoorden)}
     finally:
         kant.stop()
