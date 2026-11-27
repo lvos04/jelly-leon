@@ -57,19 +57,56 @@ internal sealed class InternalWriteScope
         stroom.Flush(true);
     }
 
-    public byte[]? Lees(string pad)
+    public byte[]? LeesGeheim(string pad, int maxBytes)
     {
         _paden.EisVeiligBestand(pad);
-        if (!File.Exists(pad))
+        EisBeslotenMap(Path.GetDirectoryName(pad)!);
+        try
+        {
+            using var stroom = new FileStream(pad, FileMode.Open, FileAccess.Read, FileShare.Read);
+            _paden.EisGeopendBestand(stroom, pad);
+            const UnixFileMode EigenBestand = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            if (!OperatingSystem.IsLinux() || File.GetUnixFileMode(stroom.SafeFileHandle) != EigenBestand)
+            {
+                throw new UnauthorizedAccessException("Een geheim vereist bestandsmodus 0600.");
+            }
+
+            // Dezelfde eigendomsproef als JlPaths, nu op het gecontroleerde open bestand.
+            File.SetUnixFileMode(stroom.SafeFileHandle, EigenBestand);
+            var lengte = stroom.Length;
+            if (lengte > maxBytes)
+            {
+                throw new IOException("Het geheim overschrijdt de verwachte omvang.");
+            }
+
+            var inhoud = new byte[(int)lengte];
+            stroom.ReadExactly(inhoud);
+            if (stroom.ReadByte() != -1)
+            {
+                throw new IOException("Het geheim veranderde tijdens het lezen.");
+            }
+
+            return inhoud;
+        }
+        catch (IOException fout) when (fout is FileNotFoundException or DirectoryNotFoundException)
         {
             return null;
         }
+    }
 
-        using var stroom = new FileStream(pad, FileMode.Open, FileAccess.Read, FileShare.Read);
-        _paden.EisGeopendBestand(stroom, pad);
-        using var inhoud = new MemoryStream();
-        stroom.CopyTo(inhoud);
-        return inhoud.ToArray();
+    public void MaakGeheimenmap(string pad)
+    {
+        MaakMap(pad);
+        EisBeslotenMap(pad);
+    }
+
+    private static void EisBeslotenMap(string pad)
+    {
+        const UnixFileMode EigenMap = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+        if (Directory.Exists(pad) && (!OperatingSystem.IsLinux() || File.GetUnixFileMode(pad) != EigenMap))
+        {
+            throw new UnauthorizedAccessException("De geheimenmap vereist mapmodus 0700.");
+        }
     }
 
     public void KopieerNieuw(string bron, string doel)

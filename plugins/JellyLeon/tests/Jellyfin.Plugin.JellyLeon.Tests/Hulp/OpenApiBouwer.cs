@@ -180,6 +180,7 @@ internal static partial class OpenApiBouwer
         "required": ["status", "fingerprint", "service_id", "gepind_op", "jwt_sleutels", "policy_sleutels", "audience"],
         "properties": {
           "status": { "type": "string", "enum": ["not_linked", "linked"] },
+          "reason": { "type": "string", "enum": ["koppelstatus_onleesbaar"] },
           "fingerprint": { "type": "string", "nullable": true, "description": "Vingerafdruk van de gepinde sleutelset (contract §4.5)" },
           "service_id": { "type": "string", "nullable": true },
           "gepind_op": { "type": "string", "format": "date-time", "nullable": true },
@@ -465,7 +466,8 @@ internal static partial class OpenApiBouwer
 
         if (route.Vrijstelling is not null)
         {
-            operatie["description"] = "Geen Idempotency-Key: " + route.Vrijstelling + ".";
+            var vrijstelling = "Geen Idempotency-Key: " + route.Vrijstelling + ".";
+            operatie["description"] = operatie["description"] is { } uitleg ? uitleg.GetValue<string>() + " " + vrijstelling : vrijstelling;
         }
 
         if (parameters.Count > 0)

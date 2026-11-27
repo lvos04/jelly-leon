@@ -26,10 +26,10 @@ internal sealed class SecretStore
         _bestanden = new InternalWriteScope(paden);
     }
 
-    public byte[]? Lees(string naam)
+    public byte[]? Lees(string naam, int maxBytes = int.MaxValue)
     {
         var pad = Pad(naam);
-        return Opslag(() => _bestanden.Lees(pad));
+        return Opslag(() => _bestanden.LeesGeheim(pad, maxBytes));
     }
 
     /// <summary>Schrijft een door de beheerder ingevoerde waarde (atomisch, 0600).</summary>
@@ -112,5 +112,5 @@ internal sealed class SecretStore
         }
     }
 
-    private void ZorgVoorMap() => _bestanden.MaakMap(_map);
+    private void ZorgVoorMap() => _bestanden.MaakGeheimenmap(_map);
 }

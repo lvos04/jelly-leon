@@ -46,6 +46,7 @@ public class HubSleutelTests
     [InlineData("megg 8gfg 2e4y k2rq", true)]
     [InlineData("MEGG8GFG2E4YK2RQ", true)]
     [InlineData("MEGG-8GFG-2E4Y-K2RR", false)]
+    [InlineData("MEGG!8GFG!2E4Y!K2RQ", false)]
     [InlineData("", false)]
     public void VingerafdrukKlopt_VergelijktWatDeBeheerderOvertikt(string getypt, bool verwacht)
     {
@@ -78,6 +79,18 @@ public class HubSleutelTests
         Assert.Equal("validation_error", Assert.Throws<JlException>(() => HubKeySet.Parse(dubbel, "keyset")).Code);
 
         Assert.Equal("validation_error", Assert.Throws<JlException>(() => HubKeySet.Parse(JsonValue.Create("tekst"), "keyset")).Code);
+    }
+
+    [Fact]
+    public void PinWeigertOngeldigePubliekeSleutelEnPrivaatJwkVeld()
+    {
+        var set = new NepHub().Keyset();
+        var sleutel = set["jwks"]!["keys"]![0]!.AsObject();
+        sleutel["d"] = "testveld";
+        Assert.Equal("validation_error", Assert.Throws<JlException>(() => HubKeySet.Parse(set, "keyset")).Code);
+        sleutel.Remove("d");
+        sleutel["x"] = NepHub.B64(new byte[32]);
+        Assert.Equal("validation_error", Assert.Throws<JlException>(() => HubKeySet.Parse(set, "keyset")).Code);
     }
 
     [Theory]

@@ -62,7 +62,16 @@ internal sealed class BodyLezer
             return null;
         }
 
-        var tekst = node.GetValue<string>();
+        string tekst;
+        try
+        {
+            tekst = node.GetValue<string>();
+        }
+        catch (InvalidOperationException)
+        {
+            Fout(naam, "type", "Verwacht geldige Unicode-tekst.");
+            return null;
+        }
         if (tekst.Length == 0 || tekst.Length > maxLengte)
         {
             Fout(naam, "lengte", $"Verwacht 1 tot {maxLengte} tekens.");

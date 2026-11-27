@@ -1,6 +1,9 @@
 using System;
+using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Secrets;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Hub;
@@ -8,49 +11,69 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Hub;
 /// <summary>De vastgelegde Hub-koppeling (JL4): sleutelset, <c>service_id</c> en moment van pinnen.</summary>
 internal sealed record HubPinState(HubKeySet Sleutels, string ServiceId, string GepindOp);
 
-/// <summary>
-/// Bewaart de pin in de geheimenmap (nooit in de plugin-XML). Zonder pin is de status <c>not_linked</c> en weigert
-/// elke Hub-route met 401.
-/// </summary>
+/// <summary>Bewaart de pin in de geheimenmap. Alleen een veilig leesbare pin geeft de Hub toegang.</summary>
 internal sealed class HubPin
 {
     private const string Bestand = "hub-pin.json";
+    private const string Tijdformaat = "yyyy-MM-dd'T'HH:mm:ss'Z'";
     private readonly SecretStore _geheimen;
     private readonly object _slot = new();
-    private HubPinState? _huidig;
-    private bool _geladen;
+    private byte[]? _laatsteBytes;
+    private HubPinState? _laatstePin;
 
     public HubPin(SecretStore geheimen)
     {
         _geheimen = geheimen;
     }
 
-    public HubPinState? Huidig
+    public HubPinState? Huidig => LeesStatus().Pin;
+
+    public (HubPinState? Pin, bool Onleesbaar) LeesStatus()
     {
-        get
+        lock (_slot)
         {
-            lock (_slot)
+            try
             {
-                if (!_geladen)
+                // Ook na rotatie, verwijdering of gewijzigde rechten geldt de toestand van het bestand.
+                // De eigen opslagvorm voor maximaal zestien publieke sleutels past binnen 32 KiB.
+                var bytes = _geheimen.Lees(Bestand, 32 * 1024);
+                if (bytes is null)
                 {
-                    _huidig = Laad();
-                    _geladen = true;
+                    return (null, false);
                 }
 
-                return _huidig;
+                if (_laatstePin is not null && bytes.AsSpan().SequenceEqual(_laatsteBytes))
+                {
+                    return (_laatstePin, false);
+                }
+
+                var json = JsonNode.Parse(bytes, documentOptions: new JsonDocumentOptions { AllowDuplicateProperties = false, MaxDepth = 16 });
+                if (json is not JsonObject o || o["service_id"] is not JsonValue id || !id.TryGetValue<string>(out var serviceId)
+                    || serviceId.Length != 36 || !Guid.TryParseExact(serviceId, "D", out _)
+                    || o["gepind_op"] is not JsonValue tijd || !tijd.TryGetValue<string>(out var gepindOp)
+                    || !DateTimeOffset.TryParseExact(gepindOp, Tijdformaat, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out _))
+                {
+                    return (null, true);
+                }
+
+                _laatstePin = new HubPinState(HubKeySet.Parse(o["keyset"], "keyset"), serviceId, gepindOp);
+                _laatsteBytes = bytes;
+                return (_laatstePin, false);
+            }
+            catch (Exception fout) when (fout is JlException or JsonException or InvalidOperationException or ArgumentException)
+            {
+                return (null, true);
             }
         }
     }
 
     public HubPinState Zet(HubKeySet sleutels, string serviceId, DateTimeOffset nu)
     {
-        var staat = new HubPinState(sleutels, serviceId, nu.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture));
+        var staat = new HubPinState(sleutels, serviceId, nu.UtcDateTime.ToString(Tijdformaat, CultureInfo.InvariantCulture));
         var json = new JsonObject { ["keyset"] = sleutels.NaarJson(), ["service_id"] = serviceId, ["gepind_op"] = staat.GepindOp };
         lock (_slot)
         {
             _geheimen.Schrijf(Bestand, Encoding.UTF8.GetBytes(json.ToJsonString()));
-            _huidig = staat;
-            _geladen = true;
         }
 
         return staat;
@@ -61,29 +84,8 @@ internal sealed class HubPin
         lock (_slot)
         {
             _geheimen.Verwijder(Bestand);
-            _huidig = null;
-            _geladen = true;
-        }
-    }
-
-    private HubPinState? Laad()
-    {
-        var bytes = _geheimen.Lees(Bestand);
-        if (bytes is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            var json = JsonNode.Parse(bytes) as JsonObject;
-            var sleutels = HubKeySet.Parse(json?["keyset"], "keyset");
-            return new HubPinState(sleutels, json!["service_id"]!.GetValue<string>(), json["gepind_op"]!.GetValue<string>());
-        }
-        catch (Exception fout) when (fout is System.Text.Json.JsonException or Errors.JlException or NullReferenceException or InvalidOperationException)
-        {
-            // Een onleesbare pin is geen pin: de koppeling staat dan op not_linked tot de beheerder opnieuw pint.
-            return null;
+            _laatstePin = null;
+            _laatsteBytes = null;
         }
     }
 }

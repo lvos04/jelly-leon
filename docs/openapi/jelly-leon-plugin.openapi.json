@@ -614,6 +614,7 @@
             "CustomAuthentication": []
           }
         ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder.",
         "responses": {
           "200": {
             "description": "Hub-koppeling: status en vingerafdruk van de gepinde sleutelset",
@@ -668,6 +669,7 @@
             "CustomAuthentication": []
           }
         ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -783,6 +785,7 @@
             "CustomAuthentication": []
           }
         ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -890,7 +893,7 @@
             "CustomAuthentication": []
           }
         ],
-        "description": "Geen Idempotency-Key: …/verify zonder neveneffect (contract §5).",
+        "description": "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder. Geen Idempotency-Key: …/verify zonder neveneffect (contract §5).",
         "requestBody": {
           "required": true,
           "content": {
@@ -2580,6 +2583,12 @@
             "enum": [
               "not_linked",
               "linked"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "koppelstatus_onleesbaar"
             ]
           },
           "fingerprint": {

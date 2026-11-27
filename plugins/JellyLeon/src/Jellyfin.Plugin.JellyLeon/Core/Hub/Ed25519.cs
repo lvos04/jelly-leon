@@ -17,6 +17,12 @@ internal static class Ed25519
     private static readonly BigInteger _wortelMinEen = BigInteger.ModPow(2, (_p - 1) / 4, _p);
     private static readonly Punt _basis = BasisPunt();
 
+    /// <summary>Een te pinnen publieke sleutel is een niet-neutraal punt in de ondergroep van het basispunt.</summary>
+    public static bool IsPubliekeSleutel(ReadOnlySpan<byte> bytes) =>
+        bytes.Length == 32 && Decodeer(bytes, out var punt) && !IsNeutraal(punt) && IsNeutraal(Maal(punt, _l));
+
+    private static bool IsNeutraal(Punt punt) => punt.X.IsZero && punt.Y == punt.Z;
+
     public static bool Verifieer(ReadOnlySpan<byte> publiekeSleutel, ReadOnlySpan<byte> bericht, ReadOnlySpan<byte> handtekening)
     {
         if (publiekeSleutel.Length != 32 || handtekening.Length != 64)
@@ -24,7 +30,7 @@ internal static class Ed25519
             return false;
         }
 
-        if (!Decodeer(publiekeSleutel, out var a) || !Decodeer(handtekening[..32], out var r))
+        if (!Decodeer(publiekeSleutel, out var a) || IsNeutraal(Maal(a, 8)) || !Decodeer(handtekening[..32], out var r))
         {
             return false;
         }

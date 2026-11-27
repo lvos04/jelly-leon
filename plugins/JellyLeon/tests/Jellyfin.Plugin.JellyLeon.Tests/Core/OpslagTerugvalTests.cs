@@ -185,14 +185,18 @@ public sealed class OpslagTerugvalTests : IDisposable
 
             // Pseudoniem bij een sessiegebeurtenis van de server (Devices-listener vangt alleen JlException): 503, geen ruwe fout.
             Assert.Equal("storage_unavailable", Assert.Throws<JlException>(() => host.Services.GetRequiredService<SecretStore>().OpaakId("sessie", "proef")).Code);
-            // Hub-pin via een koppeling: de route antwoordt met 503 uit de foutcatalogus (JlRouteAttribute), geen ruwe fout.
-            Assert.Equal("storage_unavailable", Assert.Throws<JlException>(() => host.Services.GetRequiredService<HubPin>().Huidig).Code);
+            // Een onleesbare pin laat de Hub ongeauthenticeerd (§4.7). De beheerder kan de oorzaak onderscheiden.
+            var pinstatus = host.Services.GetRequiredService<HubPin>().LeesStatus();
+            Assert.Null(pinstatus.Pin);
+            Assert.True(pinstatus.Onleesbaar);
             var hubRoute = RouteTable.Alle.First(r => r.Auth == JlAuth.Hub);
             using var client = Client(host);
             using var verzoek = new HttpRequestMessage(new HttpMethod(hubRoute.Methode), hubRoute.Pad.Replace("{slug}", "devices", StringComparison.Ordinal).Replace("{id}", "proef", StringComparison.Ordinal));
             using var antwoord = await client.SendAsync(verzoek, stop);
-            Assert.Equal(HttpStatusCode.ServiceUnavailable, antwoord.StatusCode);
-            Assert.Equal("storage_unavailable", (string?)JsonNode.Parse(await antwoord.Content.ReadAsStringAsync(stop))!["code"]);
+            Assert.Equal(HttpStatusCode.Unauthorized, antwoord.StatusCode);
+            var json = JsonNode.Parse(await antwoord.Content.ReadAsStringAsync(stop))!;
+            Assert.Equal("unauthorized", (string?)json["code"]);
+            Assert.Equal("not_linked", (string?)json["details"]!["reason"]);
         }
         finally
         {

@@ -83,6 +83,9 @@
 
             function toonHub(j) {
                 pagina.querySelector('#jlHubStatus').textContent = j.status === 'linked' ? 'gekoppeld' : 'niet gekoppeld';
+                if (j.reason === 'koppelstatus_onleesbaar') {
+                    pagina.querySelector('#jlHubStatus').textContent = 'Niet gekoppeld. Het pinbestand is onleesbaar. Controleer de inhoud en de toegangsrechten.';
+                }
                 pagina.querySelector('#jlHubVingerafdruk').textContent = j.fingerprint ? '(vingerafdruk ' + j.fingerprint + ')' : '';
             }
 

@@ -43,7 +43,17 @@ public sealed class BeheerController : ControllerBase
     /// <returns>De status en de vingerafdruk van de gepinde sleutelset.</returns>
     [HttpGet("hub-link")]
     [JlRoute("hublink.get")]
-    public IActionResult HubLink() => JlResult.Ok(HubLinkJson());
+    public IActionResult HubLink()
+    {
+        var (pin, onleesbaar) = Pin.LeesStatus();
+        var status = HubLinkJson(pin);
+        if (onleesbaar)
+        {
+            status["reason"] = "koppelstatus_onleesbaar";
+        }
+
+        return JlResult.Ok(status);
+    }
 
     /// <summary>Berekent de vingerafdruk van een geplakte sleutelset zonder iets te wijzigen.</summary>
     /// <returns>De vingerafdruk om met de Hub te vergelijken.</returns>
@@ -85,9 +95,9 @@ public sealed class BeheerController : ControllerBase
             throw Fouten.Validatie(("fingerprint", "vingerafdruk_klopt_niet", "De overgetikte vingerafdruk hoort niet bij deze sleutelset."));
         }
 
-        Pin.Zet(sleutels, serviceId!.ToLowerInvariant(), Klok.GetUtcNow());
+        var pin = Pin.Zet(sleutels, serviceId!.ToLowerInvariant(), Klok.GetUtcNow());
         _log.LogInformation("Jelly Leon: Hub-sleutelset gepind ({Aantal} JWT-sleutels).", sleutels.JwtSleutels.Count);
-        return JlResult.Ok(HubLinkJson());
+        return JlResult.Ok(HubLinkJson(pin));
     }
 
     /// <summary>Verwijdert de pin; daarna weigert elke Hub-route met not_linked.</summary>
@@ -98,7 +108,7 @@ public sealed class BeheerController : ControllerBase
     {
         Pin.Wis();
         _log.LogInformation("Jelly Leon: Hub-koppeling verwijderd.");
-        return JlResult.Ok(HubLinkJson());
+        return JlResult.Ok(HubLinkJson(null));
     }
 
     /// <summary>De modules met hun schakelaar.</summary>
@@ -195,9 +205,8 @@ public sealed class BeheerController : ControllerBase
     [JlRoute("planner.status")]
     public IActionResult Planner() => JlResult.Ok(Batch.Status());
 
-    private JsonObject HubLinkJson()
+    private static JsonObject HubLinkJson(HubPinState? pin)
     {
-        var pin = Pin.Huidig;
         return new JsonObject
         {
             ["status"] = pin is null ? "not_linked" : "linked",

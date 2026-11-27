@@ -1,10 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using Jellyfin.Data;
+using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
+using Jellyfin.Plugin.JellyLeon.Core.Hub;
+using Jellyfin.Plugin.JellyLeon.Core.Secrets;
+using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
+using MediaBrowser.Controller.Net;
+using Microsoft.AspNetCore.Http;
+using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
@@ -18,6 +28,9 @@ public sealed class BeheerTests : IDisposable
     public void Dispose() => _h.Dispose();
 
     private static string Sleutel() => "Idempotency-Key: " + Guid.NewGuid();
+
+    private static string PinBody(JsonObject set, string vingerafdruk, string serviceId) =>
+        new JsonObject { ["keyset"] = set.DeepClone(), ["fingerprint"] = vingerafdruk, ["service_id"] = serviceId }.ToJsonString();
 
     [Fact]
     public async Task HubKoppeling_PlakkenVergelijkenPinnenEnOntkoppelen()
@@ -37,6 +50,7 @@ public sealed class BeheerTests : IDisposable
         var vingerafdruk = verify.Json!["fingerprint"]!.GetValue<string>();
         Assert.Equal(_h.Hub.Sleutels().Vingerafdruk, vingerafdruk);
         Assert.Equal(1, verify.Json["jwt_sleutels"]!.GetValue<int>());
+        Assert.False(File.Exists(Path.Combine(_h.Dienst<JlPaths>().SecretsDir, "hub-pin.json")));
         Assert.Equal("not_linked", (await _h.Roep("hublink.get")).Json!["status"]!.GetValue<string>());
 
         // Stap 2: pinnen lukt alleen met de vingerafdruk van precies deze set.
@@ -103,6 +117,117 @@ public sealed class BeheerTests : IDisposable
         Assert.Equal(401, (await _h.Roep("hublink.verify", "{\"keyset\":" + keyset + "}")).Status);
         _h.Sessies.Wie = new SessieIdentiteit(Guid.NewGuid(), true, false);
         Assert.Equal("not_linked", (await _h.Roep("hublink.get")).Json!["status"]!.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData(false, false, false, "admin_required")]
+    [InlineData(true, true, false, "kid_profile")]
+    [InlineData(false, false, true, "admin_required")]
+    public async Task HubPinVereistPersoonlijkeVolwassenBeheerderssessie(bool beheerder, bool kind, bool apiSleutel, string reden)
+    {
+        using var h = new Harnas(gebruikServerauth: true);
+        var gebruiker = new User("proef", "proef", "proef");
+        gebruiker.SetPermission(PermissionKind.IsAdministrator, beheerder);
+        if (kind)
+        {
+            gebruiker.MaxParentalRatingScore = 10;
+        }
+
+        var sessie = new AuthorizationInfo { IsAuthenticated = true, IsApiKey = apiSleutel, User = apiSleutel ? null : gebruiker };
+        h.Authenticatie.Setup(a => a.Authenticate(It.IsAny<HttpRequest>())).ReturnsAsync(sessie);
+        h.Gebruikers.Setup(g => g.GetUserById(gebruiker.Id)).Returns(gebruiker);
+        var body = PinBody(h.Hub.Keyset(), h.Hub.Sleutels().Vingerafdruk, h.Hub.ServiceId);
+        foreach (var route in new[] { "hublink.verify", "hublink.put", "hublink.delete" })
+        {
+            var antwoord = await h.Roep(route, body, [Sleutel()]);
+            Assert.Equal((403, "forbidden", reden), (antwoord.Status, antwoord.Code, antwoord.Reden));
+        }
+
+        Assert.Null(h.Dienst<HubPin>().Huidig);
+    }
+
+    [Fact]
+    public async Task HubRotatieVergtDeVingerafdrukVanAllePolicysleutels()
+    {
+        _h.Koppel();
+        var oud = _h.Hub.DienstToken(_h.Klok.Nu);
+        var nieuw = new NepHub();
+        var set = nieuw.Keyset();
+        var enkeleAfdruk = nieuw.Sleutels().Vingerafdruk;
+        set["policy_public_keys"] = new JsonArray(_h.Hub.Keyset()["policy_public_key"]!.DeepClone());
+        var verify = await _h.Roep("hublink.verify", new JsonObject { ["keyset"] = set.DeepClone() }.ToJsonString());
+        Assert.Equal(200, verify.Status);
+        Assert.Equal(2, (int?)verify.Json!["policy_sleutels"]);
+        var afdruk = (string)verify.Json["fingerprint"]!;
+        Assert.NotEqual(enkeleAfdruk, afdruk);
+        var fout = await _h.Roep("hublink.put", PinBody(set, enkeleAfdruk, nieuw.ServiceId), [Sleutel()]);
+        Assert.Equal((422, "validation_error"), (fout.Status, fout.Code));
+        Assert.Equal(200, (await _h.RoepHub("connector.health", oud)).Status);
+        var goed = await _h.Roep("hublink.put", PinBody(set, afdruk, nieuw.ServiceId), [Sleutel()]);
+        Assert.Equal(200, goed.Status);
+        var na = await _h.RoepHub("connector.health", oud);
+        Assert.Equal((401, "unknown_key"), (na.Status, na.Reden));
+        var token = nieuw.DienstToken(_h.Klok.Nu);
+        Assert.Equal(200, (await _h.RoepHub("connector.health", token)).Status);
+        var heropend = new HubPin(_h.Dienst<SecretStore>());
+        Assert.Equal(afdruk, heropend.Huidig!.Sleutels.Vingerafdruk);
+        Assert.Equal(200, (await _h.Roep("hublink.delete", kop: [Sleutel()])).Status);
+        Assert.Null(heropend.Huidig);
+        Assert.Equal("not_linked", (await _h.RoepHub("connector.health", token)).Reden);
+    }
+
+    [Theory]
+    [InlineData("json")]
+    [InlineData("service_id")]
+    [InlineData("gepind_op")]
+    [InlineData("bestand_leesbaar_voor_groep")]
+    [InlineData("bestand_onleesbaar")]
+    [InlineData("map_leesbaar_voor_groep")]
+    public async Task BeschadigdeOfOnveiligeHubPinWeigertOokNaEerdereLezing(string geval)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        _h.Koppel();
+        var token = _h.Hub.DienstToken(_h.Klok.Nu);
+        Assert.Equal("linked", (string?)(await _h.Roep("hublink.get")).Json!["status"]);
+        Assert.Equal(200, (await _h.RoepHub("connector.health", token)).Status);
+        var map = _h.Dienst<JlPaths>().SecretsDir;
+        var bestand = Path.Combine(map, "hub-pin.json");
+        var stop = TestContext.Current.CancellationToken;
+        switch (geval)
+        {
+            case "json":
+                await File.WriteAllTextAsync(bestand, "{", stop);
+                break;
+            case "service_id":
+            case "gepind_op":
+                var json = JsonNode.Parse(await File.ReadAllBytesAsync(bestand, stop))!.AsObject();
+                json[geval] = "ongeldig";
+                await File.WriteAllTextAsync(bestand, json.ToJsonString(), stop);
+                break;
+            case "bestand_leesbaar_voor_groep":
+                File.SetUnixFileMode(bestand, File.GetUnixFileMode(bestand) | UnixFileMode.GroupRead);
+                break;
+            case "bestand_onleesbaar":
+                File.SetUnixFileMode(bestand, UnixFileMode.None);
+                break;
+            case "map_leesbaar_voor_groep":
+                File.SetUnixFileMode(map, File.GetUnixFileMode(map) | UnixFileMode.GroupRead);
+                break;
+        }
+
+        var geweigerd = await _h.RoepHub("connector.health", token);
+        Assert.Equal((401, "unauthorized", "not_linked"), (geweigerd.Status, geweigerd.Code, geweigerd.Reden));
+        var status = await _h.Roep("hublink.get");
+        Assert.Equal(200, status.Status);
+        Assert.Empty(SchemaControle.Afwijkingen(_openapi, "HubLink", status.Json));
+        Assert.Equal("not_linked", (string?)status.Json!["status"]);
+        Assert.Equal("koppelstatus_onleesbaar", (string?)status.Json["reason"]);
+        Assert.Null(status.Json["fingerprint"]);
+        Assert.Null(new HubPin(_h.Dienst<SecretStore>()).Huidig);
     }
 
     [Fact]

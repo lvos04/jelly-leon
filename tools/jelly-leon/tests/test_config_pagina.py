@@ -27,13 +27,15 @@ NEP = r"""
 const vm = require('vm');
 const invoer = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const verzoeken = [];
+const koppen = {};
 const ApiClient = {
   getUrl(pad) { return 'http://server/' + pad; },
   fetch(o) {
     verzoeken.push(o.type + ' ' + o.url);
+    koppen[o.type + ' ' + o.url] = o.headers;
     const json = o.url.endsWith('/media/v1/modules')
       ? { items: [{ slug: 'devices', naam: 'Apparaten', enabled: false }] }
-      : { status: 'linked', fingerprint: 'ab', items: [] };
+      : (invoer.hubstatus || { status: 'linked', fingerprint: 'ab', items: [] });
     return Promise.resolve({ text: () => Promise.resolve(JSON.stringify(json)), headers: { get: () => '"e1"' } });
   },
 };
@@ -60,10 +62,11 @@ const wacht = () => new Promise((r) => setImmediate(r));
     const pagina = elementen['#JellyLeonConfigPage'];
     pagina.handlers.pageshow();
     await wacht(); await wacht();
+    const hubstatus = pagina.querySelector('#jlHubStatus').textContent;
     for (const knop of ['#jlBereken', '#jlKoppel', '#jlOntkoppel']) { pagina.querySelector(knop).handlers.click(); }
     for (const e of gemaakt) { if (e.handlers.change) { e.checked = true; e.handlers.change(); } }
     await wacht(); await wacht();
-    console.log(JSON.stringify({ verzoeken }));
+    console.log(JSON.stringify({ verzoeken, koppen, hubstatus }));
   } else {
     vm.runInContext(invoer.script + '\nthis.vraag = vraag;', context);
     const uit = [];
@@ -121,6 +124,16 @@ def test_de_pagina_vraagt_alleen_eigen_paden():
         "PUT http://server/media/v1/hub-link",
         "PUT http://server/media/v1/modules/devices",
     ]
+
+
+def test_hubbeheer_toont_onleesbare_pin_en_gebruikt_de_verplichte_koppen():
+    uit = draai({"modus": "pagina", "script": script(), "hubstatus": {"status": "not_linked", "reason": "koppelstatus_onleesbaar"}})
+    assert "onleesbaar" in uit["hubstatus"]
+    koppen = uit["koppen"]
+    assert "Idempotency-Key" not in koppen["POST http://server/media/v1/hub-link/verify"]
+    for methode in ("PUT", "DELETE"):
+        assert len(koppen[f"{methode} http://server/media/v1/hub-link"]["Idempotency-Key"]) == 36
+    assert koppen["PUT http://server/media/v1/modules/devices"]["If-Match"] == '"e1"'
 
 
 GOED = [

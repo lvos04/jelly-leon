@@ -12,6 +12,7 @@ using Jellyfin.Plugin.JellyLeon.Core.Idempotency;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Privacy;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Http;
 
@@ -24,21 +25,13 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Http;
 internal sealed class JlPipeline
 {
     private readonly HubPin _pin;
-    private readonly JtiStore _jti;
-    private readonly IdempotencyStore _idempotentie;
-    private readonly ISessionAuthenticator _sessies;
-    private readonly ModuleRegistry _modules;
-    private readonly PrivacyService _privacy;
+    private readonly IServiceProvider _diensten;
     private readonly TimeProvider _klok;
 
-    public JlPipeline(HubPin pin, JtiStore jti, IdempotencyStore idempotentie, ISessionAuthenticator sessies, ModuleRegistry modules, PrivacyService privacy, TimeProvider klok)
+    public JlPipeline(HubPin pin, IServiceProvider diensten, TimeProvider klok)
     {
         _pin = pin;
-        _jti = jti;
-        _idempotentie = idempotentie;
-        _sessies = sessies;
-        _modules = modules;
-        _privacy = privacy;
+        _diensten = diensten;
         _klok = klok;
     }
 
@@ -54,7 +47,8 @@ internal sealed class JlPipeline
         {
             var hub = HubTokenValidator.Valideer(Kop(verzoek, "Authorization"), _pin.Huidig, nu);
             // Alleen een route met antwoordopslag kan een exacte herhaling afhandelen.
-            _jti.Controleer(hub, verzoek.Method, pad, route.Idempotentie == JlIdem.Verplicht ? sleutel : null, nu);
+            // Open opslagdiensten pas na de pin- en tokencontrole, ook bij een opslagfout na de start.
+            _diensten.GetRequiredService<JtiStore>().Controleer(hub, verzoek.Method, pad, route.Idempotentie == JlIdem.Verplicht ? sleutel : null, nu);
             if (hub.IsKind)
             {
                 throw Fouten.Verboden("role_kind");
@@ -64,14 +58,14 @@ internal sealed class JlPipeline
         }
         else
         {
-            var sessie = await _sessies.AuthenticeerAsync(verzoek).ConfigureAwait(false);
+            var sessie = await _diensten.GetRequiredService<ISessionAuthenticator>().AuthenticeerAsync(verzoek).ConfigureAwait(false);
             sessie.EisBeheerder(route.Auth);
 
-            var id = sessie.GebruikerId is Guid gebruiker ? "session:" + _privacy.Pseudoniem(gebruiker) : "session:api-key";
+            var id = sessie.GebruikerId is Guid gebruiker ? "session:" + _diensten.GetRequiredService<PrivacyService>().Pseudoniem(gebruiker) : "session:api-key";
             wie = new JlPrincipal(id, false, false, ["admin"]);
         }
 
-        if (route.Module is not null && !_modules.IsAan(route.Module))
+        if (route.Module is not null && !_diensten.GetRequiredService<ModuleRegistry>().IsAan(route.Module))
         {
             throw Fouten.NietGevonden();
         }
@@ -114,7 +108,7 @@ internal sealed class JlPipeline
         {
             scope = wie.Id + "\n" + verzoek.Method + "\n" + pad;
             var hash = Convert.ToHexStringLower(SHA256.HashData([.. bytes, .. Encoding.UTF8.GetBytes("\n" + ifMatch)]));
-            herhaling = _idempotentie.Begin(scope, sleutel!, hash, nu);
+            herhaling = _diensten.GetRequiredService<IdempotencyStore>().Begin(scope, sleutel!, hash, nu);
         }
 
         return new JlContext
@@ -138,13 +132,14 @@ internal sealed class JlPipeline
             return;
         }
 
+        var idempotentie = _diensten.GetRequiredService<IdempotencyStore>();
         if (antwoord.Status >= 500)
         {
-            _idempotentie.Annuleer(context.IdemScope, context.IdemSleutel);
+            idempotentie.Annuleer(context.IdemScope, context.IdemSleutel);
         }
         else
         {
-            _idempotentie.Voltooi(context.IdemScope, context.IdemSleutel, antwoord);
+            idempotentie.Voltooi(context.IdemScope, context.IdemSleutel, antwoord);
         }
     }
 
@@ -176,7 +171,7 @@ internal sealed class JlPipeline
     {
         try
         {
-            if (JsonNode.Parse(bytes, null, new JsonDocumentOptions { MaxDepth = 16 }) is JsonObject o)
+            if (JsonNode.Parse(bytes, null, new JsonDocumentOptions { MaxDepth = 16, AllowDuplicateProperties = false }) is JsonObject o)
             {
                 return o;
             }

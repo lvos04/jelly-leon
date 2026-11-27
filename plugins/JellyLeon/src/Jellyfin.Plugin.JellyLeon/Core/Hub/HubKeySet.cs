@@ -62,15 +62,16 @@ internal sealed class HubKeySet
         return tekens.ToString();
     }
 
-    /// <summary>Genormaliseerde vorm voor vergelijken: hoofdletters, alleen letters en cijfers, O→0, I/L→1.</summary>
+    /// <summary>Negeert spaties en streepjes en verwerkt de Crockford-aliassen uit §4.5.</summary>
     public static string Normaliseer(string invoer)
     {
         var tekens = new StringBuilder(16);
-        foreach (var teken in invoer.ToUpperInvariant())
+        foreach (var teken in invoer)
         {
-            if (char.IsAsciiLetterOrDigit(teken))
+            if (teken is not ('-' or ' '))
             {
-                tekens.Append(teken switch { 'O' => '0', 'I' or 'L' => '1', _ => teken });
+                var hoofdletter = char.IsAsciiLetterOrDigit(teken) ? char.ToUpperInvariant(teken) : '?';
+                tekens.Append(hoofdletter switch { 'O' => '0', 'I' or 'L' => '1', _ => hoofdletter });
             }
         }
 
@@ -94,7 +95,7 @@ internal sealed class HubKeySet
         }
 
         var jwt = new List<HubKey>();
-        if (wortel["jwks"] is JsonObject jwks && jwks["keys"] is JsonArray sleutels)
+        if (wortel["jwks"] is JsonObject jwks && jwks["keys"] is JsonArray { Count: > 0 and <= 8 } sleutels)
         {
             jwt.AddRange(sleutels.Select((s, i) => LeesSleutel(s, $"{veld}.jwks.keys[{i}]")));
         }
@@ -107,6 +108,11 @@ internal sealed class HubKeySet
 
         if (wortel["policy_public_keys"] is JsonArray meerdere)
         {
+            if (policy.Count + meerdere.Count > 8)
+            {
+                throw Fouten.Validatie((veld, "sleutelset_onvolledig", "De sleutelset bevat te veel policy-sleutels."));
+            }
+
             policy.AddRange(meerdere.Select((s, i) => LeesSleutel(s, $"{veld}.policy_public_keys[{i}]")));
         }
 
@@ -135,16 +141,31 @@ internal sealed class HubKeySet
     private static HubKey LeesSleutel(JsonNode? node, string veld)
     {
         if (node is not JsonObject o
-            || Tekst(o, "kty") != "OKP" || Tekst(o, "crv") != "Ed25519"
+            || o.ContainsKey("d") || Tekst(o, "kty") != "OKP" || Tekst(o, "crv") != "Ed25519"
             || Tekst(o, "x") is not { Length: 43 } x || !Base64Url.IsValid(x)
             || Tekst(o, "kid") is not { Length: > 0 and <= 128 } kid)
         {
             throw Fouten.Validatie((veld, "sleutel_ongeldig", "Verwacht een Ed25519-JWK met kty OKP, crv Ed25519, x (32 bytes) en kid."));
         }
 
+        var bytes = Base64Url.DecodeFromChars(x);
+        if (Base64Url.EncodeToString(bytes) != x || !Ed25519.IsPubliekeSleutel(bytes))
+        {
+            throw Fouten.Validatie((veld, "sleutel_ongeldig", "Verwacht een canonieke publieke Ed25519-sleutel."));
+        }
+
         return new HubKey(kid, x);
     }
 
-    private static string? Tekst(JsonObject o, string naam) =>
-        o[naam] is JsonValue v && v.TryGetValue<string>(out var tekst) ? tekst : null;
+    private static string? Tekst(JsonObject o, string naam)
+    {
+        try
+        {
+            return o[naam] is JsonValue v && v.TryGetValue<string>(out var tekst) ? tekst : null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
 }
