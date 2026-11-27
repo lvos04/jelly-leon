@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import sqlite3
 import tempfile
 import time
+import uuid
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -79,10 +82,10 @@ def vergelijk(db_a: Path, db_b: Path, toegestaan: dict[str, set[str]] | None = N
         def sleutel(rij: tuple, vergeleken: list[int] = vergeleken) -> tuple:
             return tuple(rij[i] for i in vergeleken)
 
-        sa = sorted(map(sleutel, ra), key=repr)
-        sb = sorted(map(sleutel, rb), key=repr)
-        alleen_a = [r for r in sa if r not in sb]
-        alleen_b = [r for r in sb if r not in sa]
+        sa = Counter(map(sleutel, ra))
+        sb = Counter(map(sleutel, rb))
+        alleen_a = sorted((sa - sb).elements(), key=repr)
+        alleen_b = sorted((sb - sa).elements(), key=repr)
         geraakt = []
         if genegeerd and len(ra) == len(rb):
             for i in genegeerd:
@@ -107,7 +110,39 @@ def _toon(rij: tuple, verborgen: set[int]) -> list[Any]:
 
 # --- scenario ---------------------------------------------------------------------------------------------------
 
-def scenario(server: StockServer, extra: bool = False) -> dict[str, Any]:
+def modulelijst(api: Http) -> tuple[dict[str, bool], str]:
+    status, inhoud, headers = api.ruw("GET", "/media/v1/modules")
+    etag = next((v for k, v in headers.items() if k.lower() == "etag"), "")
+    if status != 200 or not etag:
+        raise ValueError(f"Modulelijst onleesbaar (HTTP {status}, ETag aanwezig: {bool(etag)}).")
+    modules = {}
+    for item in json.loads(inhoud)["items"]:
+        slug, aan = item["slug"], item["enabled"]
+        if not isinstance(slug, str) or not re.fullmatch(r"[a-z][a-z0-9-]*", slug) or slug in modules or not isinstance(aan, bool):
+            raise ValueError("Ongeldige of dubbele module in de modulelijst.")
+        modules[slug] = aan
+    if not modules:
+        raise ValueError("De plugin meldt nul modules.")
+    return modules, etag
+
+
+def zet_alle_modules_aan(api: Http) -> list[str]:
+    modules, etag = modulelijst(api)
+    verwacht = dict.fromkeys(modules, True)
+    for slug, aan in modules.items():
+        if not aan:
+            api.doe("PUT", f"/media/v1/modules/{slug}", body={"enabled": True},
+                    headers={"If-Match": etag, "Idempotency-Key": str(uuid.uuid4())})
+            standen, etag = modulelijst(api)
+            if standen.get(slug) is not True:
+                raise ValueError(f"Module {slug} is na het aanzetten nog uit of ontbreekt.")
+    standen, _ = modulelijst(api)
+    if standen != verwacht:
+        raise ValueError("De actieve modules wijken af van de opgevraagde modulelijst.")
+    return sorted(standen)
+
+
+def scenario(server: StockServer, extra: bool = False, alle_modules: bool = False) -> dict[str, Any]:
     """Zelfde handelingen op elk systeem: gezien (vaste datum), favoriet, beoordeling, hervatpunt met spoorkeuze.
 
     ``extra`` (alleen voor de negatieve proef) voegt op één systeem één favoriet toe: de vergelijking moet dat vinden."""
@@ -116,6 +151,10 @@ def scenario(server: StockServer, extra: bool = False) -> dict[str, Any]:
     jf.login(GEBRUIKER, WACHTWOORD)
     uid = jf.admin_id
     items = sorted(jf.items(), key=lambda i: i["Path"])
+    gebruikers = jf.a.doe("GET", "/Users")
+    if not items or not uid or not any(u["Id"] == uid for u in gebruikers):
+        raise ValueError("De controle-run vereist media en een aantoonbaar aanwezige proefgebruiker.")
+    modules = zet_alle_modules_aan(jf.a) if alle_modules else []
     log = []
     for i, it in enumerate(items):
         iid = it["Id"]
@@ -141,13 +180,20 @@ def scenario(server: StockServer, extra: bool = False) -> dict[str, Any]:
         sessie.doe("POST", "/Sessions/Playing/Stopped", body={**body, "PositionTicks": 123_450_000})
         log.append(("hervatpunt 12,345 s", it["Path"]))
     time.sleep(3)
-    return {"handelingen": len(log), "items": len(items)}
+    resultaat = {"handelingen": len(log), "items": len(items), "gebruikers": len(gebruikers)}
+    if alle_modules:
+        standen, _ = modulelijst(jf.a)
+        if standen != dict.fromkeys(modules, True):
+            raise ValueError("De modules stonden aan het einde van het scenario niet allemaal aan.")
+        resultaat["actieve_modules"] = modules
+    return resultaat
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="b03h diffrun")
     p.add_argument("--image-a", default=STOCK_IMAGE)
     p.add_argument("--image-b", default=STOCK_IMAGE)
+    p.add_argument("--alle-modules", action="store_true", help="zet alle door de plugin gemelde modules op systeem B aan en controleer de stand")
     p.add_argument("--toegestaan", type=Path, help="JSON {tabel: [kolommen]} met de toegestane wijzigingen van een module")
     p.add_argument("--uit", type=Path, default=REPO / "docs/platform-v2/test-evidence/b03-016-diffrun-stock-stock.json")
     p.add_argument("--negatieve-proef", action="store_true", help="systeem b doet één extra handeling; verwacht: verschil gevonden")
@@ -173,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
                 shutil.copytree(basis.map / "config", srv.map / "config", symlinks=True)
                 (srv.map / "cache").mkdir()
                 srv.start(schoon=False)
-                uitkomst[kant] = scenario(srv, extra=a.negatieve_proef and kant == "b")
+                uitkomst[kant] = scenario(srv, extra=a.negatieve_proef and kant == "b", alle_modules=a.alle_modules and kant == "b")
                 srv.stop()
             rapport = vergelijk(WERK / "servers/diff-a/config/data/jellyfin.db", WERK / "servers/diff-b/config/data/jellyfin.db",
                                 toegestaan)
