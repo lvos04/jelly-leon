@@ -103,7 +103,7 @@ internal sealed class JlPipeline
             throw Fouten.PreconditieVerplicht();
         }
 
-        IdempotencyStore? opslag = null;
+        IdempotencyStore? moduleopslag = null;
         string? scope = null;
         JlResult? herhaling = null;
         if (route.Idempotentie == JlIdem.Verplicht)
@@ -114,17 +114,14 @@ internal sealed class JlPipeline
             {
                 var module = _diensten.GetRequiredService<ModuleRegistry>().Zoek(slug) as ModuleBasis ?? throw Fouten.NietGevonden();
                 var beheer = module.Gegevensbeheer;
-                opslag = beheer.Herhalingen;
+                moduleopslag = beheer.Herhalingen;
                 sleutel = beheer.VerzoekSleutel(scope, sleutel!);
                 scope = slug;
                 // Een voorbeeld en de uitvoering met dezelfde body zijn verschillende verzoeken.
                 voorwaarden += "\n" + verzoek.QueryString.Value;
             }
-            else
-            {
-                opslag = _diensten.GetRequiredService<IdempotencyStore>();
-            }
 
+            var opslag = moduleopslag ?? _diensten.GetRequiredService<IdempotencyStore>();
             var hash = Convert.ToHexStringLower(SHA256.HashData([.. bytes, .. Encoding.UTF8.GetBytes(voorwaarden)]));
             herhaling = opslag.Begin(scope, sleutel!, hash, nu, alleenHerhalen);
         }
@@ -136,7 +133,7 @@ internal sealed class JlPipeline
             Route = route,
             Body = body,
             IfMatch = ifMatch,
-            Idempotentie = opslag,
+            ModuleIdempotentie = moduleopslag,
             IdemScope = scope,
             IdemSleutel = sleutel,
             Herhaling = herhaling,
@@ -159,18 +156,19 @@ internal sealed class JlPipeline
     /// <summary>Legt het antwoord van een muterende route vast vóór het verzonden wordt; serverfouten geven de sleutel vrij.</summary>
     public void Rond(JlContext context, JlResult antwoord)
     {
-        if (context.Idempotentie is null || context.IdemScope is null || context.IdemSleutel is null || context.Herhaling is not null)
+        if (context.IdemScope is null || context.IdemSleutel is null || context.Herhaling is not null)
         {
             return;
         }
 
+        var opslag = context.ModuleIdempotentie ?? _diensten.GetRequiredService<IdempotencyStore>();
         if (antwoord.Status >= 500)
         {
-            context.Idempotentie.Annuleer(context.IdemScope, context.IdemSleutel);
+            opslag.Annuleer(context.IdemScope, context.IdemSleutel);
         }
         else
         {
-            context.Idempotentie.Voltooi(context.IdemScope, context.IdemSleutel, antwoord);
+            opslag.Voltooi(context.IdemScope, context.IdemSleutel, antwoord);
         }
     }
 

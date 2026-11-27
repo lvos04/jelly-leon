@@ -1,0 +1,57 @@
+{
+  "stap": "HERSTEL-JLT61C",
+  "niveau": "N5",
+  "datum": "2026-11-28",
+  "onderdeel": "JLT-61(c), beheerexport en verwijderen van eigen modulegegevens",
+  "bouwcommit": "354539ee901a6156fd9acde5f54c863fd08c5d9d",
+  "omgeving": "Lokale testopslag met uitsluitend synthetische gegevens.",
+  "tabellen": {
+    "devices": [
+      "instellingen",
+      "playback_sessions"
+    ],
+    "quality": [
+      "instellingen",
+      "findings",
+      "suppressions",
+      "scans"
+    ]
+  },
+  "meetresultaten": [
+    {
+      "commando": "python3 tools/jelly-leon/check_fork_consistency.py",
+      "exitcode": 0,
+      "slotregel": "Forkconsistentie in orde: basis v12.4 (83d0d0e7f76e), forkversie 12.4.0-jl.1."
+    },
+    {
+      "commando": "python3 tools/jelly-leon/patch_register_check.py",
+      "exitcode": 0,
+      "slotregel": "Patchregister in orde."
+    },
+    {
+      "proef": "Vaste SQL op gevulde, tijdelijke SQLite-tabellen",
+      "exitcode": 0,
+      "uitkomst": "Devices leegde twee eigen tabellen en Quality vier. Bij beide bleven twee controlerijen gelijk. Een nevenwijziging leidde tot een volledige rollback."
+    },
+    {
+      "proef": "Gepubliceerde OpenAPI naast de routetabel en de schemaspecificatie",
+      "exitcode": 0,
+      "slotregel": "29 route-methoden komen overeen, vier beheerroutes en vier schema’s gecontroleerd."
+    },
+    {
+      "commando": "python -m pytest -p no:cacheprovider -q tools/jelly-leon/tests/test_evidence_contract.py tools/jelly-leon/tests/test_patch_register_and_consistency.py",
+      "exitcode": 0,
+      "slotregel": "54 passed in 1.95s"
+    },
+    {
+      "commando": "python -m pytest -p no:cacheprovider -q tools/jelly-leon/tests/test_config_pagina.py",
+      "exitcode": 0,
+      "slotregel": "3 passed in 0.29s"
+    }
+  ],
+  "niet_gecontroleerd": [
+    "De .NET-pluginbouw, ModuleGegevensbeheerTests en de HTTP-proef BeheerexportEnWisroute wachten in deze tussenstand op een vrij lokaal testslot.",
+    "De integrale terugkeer naar de stock-image op dezelfde pluginvrije testkopie met aanmelden, afspelen, gebruikers- en mediahashes en de negatieve restantenproef.",
+    "NIET GEVALIDEERD (echte NAS): echte bibliotheek en echte datamap (N-P6-09, N-P6-12)."
+  ]
+}

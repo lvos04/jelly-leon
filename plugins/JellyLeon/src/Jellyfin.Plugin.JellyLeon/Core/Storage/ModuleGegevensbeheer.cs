@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Idempotency;
 using Jellyfin.Plugin.JellyLeon.Core.Secrets;
@@ -35,8 +36,9 @@ internal sealed class ModuleGegevensbeheer
         _exportPad = Path.Combine(paden.ModuleDir(slug), "beheerexport.json");
         _slug = slug;
         _geheimen = geheimen;
-        _herhalingen = new Lazy<IdempotencyStore>(() => new IdempotencyStore(
-            new JlDatabase(paden, Path.Combine(paden.CacheRoot, slug, "beheerherhaling.db"), [CoreDatabase.IdempotentieTabel])));
+        _herhalingen = new Lazy<IdempotencyStore>(
+            () => new IdempotencyStore(new JlDatabase(paden, Path.Combine(paden.CacheRoot, slug, "beheerherhaling.db"), [CoreDatabase.IdempotentieTabel])),
+            LazyThreadSafetyMode.PublicationOnly);
         _tabellen = [new("instellingen", "id", "bewaar_dagen", "versie"), .. tabellen];
     }
 

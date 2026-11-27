@@ -84,7 +84,7 @@ public sealed class ModuleGegevensbeheerTests : IDisposable
         Assert.Equal(tabellen, export["tables"]!.AsObject().Select(t => t.Key));
         Assert.Equal(1, (int)export["counts"]!["instellingen"]!);
         var personen = export["tables"]![slug == "devices" ? "playback_sessions" : "suppressions"]!.AsArray();
-        Assert.All(personen, rij => Assert.Matches("^[0-9a-f]{32}$", (string)rij!["gebruiker"]!));
+        Assert.All(personen, rij => Assert.Matches("^[0-9a-f]{32}$", rij!["gebruiker"]!.GetValue<string>()));
         Assert.Equal(slug == "devices" ? 2 : 1, personen.Count);
         foreach (var tabel in tabellen)
         {
@@ -250,9 +250,17 @@ public sealed class ModuleGegevensbeheerTests : IDisposable
             JlDatabase.Voer(v, "CREATE TRIGGER proeffout BEFORE DELETE ON scans BEGIN SELECT RAISE(ABORT, 'proeffout'); END");
         }
 
-        Assert.Equal(503, (await Wis(Slug, sha256)).Status);
+        var sleutel = Guid.NewGuid().ToString();
+        Assert.Equal(503, (await Wis(Slug, sha256, sleutel)).Status);
         var (na, _) = await Exporteer(Slug);
         Assert.True(JsonNode.DeepEquals(export, na));
+
+        using (var v = Open(_h.Dienst<JlPaths>().ModuleDb(Slug)))
+        {
+            JlDatabase.Voer(v, "DROP TRIGGER proeffout");
+        }
+
+        Assert.Equal(200, (await Wis(Slug, sha256, sleutel)).Status);
     }
 
     [Fact]

@@ -27,7 +27,7 @@ internal sealed class JlContext
 
     public string? IfMatch { get; init; }
 
-    public IdempotencyStore? Idempotentie { get; init; }
+    public IdempotencyStore? ModuleIdempotentie { get; init; }
 
     public string? IdemScope { get; init; }
 
