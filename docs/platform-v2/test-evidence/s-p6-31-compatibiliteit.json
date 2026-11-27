@@ -1,6 +1,154 @@
 {
   "stap": "S-P6-31",
   "servercommit": "5d8784c635ea012065b3b2d312117e73fc88d7ae",
+  "images": {
+    "stock": {
+      "referentie": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+    },
+    "p6": {
+      "referentie": "jelly-leon:p6",
+      "image_id": "sha256:87a5e00d59597f60ab37a1822bf9f84d8394048845e85a7152d0c8a7f5594417"
+    }
+  },
+  "JLT-63": {
+    "sessies": {},
+    "actieve_modules_per_proefserver": {},
+    "clientrollen": [
+      {
+        "id": "web-chromium",
+        "client": "Chromium, echte headless browser",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "web-firefox",
+        "client": "Firefox, echte headless browser",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "web-webkit",
+        "client": "WebKit, echte headless Linux-browser",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "ua-webos",
+        "client": "webOS, nagebootst profiel in Chromium",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "ua-tizen",
+        "client": "Tizen, nagebootst profiel in Chromium",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "webdir",
+        "client": "Stock-web uit de stock-image, echte Chromium-browser",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "legacy",
+        "client": "Derden-client, nagebootste HTTP-verzoeken",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "telefoon",
+        "client": "Officiële Android-app, telefoonemulator",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "tablet",
+        "client": "Officiële Android-app, tabletemulator",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "tv",
+        "client": "Officiële Android TV-app, emulator API 34",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      },
+      {
+        "id": "tv36",
+        "client": "Officiële Android TV-app, emulator API 36",
+        "stock": {
+          "speelt": null,
+          "pogingen": null
+        },
+        "p6": {
+          "speelt": null,
+          "pogingen": null
+        }
+      }
+    ],
+    "stock_en_p6_vergeleken": false
+  },
   "JLT-64": {
     "negatieve_proef": {
       "wijziging": "/System/Info/Public/ProductName",
@@ -34,5 +182,20 @@
       "schema ForkVersionInfo"
     ],
     "openapi_afwijkingen": []
+  },
+  "JLT-66": {
+    "uitvoerbare_P4_proef": false,
+    "runs": 0
+  },
+  "JLT-67": {
+    "controledatum": "2026-11-27",
+    "laatste_stabiele_tag": "v12.4",
+    "kandidaat": null
+  },
+  "gegevensbehoud": {
+    "gebruikers": 5,
+    "voor_na_en_teruggezet_gelijk": true,
+    "mediabestanden": 2,
+    "mediahash_gelijk": true
   }
 }

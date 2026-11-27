@@ -76,6 +76,23 @@ def test_matrix_controleert_stand_na_de_laatste_client(monkeypatch: pytest.Monke
         clientmatrix.controleer_modules(server, ["proefmodule"])
 
 
+def test_volledige_matrix_vereist_een_gemeten_uitkomst_voor_elke_rol() -> None:
+    statussen = {}
+    for vorm in clientmatrix.legacy.VORMEN:
+        api = 200 if vorm in {"authorization_mediabrowser_token", "query_apikey_hoofdletter"} else 401
+        statussen[vorm] = {"gebruiker_items": api, "system_info": api, "stream_statisch": 206}
+    rijen = [{"id": rol, "orakel_ok": True, "pogingen": [{"ok": True}]} for rol in matrixvergelijk.ROLLEN if rol != "legacy"]
+    rijen.append({"id": "legacy", "status_per_vorm": statussen})
+    stock = {"server": clientmatrix.STOCK_IMAGE, "begin": "2026-11-27T10:00:00Z", "testitem": "proeffilm", "clients": rijen}
+    fork = {**stock, "server": "proefimage", "alle_modules": True,
+            "actieve_modules": {"ingebouwde_webclient": ["proef"], "stock_webdir": ["proef"]}}
+    code, rapport = matrixvergelijk.vergelijk(stock, fork)
+    assert code == 0 and len(rapport["clients"]) == 11
+    fork["clients"] = [r for r in rijen if r["id"] != "tablet"]
+    code, rapport = matrixvergelijk.vergelijk(stock, fork)
+    assert code == 2 and rapport["onbeslist"] == ["tablet"] and rapport["regressies"] == []
+
+
 def test_browsercrash_bewaart_pogingen_en_overige_clients(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     server = Mock()
     server.digest.return_value = "testimage"

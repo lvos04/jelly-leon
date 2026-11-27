@@ -122,3 +122,27 @@ JLT-63. NIET GEVALIDEERD (hardware): echte tv's, telefoons en tablets. Safari op
 [swiftfin]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-jc3-swiftfin-protocol.json
 [telefoon-herhaling]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-s-p40-72-herstel-android-telefoon.json
 [desktop-herhaling]: https://github.com/lvos04/jelly-leon-clients/blob/91f9d41cd10542edfb4a4976dffa9d71609e821f/docs/platform-v2/test-evidence/p4-0-s-p40-72-herstel-desktop.json
+
+## 5. Eindimage van S-P6-30 en stock 12.4 (S-P6-31, JLT-63)
+
+Proef van 28 november 2026. De eindimage `jelly-leon:p6` bevat servercommit `5d8784c635ea` en webcommit `5ced8a24601e`. De stockreferentie is gepind op `sha256:fea863d0cd9e…`. Het meetbestand bevat de volledige imageverwijzingen en de begin- en eindtijd van elke afgeronde matrixrun.
+
+| Client en proefvorm | Stock 12.4 (pogingen) | Eindimage (pogingen) |
+|---|---|---|
+| Chromium, echte headless browser | Niet gemeten | Niet gemeten |
+| Firefox, echte headless browser | Niet gemeten | Niet gemeten |
+| WebKit, echte headless Linux-browser | Niet gemeten | Niet gemeten |
+| webOS, nagebootst profiel in Chromium | Niet gemeten | Niet gemeten |
+| Tizen, nagebootst profiel in Chromium | Niet gemeten | Niet gemeten |
+| Stock-web uit de stock-image, echte Chromium-browser | Niet gemeten | Niet gemeten |
+| Derden-client, nagebootste HTTP-verzoeken | Niet gemeten | Niet gemeten |
+| Officiële Android-app, telefoonemulator | Niet gemeten | Niet gemeten |
+| Officiële Android-app, tabletemulator | Niet gemeten | Niet gemeten |
+| Officiële Android TV-app, emulator API 34 | Niet gemeten | Niet gemeten |
+| Officiële Android TV-app, emulator API 36 | Niet gemeten | Niet gemeten |
+
+Een volledige vergelijking op één UTC-meetdag ontbreekt. Voor de vier Android-rollen ontbreekt `/dev/kvm` in de testomgeving. Een cel met “Niet gemeten” heeft geen afgeronde meting in deze proef.
+
+Bij de twee tv-profielen meet het harnas Chromium met een andere user-agent. De legacy-rij toetst zeven aanmeldvormen op drie routes. De afzonderlijke MediaGuard-proef met `TV_PROFILE` uit S-P6-33 staat open.
+
+NIET GEVALIDEERD (hardware) voor echte tv’s, telefoons, tablets en streamingboxen (N-P6-09). NIET GEVALIDEERD (Mac/Xcode) voor Swiftfin en Safari. Desktop, SyncPlay, skipknoppen en downloaden hebben geen nieuwe eindimagemeting in deze rooktest. [Meetbestand van S-P6-31](test-evidence/s-p6-31-compatibiliteit.json)
