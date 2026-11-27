@@ -43,11 +43,15 @@ VASTE_DATUM = "2026-01-02T03:04:05.0000000Z"
 
 def _rijen(db: Path) -> dict[str, tuple[list[str], list[tuple]]]:
     with tempfile.TemporaryDirectory() as tmp:
-        for f in db.parent.glob(db.name + "*"):
+        kopie = Path(tmp) / db.name
+        shutil.copy2(db, kopie)
+        for f in db.parent.glob(db.name + "-*"):
             shutil.copy2(f, Path(tmp) / f.name)
-        con = sqlite3.connect(Path(tmp) / db.name)
+        con = sqlite3.connect(f"{kopie.as_uri()}?mode=ro", uri=True)
         try:
             tabellen = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+            if not tabellen:
+                raise ValueError("de testdatabase bevat geen tabellen")
             uit = {}
             for t in tabellen:
                 cur = con.execute(f'SELECT * FROM "{t}"')  # noqa: S608 - tabelnaam uit sqlite_master
@@ -167,18 +171,17 @@ def scenario(server: StockServer, extra: bool = False, alle_modules: bool = Fals
         if i % 5 == 2:
             jf.a.doe("POST", f"/UserItems/{iid}/Rating", {"userId": uid, "likes": "true"})
             log.append(("vind-ik-leuk", it["Path"]))
-    if extra and items:
+    if extra:
         jf.a.doe("POST", f"/UserFavoriteItems/{items[0]['Id']}", {"userId": uid})
         log.append(("EXTRA favoriet (negatieve proef)", items[0]["Path"]))
-    if items:
-        it = items[-1]
-        sessie = Http(server.url, {"Authorization": CLIENT + f', Token="{jf.token}"'})
-        body = {"ItemId": it["Id"], "PositionTicks": 0, "PlaySessionId": "b03016-diff", "AudioStreamIndex": 1,
-                "SubtitleStreamIndex": -1, "PlayMethod": "DirectPlay", "CanSeek": True}
-        sessie.doe("POST", "/Sessions/Playing", body=body)
-        sessie.doe("POST", "/Sessions/Playing/Progress", body={**body, "PositionTicks": 123_450_000})
-        sessie.doe("POST", "/Sessions/Playing/Stopped", body={**body, "PositionTicks": 123_450_000})
-        log.append(("hervatpunt 12,345 s", it["Path"]))
+    it = items[-1]
+    sessie = Http(server.url, {"Authorization": CLIENT + f', Token="{jf.token}"'})
+    body = {"ItemId": it["Id"], "PositionTicks": 0, "PlaySessionId": "b03016-diff", "AudioStreamIndex": 1,
+            "SubtitleStreamIndex": -1, "PlayMethod": "DirectPlay", "CanSeek": True}
+    sessie.doe("POST", "/Sessions/Playing", body=body)
+    sessie.doe("POST", "/Sessions/Playing/Progress", body={**body, "PositionTicks": 123_450_000})
+    sessie.doe("POST", "/Sessions/Playing/Stopped", body={**body, "PositionTicks": 123_450_000})
+    log.append(("hervatpunt 12,345 s", it["Path"]))
     time.sleep(3)
     resultaat = {"handelingen": len(log), "items": len(items), "gebruikers": len(gebruikers)}
     if alle_modules:
@@ -233,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
                 "toegestaan_module": {t: sorted(k) for t, k in (toegestaan or {}).items()}, "rapport": rapport,
                 "uitkomst": "0 verschillen buiten de vaste uitzonderingen" if rapport["verschillen_buiten_uitzonderingen"] == 0
                 else f"{rapport['verschillen_buiten_uitzonderingen']} verschillen buiten de uitzonderingen",
-                "validatie": "Sim-getest (echte stock-containers op de ontwikkelmachine)"}
+                "validatie": "Sim-getest (lokale testcontainers op kopieën van dezelfde datamap)"}
     a.uit.parent.mkdir(parents=True, exist_ok=True)
     a.uit.write_text(json.dumps(document, ensure_ascii=False, indent=1, default=str) + "\n", encoding="utf-8")
     print(document["uitkomst"])

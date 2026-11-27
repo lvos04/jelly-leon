@@ -105,6 +105,10 @@ een eigen `B03_LOCK_DIR`. Het veld `stackslot_wacht_s` meet de wachttijd op dat 
   harnas (incl. browsers) en van de eigen testcontainers per run in het bewijs; **een run is ongeldig** (niet mislukt) bij
   loadavg(1 min) > 4 vóór de run, andere processen > 4 kernen tijdens de run of een actief zwaar slot. Tijdgevoelige runs
   worden begrensd herhaald; ongeldige pogingen blijven zichtbaar.
+- Na drie ongeldige pogingen stopt `baseline` met exitcode 1. Het bestand `ongeldige-pogingen.json` in de map naast
+  het gevraagde JSON-bestand bewaart de fase, de reden en de belasting van elke poging. Het afspeelorakel meet elk
+  stockprofiel drie keer bij `--runs 3`. Voor de definitieve afspeel- en transcodemeting vraagt de testserver de
+  rendernode aan bij Docker. Het transcodebewijs voor stock-best vereist een gemeten H.264-QSV-encode.
 - **≥ 3 runs, A/B gebalanceerd afwisselend** (a,b | b,a | a,b). Proporties: n, k en het Wilson-95 %-interval; de gate
   gebruikt de ondergrens, bij te kleine n heet het **smoke-gate (n = …)**. Continue waarden: t-interval over de geldige
   runs. Elke metriek krijgt een herhaling die binnen het interval van de eerste meting moet vallen.
@@ -122,6 +126,8 @@ een eigen `B03_LOCK_DIR`. Het veld `stackslot_wacht_s` meet de wachttijd op dat 
   12.x-tabellen met vaste uitzonderingen (`Users.LastActivityDate`/`LastLoginDate`, `BaseItems.DateLastSaved`,
   `UserData.LastPlayedDate`, `Devices`-tokens en -tijden, `ActivityLogs`-tijden) en een toegestane wijzigingslijst per module
   (`--toegestaan`). `--negatieve-proef` bewijst dat een echte wijziging gevonden wordt. Geheime kolommen worden nooit getoond.
+  De vergelijking opent databasekopieën alleen-lezen en weigert ontbrekende bestanden, databases zonder tabellen en
+  scenario's zonder bibliotheekitems. Na het weglaten van de uitzonderingskolommen telt elk exemplaar van een rij mee.
 - De eerste rij van elke functie (B03-020, -030, -040, -052/054-voorbereiding, -060, -070) levert haar eigen metingen in dit
   raamwerk; hier staan de gemeenschappelijke voormetingen (Direct Play, transcode op de iGPU, functie-API's).
 

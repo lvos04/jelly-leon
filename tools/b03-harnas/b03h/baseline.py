@@ -100,21 +100,25 @@ def _run_record(last: meetslot.RunLast, **waarden: Any) -> dict[str, Any]:
     return {"last": last.als_dict(), **waarden}
 
 
+class GeenGeldigeRun(RuntimeError):
+    def __init__(self, pogingen: list[dict]) -> None:
+        self.pogingen = pogingen
+        laatste = pogingen[-1]["last"]
+        super().__init__(f"{laatste['systeem']} run {laatste['run']}: {len(pogingen)} ongeldige pogingen. {laatste['reden']}")
+
+
 def geldige_run(systeem: str, r: int, containers: list[str], actie: Any, pogingen: int = 3) -> tuple[meetslot.RunLast, Any, list[dict]]:
     """Herhaalt een tijdgevoelige run (begrensd) tot hij geldig is; ongeldige pogingen blijven in het bewijs staan."""
     ongeldig: list[dict] = []
-    for poging in range(pogingen):
+    for poging in range(1, pogingen + 1):
         wacht = meetslot.wacht_op_rust(max_wacht=120)
         with meetslot.run(systeem, r, containers) as last:
             uitkomst = actie()
-        if last.geldig or poging == pogingen - 1:
-            last_d = last
-            if not last.geldig:
-                log(f"  run {systeem}#{r} blijft ongeldig na {pogingen} pogingen: {last.reden}")
-            return last_d, uitkomst, ongeldig
-        log(f"  run {systeem}#{r} ongeldig ({last.reden}); opnieuw (wachttijd vooraf {wacht:.0f} s)")
-        ongeldig.append({"poging": poging, "last": last.als_dict()})
-    raise AssertionError("onbereikbaar")
+        if last.geldig:
+            return last, uitkomst, ongeldig
+        log(f"  run {systeem}#{r}, poging {poging}/{pogingen} ongeldig ({last.reden})")
+        ongeldig.append({"poging": poging, "wachttijd_s": round(wacht, 1), "last": last.als_dict()})
+    raise GeenGeldigeRun(ongeldig)
 
 
 # --- dp: beslissingen ---------------------------------------------------------------------------------------------
@@ -130,25 +134,28 @@ def meet_dp(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any]]:
         (uitmap / f"deviceprofile-{b}.json").write_text(json.dumps(d["deviceProfile"], indent=1) + "\n", encoding="utf-8")
     per: dict[tuple[str, str], list[dict[str, Any]]] = {}
     matrix: dict[str, Any] = {}
+
+    def besluiten_meten() -> tuple[dict, dict]:
+        uitkomst: dict[str, Any] = {}
+        kaal: dict[str, Any] = {}
+        for b in BROWSERS:
+            besluiten, kale = {}, {}
+            for p in A5_SET + EXTRA_SET:
+                it = sessie.items[p]
+                besluiten[Path(p).name] = _besluit(sessie.jf.playbackinfo(it["Id"], profielen[b]["profiel"], extra=_als_web(it)))
+                kale[Path(p).name] = _besluit(sessie.jf.playbackinfo(it["Id"], profielen[b]["profiel"]))
+            uitkomst[b], kaal[b] = besluiten, kale
+        return uitkomst, kaal
+
     for r, systeem in meetslot.ab_volgorde(["stock-standaard", "stock-best"], runs):
         sessie.systeem(systeem)
-        with meetslot.run(systeem, r, [sessie.s.container_id]) as last:
-            uitkomst: dict[str, Any] = {}
-            kaal: dict[str, Any] = {}
-            for b in BROWSERS:
-                besluiten, kale = {}, {}
-                for p in A5_SET + EXTRA_SET:
-                    it = sessie.items[p]
-                    besluiten[Path(p).name] = _besluit(sessie.jf.playbackinfo(it["Id"], profielen[b]["profiel"], extra=_als_web(it)))
-                    kale[Path(p).name] = _besluit(sessie.jf.playbackinfo(it["Id"], profielen[b]["profiel"]))
-                uitkomst[b] = besluiten
-                kaal[b] = kale
+        last, (uitkomst, kaal), ongeldig = geldige_run(systeem, r, [sessie.s.container_id], besluiten_meten)
         for b in BROWSERS:
             k = sum(1 for p in A5_SET if uitkomst[b][Path(p).name].startswith("DirectPlay"))
             k_kaal = sum(1 for p in A5_SET if kaal[b][Path(p).name].startswith("DirectPlay"))
             afwijkend = sorted(n for n in uitkomst[b] if uitkomst[b][n] != kaal[b][n])
             per.setdefault((systeem, b), []).append(_run_record(last, k=k, n=len(A5_SET), k_kale_aanvraag=k_kaal,
-                                                                kale_aanvraag_wijkt_af=afwijkend))
+                                                                kale_aanvraag_wijkt_af=afwijkend, ongeldige_pogingen=ongeldig))
         matrix[f"{systeem}#{r}"] = {"zoals_webclient": uitkomst, "kale_aanvraag": kaal}
     (uitmap / "dp-matrix.json").write_text(json.dumps(matrix, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     metingen = []
@@ -157,7 +164,7 @@ def meet_dp(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any]]:
         iv = statistiek.wilson(eerste["k"], eerste["n"])
         herhaald = [x["k"] / x["n"] for x in rs[1:]]
         metingen.append(bewijs.metriek(
-            id=f"F5-B1-dp-beslissing-{b}", functie="F5", systeem=systeem, soort="proportie", image=STOCK_IMAGE, seed=None,
+            id=f"F5-B1-dp-beslissing-{b}", functie="F5", systeem=systeem, soort="proportie", image=sessie.s.image, seed=None,
             omschrijving=f"Direct Play-beslissingen met het echte jellyfin-web-profiel van {b} {profielen[b]['versie']} (25 items, A5-set)",
             methode="DeviceProfile gevangen uit POST /Items/{id}/PlaybackInfo van de echte webclient; daarna PlaybackInfo per item "
                     "via de API met dezelfde velden als de webclient (MediaSourceId, AudioStreamIndex = standaard audiospoor, "
@@ -194,21 +201,18 @@ def _als_web(item: dict[str, Any]) -> dict[str, Any]:
 
 # --- orakel: effectieve Direct Play ---------------------------------------------------------------------------------
 
-def meet_orakel(sessie: Sessie, uitmap: Path) -> list[dict[str, Any]]:
+def meet_orakel(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any]]:
     resultaten: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    fouten: list[dict[str, Any]] = []
-    for r, systeem in [(0, "stock-standaard"), (0, "stock-best"), (1, "stock-standaard")]:
+    for r, systeem in meetslot.ab_volgorde(["stock-standaard", "stock-best"], runs):
         sessie.systeem(systeem)
         for b in BROWSERS:
-            try:
-                last, d, ongeldig = geldige_run(systeem, r, [sessie.s.container_id],
-                                                lambda b=b: sessie.web(b, A5_SET + EXTRA_SET, "speel", orakelMs=10000))
-            except WebFout as fout:
-                log(f"orakel {systeem} {b} run {r}: harnasfout {fout}")
-                fouten.append({"systeem": systeem, "browser": b, "run": r, "fout": str(fout)[:400]})
-                continue
+            last, d, ongeldig = geldige_run(systeem, r, [sessie.s.container_id],
+                                            lambda b=b: sessie.web(b, A5_SET + EXTRA_SET, "speel", orakelMs=10000))
             items = d["items"]
-            a5 = [i for i in items if any(Path(p).stem == i["naam"] for p in A5_SET)]
+            verwacht = {Path(p).stem for p in A5_SET}
+            a5 = [i for i in items if i["naam"] in verwacht]
+            if len(a5) != len(verwacht) or {i["naam"] for i in a5} != verwacht:
+                raise WebFout(f"onvolledige afspeelmeting voor {systeem}, {b}, run {r}")
             dp = [i for i in a5 if i.get("besluit") == "DirectPlay"]
             dp_ok = [i for i in dp if i.get("orakel_ok")]
             alle_ok = [i for i in a5 if i.get("orakel_ok")]
@@ -223,14 +227,12 @@ def meet_orakel(sessie: Sessie, uitmap: Path) -> list[dict[str, Any]]:
             log(f"orakel {systeem} {b} run {r}: DP {len(dp)}, DP speelt {len(dp_ok)}, speelt {len(alle_ok)}/{len(a5)}")
     metingen = []
     for (systeem, b), rs in sorted(resultaten.items()):
-        geldig = [x for x in rs if x["last"]["geldig"]]
-        eerste = (geldig or rs)[0]
-        rs = [eerste] + [x for x in rs if x is not eerste]
+        eerste = rs[0]
         iv = statistiek.wilson(eerste["dp_ok"], eerste["n"])
         iv_alle = statistiek.wilson(eerste["speelt"], eerste["n"])
         herhaling = [x["dp_ok"] / x["n"] for x in rs[1:]]
         metingen.append(bewijs.metriek(
-            id=f"F5-K3-dp-effectief-{b}", functie="F5", systeem=systeem, soort="proportie", image=STOCK_IMAGE, seed=None,
+            id=f"F5-K3-dp-effectief-{b}", functie="F5", systeem=systeem, soort="proportie", image=sessie.s.image, seed=None,
             omschrijving=f"Direct Play-starts die het orakel halen, {b} (A5-set, 25 items)",
             methode="elk item via de UI starten (Playwright 1.63); orakel = binnen 10 s currentTime ≥ 2 s, videoWidth > 0, geen "
                     "error-event en geen stilte bij een item met audio (Chromium/WebKit: webkitAudioDecodedByteCount; Firefox: "
@@ -241,8 +243,6 @@ def meet_orakel(sessie: Sessie, uitmap: Path) -> list[dict[str, Any]]:
                     "niet_speelbaar": eerste["niet_speelbaar"], "herhalingen_k": [x["dp_ok"] for x in rs[1:]],
                     "herhaling_binnen_interval": all(iv.bevat(h) for h in herhaling) if herhaling else None},
             opmerking="WebKit op Linux is geen Safari; headless browsers zonder HDR-scherm"))
-    if fouten:
-        (uitmap / "orakel-harnasfouten.json").write_text(json.dumps(fouten, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     return metingen
 
 
@@ -276,17 +276,23 @@ def meet_transcode(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, An
 
             def actie(pad: str = pad, staat: dict[str, Any] = staat) -> dict[str, Any]:
                 staat["voor"] = {p.name for p in sessie.s.transcodelogs()}
-                staat["cpu0"] = meetslot.container_cpu_seconden(sessie.s.container_id) or 0.0
+                staat["cpu0"] = meetslot.container_cpu_seconden(sessie.s.container_id)
                 d = sessie.web("chromium", [pad], "speel", orakelMs=15000, duurMs=20000)
-                staat["cpu1"] = meetslot.container_cpu_seconden(sessie.s.container_id) or 0.0
+                staat["cpu1"] = meetslot.container_cpu_seconden(sessie.s.container_id)
                 return d
 
             last, d, ongeldig = geldige_run(systeem, r, [sessie.s.container_id], actie)
+            if staat["cpu0"] is None or staat["cpu1"] is None:
+                raise RuntimeError(f"CPU-tijd van de testcontainer ontbreekt voor {systeem}, {sleutel}, run {r}")
             cpu = staat["cpu1"] - staat["cpu0"]
             nieuw = [p for p in sessie.s.transcodelogs() if p.name not in staat["voor"]]
             info = _lees_transcodelog(nieuw[-1]) if nieuw else {"log": None}
             item = d["items"][0]
             media_s = info.get("media_s") or 0.0
+            if not media_s or not info.get("snelheid_x") or item.get("eerste_frame_ms") is None:
+                raise RuntimeError(f"onvolledige transcodemeting voor {systeem}, {sleutel}, run {r}")
+            if systeem == "stock-best" and info.get("video_encoder") != "h264_qsv":
+                raise RuntimeError(f"stock-best gebruikte geen QSV voor {sleutel}, run {r}")
             rec = _run_record(last, ongeldige_pogingen=ongeldig, eerste_frame_ms=item.get("eerste_frame_ms"),
                               orakel_ok=item.get("orakel_ok"), besluit=item.get("besluit"), redenen=item.get("redenen"),
                               container_cpu_s=round(cpu, 2), cpu_s_per_media_s=round(cpu / media_s, 3) if media_s else None,
@@ -307,7 +313,7 @@ def meet_transcode(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, An
                 continue
             iv = statistiek.t_interval(waarden)
             metingen.append(bewijs.metriek(
-                id=f"F5-K6-transcode-{sleutel}-{label}", functie="F5", systeem=systeem, soort="continu", image=STOCK_IMAGE,
+                id=f"F5-K6-transcode-{sleutel}-{label}", functie="F5", systeem=systeem, soort="continu", image=sessie.s.image,
                 seed=None, eenheid=eenheid,
                 omschrijving=f"{sleutel} → H.264 SDR in een echte Chromium-websessie (VideoCodecNotSupported), {label}",
                 methode="Chromium 153 speelt 20 s via de UI; snelheid en mediatijd uit het FFmpeg.Transcode-log van de server, "
@@ -367,9 +373,8 @@ def meet_functies(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any
     per: dict[str, list[dict[str, Any]]] = {}
     for r, systeem in meetslot.ab_volgorde(["stock-standaard", "stock-best"], runs):
         sessie.systeem(systeem)
-        with meetslot.run(systeem, r, [sessie.s.container_id]) as last:
-            uit = _functies_een_run(sessie)
-        per.setdefault(systeem, []).append(_run_record(last, **uit))
+        last, uit, ongeldig = geldige_run(systeem, r, [sessie.s.container_id], lambda: _functies_een_run(sessie))
+        per.setdefault(systeem, []).append(_run_record(last, ongeldige_pogingen=ongeldig, **uit))
     (uitmap / "functies-runs.json").write_text(json.dumps(per, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     metingen = []
     for systeem, rs in per.items():
@@ -381,7 +386,7 @@ def meet_functies(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any
         n_seg = len(e["segmenten"])
         k_seg = sum(1 for v in e["segmenten"].values() if v > 0)
         metingen.append(bewijs.metriek(
-            id="F6-a-mediasegments", functie="F6", systeem=systeem, soort="proportie", image=STOCK_IMAGE, seed=None,
+            id="F6-a-mediasegments", functie="F6", systeem=systeem, soort="proportie", image=sessie.s.image, seed=None,
             omschrijving="afleveringen met bekende intro/recap/aftiteling/OP/ED waarvoor stock ≥ 1 MediaSegment publiceert",
             methode="GET /MediaSegments/{itemId} voor 8 synthetische afleveringen (devset) en 6 echte Pioneer One-afleveringen",
             runs=rs, n=n_seg, interval=statistiek.wilson(k_seg, n_seg), gate=statistiek.gate_label(n_seg, 30),
@@ -391,7 +396,7 @@ def meet_functies(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any
         n_ot = len(e["ondertitels_nld"])
         k_ot = sum(1 for v in e["ondertitels_nld"].values() if v > 0)
         metingen.append(bewijs.metriek(
-            id="F3-a-ondertitels-nld-zoeken", functie="F3", systeem=systeem, soort="proportie", image=STOCK_IMAGE, seed=None,
+            id="F3-a-ondertitels-nld-zoeken", functie="F3", systeem=systeem, soort="proportie", image=sessie.s.image, seed=None,
             omschrijving="films waarvoor stock NL-ondertitels vindt (RemoteSearch, geen provider geïnstalleerd)",
             methode="GET /Items/{id}/RemoteSearch/Subtitles/nld", runs=rs, n=n_ot, interval=statistiek.wilson(k_ot, n_ot),
             gate=statistiek.gate_label(n_ot, 20), waarde={"k": k_ot, "per_item": e["ondertitels_nld"],
@@ -401,7 +406,7 @@ def meet_functies(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any
         n_q = len([v for v in e["kwaliteit"].values() if not v.get("ontbreekt")])
         k_q = sum(1 for v in e["kwaliteit"].values() if v.get("gemeld"))
         metingen.append(bewijs.metriek(
-            id="F4-a-kwaliteitsmeldingen", functie="F4", systeem=systeem, soort="proportie", image=STOCK_IMAGE, seed=None,
+            id="F4-a-kwaliteitsmeldingen", functie="F4", systeem=systeem, soort="proportie", image=sessie.s.image, seed=None,
             omschrijving="bekende kwaliteitsfouten die stock meldt (activiteitslog Warning/Error over het item)",
             methode="na de scan: GET /System/ActivityLog/Entries; plus waarnemingen per item (runtime, audiosporen, VideoRangeType)",
             runs=rs, n=n_q, interval=statistiek.wilson(k_q, n_q), gate=statistiek.gate_label(n_q, 20),
@@ -409,7 +414,7 @@ def meet_functies(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any
                     "herhalingen_k": herhaald("kwaliteit", lambda v: sum(1 for x in v.values() if x.get("gemeld")))},
             eenheid="aandeel gevallen", opmerking="R-QC-dev-gevallen (voormeting); de gate rust op T-QC uit de corpusgenerator"))
         metingen.append(bewijs.metriek(
-            id="F2-a-koude-start", functie="F2", systeem=systeem, soort="telling", image=STOCK_IMAGE, seed=None,
+            id="F2-a-koude-start", functie="F2", systeem=systeem, soort="telling", image=sessie.s.image, seed=None,
             omschrijving="aanbevelingen zonder kijkgeschiedenis (koude start) en 'vergelijkbaar' voor de echte serie",
             methode="GET /Movies/Recommendations, /Items/Suggestions, /Items/{serie}/Similar, /Items/{Sintel}/Similar (admin, lege historie)",
             runs=rs, n=1, interval=None, waarde=e["aanbevelingen"] | {"herhalingen": [x["aanbevelingen"] for x in rs[1:]]},
@@ -442,7 +447,7 @@ def voeg_herhaalsessie_toe(document: dict[str, Any], nieuw: list[dict[str, Any]]
     for n in nieuw:
         oud = index.get((n["id"], n["systeem"]))
         if not oud:
-            continue
+            raise ValueError(f"eerste meting ontbreekt voor {n['id']} ({n['systeem']})")
         w, nw = oud["waarde"], n["waarde"]
         if oud["soort"] == "continu" and nw.get("waarden"):
             vi = w.get("voorspellingsinterval") or statistiek.voorspellingsinterval([float(x) for x in w["waarden"]]).als_dict()
@@ -451,11 +456,13 @@ def voeg_herhaalsessie_toe(document: dict[str, Any], nieuw: list[dict[str, Any]]
                                   "binnen_voorspellingsinterval": binnen, **sessie}
         elif oud["soort"] == "proportie" and oud.get("interval"):
             k = nw.get("k", nw.get("k_dp_effectief"))
-            binnen = oud["interval"]["onder"] <= k / n["n"] <= oud["interval"]["boven"]
+            binnen = n["n"] == oud["n"] and all(oud["interval"]["onder"] <= aantal / n["n"] <= oud["interval"]["boven"]
+                                                 for aantal in [k, *nw.get("herhalingen_k", [])])
             w["herhaalsessie"] = {"k": k, "n": n["n"], "binnen_wilson_interval": binnen, "runs": n["runs"], **sessie}
         else:
             w["herhaalsessie"] = {"waarde": nw, "runs": n["runs"], **sessie}
-            binnen = True
+            verwacht = {k: v for k, v in w.items() if k not in ("herhalingen", "herhaalsessie")}
+            binnen = all({k: v for k, v in h.items() if k != "herhalingen"} == verwacht for h in [nw, *nw.get("herhalingen", [])])
         if not binnen:
             afwijkend.append(f"{n['id']} ({n['systeem']})")
     return afwijkend
@@ -486,24 +493,41 @@ def main(argv: list[str] | None = None) -> int:
     begin = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     with meetslot.exclusief_slot(bij_wachten=log) as wacht:
         log(f"meetslot stack.lock verkregen (na {wacht:.0f} s)")
-        server = StockServer("baseline", image=a.image).start()
+        oud = None
+        if a.herhaalsessie or a.aanvullen:
+            if a.uit.exists():
+                oud = json.loads(a.uit.read_text(encoding="utf-8"))
+                if oud["label"] != a.label or oud["images"]["stock"] != a.image:
+                    log("Label of image wijkt af van de eerste meting.")
+                    return 2
+            elif a.herhaalsessie:
+                log("De eerste meting ontbreekt voor de herhaalsessie.")
+                return 2
+        gpu_verplicht = a.label == "definitief-forkbasis" and bool({"transcode", "orakel"}.intersection(metingen_gevraagd))
+        server = StockServer("baseline", image=a.image, gpu_verplicht=gpu_verplicht)
         try:
+            server.start()
             scan_s = server.inrichten()
             log(f"stock {server.info.get('Version')} op {server.url}, scan {scan_s:.0f} s")
             sessie = Sessie(server)
             metingen: list[dict[str, Any]] = []
             fasefouten: dict[str, str] = {}
-            fasen = {"dp": lambda: meet_dp(sessie, a.runs, uitmap), "orakel": lambda: meet_orakel(sessie, uitmap),
+            fasen = {"dp": lambda: meet_dp(sessie, a.runs, uitmap), "orakel": lambda: meet_orakel(sessie, a.runs, uitmap),
                      "transcode": lambda: meet_transcode(sessie, a.runs, uitmap),
                      "functies": lambda: meet_functies(sessie, a.runs, uitmap)}
             for m in metingen_gevraagd:
                 log(f"meting {m} …")
                 try:
                     metingen += fasen[m]()
+                except GeenGeldigeRun as fout:
+                    afwijzing = {"fase": m, "aangevraagd_label": a.label, "image": a.image, "pogingen": fout.pogingen}
+                    (uitmap / "ongeldige-pogingen.json").write_text(json.dumps(afwijzing, indent=2) + "\n", encoding="utf-8")
+                    log(str(fout))
+                    return 1
                 except Exception as fout:  # noqa: BLE001 - een mislukte fase wordt gemeld, de andere metingen blijven staan
                     log(f"meting {m} mislukt: {fout}")
                     fasefouten[m] = str(fout)[:600]
-            repo_digests = docker("image", "inspect", "--format", "{{json .RepoDigests}}", a.image.split("@")[0], check=False).stdout
+            repo_digests = docker("image", "inspect", "--format", "{{json .RepoDigests}}", a.image, check=False).stdout
             lspci = subprocess.run(["lspci"], capture_output=True, text=True, check=False).stdout
             document = {
                 "schema": bewijs.SCHEMA, "label": a.label, "begin": begin, "eind": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -517,18 +541,19 @@ def main(argv: list[str] | None = None) -> int:
                              "systemen": {"stock-standaard": "profielen/stock-standaard.json", "stock-best": "profielen/stock-best.json"},
                              "config_sha256": sessie.config_hash},
                 "metingen": metingen, "fasefouten": fasefouten,
-                "validatie_toelichting": "Sim-getest op de ontwikkelmachine; stock-best-transcodes zijn Intel-iGPU-getest (ontwikkelmachine). "
-                                         "A310/UHD 770, NAS en echte apparaten: NIET GEVALIDEERD.",
+                "validatie_toelichting": "Validatie staat per metriek vermeld. A310/UHD 770, NAS en echte apparaten: NIET GEVALIDEERD.",
             }
-            if a.herhaalsessie and a.uit.exists():
-                oud = json.loads(a.uit.read_text(encoding="utf-8"))
+            if a.label == "definitief-forkbasis" and (fasefouten or not metingen):
+                log("Onvolledige meting. Het harnas schrijft geen definitief baselinebewijs.")
+                return 1
+            afwijkend = []
+            if a.herhaalsessie and oud is not None:
                 afwijkend = voeg_herhaalsessie_toe(oud, metingen, {"begin": begin, "server_scan_s": round(scan_s, 1),
                                                                    "config_sha256": sessie.config_hash})
                 oud.setdefault("herhaalsessies", []).append({"begin": begin, "metingen": metingen_gevraagd,
                                                              "buiten_interval": afwijkend, "fasefouten": fasefouten})
                 document = herbereken(oud)
-            elif a.aanvullen and a.uit.exists():
-                oud = json.loads(a.uit.read_text(encoding="utf-8"))
+            elif a.aanvullen and oud is not None:
                 nieuw = {(m["id"], m["systeem"]) for m in metingen}
                 document["metingen"] = [m for m in oud.get("metingen", []) if (m["id"], m["systeem"]) not in nieuw] + metingen
                 document["fasefouten"] = {**{k: v for k, v in oud.get("fasefouten", {}).items() if k not in metingen_gevraagd},
@@ -537,6 +562,9 @@ def main(argv: list[str] | None = None) -> int:
                 document["protocol"]["config_sha256"] = {**oud.get("protocol", {}).get("config_sha256", {}), **sessie.config_hash}
             bewijs.schrijf(a.uit, herbereken(document))
             log(f"bewijs geschreven: {a.uit}")
+            if afwijkend:
+                log("Herhaalsessie buiten het interval of met afwijkende telling: " + ", ".join(afwijkend))
+                return 1
         finally:
             server.verwijder()
     return 0

@@ -111,3 +111,13 @@ def test_weigert_lege_modulelijst_en_schakelaar_die_uit_blijft():
     api.ruw.return_value = _lijst(("extra", False))
     with pytest.raises(ValueError, match="nog uit"):
         zet_alle_modules_aan(api)
+
+
+def test_ontbrekende_of_lege_databases_leveren_geen_vergelijking(tmp_path: Path):
+    a, b = tmp_path / "a.db", tmp_path / "b.db"
+    with pytest.raises(FileNotFoundError):
+        vergelijk(a, b)
+    a.touch()
+    b.touch()
+    with pytest.raises(ValueError, match="geen tabellen"):
+        vergelijk(a, b)

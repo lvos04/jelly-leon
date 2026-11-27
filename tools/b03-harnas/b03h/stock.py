@@ -68,10 +68,12 @@ def profiel(naam: str) -> dict[str, Any]:
 class StockServer:
     def __init__(self, naam: str, *, image: str = STOCK_IMAGE, gpu: bool = True, corpus: Path = CORPUS,
                  koppelingen: dict[str, str] | None = None, werk: Path = WERK, geheugen: str = "3g",
-                 webdir: Path | None = None, cpus: str | None = None, web_over: Path | None = None) -> None:
+                 webdir: Path | None = None, cpus: str | None = None, web_over: Path | None = None,
+                 gpu_verplicht: bool = False) -> None:
         self.naam = f"b03016-{naam}-{uuid.uuid4().hex}"
         self.image = image
-        self.gpu = gpu and os.path.exists(RENDER)
+        # Bij een verplichte hardwaremeting toetst Docker de rendernode bij het starten van de testserver.
+        self.gpu = gpu_verplicht or (gpu and os.path.exists(RENDER))
         self.corpus = corpus
         self.koppelingen = KOPPELINGEN if koppelingen is None else koppelingen
         self.map = werk / "servers" / naam
@@ -97,7 +99,7 @@ class StockServer:
         for sub in ("config", "cache"):
             (self.map / sub).mkdir(parents=True, exist_ok=True)
         self.poort = vrije_poort()
-        cmd = ["run", "-d", "--name", self.naam, "--user", f"{os.getuid()}:{os.getgid()}", "--memory", self.geheugen,
+        cmd = ["create", "--name", self.naam, "--user", f"{os.getuid()}:{os.getgid()}", "--memory", self.geheugen,
                "--security-opt", "no-new-privileges", "--cap-drop", "ALL", "-p", f"127.0.0.1:{self.poort}:8096",
                "-v", f"{self.map / 'config'}:/config", "-v", f"{self.map / 'cache'}:/cache", "-e", "TZ=UTC"]
         if self.cpus:
@@ -119,6 +121,7 @@ class StockServer:
             cmd += ["--webdir", "/stockweb"]
         self.container_id = docker(*cmd).stdout.strip()
         try:
+            docker("start", self.container_id)
             self.info = wacht_klaar(self.url)
             self.jf = Jellyfin(self.url)
         except BaseException:

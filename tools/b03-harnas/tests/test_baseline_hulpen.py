@@ -5,11 +5,13 @@ from __future__ import annotations
 import http.server
 import json
 import threading
+from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from b03h import baseline, bewijs, legacy, meetslot, rapport, statistiek
+from b03h import baseline, bewijs, legacy, meetslot, rapport, statistiek, stock
 
 LOG = "\n".join([
     '{"Protocol":0,"Id":"x"}',
@@ -34,6 +36,70 @@ def test_transcodelog_lezen(tmp_path: Path):
 def test_a5_set_heeft_25_items_en_extra_set_2():
     assert len(baseline.A5_SET) == 25 and len(set(baseline.A5_SET)) == 25
     assert len(baseline.EXTRA_SET) == 2 and not set(baseline.EXTRA_SET) & set(baseline.A5_SET)
+
+
+@pytest.mark.parametrize("geldig_bij_derde", [True, False])
+def test_drie_pogingen_bij_te_hoge_last(monkeypatch: pytest.MonkeyPatch, geldig_bij_derde: bool):
+    uitslagen = iter([False, False, geldig_bij_derde])
+
+    def meet(systeem, r, containers):
+        geldig = next(uitslagen)
+        return nullcontext(meetslot.RunLast(systeem, r, "t", geldig=geldig, reden="" if geldig else "te hoge last"))
+
+    monkeypatch.setattr(meetslot, "wacht_op_rust", lambda max_wacht: 0)
+    monkeypatch.setattr(meetslot, "run", meet)
+    if geldig_bij_derde:
+        last, waarde, ongeldig = baseline.geldige_run("stock-best", 0, [], lambda: 42)
+        assert last.geldig and waarde == 42
+        assert [p["poging"] for p in ongeldig] == [1, 2]
+    else:
+        with pytest.raises(baseline.GeenGeldigeRun) as fout:
+            baseline.geldige_run("stock-best", 0, [], lambda: 42)
+        assert [p["poging"] for p in fout.value.pogingen] == [1, 2, 3]
+        assert all(p["last"]["reden"] == "te hoge last" for p in fout.value.pogingen)
+
+
+def test_orakel_meet_beide_systemen_drie_keer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    volgorde = []
+    items = [{"naam": Path(p).stem, "besluit": "DirectPlay", "orakel_ok": True} for p in baseline.A5_SET + baseline.EXTRA_SET]
+    sessie = SimpleNamespace(s=SimpleNamespace(container_id="test", image="testimage"), systeem=volgorde.append,
+                             web=lambda *args, **kwargs: {"items": items})
+    monkeypatch.setattr(baseline, "BROWSERS", ["chromium"])
+    monkeypatch.setattr(baseline, "geldige_run", lambda s, r, c, actie: (meetslot.RunLast(s, r, "t"), actie(), []))
+    metingen = baseline.meet_orakel(sessie, 3, tmp_path)
+    assert volgorde == [s for _, s in meetslot.ab_volgorde(["stock-standaard", "stock-best"], 3)]
+    assert [(m["n"], m["runs_geldig"], m["image"]) for m in metingen] == [(25, 3, "testimage")] * 2
+    items.pop(0)
+    with pytest.raises(baseline.WebFout, match="onvolledige afspeelmeting"):
+        baseline.meet_orakel(sessie, 3, tmp_path)
+
+
+def test_herhaalsessie_toetst_ook_laatste_run():
+    m = {"id": "F", "systeem": "stock-best", "soort": "proportie", "n": 10, "waarde": {"k": 5},
+         "interval": {"onder": 0.3, "boven": 0.7}}
+    nieuw = m | {"waarde": {"k": 5, "herhalingen_k": [6, 8]}, "runs": []}
+    assert baseline.voeg_herhaalsessie_toe({"metingen": [m]}, [nieuw], {}) == ["F (stock-best)"]
+    assert m["waarde"]["herhaalsessie"]["binnen_wilson_interval"] is False
+
+
+def test_verplichte_rendernode_en_opruiming_bij_startfout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    opdrachten = []
+
+    def docker(*args, **kwargs):
+        opdrachten.append(args)
+        if args[0] == "start":
+            raise RuntimeError("testapparaat ontbreekt")
+        return SimpleNamespace(stdout="eigen-testcontainer")
+
+    monkeypatch.setattr(stock, "docker", docker)
+    with stock.StockServer("proef", werk=tmp_path, koppelingen={}, gpu_verplicht=True) as server:
+        with pytest.raises(RuntimeError, match="testapparaat ontbreekt"):
+            server.start()
+    aanmaak, start, opruimen = opdrachten
+    assert aanmaak[0] == "create" and aanmaak[aanmaak.index("--device") + 1] == f"{stock.RENDER}:{stock.RENDER}"
+    assert start == ("start", "eigen-testcontainer")
+    assert opruimen == ("rm", "-f", "-v", "eigen-testcontainer")
+    assert not server.map.exists()
 
 
 class _Nep(http.server.BaseHTTPRequestHandler):
