@@ -1,0 +1,361 @@
+{
+  "stap": "S-P40-30",
+  "bronrapport_sha256": "df372b9eed24d6852e76aa8c17a928ad235c5347d4d4c4686a3d5b585f911036",
+  "begin": "2026-11-27T21:15:02Z",
+  "einde": "2026-11-27T21:16:43Z",
+  "modus": "synthetisch",
+  "images": {
+    "emby": "docker.io/emby/embyserver:4.10.2.0@sha256:7082c63b10a2fcb3805a7eaebba407d5723bc57c085c9f0b29b7d0a702765cc1",
+    "jellyfin": "jelly-leon:lokaal-48293b48a"
+  },
+  "servers": {
+    "emby": {
+      "versie": "4.10.2.0"
+    },
+    "jellyfin": {
+      "versie": "12.4.0",
+      "product": "Jellyfin Server"
+    }
+  },
+  "jelly_leon_image_id": "sha256:09c2bb379cf09e0895a794dcf4979b3171d015d942dda67a67ad42231f43741b",
+  "jelly_leon_revisie": "48293b48ac48644e0d4433cf3193a96fbf35eac4",
+  "samenvatting": {
+    "controles": 61,
+    "geslaagd": 61,
+    "mislukt": 0
+  },
+  "per_test": {
+    "JLT-70": "Sim-geslaagd (24/24)",
+    "JLT-71": "Sim-geslaagd (11/11)",
+    "JLT-72": "Sim-geslaagd (7/7)",
+    "JLT-73": "Sim-geslaagd (19/19)"
+  },
+  "gebruikers_met_kijkgegevens": 5,
+  "eerste_overzetting": {
+    "schrijfacties_tool": 43,
+    "totaal": {
+      "gezien": {
+        "emby": 25,
+        "gekoppeld": 21,
+        "gelijk": 21,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 4
+      },
+      "hervatpunten": {
+        "emby": 7,
+        "gekoppeld": 7,
+        "gelijk": 7,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 0
+      },
+      "favorieten": {
+        "emby": 6,
+        "gekoppeld": 5,
+        "gelijk": 5,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 1
+      },
+      "beoordelingen": {
+        "emby": 0,
+        "gekoppeld": 0,
+        "gelijk": 0,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 0
+      },
+      "spoorkeuzes": {
+        "emby": 33,
+        "gekoppeld": 28,
+        "gelijk": 25,
+        "jelly_leon_nieuwer": 0,
+        "afhandellijst": 8
+      }
+    }
+  },
+  "verkeer_op_meetpunt_proefrun": {
+    "emby": {
+      "verzoeken": 828,
+      "methodes": {
+        "GET": 828
+      }
+    },
+    "jelly_leon": {
+      "GET": 440,
+      "POST": 51
+    }
+  },
+  "volledig_emby_proxylog": {
+    "verzoeken": 905,
+    "methodes": {
+      "GET": 905
+    },
+    "sleutel_in_url": 0
+  },
+  "aanvullende_controles": {
+    "bronexports_rond_afbreken_en_hervatten": 4,
+    "gebruikers": 5,
+    "verschillen": 0,
+    "uitvoerbestanden_gecontroleerd_op_emby_sleutel": 105,
+    "treffers": 0
+  },
+  "vergelijking_stock_12_4": "p40-qa/ci-42762467348-b03-015-proefrun-synthetisch.json",
+  "mediaguard_contract": {
+    "datum": "2026-11-27",
+    "repo": "media-guard-ultimate",
+    "bestand": "tests/contract/mediaserver/RESULTS.md",
+    "commit": "5dd90a3f265e70155e8c50acdc18ab7a0a631e11",
+    "kandidaat_image_id": "sha256:d2f6eb2db4e52c4349ddee10231eb2105211651f06174365b00f05650d2082d1",
+    "jelly_leon_image": "jelly-leon:lokaal-48293b48a",
+    "tests_per_serverimage": 25,
+    "controles_per_serverimage": 125,
+    "kijksessies": "Nagebootst via de sessie-API."
+  },
+  "geselecteerde_controles_overnameproef": [
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: inventaris",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: export vóór",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: proefrun 1",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: overzetting 1",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "exportarchief vóór en na de overzetting inhoudelijk identiek (vergelijk-export)",
+      "ok": true
+    },
+    {
+      "test": "JLT-70",
+      "naam": "gezien (datum, aantal), hervatpunten (ticks exact), favorieten: 100 % van de koppelbare items",
+      "ok": true,
+      "detail": {
+        "stats": {
+          "exact_overgezet": 31,
+          "afhandellijst": 5
+        },
+        "emby_items_met_kijkgegevens": 36,
+        "fouten": []
+      }
+    },
+    {
+      "test": "JLT-72",
+      "naam": "0 stil weggelaten: overgezet + afhandellijst = alle Emby-items met kijkgegevens",
+      "ok": true,
+      "detail": {
+        "som": 36,
+        "totaal": 36
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: proefrun 2",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: overzetting 2",
+      "ok": true
+    },
+    {
+      "test": "JLT-71",
+      "naam": "tweede run: 0 schrijfacties naar Jelly Leon (proxy) en 0 gepland",
+      "ok": true,
+      "detail": {
+        "proxy": 0,
+        "tool": 0,
+        "gepland": 0
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "tweede run: inhoudelijk identiek rapport (inhoud-sha256)",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: proefrun delta",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: overzetting delta",
+      "ok": true
+    },
+    {
+      "test": "JLT-71",
+      "naam": "delta-run neemt precies de Emby-wijzigingen over (3 schrijfacties)",
+      "ok": true,
+      "detail": {
+        "verwacht": 3,
+        "geschreven": 3
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "gezien (datum, aantal), hervatpunten (ticks exact), favorieten: 100 % van de koppelbare items",
+      "ok": true,
+      "detail": {
+        "stats": {
+          "exact_overgezet": 31,
+          "afhandellijst": 5,
+          "uitzondering_jl_nieuwer": 1
+        },
+        "emby_items_met_kijkgegevens": 37,
+        "fouten": []
+      }
+    },
+    {
+      "test": "JLT-72",
+      "naam": "0 stil weggelaten: overgezet + afhandellijst = alle Emby-items met kijkgegevens",
+      "ok": true,
+      "detail": {
+        "som": 37,
+        "totaal": 37
+      }
+    },
+    {
+      "test": "JLT-71",
+      "naam": "hervatten: elke schrijfactie precies één keer (geen dubbele), samen het hele plan",
+      "ok": true
+    },
+    {
+      "test": "JLT-71",
+      "naam": "gezien (datum, aantal), hervatpunten (ticks exact), favorieten: 100 % van de koppelbare items na kill en hervatten",
+      "ok": true,
+      "detail": {
+        "stats": {
+          "exact_overgezet": 34,
+          "afhandellijst": 5,
+          "uitzondering_jl_nieuwer": 1
+        },
+        "emby_items_met_kijkgegevens": 40,
+        "fouten": []
+      }
+    },
+    {
+      "test": "JLT-72",
+      "naam": "0 stil weggelaten: overgezet + afhandellijst = alle Emby-items met kijkgegevens na kill en hervatten",
+      "ok": true,
+      "detail": {
+        "som": 40,
+        "totaal": 40
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: verkeerd doel (Jelly Leon-adres wijst naar Emby)",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "verkeerd doel (Jelly Leon-adres wijst naar Emby): proefrun en overzetten geweigerd (exit 9), alleen GET /System/Info/Public zonder sleutel, 0 niet-GET",
+      "ok": true,
+      "exitcodes": [
+        9,
+        9
+      ],
+      "verzoeken": [
+        [
+          "GET",
+          "/System/Info/Public",
+          200
+        ],
+        [
+          "GET",
+          "/System/Info/Public",
+          200
+        ]
+      ]
+    },
+    {
+      "test": "JLT-73",
+      "naam": "Emby-kijkgegevens per gebruiker identiek vóór en na: testhaak schrijfpoging",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "opzettelijke POST/DELETE vanuit de tool geweigerd vóór het netwerk",
+      "ok": true,
+      "pogingen": [
+        {
+          "methode": "POST",
+          "geweigerd": true
+        },
+        {
+          "methode": "DELETE",
+          "geweigerd": true
+        },
+        {
+          "methode": "POST",
+          "geweigerd": true
+        },
+        {
+          "methode": "GET",
+          "geweigerd": true
+        }
+      ]
+    },
+    {
+      "test": "JLT-73",
+      "naam": "0 verzoeken anders dan GET naar Emby (loggende proxy, alle runs)",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "alleen routes van de witte lijst",
+      "ok": true
+    },
+    {
+      "test": "JLT-73",
+      "naam": "geen sleutel in een URL",
+      "ok": true
+    },
+    {
+      "test": "JLT-70",
+      "naam": "webclient in chromium: hervat op het overgezette hervatpunt (eerste PositionTicks binnen 3 s)",
+      "ok": true,
+      "detail": {
+        "verwacht": 222276007,
+        "eerste": 222276000
+      }
+    },
+    {
+      "test": "JLT-73",
+      "naam": "geen API-sleutel in logs, rapporten, exports of proxylogs",
+      "ok": true
+    },
+    {
+      "test": "JLT-70",
+      "naam": "gezien (datum, aantal), hervatpunten (ticks exact), favorieten: 100 % van de koppelbare items herimport uit archief",
+      "ok": true,
+      "detail": {
+        "stats": {
+          "exact_overgezet": 35,
+          "afhandellijst": 5
+        },
+        "emby_items_met_kijkgegevens": 40,
+        "fouten": []
+      }
+    },
+    {
+      "test": "JLT-72",
+      "naam": "0 stil weggelaten: overgezet + afhandellijst = alle Emby-items met kijkgegevens herimport uit archief",
+      "ok": true,
+      "detail": {
+        "som": 40,
+        "totaal": 40
+      }
+    }
+  ]
+}

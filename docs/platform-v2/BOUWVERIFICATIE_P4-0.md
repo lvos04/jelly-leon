@@ -128,6 +128,26 @@ JLT-70 21/21, JLT-71 11/11, JLT-72 7/7, JLT-73 17/17) met de echte `emby/embyser
 Emby, Emby-kijkgegevens vóór en na identiek, herimport exact. Bewijs:
 `test-evidence/p40/b03-015-proefrun-corpus-jelly-leon-12.4.json`; testset en containers daarna opgeruimd (BG-38).
 
+### Overnameproef op 27 november 2026
+
+Met synthetische media, vijf testgebruikers, de lokale Emby-testcontainer 4.10.2.0 en
+`jelly-leon:lokaal-48293b48a` doorliep de overnametool **61 van 61 controles**. De verdeling per testrij
+was gelijk aan die van de synthetische stockproef op 12.4. [Stockreferentie](test-evidence/p40-qa/ci-42762467348-b03-015-proefrun-synthetisch.json).
+
+| Testrij | Controles | Uitkomst |
+|---|---:|---|
+| JLT-70 | 24/24 | De eerste overzetting nam 31 koppelbare items exact over. Bij hervatten in Chromium week de eerste gemeten afspeelpositie 7 ticks af van het overgezette hervatpunt (marge 3 seconden). |
+| JLT-71 | 11/11 | De tweede run schreef 0 keer en gaf inhoudelijk hetzelfde rapport. De delta schreef 3 keer. Bij hervatten na de onderbreking werd elke geplande wijziging eenmaal uitgevoerd. |
+| JLT-72 | 7/7 | Van de 36 items met kijkgegevens bij de eerste overzetting stonden er vijf met reden op de afhandellijst. De herimport verantwoordde alle 40 items uit de laatste teststand. |
+| JLT-73 | 19/19 | De testhaak weigerde POST en DELETE vóór het netwerk. Met Emby als doel stopten de proefrun en de overzetting beide met exitcode 9. De proxy zag daarbij alleen de twee openbare GET-verzoeken. |
+
+Op hetzelfde meetpunt als bij stock telde de proxy 828 GET-verzoeken naar Emby. Inclusief de laatste export
+bevatte het volledige proxylog **905 GET-verzoeken**, allemaal op toegestane routes. De vijf gebruikers hadden
+bij tien vergelijkingen dezelfde kijkgegevens vóór en na. Ook vier bronexports rond afbreken en hervatten
+gaven nul verschillen. De tijdelijke Emby-sleutel kwam in geen van de 105 bewaarde uitvoerbestanden voor.
+De kijkpauze van de MediaGuard-kandidaat is afzonderlijk gemeten in de contractproef hieronder.
+[Samenvattend bewijs S-P40-30](test-evidence/jlt-73-2026-11-27-jelly-leon-lokaal-48293b48a.json).
+
 ### MediaGuard-kandidaat op 27 november 2026
 
 Dezelfde MediaGuard-kandidaat uit kernrevisie `88f734f8` doorliep met stock Jellyfin 12.4 en met
