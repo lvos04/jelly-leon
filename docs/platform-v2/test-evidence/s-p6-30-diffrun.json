@@ -1,0 +1,367 @@
+{
+  "stap": "S-P6-30",
+  "proef": "JLT-65, vergelijking van de stockdatabase met de fork",
+  "image": "jelly-leon:p6",
+  "image_id": "sha256:87a5e00d59597f60ab37a1822bf9f84d8394048845e85a7152d0c8a7f5594417",
+  "stock_image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "commando": "python -m b03h diffrun --image-a \"$JL_RUNTIME_IMAGE\" --image-b jelly-leon:p6 --toegestaan tools/b03-harnas/toegestaan-modules.json --alle-modules --uit \"$RAPPORT\"",
+  "extra_optie_negatieve_proef": "--negatieve-proef",
+  "metingen": [
+    {
+      "negatieve_proef": false,
+      "begin": "2026-11-27T21:13:31Z",
+      "scenario": {
+        "a": {
+          "handelingen": 14,
+          "items": 17,
+          "gebruikers": 1
+        },
+        "b": {
+          "handelingen": 14,
+          "items": 17,
+          "gebruikers": 1,
+          "actieve_modules": [
+            "devices",
+            "quality"
+          ]
+        }
+      },
+      "aanvullende_uitzonderingen": {},
+      "verschillen_buiten_uitzonderingen": 0,
+      "afwijkingen_per_tabel": {},
+      "rijen_stock_en_fork_per_tabel": {
+        "AccessSchedules": [
+          0,
+          0
+        ],
+        "ActivityLogs": [
+          7,
+          7
+        ],
+        "AncestorIds": [
+          105,
+          105
+        ],
+        "ApiKeys": [
+          0,
+          0
+        ],
+        "AttachmentStreamInfos": [
+          0,
+          0
+        ],
+        "BaseItemImageInfos": [
+          0,
+          0
+        ],
+        "BaseItemMetadataFields": [
+          0,
+          0
+        ],
+        "BaseItemProviders": [
+          0,
+          0
+        ],
+        "BaseItemTrailerTypes": [
+          0,
+          0
+        ],
+        "BaseItems": [
+          33,
+          33
+        ],
+        "Chapters": [
+          23,
+          23
+        ],
+        "CustomItemDisplayPreferences": [
+          0,
+          0
+        ],
+        "DeviceOptions": [
+          0,
+          0
+        ],
+        "Devices": [
+          1,
+          1
+        ],
+        "DisplayPreferences": [
+          0,
+          0
+        ],
+        "HomeSection": [
+          0,
+          0
+        ],
+        "ImageInfos": [
+          0,
+          0
+        ],
+        "ItemDisplayPreferences": [
+          0,
+          0
+        ],
+        "ItemValues": [
+          1,
+          1
+        ],
+        "ItemValuesMap": [
+          3,
+          3
+        ],
+        "KeyframeData": [
+          0,
+          0
+        ],
+        "LinkedChildren": [
+          0,
+          0
+        ],
+        "MediaSegments": [
+          0,
+          0
+        ],
+        "MediaStreamInfos": [
+          38,
+          38
+        ],
+        "PeopleBaseItemMap": [
+          0,
+          0
+        ],
+        "Peoples": [
+          0,
+          0
+        ],
+        "Permissions": [
+          24,
+          24
+        ],
+        "Preferences": [
+          13,
+          13
+        ],
+        "TrickplayInfos": [
+          0,
+          0
+        ],
+        "UserData": [
+          17,
+          17
+        ],
+        "Users": [
+          1,
+          1
+        ],
+        "__EFMigrationsHistory": [
+          105,
+          105
+        ],
+        "__EFMigrationsLock": [
+          0,
+          0
+        ]
+      },
+      "geraakte_vaste_uitzonderingen": {
+        "ActivityLogs": [
+          "DateCreated"
+        ],
+        "Devices": [
+          "AccessToken",
+          "DateCreated",
+          "DateModified",
+          "DateLastActivity"
+        ],
+        "UserData": [
+          "LastPlayedDate"
+        ],
+        "Users": [
+          "LastActivityDate",
+          "LastLoginDate"
+        ]
+      },
+      "exitcode": 0,
+      "slotregel": "0 verschillen buiten de vaste uitzonderingen"
+    },
+    {
+      "negatieve_proef": true,
+      "begin": "2026-11-27T21:15:06Z",
+      "scenario": {
+        "a": {
+          "handelingen": 14,
+          "items": 17,
+          "gebruikers": 1
+        },
+        "b": {
+          "handelingen": 15,
+          "items": 17,
+          "gebruikers": 1,
+          "actieve_modules": [
+            "devices",
+            "quality"
+          ]
+        }
+      },
+      "aanvullende_uitzonderingen": {},
+      "verschillen_buiten_uitzonderingen": 2,
+      "afwijkingen_per_tabel": {
+        "UserData": 2
+      },
+      "rijen_stock_en_fork_per_tabel": {
+        "AccessSchedules": [
+          0,
+          0
+        ],
+        "ActivityLogs": [
+          7,
+          7
+        ],
+        "AncestorIds": [
+          105,
+          105
+        ],
+        "ApiKeys": [
+          0,
+          0
+        ],
+        "AttachmentStreamInfos": [
+          0,
+          0
+        ],
+        "BaseItemImageInfos": [
+          0,
+          0
+        ],
+        "BaseItemMetadataFields": [
+          0,
+          0
+        ],
+        "BaseItemProviders": [
+          0,
+          0
+        ],
+        "BaseItemTrailerTypes": [
+          0,
+          0
+        ],
+        "BaseItems": [
+          33,
+          33
+        ],
+        "Chapters": [
+          23,
+          23
+        ],
+        "CustomItemDisplayPreferences": [
+          0,
+          0
+        ],
+        "DeviceOptions": [
+          0,
+          0
+        ],
+        "Devices": [
+          1,
+          1
+        ],
+        "DisplayPreferences": [
+          0,
+          0
+        ],
+        "HomeSection": [
+          0,
+          0
+        ],
+        "ImageInfos": [
+          0,
+          0
+        ],
+        "ItemDisplayPreferences": [
+          0,
+          0
+        ],
+        "ItemValues": [
+          1,
+          1
+        ],
+        "ItemValuesMap": [
+          3,
+          3
+        ],
+        "KeyframeData": [
+          0,
+          0
+        ],
+        "LinkedChildren": [
+          0,
+          0
+        ],
+        "MediaSegments": [
+          0,
+          0
+        ],
+        "MediaStreamInfos": [
+          38,
+          38
+        ],
+        "PeopleBaseItemMap": [
+          0,
+          0
+        ],
+        "Peoples": [
+          0,
+          0
+        ],
+        "Permissions": [
+          24,
+          24
+        ],
+        "Preferences": [
+          13,
+          13
+        ],
+        "TrickplayInfos": [
+          0,
+          0
+        ],
+        "UserData": [
+          17,
+          17
+        ],
+        "Users": [
+          1,
+          1
+        ],
+        "__EFMigrationsHistory": [
+          105,
+          105
+        ],
+        "__EFMigrationsLock": [
+          0,
+          0
+        ]
+      },
+      "geraakte_vaste_uitzonderingen": {
+        "ActivityLogs": [
+          "DateCreated"
+        ],
+        "Devices": [
+          "AccessToken",
+          "DateCreated",
+          "DateModified",
+          "DateLastActivity"
+        ],
+        "UserData": [
+          "LastPlayedDate"
+        ],
+        "Users": [
+          "LastActivityDate",
+          "LastLoginDate"
+        ]
+      },
+      "exitcode": 1,
+      "slotregel": "2 verschillen buiten de uitzonderingen"
+    }
+  ]
+}
