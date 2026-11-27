@@ -18,15 +18,18 @@ UA = {
 
 
 class WebFout(RuntimeError):
-    pass
+    pogingen: int = 0
 
 
 def harnas(opdracht: str, cfg: dict[str, Any], timeout: float = 1800, pogingen: int = 2) -> dict[str, Any]:
     """Draait het Playwright-harnas; een fout vóór het eerste item (inloggen) wordt één keer opnieuw geprobeerd."""
     for poging in range(pogingen):
         try:
-            return _harnas(opdracht, cfg, timeout)
-        except WebFout:
+            resultaat = _harnas(opdracht, cfg, timeout)
+            resultaat["harnaspogingen"] = poging + 1
+            return resultaat
+        except WebFout as fout:
+            fout.pogingen = poging + 1
             if poging == pogingen - 1:
                 raise
     raise AssertionError("onbereikbaar")

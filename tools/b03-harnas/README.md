@@ -36,6 +36,23 @@ Regels (bouwplan §10.13–§10.15, analyse 5 §7):
 - Tests: `python -m pytest -q tools/b03-harnas/tests` (synthetisch mini-corpus met de host-ffmpeg; geen netwerk);
   lint: `ruff check --config tools/b03-harnas/ruff.toml tools/b03-harnas`.
 
+## JLT-63 — clientvergelijking voor de eindimage
+
+Gebruik hetzelfde testcorpus en draai beide matrices op dezelfde dag. Zet `B03_WERK` en `TMPDIR` op eigen
+werkmappen en `B03_LOCK_DIR` op de map met de gedeelde meetsloten. De matrix neemt zelf het meetslot.
+
+```bash
+export PYTHONPATH=tools/b03-harnas
+python -m b03h clientmatrix --uit "$WERK/stock.json"
+python -m b03h clientmatrix --image jelly-leon:p6 --alle-modules --uit "$WERK/p6.json"
+python -m b03h.matrixvergelijk "$WERK/stock.json" "$WERK/p6.json" --uit "$WERK/vergelijking.json"
+```
+
+Elke proefserver meldt welke modules aanstaan. Het harnas leest hun stand terug na de laatste client, ook op de
+server met de los gekoppelde stock-webclient. De vergelijking geeft exitcode 1 bij een gemeten regressie en 2
+bij ontbrekende metingen of een onbruikbaar rapport. Een browsercrash en een ontbrekende emulator blijven per
+client zichtbaar. Een volledige meting zonder regressies geeft exitcode 0.
+
 ## JLT-40 — meetcommando winstmeting apparaatprofielen
 
 Voer de opdrachten uit vanuit de repo. Zet `B03_CORPUS` op het lokale testcorpus, `B03_WERK`, `TMPDIR` en

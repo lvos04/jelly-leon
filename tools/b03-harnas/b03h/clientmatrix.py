@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,9 +20,10 @@ from typing import Any
 
 from . import legacy, meetslot
 from .android import APKS, AVDS, Emulator, haal_apks, maak_avd
+from .diffrun import modulelijst, zet_alle_modules_aan
 from .jfapi import Jellyfin
 from .stock import GEBRUIKER, STOCK_IMAGE, WACHTWOORD, WERK, StockServer, docker
-from .web import UA, harnas
+from .web import UA, WebFout, harnas
 
 REPO = Path(__file__).resolve().parents[3]
 HERO = "/media/movies/hero/hero.mp4"
@@ -47,10 +49,18 @@ def _web(server: StockServer, browser: str, label: str, ua: str | None = None, s
         cfg["ua"] = ua
     if scherm:
         cfg["schermMap"] = str(scherm)
-    d = harnas("profiel" if ua else "speel", cfg)
+    try:
+        d = harnas("profiel" if ua else "speel", cfg)
+    except (WebFout, subprocess.TimeoutExpired) as fout:
+        # Browseruitvoer kan een aanmeld-URL bevatten. Bewaar alleen de foutsoort.
+        reden = "browserpagina gecrasht" if "Page crashed" in str(fout) else type(fout).__name__
+        return {"browser": browser, "orakel_ok": None, "fout": reden, "aantal_pogingen": getattr(fout, "pogingen", 1)}
+    if not d.get("items"):
+        return {"browser": browser, "orakel_ok": None, "fout": "geen itemmeting", "aantal_pogingen": d["harnaspogingen"]}
     item = d["items"][0]
     profiel = d.get("deviceProfile") or {}
-    return {"browser": f"{browser} {d.get('versie')}", "ua": (d.get("ua_effectief") or "")[:120], "besluit": item.get("besluit"),
+    return {"browser": f"{browser} {d.get('versie')}", "aantal_pogingen": d["harnaspogingen"],
+            "ua": (d.get("ua_effectief") or "")[:120], "besluit": item.get("besluit"),
             "orakel_ok": item.get("orakel_ok"), "eerste_frame_ms": item.get("eerste_frame_ms"),
             "tijd_tot_2s_ms": item.get("tijd_tot_2s_ms"), "audio_gedecodeerd": item.get("audio_gedecodeerd"),
             "laatste_stand": item.get("laatste"), "orakel_reden": item.get("orakel_reden"),
@@ -227,6 +237,9 @@ def _android_poging(server: StockServer, soort: str, apks: dict[str, Path], uitm
 def android_rooktest(server: StockServer, soort: str, uitmap: Path) -> dict[str, Any]:
     """Eerst binnen de plan-limiet van 4 GiB; wordt de emulator daar door de OOM-killer gestopt, dan één keer met 5 GiB
     (afwijking van het plan, met beide pogingen in het bewijs)."""
+    if not Path("/dev/kvm").exists():
+        return {"client": f"Android-{soort}-emulator", "rol": "officiële app in emulator", "status": "Geblokkeerd",
+                "reden": "/dev/kvm ontbreekt", "pogingen": []}
     apks = haal_apks()
     a = AVDS[soort]
     resultaat: dict[str, Any] = {"client": f"officiële {'jellyfin-android 2.7.3' if a['app'] == 'android' else 'jellyfin-androidtv 0.19.10'}"
@@ -254,6 +267,14 @@ def android_rooktest(server: StockServer, soort: str, uitmap: Path) -> dict[str,
 
 # --- hoofdprogramma -----------------------------------------------------------------------------------------------
 
+def controleer_modules(server: StockServer, verwacht: list[str]) -> None:
+    if verwacht:
+        assert server.jf
+        standen, _ = modulelijst(server.jf.a)
+        if standen != dict.fromkeys(verwacht, True):
+            raise ValueError("De actieve modules zijn tijdens de clientmatrix veranderd.")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="b03h clientmatrix")
     p.add_argument("--onderdelen", default="web,ua,webdir,legacy,telefoon,tablet,tv,tv36")
@@ -261,34 +282,49 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--aanvullen", action="store_true", help="clients toevoegen aan een bestaand bewijs (zelfde client vervangen)")
     p.add_argument("--image", default=STOCK_IMAGE,
                    help="server: stock 12.x op digest (standaard) of de jelly-leon-image (JLT-63-rooktest, B03-019)")
+    p.add_argument("--alle-modules", action="store_true", help="schakel op elke proefserver alle gemelde modules in en lees hun stand terug")
     a = p.parse_args(argv)
     a.uit = a.uit.resolve()  # het harnas (Playwright) draait in een andere map; een relatief pad kwam daar terecht
     jelly_leon = a.image != STOCK_IMAGE
+    if a.alle_modules and not jelly_leon:
+        p.error("--alle-modules vereist een serverimage met de plugin")
     webrol = "Jelly Leon-webclient (ingebouwd in de jelly-leon-image)" if jelly_leon else "stock-web (uit de stock-image)"
     delen = a.onderdelen.split(",")
+    if set(delen) - {"web", "ua", "webdir", "legacy", *AVDS}:
+        p.error("onbekend onderdeel")
     uitmap = a.uit.with_suffix("")
     uitmap.mkdir(parents=True, exist_ok=True)
     clients: list[dict[str, Any]] = []
+    modulemetingen: dict[str, list[str]] = {}
+    oud = {}
+    if a.aanvullen and a.uit.exists():
+        oud = json.loads(a.uit.read_text(encoding="utf-8"))
+        if oud.get("server") != a.image or oud.get("alle_modules", False) != a.alle_modules:
+            p.error("aanvullen vereist dezelfde server en module-instelling")
     legacy_afwijkingen: list[str] = []
     begin = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     koppelingen = {"/media/movies/hero": "bron/blender/hero", "/media/movies/sintel": "bron/blender/sintel"}
     with meetslot.exclusief_slot(bij_wachten=log):
         server = StockServer("clientmatrix", image=a.image, koppelingen=koppelingen).start()
         try:
+            image_id = server.digest()
+            if not image_id or (oud.get("image_id") and oud["image_id"] != image_id):
+                raise ValueError("De image-ID ontbreekt of is sinds het eerdere rapport veranderd.")
             server.inrichten([("Films", "movies", ["/media/movies"])])
             assert server.jf
+            modules = zet_alle_modules_aan(server.jf.a) if a.alle_modules else []
             server.jf.gebruiker(ANDROID_GEBRUIKER, ANDROID_WACHTWOORD)
             if "web" in delen:
                 for b in ("chromium", "firefox", "webkit"):
                     r = _web(server, b, f"web-{b}", scherm=uitmap)
-                    clients.append({"client": r["browser"] + " (Playwright 1.63, headless)", "rol": webrol,
+                    clients.append({"id": f"web-{b}", "client": r["browser"] + " (Playwright 1.63, headless)", "rol": webrol,
                                     **r, "status": "Sim-getest (rooktest geslaagd)" if r["orakel_ok"] else "Sim-mislukt",
                                     "opmerking": "WebKit op Linux is geen Safari" if b == "webkit" else ""})
                     log(f"web {b}: {clients[-1]['status']}")
             if "ua" in delen:
                 for naam, ua in UA.items():
                     r = _web(server, "chromium", f"ua-{naam}", ua=ua, scherm=uitmap)
-                    clients.append({"client": f"{naam} via UA-simulatie (Chromium-engine)", "rol": "Jelly Leon-webclient (profielcode)",
+                    clients.append({"id": f"ua-{naam}", "client": f"{naam} via UA-simulatie (Chromium-engine)", "rol": "webclient (profielcode)",
                                     **r, "status": "Sim-getest (UA-simulatie, geen echte decoder)" if r["orakel_ok"] else "Sim-mislukt",
                                     "opmerking": "alleen de takken in browserDeviceProfile.js; echte tv NIET GEVALIDEERD (hardware)"})
                     log(f"ua {naam}: {clients[-1]['status']}")
@@ -297,7 +333,8 @@ def main(argv: list[str] | None = None) -> int:
                 server.jf.login(GEBRUIKER, WACHTWOORD)
                 statussen = legacy.meet(server.url, server.jf.token, server.jf.admin_id, hero["Id"])
                 legacy_afwijkingen = legacy.afwijkingen(statussen)
-                clients.append({"client": "derden-client met legacy-headers (gesimuleerd: X-Emby-Token, X-MediaBrowser-Token, "
+                clients.append({"id": "legacy", "aantal_pogingen": 1,
+                                "client": "derden-client met legacy-headers (gesimuleerd: X-Emby-Token, X-MediaBrowser-Token, "
                                           "X-Emby-Authorization, api_key)", "rol": "stock-native (derden)",
                                 "status_per_vorm": statussen,
                                 "afwijkingen": legacy_afwijkingen,
@@ -313,9 +350,13 @@ def main(argv: list[str] | None = None) -> int:
                     try:
                         r = android_rooktest(server, soort, uitmap)
                     except Exception as fout:  # noqa: BLE001 - elke emulatorfout wordt eerlijk gerapporteerd
-                        r = {"client": f"Android-{soort}-emulator", "status": "Sim-mislukt", "fout": str(fout)[:800]}
+                        r = {"client": f"Android-{soort}-emulator", "status": "Sim-mislukt", "fout": type(fout).__name__}
+                    r["id"] = soort
                     clients.append(r)
                     log(f"android {soort}: {r['status']} {r.get('afspelen', {}).get('reden', '')}")
+            controleer_modules(server, modules)
+            if modules:
+                modulemetingen["ingebouwde_webclient"] = modules
         finally:
             server.verwijder()
         if "webdir" in delen:
@@ -324,9 +365,16 @@ def main(argv: list[str] | None = None) -> int:
             server = StockServer("clientmatrix-webdir", image=a.image, koppelingen=koppelingen, gpu=False,
                                  webdir=None if jelly_leon else web, web_over=web if jelly_leon else None).start()
             try:
+                if server.digest() != image_id:
+                    raise ValueError("De stock-webclient draait tegen een andere serverimage dan de overige clients.")
                 server.inrichten([("Films", "movies", ["/media/movies"])])
+                assert server.jf
+                modules = zet_alle_modules_aan(server.jf.a) if a.alle_modules else []
                 r = _web(server, "chromium", "webdir-chromium", scherm=uitmap)
-                clients.append({"client": r["browser"] + (" tegen de Jelly Leon-server met de stock-web uit de stock-image"
+                controleer_modules(server, modules)
+                if modules:
+                    modulemetingen["stock_webdir"] = modules
+                clients.append({"id": "webdir", "client": r["browser"] + (" tegen de Jelly Leon-server met de stock-web uit de stock-image"
                                                           if jelly_leon else " tegen een server met --webdir (stock-web uit de stock-image)"),
                                 "rol": "stock-web uit de stock-image" + (" (tegen Jelly Leon)" if jelly_leon else " via --webdir"), **r,
                                 "status": "Sim-getest (rooktest geslaagd)" if r["orakel_ok"] else "Sim-mislukt",
@@ -336,14 +384,16 @@ def main(argv: list[str] | None = None) -> int:
                 server.verwijder()
                 shutil.rmtree(web, ignore_errors=True)
     document = {"schema": "jelly-leon/b03-016-clientmatrix/1", "begin": begin, "eind": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "server": a.image, "testitem": "bron/blender/hero/hero.mp4 (CC BY 4.0)", "clients": clients,
+                "server": a.image, "image_id": image_id, "alle_modules": a.alle_modules, "actieve_modules": modulemetingen,
+                "testitem": "bron/blender/hero/hero.mp4 (CC BY 4.0)", "clients": clients,
                 "desktop": {"client": "jellyfin-desktop 2.0.0 onder Xvfb", "status": "zie b03-016-desktop-spike.json"},
                 "niet_hier": NIET_HIER}
-    if a.aanvullen and a.uit.exists():
-        oud = json.loads(a.uit.read_text(encoding="utf-8"))
-        nieuw = {c["client"] for c in clients}
-        document["clients"] = [c for c in oud.get("clients", []) if c["client"] not in nieuw] + clients
+    if oud:
+        nieuw = {c["id"] for c in clients}
+        namen = {c["client"] for c in clients}
+        document["clients"] = [c for c in oud.get("clients", []) if c.get("id") not in nieuw and c["client"] not in namen] + clients
+        document["actieve_modules"] = {**oud.get("actieve_modules", {}), **modulemetingen}
         document["eerdere_sessies"] = oud.get("eerdere_sessies", []) + [{"begin": oud.get("begin"), "eind": oud.get("eind")}]
     a.uit.write_text(json.dumps(document, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     log(f"clientmatrix geschreven: {a.uit}")
-    return 1 if legacy_afwijkingen else 0
+    return int(any(c["status"] in {"Sim-mislukt", "Geblokkeerd"} for c in document["clients"]))
