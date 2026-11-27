@@ -77,6 +77,28 @@ OVERRIDE = {"Name": "Testfilm (eigen titel)", "OfficialRating": "PG-13", "Tags":
 OVERRIDE_FIELDS = ("Name", "OfficialRating", "Tags", "LockData")
 
 
+def maak_sporenfilm(image: str, target: Path, subs: Path) -> None:
+    """Maakt de synthetische film met twee audio- en twee ondertitelsporen voor de behoudproeven."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    subs.mkdir()
+    (subs / "nl.srt").write_text("1\n00:00:00,000 --> 00:00:02,500\nOndertitel een\n", encoding="utf-8")
+    (subs / "en.srt").write_text("1\n00:00:00,000 --> 00:00:02,500\nSubtitle one\n", encoding="utf-8")
+    # Deterministisch (bitexact) met de ffmpeg uit de opgegeven image; geen netwerk, geen rechten, geen eigen materiaal.
+    docker(
+        "run", "--rm", "--network", "none", "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
+        "--security-opt", "no-new-privileges", "--entrypoint", "/usr/lib/jellyfin-ffmpeg/ffmpeg",
+        "-v", f"{subs}:/in:ro", "-v", f"{target.parent}:/out", image, "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "testsrc=size=160x90:rate=10:duration=4",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=4", "-f", "lavfi", "-i", "sine=frequency=880:duration=4",
+        "-i", "/in/nl.srt", "-i", "/in/en.srt",
+        "-map", "0:v", "-map", "1:a", "-map", "2:a", "-map", "3:s", "-map", "4:s",
+        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-b:a", "32k", "-c:s", "srt",
+        "-metadata:s:a:0", "language=nld", "-metadata:s:a:1", "language=eng",
+        "-metadata:s:s:0", "language=nld", "-metadata:s:s:1", "language=eng",
+        "-fflags", "+bitexact", "-flags:v", "+bitexact", "-flags:a", "+bitexact", f"/out/{target.name}",
+    )
+
+
 def utc_now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -229,26 +251,7 @@ class Proef:
 
     def make_media(self) -> None:
         subprocess.run([sys.executable, str(E2E / "make_test_media.py"), str(self.music)], check=True, capture_output=True)
-        target = self.films / FILM_REL
-        target.parent.mkdir(parents=True, exist_ok=True)
-        subs = self.work / "ondertitelbron"
-        subs.mkdir()
-        (subs / "nl.srt").write_text("1\n00:00:00,000 --> 00:00:02,500\nOndertitel een\n", encoding="utf-8")
-        (subs / "en.srt").write_text("1\n00:00:00,000 --> 00:00:02,500\nSubtitle one\n", encoding="utf-8")
-        # Deterministisch (bitexact) met de ffmpeg uit de oude image; geen netwerk, geen rechten, geen eigen materiaal.
-        docker(
-            "run", "--rm", "--network", "none", "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
-            "--security-opt", "no-new-privileges", "--entrypoint", "/usr/lib/jellyfin-ffmpeg/ffmpeg",
-            "-v", f"{subs}:/in:ro", "-v", f"{target.parent}:/out", OLD_IMAGE, "-hide_banner", "-loglevel", "error",
-            "-f", "lavfi", "-i", "testsrc=size=160x90:rate=10:duration=4",
-            "-f", "lavfi", "-i", "sine=frequency=440:duration=4", "-f", "lavfi", "-i", "sine=frequency=880:duration=4",
-            "-i", "/in/nl.srt", "-i", "/in/en.srt",
-            "-map", "0:v", "-map", "1:a", "-map", "2:a", "-map", "3:s", "-map", "4:s",
-            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-b:a", "32k", "-c:s", "srt",
-            "-metadata:s:a:0", "language=nld", "-metadata:s:a:1", "language=eng",
-            "-metadata:s:s:0", "language=nld", "-metadata:s:s:1", "language=eng",
-            "-fflags", "+bitexact", "-flags:v", "+bitexact", "-flags:a", "+bitexact", f"/out/{target.name}",
-        )
+        maak_sporenfilm(OLD_IMAGE, self.films / FILM_REL, self.work / "ondertitelbron")
 
     def media_hashes(self) -> dict[str, str]:
         return {str(p.relative_to(self.work)): sha256(p) for root in (self.music, self.films)

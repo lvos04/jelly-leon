@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,29 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
 
 import plugin_proef as proef  # noqa: E402
+
+
+def test_zaaien_voegt_hoofdstuk_en_segment_toe_naast_bestaande_rijen(tmp_path: Path) -> None:
+    film = uuid.uuid4()
+    item = str(film).upper()
+    (tmp_path / "data").mkdir()
+    with sqlite3.connect(tmp_path / "data/jellyfin.db") as db:
+        db.executescript("""
+            CREATE TABLE BaseItems(Id TEXT PRIMARY KEY);
+            CREATE TABLE Chapters(ItemId TEXT REFERENCES BaseItems, ChapterIndex INTEGER, StartPositionTicks INTEGER, Name TEXT,
+                                  PRIMARY KEY(ItemId, ChapterIndex));
+            CREATE TABLE MediaSegments(Id TEXT PRIMARY KEY, ItemId TEXT REFERENCES BaseItems, Type INTEGER,
+                                       StartTicks INTEGER, EndTicks INTEGER, SegmentProviderId TEXT);
+            """)
+        db.execute("INSERT INTO BaseItems VALUES (?)", (item,))
+        db.execute("INSERT INTO Chapters VALUES (?, 0, 0, 'Bestaand')", (item,))
+        db.execute("INSERT INTO MediaSegments VALUES ('bestaand', ?, 4, 20000000, 30000000, 'andere bron')", (item,))
+        db.commit()
+        proef.zaai_hoofdstuk_en_segment(tmp_path, film.hex)
+        assert db.execute("SELECT ChapterIndex, Name FROM Chapters WHERE ItemId = ? ORDER BY ChapterIndex",
+                          (item,)).fetchall() == [(0, "Bestaand"), (1, "Proefhoofdstuk")]
+        assert db.execute("SELECT SegmentProviderId, StartTicks FROM MediaSegments WHERE ItemId = ? ORDER BY SegmentProviderId",
+                          (item,)).fetchall() == [("andere bron", 20000000), ("proefbron", 10000000)]
 
 
 @pytest.fixture
@@ -58,6 +82,17 @@ def test_userdata_met_ruismasker_wordt_geweigerd(tmp_path: Path, servers: list[p
     proef.vergelijk_databases(verslag, tmp_path, *servers)
     assert not verslag.geslaagd
     assert any("zonder masker" in r["test"] and not r["geslaagd"] for r in verslag.regels)
+
+
+@pytest.mark.parametrize("opdracht", ["DELETE FROM MediaSegments", "DROP TABLE MediaSegments"])
+def test_lege_of_ontbrekende_referentie_keurt_proef_af(tmp_path: Path, servers: list[proef.Server], opdracht: str) -> None:
+    for server in servers:
+        with sqlite3.connect(server.config / "data/jellyfin.db") as db:
+            db.execute(opdracht)
+    verslag = proef.Verslag()
+    proef.vergelijk_databases(verslag, tmp_path, *servers)
+    assert not verslag.geslaagd
+    assert any("referentierijen" in r["test"] and "MediaSegments" in r["detail"] and not r["geslaagd"] for r in verslag.regels)
 
 
 def test_extra_bestand_buiten_plugindata_keurt_proef_af(servers: list[proef.Server]) -> None:

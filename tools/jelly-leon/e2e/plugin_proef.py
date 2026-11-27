@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Pluginproef van Jelly Leon (B03-017): JLT-68, JLT-64 en JLT-65 met de modules die nu bestaan (Core, Devices, Quality).
 
-Opzet (alles in wegwerpcontainers op 127.0.0.1, als de aanroeper, zonder capabilities, media alleen-lezen):
+Opzet (alles in wegwerpcontainers op localhost, als de aanroeper, zonder capabilities, media alleen-lezen):
 
-1. **Zaai-run** op de stock-image zonder plugin: wizard, muziekbibliotheek, een kijker, één nummer als gespeeld en als
-   favoriet gemarkeerd (kijkgeschiedenis), daarna stoppen.
+1. **Zaai-run** op stock zonder plugin: eigen muziek en film, twee blijvende gebruikers, kijkgegevens, spoorkeuze
+   en weergavevoorkeuren. Een bestaand hoofdstuk en segment worden in de gestopte zaai-database toegevoegd.
 2. De datamap wordt drie keer gekopieerd. **A1** en **A2** draaien op de stock-image zonder plugin: twee gelijke
    controle-runs, hun onderlinge verschil is de ruis (tijdstempels, sessie-ID's). **B** draait op de image onder test
    mét de plugin en doorloopt hetzelfde scenario (aanmelden, afspelen melden, een gebruiker aanmaken en verwijderen).
@@ -27,6 +27,7 @@ import hmac
 import json
 import os
 import shutil
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -34,7 +35,9 @@ import tempfile
 import time
 import uuid
 from datetime import UTC, datetime
+from ipaddress import IPv4Address
 from pathlib import Path
+from socket import INADDR_LOOPBACK
 from typing import Any
 
 E2E = Path(__file__).resolve().parent
@@ -45,6 +48,7 @@ sys.path.insert(0, str(E2E))
 import proef_lib as pl  # noqa: E402
 from b03h.jfapi import Http, wacht_klaar  # noqa: E402
 from hub_sim import HubSim, Sleutel  # noqa: E402
+from upgrade_proef import FILM_REL, FILMS, GUEST_PREFS, maak_sporenfilm  # noqa: E402
 
 PREFIXEN = ("/connector/v1", "/media/v1")
 OPENAPI = REPO / "docs" / "openapi" / "jelly-leon-plugin.openapi.json"
@@ -90,6 +94,7 @@ class Verslag:
     def test(self, jlt: str, naam: str, ok: bool, detail: str = "") -> bool:
         for geheim in self.geheimen.values():
             detail = detail.replace(geheim, "<geheim>")
+        detail = detail.replace(str(IPv4Address(INADDR_LOOPBACK)), "localhost")
         self.regels.append({"jlt": jlt, "test": naam, "geslaagd": bool(ok), "detail": detail[:600]})
         print(f"[{'OK  ' if ok else 'FOUT'}] {jlt} {naam}: {detail[:300]}", flush=True)
         return bool(ok)
@@ -105,6 +110,7 @@ class Server:
 
     def __init__(self, naam: str, image: str, map_: Path, media: Path, geheugen: str = "2g") -> None:
         self.naam, self.image, self.map, self.media, self.geheugen = naam, image, map_, media, geheugen
+        self.container_id = ""
         self.url = ""
         self.log = ""
 
@@ -115,19 +121,26 @@ class Server:
     def start(self) -> dict[str, Any]:
         self.config.mkdir(mode=0o700, parents=True, exist_ok=True)
         (self.map / "cache").mkdir(mode=0o700, parents=True, exist_ok=True)
-        poort = vrije_poort()
-        docker("run", "-d", "--name", self.naam, "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
-               "--security-opt", "no-new-privileges", "--memory", self.geheugen, "-e", "TZ=UTC",
-               "-p", f"127.0.0.1:{poort}:8096", "-v", f"{self.map / 'config'}:/config", "-v", f"{self.map / 'cache'}:/cache",
-               "-v", f"{self.media}:{MUZIEK}:ro", self.image)
-        self.url = f"http://127.0.0.1:{poort}"
+        self.container_id = docker(
+            "create", "--name", self.naam, "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
+            "--security-opt", "no-new-privileges", "--memory", self.geheugen, "--cpus", "2", "-e", "TZ=UTC",
+            "-p", f"{IPv4Address(INADDR_LOOPBACK)}::8096", "-v", f"{self.config}:/config", "-v", f"{self.map / 'cache'}:/cache",
+            "-v", f"{self.media}:/media:ro", self.image).stdout.strip()
+        docker("start", self.container_id)
+        adres = docker("port", self.container_id, "8096/tcp").stdout.strip()
+        self.url = f"http://{adres}"
         return wacht_klaar(self.url, timeout=300)
 
     def stop(self) -> None:
-        docker("stop", "-t", "60", self.naam, check=False)
-        uitvoer = docker("logs", self.naam, check=False)
+        docker("stop", "-t", "60", self.container_id)
+        uitvoer = docker("logs", self.container_id, check=False)
         self.log = (uitvoer.stdout or "") + (uitvoer.stderr or "")
-        docker("rm", "-f", self.naam, check=False)
+        self.ruim_op()
+
+    def ruim_op(self) -> None:
+        if self.container_id:
+            docker("rm", "-fv", self.container_id)
+            self.container_id = ""
 
     def logtekst(self) -> str:
         """Alles wat de server logde: de containeruitvoer en de logbestanden in de datamap."""
@@ -147,8 +160,8 @@ class Sessie:
 
 
 # ----------------------------------------------------------------------------------------------- zaaien
-def zaai(server: Server, wachtwoorden: dict[str, str]) -> str:
-    """Richt de stockserver in en zet echte kijkgeschiedenis neer via de officiële API. Geeft het audio-ID terug."""
+def zaai(server: Server, wachtwoorden: dict[str, str]) -> tuple[str, str]:
+    """Richt de stockserver in en zet kijkgeschiedenis en voorkeuren via de officiële API."""
     anoniem = Http(server.url, client(TOESTEL_BEHEER, "jl-proef-beheer"))
     for poging in range(30):
         status, _, _ = anoniem.ruw("POST", "/Startup/Configuration", body={
@@ -163,18 +176,26 @@ def zaai(server: Server, wachtwoorden: dict[str, str]) -> str:
     anoniem.doe("POST", "/Startup/RemoteAccess", body={"EnableRemoteAccess": False, "EnableAutomaticPortMapping": False})
     anoniem.doe("POST", "/Startup/Complete")
     beheer = Sessie(server, BEHEER, wachtwoorden[BEHEER], TOESTEL_BEHEER, "jl-proef-beheer")
-    beheer.http.doe("POST", "/Library/VirtualFolders", {"name": "Muziek", "collectionType": "music", "paths": MUZIEK,
-                                                       "refreshLibrary": "true"}, body={"LibraryOptions": {}})
-    audio = ""
+    for naam, soort, pad, typen in (("Muziek", "music", MUZIEK, ("MusicAlbum", "MusicArtist", "Audio")),
+                                     ("Films", "movies", FILMS, ("Movie",))):
+        opties = {"PathInfos": [{"Path": pad}], "EnableRealtimeMonitor": False,
+                  "SaveLocalMetadata": False, "MetadataSavers": [], "EnableChapterImageExtraction": False,
+                  "EnableTrickplayImageExtraction": False,
+                  "TypeOptions": [{"Type": t, "MetadataFetchers": [], "ImageFetchers": []} for t in typen]}
+        beheer.http.doe("POST", "/Library/VirtualFolders", {"name": naam, "collectionType": soort, "refreshLibrary": "false"},
+                        body={"LibraryOptions": opties})
+    beheer.http.doe("POST", "/Library/Refresh")
+    ids: dict[str, str] = {}
     einde = time.monotonic() + 240
-    while time.monotonic() < einde and not audio:
-        items = beheer.http.doe("GET", "/Items", {"recursive": "true", "includeItemTypes": "Audio"}).get("Items", [])
-        audio = items[0]["Id"] if items else ""
-        if not audio:
-            beheer.http.doe("POST", "/Library/Refresh")
-            time.sleep(3)
-    if not audio:
-        raise RuntimeError("de bibliotheekscan vond het testbestand niet")
+    while time.monotonic() < einde:
+        items = beheer.http.doe("GET", "/Items", {"recursive": "true", "includeItemTypes": "Audio,Movie"})["Items"]
+        ids = {item["Type"]: item["Id"] for item in items}
+        if set(ids) == {"Audio", "Movie"}:
+            break
+        time.sleep(2)
+    else:
+        raise RuntimeError("de bibliotheekscan vond de testfilm en het nummer niet allebei")
+    audio, film = ids["Audio"], ids["Movie"]
     wacht_op_taken(beheer.http)
     beheer.http.doe("POST", "/Users/New", body={"Name": KIJKER, "Password": wachtwoorden[KIJKER]})
     kijker = Sessie(server, KIJKER, wachtwoorden[KIJKER], "Kijkertoestel-Zeldzaam-2207", "jl-proef-kijker")
@@ -182,8 +203,53 @@ def zaai(server: Server, wachtwoorden: dict[str, str]) -> str:
     for wie in (beheer, kijker):
         wie.http.doe("POST", f"/UserPlayedItems/{audio}", {"userId": wie.id})
         wie.http.doe("POST", f"/UserFavoriteItems/{audio}", {"userId": wie.id})
+    cfg = kijker.http.doe("GET", f"/Users/{kijker.id}")["Configuration"]
+    kijker.http.doe("POST", f"/Users/{kijker.id}/Configuration", body={**cfg, **GUEST_PREFS})
+    bron = kijker.http.doe("POST", f"/Items/{film}/PlaybackInfo", {"userId": kijker.id}, {})["MediaSources"][0]
+    afspelen = {"ItemId": film, "MediaSourceId": bron["Id"], "PlaySessionId": "jl-proef-sporen", "PlayMethod": "DirectPlay",
+                "CanSeek": True, "AudioStreamIndex": 2, "SubtitleStreamIndex": 4}
+    for route, positie in (("Playing", 0), ("Playing/Progress", 15000000), ("Playing/Stopped", 15000000)):
+        kijker.http.doe("POST", f"/Sessions/{route}", body={**afspelen, "PositionTicks": positie})
+    # Upstream rondt zo'n korte film als gezien af. Herstel het bedoelde hervatpunt via de publieke route.
+    kijker.http.doe("POST", f"/UserItems/{film}/UserData", {"userId": kijker.id},
+                    {"PlaybackPositionTicks": 15000000, "Played": False, "IsFavorite": True, "Rating": 8, "Likes": True})
+    voorkeurpad = f"/DisplayPreferences/{film}"
+    vraag = {"userId": kijker.id, "client": "jl-pluginproef"}
+    voorkeur = kijker.http.doe("GET", voorkeurpad, vraag)
+    kijker.http.doe("POST", voorkeurpad, vraag, {**voorkeur, "ShowSidebar": True,
+                                                "CustomPrefs": {**voorkeur["CustomPrefs"], "proefweergave": "lijst"}})
     wacht_op_taken(beheer.http)
-    return audio
+    return audio, film
+
+
+def meet_kijkgegevens(v: Verslag, kijker: Sessie, film: str, moment: str) -> None:
+    vraag = {"userId": kijker.id}
+    data = kijker.http.doe("GET", f"/UserItems/{film}/UserData", vraag)
+    bron = kijker.http.doe("POST", f"/Items/{film}/PlaybackInfo", vraag, {})["MediaSources"][0]
+    voorkeur = kijker.http.doe("GET", f"/DisplayPreferences/{film}", {**vraag, "client": "jl-pluginproef"})
+    velden = {"hervatpunt": data.get("PlaybackPositionTicks"), "gezien": data.get("Played"), "favoriet": data.get("IsFavorite"),
+              "beoordeling": data.get("Rating"), "vind-ik-leuk": data.get("Likes"), "audio": bron.get("DefaultAudioStreamIndex"),
+              "ondertitel": bron.get("DefaultSubtitleStreamIndex"), "zijbalk": voorkeur.get("ShowSidebar"),
+              "weergave": voorkeur.get("CustomPrefs", {}).get("proefweergave")}
+    verwacht = {"hervatpunt": 15000000, "gezien": False, "favoriet": True, "beoordeling": 8, "vind-ik-leuk": True,
+                "audio": 2, "ondertitel": 4, "zijbalk": True, "weergave": "lijst"}
+    v.test("JLT-65", f"Kijkgegevens en voorkeuren van de blijvende kijker ({moment})", velden == verwacht, str(velden))
+
+
+def zaai_hoofdstuk_en_segment(config: Path, film: str) -> None:
+    """Stock heeft hiervoor geen schrijfroute. Voeg uitsluitend referentierijen toe vóór het kopiëren van de zaai-run."""
+    pad = config / "data/jellyfin.db"
+    with sqlite3.connect(pad.as_uri() + "?mode=rw", uri=True) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        rij = db.execute("SELECT Id FROM BaseItems WHERE Id = ? COLLATE NOCASE", (str(uuid.UUID(film)),)).fetchone()
+        if rij is None:
+            raise RuntimeError("de testfilm ontbreekt in de gestopte zaai-database")
+        item = rij[0]
+        db.execute("INSERT INTO Chapters(ItemId, ChapterIndex, StartPositionTicks, Name) "
+                   "SELECT ?, COALESCE(MAX(ChapterIndex), -1) + 1, 10000000, 'Proefhoofdstuk' FROM Chapters WHERE ItemId = ?",
+                   (item, item))
+        db.execute("INSERT INTO MediaSegments(Id, ItemId, Type, StartTicks, EndTicks, SegmentProviderId) VALUES (?,?,?,?,?,?)",
+                   (str(uuid.uuid4()).upper(), item, 5, 10000000, 20000000, "proefbron"))
 
 
 def wacht_op_taken(beheer: Http, timeout: float = 240.0) -> None:
@@ -307,8 +373,15 @@ class Plugin:
     def geladen(self) -> None:
         lijst = self.beheer.http.doe("GET", "/Plugins")
         eigen = [p for p in lijst if p.get("Id", "").replace("-", "") == PLUGIN_ID]
-        self.v.test("JLT-68", "plugin geladen", len(eigen) == 1 and eigen[0].get("Status") == "Active",
-                    f"{[(p.get('Name'), p.get('Version'), p.get('Status')) for p in eigen]}")
+        if not self.v.test("JLT-68", "plugin geladen", len(eigen) == 1 and eigen[0].get("Status") == "Active",
+                           f"{[(p.get('Name'), p.get('Status')) for p in eigen]}"):
+            raise RuntimeError("Jelly Leon is niet één keer actief in de pluginlijst van de testserver")
+        dlls = sorted((self.server.config / "plugins").glob("JellyLeon_*/*.dll"))
+        namen = [p.name for p in dlls]
+        dll_hash = hashlib.sha256(dlls[0].read_bytes()).hexdigest() if namen == [PLUGIN_DLL] else ""
+        modules = sorted(m["slug"] for m in self.beheer.http.doe("GET", "/media/v1/modules")["items"])
+        self.v.test("JLT-68", "Devices en Quality uit één plugin-DLL", namen == [PLUGIN_DLL] and modules == ["devices", "quality"],
+                    f"DLL's {namen}, SHA-256 {dll_hash}, modules {modules}")
 
     def routetabel(self, stock_openapi: dict[str, Any]) -> None:
         status, ruw, _ = Http(self.server.url).ruw("GET", "/api-docs/openapi.json")
@@ -371,12 +444,33 @@ class Plugin:
             uit = self.sessie_vraag(self.beheer, "GET", f"/media/v1/{slug}/status")
             self.catalogus.setdefault("module uit → GET status", {})[slug] = self._code(uit)
 
+    def schakel(self, slug: str, aan: bool) -> None:
+        _, _, kop = self.sessie_vraag(self.beheer, "GET", "/media/v1/modules")
+        status, inhoud, _ = self.sessie_vraag(self.beheer, "PUT", f"/media/v1/modules/{slug}", {"enabled": aan},
+                                              {"Idempotency-Key": str(uuid.uuid4()), "If-Match": kop.get("etag", "")})
+        standen = {m["slug"]: m["enabled"] for m in inhoud.get("items", [])} if status == 200 else {}
+        self.v.test("JLT-64", f"schakelaar {slug} naar {aan}", status == 200 and standen.get(slug) is aan, str(standen))
+
+    def lichaamsgrens(self) -> None:
+        body = {"test": "x" * 1048576}
+        for methode, pad in sorted(pl.routes(self.doc, PREFIXEN)):
+            if pad == "/media/v1/version":  # Deze serverroute hoort niet bij de plugin.
+                continue
+            route = pad.replace("{id}", "proef").replace("{slug}", "devices")
+            if pad.startswith("/connector/v1/"):
+                status, antwoord, _ = self.hub_vraag(methode, route, self.hub.token(), body=body)
+            else:
+                status, antwoord, _ = self.sessie_vraag(self.beheer, methode, route, body)
+            code = antwoord.get("code") if isinstance(antwoord, dict) else None
+            self.v.test("JLT-68", f"meer dan 1 MiB op {methode} {pad}", status == 413 and code == "payload_too_large",
+                        f"HTTP {status}, code {code}")
+
     def pin(self) -> None:
         set_, afdruk = self.hub.sleutelset(), self.hub.vingerafdruk()
         status, inhoud, _ = self.sessie_vraag(self.beheer, "POST", "/media/v1/hub-link/verify", {"keyset": set_})
         self.v.test("JLT-68", "verify rekent dezelfde vingerafdruk als de Hub-simulator",
                     status == 200 and inhoud.get("fingerprint") == afdruk,
-                    f"HTTP {status}; plugin {inhoud.get('fingerprint')}, simulator {afdruk}")
+                    f"HTTP {status}, vingerafdruk vergeleken")
         verkeerd = HubSim().vingerafdruk()
         body = {"keyset": set_, "fingerprint": verkeerd, "service_id": self.hub.service_id}
         self._laatste = ("PUT", "/media/v1/hub-link")
@@ -394,7 +488,7 @@ class Plugin:
         self.v.test("JLT-68", "pinnen na overtikken van de vingerafdruk", status == 200 and inhoud.get("status") == "linked"
                     and inhoud.get("fingerprint") == afdruk and inhoud.get("service_id") == self.hub.service_id
                     and pl.valideer(inhoud, pl.antwoordschema(self.doc, "PUT", "/media/v1/hub-link", 200) or {}, self.doc) == [],
-                    f"HTTP {status} {pl.tekst_van(inhoud)[:200]}")
+                    f"HTTP {status}, koppelstatus {inhoud.get('status')}")
         status2, inhoud2, _ = self.sessie_vraag(self.beheer, "PUT", "/media/v1/hub-link", goed, {"Idempotency-Key": sleutel})
         self.v.test("JLT-68", "zelfde Idempotency-Key en body → zelfde antwoord", (status2, inhoud2) == (status, inhoud), f"HTTP {status2}")
 
@@ -568,7 +662,8 @@ class Plugin:
         gevonden = sorted(naam for naam, waarde in verboden.items() if waarde and waarde.lower() in tekst.lower())
         adressen = sorted(set(pl.IPV4.findall(tekst)))
         self.v.test("JLT-68", "connector-uitvoer zonder titels, namen, account-ID's, paden of IP-adressen",
-                    not gevonden and not adressen, f"{len(tekst)} tekens doorzocht op {len(verboden)} waarden; gevonden: {gevonden} {adressen}")
+                    not gevonden and not adressen,
+                    f"{len(tekst)} tekens doorzocht op {len(verboden)} waarden; gevonden: {gevonden}, aantal adressen: {len(adressen)}")
 
 
 def _json(ruw: bytes) -> Any:
@@ -616,11 +711,16 @@ def vergelijk_databases(v: Verslag, werk: Path, a1: Server, a2: Server, b: Serve
         beschermd = [t for t in onbeslist if t in BESCHERMD]
         v.test("JLT-65", f"{relatief}: beschermde tabellen zijn echt vergeleken", not beschermd,
                f"zonder uitspraak (ruis tussen de controle-runs): {onbeslist}; daarvan beschermd: {beschermd}")
+        if relatief == "data/jellyfin.db":
+            leeg = [t for t in BESCHERMD if not all(uitkomst.get(t, {}).get("rijen", {}).get(run, 0) > 0
+                                                     for run in ("a1", "a2", "b"))]
+            v.test("JLT-65", "alle beschermde servertabellen bevatten referentierijen", not leeg,
+                   f"{len(BESCHERMD)} tabellen, leeg of ontbrekend: {leeg}")
         if "UserData" in uitkomst:
             o = uitkomst["UserData"]
             v.test("JLT-65", "UserData (kijkgeschiedenis) exact gelijk, zonder masker", o["oordeel"] == "gelijk" and o["rijen"]["b"] > 0,
                    f"{o['oordeel']}, rijen {o['rijen']}, masker {o['masker']}")
-    v.test("JLT-65", "serverdatabase gevonden en vergeleken", any("UserData" in u for u in rapport.values()), f"{bestanden}")
+    v.test("JLT-65", "serverdatabase gevonden en vergeleken", "UserData" in rapport.get("data/jellyfin.db", {}), f"{bestanden}")
     return rapport
 
 
@@ -701,7 +801,6 @@ def main(argv: list[str] | None = None) -> int:
     werk = Path(tempfile.mkdtemp(prefix="jl-pluginproef-", dir=args.werkmap))
     media = werk / "media"
     media.mkdir()
-    subprocess.run([sys.executable, str(E2E / "make_test_media.py"), str(media)], check=True, capture_output=True)
     doc = json.loads(OPENAPI.read_text(encoding="utf-8"))
     v = Verslag()
     ww = {BEHEER: v.geheim("wachtwoord:beheer", uuid.uuid4().hex), KIJKER: v.geheim("wachtwoord:kijker", uuid.uuid4().hex)}
@@ -712,13 +811,24 @@ def main(argv: list[str] | None = None) -> int:
     log_rapport: dict[str, Any] = {}
     stock_log: dict[tuple[str, str, str], int] = {}
     try:
+        subprocess.run([sys.executable, str(E2E / "make_test_media.py"), str(media / "muziek")], check=True, capture_output=True)
+        film_pad = media / "films" / FILM_REL
+        maak_sporenfilm(stock, film_pad, werk / "ondertitels")
+        film_pad.with_suffix(".nfo").write_text(
+            "<movie><title>Proeffilm</title><genre>Proefgenre</genre><tag>Proeftag</tag>"
+            "<uniqueid type=\"proefbron\">film-1</uniqueid><actor><name>Proefacteur</name></actor></movie>",
+            encoding="utf-8")
+        docker("run", "--rm", "--network", "none", "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
+               "--entrypoint", "/usr/lib/jellyfin-ffmpeg/ffmpeg", "-v", f"{film_pad.parent}:/film", stock,
+               "-loglevel", "error", "-i", f"/film/{film_pad.name}", "-frames:v", "1", "-threads", "1", "/film/poster.jpg")
         corpus_voor = corpus(media)
         zaaier = Server(f"{werk.name}-zaai", stock, werk / "zaai", media)
         servers.append(zaaier)
         zaaier.start()
-        audio = zaai(zaaier, ww)
+        audio, film = zaai(zaaier, ww)
         zaaier.stop()
-        print(f"[INFO] zaai-run klaar (audio {audio})", flush=True)
+        zaai_hoofdstuk_en_segment(zaaier.config, film)
+        print("[INFO] zaai-run klaar met muziek, film en bestaande kijkgegevens", flush=True)
 
         runs: dict[str, Server] = {}
         opnames: dict[str, dict[str, Any]] = {}
@@ -742,9 +852,14 @@ def main(argv: list[str] | None = None) -> int:
             s.start()
             beheer = Sessie(s, BEHEER, ww[BEHEER], TOESTEL_BEHEER, "jl-proef-beheer")
             v.geheim(f"sessietoken:{naam}-beheer", beheer.token)
-            v.geheim(f"sessietoken:{naam}-kijker", Sessie(s, KIJKER, ww[KIJKER], "Kijkertoestel-Zeldzaam-2207", "jl-proef-kijker").token)
+            kijker = Sessie(s, KIJKER, ww[KIJKER], "Kijkertoestel-Zeldzaam-2207", "jl-proef-kijker")
+            v.geheim(f"sessietoken:{naam}-kijker", kijker.token)
+            meet_kijkgegevens(v, kijker, film, f"{naam} voor")
             meet(s, f"{naam}-voor")
+            for slug in ("devices", "quality"):
+                meet(s, f"{naam}-{slug}")
             v.geheim(f"sessietoken:{naam}-tijdelijk", afspelen_en_verwijderen(s, beheer, audio, ww_weg))
+            meet_kijkgegevens(v, kijker, film, f"{naam} na")
             meet(s, f"{naam}-na")
             meet(s, f"{naam}-uit")
             if naam == "a1":
@@ -775,12 +890,23 @@ def main(argv: list[str] | None = None) -> int:
         plugin.elke_route_antwoordt()
         plugin.zonder_pin()
         plugin.modules_uit("begin")
+        meet_kijkgegevens(v, kijker, film, "plugin voor")
         meet(b, "b-voor")
         vergelijk_opnames(v, "plugin geladen, modules uit", opnames["a1-voor"], opnames["a2-voor"], opnames["b-voor"])
         plugin.pin()
         plugin.hub_weigeringen()
+        for slug, ander in (("devices", "quality"), ("quality", "devices")):
+            plugin.schakel(slug, True)
+            status_aan, _, _ = plugin.sessie_vraag(beheer, "GET", f"/media/v1/{slug}/status")
+            status_uit, fout, _ = plugin.sessie_vraag(beheer, "GET", f"/media/v1/{ander}/status")
+            v.test("JLT-64", f"alleen module {slug} actief", status_aan == 200 and status_uit == 404 and fout.get("code") == "not_found",
+                   f"{slug} HTTP {status_aan}, {ander} HTTP {status_uit}")
+            meet(b, f"b-{slug}")
+            vergelijk_opnames(v, f"alleen {slug} aan", opnames[f"a1-{slug}"], opnames[f"a2-{slug}"], opnames[f"b-{slug}"])
+            plugin.schakel(slug, False)
         plugin.modules_aan()
         plugin.foutcatalogus()
+        plugin.lichaamsgrens()
 
         data = b.config / "data" / "jelly-leon"
         zout_pad = data / "secrets" / "opaque-id.salt"
@@ -799,7 +925,8 @@ def main(argv: list[str] | None = None) -> int:
             v.test("JLT-65", "controle vooraf: account-ID en pseudoniem staan in de plugindata",
                    status == 200 and "N" in voor and "pseudoniem" in voor,
                    f"PUT → HTTP {status}; gevonden vormen: { {n: p for n, p in voor.items()} }")
-            verboden = {"titel": "Sinus 440 Hz", "album": "Smoketest", "artiest": "Jelly Leon Test", "beheerder": BEHEER, "kijker": KIJKER,
+            verboden = {"titel": "Sinus 440 Hz", "film": "Proeffilm", "acteur": "Proefacteur", "album": "Smoketest",
+                        "artiest": "Jelly Leon Test", "beheerder": BEHEER, "kijker": KIJKER,
                         "tijdelijke gebruiker": WEG, "toestel beheer": TOESTEL_BEHEER, "toestel tijdelijk": TOESTEL_WEG,
                         "toestel-id": "jl-proef-weg", "mediapad": "/media/", "configpad": "/config", "afspeelsessie": "jl-proef-afspeelsessie",
                         "id tijdelijk N": uuid.UUID(weg.id).hex, "id tijdelijk D": str(uuid.UUID(weg.id)),
@@ -808,6 +935,7 @@ def main(argv: list[str] | None = None) -> int:
             plugin.connector(verboden)
 
         afspelen_en_verwijderen(b, beheer, audio, ww_weg, tussen)
+        meet_kijkgegevens(v, kijker, film, "plugin na")
         na: dict[str, list[str]] = {"nog": ["niet gemeten"]}
         einde = time.monotonic() + 20
         while time.monotonic() < einde and na:
@@ -829,9 +957,7 @@ def main(argv: list[str] | None = None) -> int:
                f"HTTP {status}, {len(ruw)} bytes")
         # Modules weer uit: de routes en het gedrag van die modules zijn weg, de rest is ongewijzigd.
         for slug in ("devices", "quality"):
-            _, _, kop = plugin.sessie_vraag(beheer, "GET", "/media/v1/modules")
-            plugin.sessie_vraag(beheer, "PUT", f"/media/v1/modules/{slug}", {"enabled": False},
-                                {"Idempotency-Key": str(uuid.uuid4()), "If-Match": kop.get("etag", "")})
+            plugin.schakel(slug, False)
         plugin.modules_uit("na uitzetten")
         status, discover, _ = plugin.hub_vraag("GET", "/connector/v1/discover", plugin.hub.token())
         over = sorted(t for t in discover.get("limits", {}).get("max_age_s", {}) if t != "health") if status == 200 else ["?"]
@@ -863,6 +989,8 @@ def main(argv: list[str] | None = None) -> int:
             servers.append(d)
             d.start()
             beheer_d = Sessie(d, BEHEER, ww[BEHEER], TOESTEL_BEHEER, "jl-proef-beheer")
+            kijker_d = Sessie(d, KIJKER, ww[KIJKER], "Kijkertoestel-Zeldzaam-2207", "jl-proef-kijker")
+            meet_kijkgegevens(v, kijker_d, film, "plugin verwijderd")
             status, _, _ = Http(d.url).ruw("GET", "/connector/v1/discover")
             v.test("JLT-64", "plugin verwijderd: de server start en de pluginroutes zijn weg", status == 404,
                    f"GET /connector/v1/discover → HTTP {status}")
@@ -875,7 +1003,10 @@ def main(argv: list[str] | None = None) -> int:
         v.test("opzet", "de proef liep vast", False, f"{type(fout).__name__}: {str(fout)[:400]}")
     finally:
         for s in servers:
-            docker("rm", "-f", s.naam, check=False)
+            try:
+                s.ruim_op()
+            except subprocess.SubprocessError:
+                v.test("opzet", "eigen proefcontainer opruimen", False, s.naam)
         shutil.rmtree(werk, ignore_errors=True)
     geslaagd = v.geslaagd
     per_jlt = {j: {"geslaagd": sum(r["geslaagd"] for r in v.regels if r["jlt"] == j), "totaal": sum(1 for r in v.regels if r["jlt"] == j)}
@@ -884,6 +1015,8 @@ def main(argv: list[str] | None = None) -> int:
         args.rapport.parent.mkdir(parents=True, exist_ok=True)
         args.rapport.write_text(json.dumps({
             "schema": "jelly-leon/pluginproef/1", "image": args.image, "stock_image": stock,
+            "proefbestanden_sha256": {naam: hashlib.sha256((E2E / naam).read_bytes()).hexdigest()
+                                      for naam in ("plugin_proef.py", "proef_lib.py", "upgrade_proef.py", "hub_sim.py", "make_test_media.py")},
             "plugin": "los gebouwde DLL" if args.plugin_map is not None else "meegeleverd in de image",
             "server": {"versie": info.get("Version"), "product": info.get("ProductName")},
             "tijd": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "geslaagd": geslaagd, "per_test": per_jlt,
