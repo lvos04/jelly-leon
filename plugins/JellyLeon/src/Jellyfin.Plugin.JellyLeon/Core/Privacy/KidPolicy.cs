@@ -52,9 +52,10 @@ internal sealed class KidPolicy(CoreDatabase core, PrivacyService privacy, IUser
         return core.Kinderprofielen.Met(v =>
         {
             var profiel = Lees(v, sleutel);
-            // Controleer het eerste voorstel tegen het actuele account onder hetzelfde slot als UserDeleted.
+            // Controleer of het account nog bestaat onder hetzelfde slot als UserDeleted.
+            // Een signaal uit deze sessie blijft gelden als een gelijktijdige wijziging het filter al heeft weggehaald.
             return profiel.Status == Kinderprofiel.Geen && Signalen(gebruiker).SteltKindVoor
-                ? Beoordeel(v, sleutel, account, profiel).IsKid
+                ? Beoordeel(v, sleutel, account, profiel, sessieSteltKindVoor: true).IsKid
                 : profiel.IsKid;
         });
     }
@@ -91,10 +92,10 @@ internal sealed class KidPolicy(CoreDatabase core, PrivacyService privacy, IUser
     private static Kinderprofiel Lees(SqliteConnection verbinding, string sleutel) =>
         new((string?)JlDatabase.Scalar(verbinding, "SELECT status FROM kinderprofielen WHERE account=$account", ("$account", sleutel)) ?? Kinderprofiel.Geen);
 
-    private Kinderprofiel Beoordeel(SqliteConnection verbinding, string sleutel, Guid account, Kinderprofiel huidig)
+    private Kinderprofiel Beoordeel(SqliteConnection verbinding, string sleutel, Guid account, Kinderprofiel huidig, bool sessieSteltKindVoor = false)
     {
         var gebruiker = gebruikers.GetUserById(account) ?? throw Fouten.NietGevonden();
-        if (huidig.Status != Kinderprofiel.Geen || !Signalen(gebruiker).SteltKindVoor)
+        if (huidig.Status != Kinderprofiel.Geen || !(sessieSteltKindVoor || Signalen(gebruiker).SteltKindVoor))
         {
             return huidig;
         }

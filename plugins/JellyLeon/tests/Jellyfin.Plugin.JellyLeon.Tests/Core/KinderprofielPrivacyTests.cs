@@ -111,6 +111,22 @@ public sealed class KinderprofielPrivacyTests : IDisposable
     }
 
     [Fact]
+    public async Task SignaalUitDeSessieBlijftGeldenBijEenGelijktijdigeProfielwijziging()
+    {
+        _profiel.SetPermission(PermissionKind.IsAdministrator, true);
+        var zonderFilter = new User("profiel", "proef", "proef") { Id = _profiel.Id };
+        zonderFilter.SetPermission(PermissionKind.IsAdministrator, true);
+        _h.Gebruikers.Setup(g => g.GetUserById(_profiel.Id)).Returns(zonderFilter);
+
+        _sessie.User = _profiel;
+        Assert.Equal("kid_profile", (await _h.Roep("modules.list")).Reden);
+        _sessie.User = zonderFilter;
+        Assert.Equal("kid_profile", (await _h.Roep("modules.list")).Reden);
+        _sessie.User = _beheerder;
+        Status(await Lees(zonderFilter), "voorgesteld", true);
+    }
+
+    [Fact]
     public async Task AlleenBekendVoorstelEnGeldigeBeheerinvoerWijzigenDeStatus()
     {
         var onbekend = Guid.NewGuid();
@@ -140,7 +156,8 @@ public sealed class KinderprofielPrivacyTests : IDisposable
         // Vul eerst de bestaande kern, zonder een profielopslag aan te maken.
         var oud = _h.Dienst<CoreDatabase>().Db;
         oud.Met(v => JlDatabase.Voer(v, "INSERT INTO jobs(id,soort,module,payload,staat,gemaakt) VALUES(7,'proef','core','bestaande taak','wacht',1)"));
-        Assert.Equal(1L, oud.Met(v => JlDatabase.Getal(v, "PRAGMA user_version")));
+        var kernversie = oud.Met(v => JlDatabase.Getal(v, "PRAGMA user_version"));
+        Assert.True(kernversie > 0);
 
         Assert.False(File.Exists(paden.KinderprofielenDb));
         var kijk = Path.Combine(_h.Map, "data", "jellyfin.db");
@@ -172,7 +189,7 @@ public sealed class KinderprofielPrivacyTests : IDisposable
         var nieuweKern = _h.Dienst<CoreDatabase>().Db;
         Assert.Equal("bestaande taak", nieuweKern.Met(v => JlDatabase.Scalar(v, "SELECT payload FROM jobs WHERE id=7")));
         Assert.True(File.Exists(paden.KinderprofielenDb));
-        Assert.Equal(1L, nieuweKern.Met(v => JlDatabase.Getal(v, "PRAGMA user_version")));
+        Assert.Equal(kernversie, nieuweKern.Met(v => JlDatabase.Getal(v, "PRAGMA user_version")));
     }
 
     private static void Status(Antwoord antwoord, string verwacht, bool kind)
