@@ -16,6 +16,8 @@ STACKSLOTEN=1 "$SLOT" nice -n 10 "$PY" -m b03h watchtogether \
 
 `BASIS` is het definitieve S-P40-50-meetbestand voor beide stockprofielen. `DESKTOPBOUW` bevat de uitvoerbare `build/src/jellyfin-desktop` van S-P40-90. Gebruik de bijbehorende Xvfb-runtime als `DESKTOPIMAGE`. Het harnas maakt zijn eigen stockserver, testgebruikers en netwerk. Het koppelt de vier afspeelbestanden alleen-lezen. Voor bronnen korter dan 370 seconden herhaalt het de oorspronkelijke pakketten met stream-copy, zodat het vijfminutenvenster past. Het legt de bronhash en de hash van ieder afspeelbestand vast. Voor de framecode controleert het ook de grondwaarheid en de video tegen het bevroren SHA-256-manifest. [Framecodemanifest](test-evidence/b03-016-corpus/f1-framecode.v1.vol.manifest.json)
 
+De volledige framecode is voor deze stap opnieuw gegenereerd. De twee bestanden (55.801.725 bytes samen) gaven bij de bevriezingscontrole exact dezelfde sethash als het bestaande manifest. Ook de afzonderlijke SHA-256-controle van beide bestanden gaf nul fouten.
+
 Het meetvenster sluit de overige stacksloten uit. De startcontrole en elke run gebruiken een lastgrens van maximaal vier. Een afgewezen poging schrijft een apart bestand met het achtervoegsel `-meetpoging.json`. De opdracht geeft exitcode 3 bij uitstel en 1 bij een meetfout. Een fout in de client of in de kalibratie blijft als fout zichtbaar. Voltooit de matrix, dan schrijft het harnas een baselinebestand en de ruwe sporen in een bijbehorende map.
 
 ## Scenario’s
