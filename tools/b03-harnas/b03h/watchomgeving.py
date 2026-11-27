@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 import os
+import re
 import secrets
+import shutil
 import struct
 import subprocess
 import time
 import uuid
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import android, meetslot, web
+from .clientmatrix import _inloggen_telefoon
+from .corpus.manifest import sha256_bestand
 from .desktop import BINARY, NODE_IMAGE
 from .stock import StockServer, docker
 from .watchmeting import nulproef
@@ -170,3 +175,83 @@ def adb_nulproef(werk: Path) -> dict:
             na = time.time_ns() / 1e6
             opnamen.append(adb_klok(p.stdout, voor, na))
         return nulproef(opnamen)
+
+
+def android_ready_uitkomst(groep: str, sessie: str, serverlog: str, spoor: dict) -> dict:
+    """Koppel uitsluitend de Ready-timeout van deze groep aan de geauthenticeerde Android-sessie."""
+    vertragingen = []
+    patroon = r'Group "?([\da-f-]+)"? waited (\d+) ms for session\(s\) (.*?) to report ready, giving up'
+    for gid, duur, sessies in re.findall(patroon, serverlog, flags=re.I):
+        verwachte_sessie = sessie.replace("-", "").lower()
+        gemeld = [s.replace("-", "").lower() for s in re.findall(r"[\da-f-]{32,36}", sessies, flags=re.I)]
+        if gid.replace("-", "").lower() == groep.replace("-", "").lower() and verwachte_sessie in gemeld:
+            vertragingen.append(int(duur))
+    uit = {**spoor, "ready_timeouts_android_ms": vertragingen}
+    if vertragingen:
+        return {**uit, "ok": False}
+    if spoor["observatie_ms"] >= 40000 and len(spoor["voortgang_ms"]) == 2 and min(spoor["voortgang_ms"]) >= 2000:
+        return {**uit, "ok": True}
+    return {**uit, "status": "niet reproduceerbaar in de simulatie",
+            "reden": "geen Android-timeout en geen bevestigde afspeelvoortgang van beide clients"}
+
+
+def android_ready(server: StockServer, werk: Path, cfg: dict, apk: Path) -> dict:
+    """Server #18121: een officiële Android-app voegt zich bij een al spelende webgroep."""
+    if not Path("/dev/kvm").exists() or not (android.SDK / "emulator/emulator").is_file():
+        return {"status": "niet reproduceerbaar in de simulatie",
+                "reden": "KVM of het lokale emulator-SDK ontbreekt voor de Android-groepsproef"}
+    if not apk.is_file():
+        return {"status": "niet reproduceerbaar in de simulatie", "reden": "de vastgezette stock-APK ontbreekt lokaal"}
+    assert server.jf
+    jf = server.jf
+    kopie = werk / "groepsapk" / android.APKS["android"]["naam"]
+    kopie.parent.mkdir()
+    shutil.copyfile(apk, kopie)
+    digest = sha256_bestand(kopie)
+    if digest != android.APKS["android"]["sha256"]:
+        raise ValueError("de Android-groepsproef weigert de APK met afwijkende SHA-256")
+    with meetslot.exclusief_slot("gradle.lock"), netwerk(server) as net, ExitStack() as eigen:
+        avd = werk / "groepsavd"
+        android.maak_avd("telefoon", avd)
+        emu = android.Emulator("telefoon", netwerk=net, avd_map=avd)
+        eigen.callback(emu.stop)
+        emu.start(kopie.parent)
+        emu.adb("install", "/apk/" + kopie.name, check=True)
+        tijdelijk(eigen, "--network", "container:" + emu.cid, *BEPERKT, NODE_IMAGE, "node", "-e", DOORVOER, "8098", "testserver", "8096")
+        emu.adb("reverse", "tcp:8098", "tcp:8098", check=True)
+        browsernaam, telefoonnaam = cfg["namen"]
+        _inloggen_telefoon(emu, "http://localhost:8098", telefoonnaam, cfg["wachtwoord"])
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            browser = pool.submit(web.harnas, "watchandroid", cfg, timeout=300, pogingen=1)
+            einde = time.monotonic() + 90
+            while True:
+                if browser.done():
+                    browser.result()
+                    raise ValueError("webclient beëindigde de Android-groepsproef vóór deelname")
+                groepen = jf.a.doe("GET", "/SyncPlay/List")
+                groep = next((g for g in groepen if g["Participants"] == [browsernaam] and g["State"] == "Playing"), None)
+                if groep:
+                    break
+                if time.monotonic() >= einde:
+                    raise ValueError("de spelende webgroep voor de Android-proef ontbreekt")
+                time.sleep(1)
+            menu = emu.wacht_op(r"^SyncPlay$", timeout=30)
+            if not menu:
+                raise ValueError("de Android-app toont geen SyncPlay-knop")
+            emu.tik(menu)
+            einde = time.monotonic() + 70
+            while True:
+                knopen = emu.dump()
+                doel = emu.zoek(re.escape(groep["GroupName"]), knopen)
+                knoppen = [k for k in knopen if emu.zoek(r"Join group|Deelnemen aan groep", [k])]
+                if doel and knoppen:
+                    emu.tik(min(knoppen, key=lambda k: abs(k.midden[1] - doel.midden[1])))
+                    break
+                if time.monotonic() >= einde:
+                    raise ValueError("de Android-app toont de aangemaakte webgroep niet")
+                time.sleep(1)
+            spoor = browser.result()
+        sessies = [s for s in jf.a.doe("GET", "/Sessions") if s.get("UserName") == telefoonnaam and "android" in s.get("Client", "").lower()]
+        if len(sessies) != 1:
+            raise ValueError("de ingelogde Android-sessie voor de logcontrole ontbreekt")
+        return {**android_ready_uitkomst(groep["GroupId"], sessies[0]["Id"], server.logs(6000), spoor), "apk_sha256": digest}

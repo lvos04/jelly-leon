@@ -258,7 +258,7 @@ async function speelItem(page, item, opts) {
 }
 
 async function main() {
-  if (['watchtogether', 'watchklok', 'watchfunctie'].includes(opdracht)) {
+  if (['watchtogether', 'watchklok', 'watchfunctie', 'watchandroid'].includes(opdracht)) {
     const { meet } = await import('./watchtogether.mjs');
     const resultaat = await meet(opdracht, cfg, login);
     process.stdout.write(JSON.stringify(resultaat) + '\n');

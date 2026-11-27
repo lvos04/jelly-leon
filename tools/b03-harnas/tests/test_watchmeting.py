@@ -161,6 +161,56 @@ def test_rollen_tellen_alleen_bekende_groep_geen_namen_in_bewijs():
         tel((500, b"", {}), "eigen", False, True)
 
 
+@pytest.mark.parametrize("afwijking", [None, "deelnemer_zonder_detail", "zonder_recht_zichtbaar"])
+def test_rollenproef_toetst_beide_leden_en_recht(monkeypatch, afwijking):
+    import json
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from b03h import watchrollen
+
+    groep = {"GroupId": "proefgroep", "Participants": ["meetrol-eigenaar", "meetrol-deelnemer"]}
+    beheer = Mock()
+    beheer.gebruiker.side_effect = lambda naam, *_: naam
+    beheer.a.doe.side_effect = lambda methode, *_args, **_kw: {"Policy": {}} if methode == "GET" else None
+
+    def client(_url, headers):
+        api = Mock(headers=headers.copy())
+        rol = next(r for r in watchrollen.ROLLEN if f'meetrol-{r}"' in headers["Authorization"])
+
+        def doe(methode, pad, **_):
+            if pad == "/Users/AuthenticateByName":
+                return {"AccessToken": "test"}
+            if pad == "/SyncPlay/New":
+                return groep
+            if methode == "GET":
+                # Het toegangsvenster is nu gesloten. De twee leden zaten vóór die wijziging in de groep.
+                return {**groep, "Participants": ["meetrol-eigenaar"]}
+            return None
+
+        def ruw(_methode, pad):
+            if rol == "zonder_recht" and afwijking != "zonder_recht_zichtbaar":
+                return (403, b"", {})
+            if rol == "deelnemer" and pad.endswith("proefgroep") and afwijking == "deelnemer_zonder_detail":
+                return (404, b"", {})
+            return (200, json.dumps([groep] if pad.endswith("/List") else groep).encode(), {})
+
+        api.doe.side_effect, api.ruw.side_effect = doe, ruw
+        return api
+
+    monkeypatch.setattr(watchrollen, "Http", client)
+    server = SimpleNamespace(jf=beheer, url="http://localhost")
+    if afwijking:
+        with pytest.raises(ValueError, match="positieve controle|negatieve controle"):
+            watchrollen.rollenproef(server, "")
+    else:
+        doc = watchrollen.rollenproef(server, "")
+        assert set(doc["rollen"]) == set(watchrollen.ROLLEN)
+        assert doc["rollen"]["gast"]["detail"]["gelekte_namen"] == 2
+        assert doc["rollen"]["zonder_recht"]["lijst"]["http"] == 403
+        assert doc["toegangstijd"][-1]["in_groep"] is False
+
+
 def test_adb_bekende_frameklok_en_ongeldig_pixelformaat():
     import struct
 
@@ -175,6 +225,19 @@ def test_adb_bekende_frameklok_en_ongeldig_pixelformaat():
     assert adb_klok(struct.pack("<IIII", breedte, hoogte, 1, 0) + ruw, tijd, tijd + 10)["klok_ms"] == pytest.approx(tijd)
     with pytest.raises(ValueError):
         adb_klok(struct.pack("<III", breedte, hoogte, 5) + ruw, tijd, tijd + 10)
+
+
+def test_android_ready_koppelt_de_timeout_alleen_aan_de_eigen_groep_en_sessie():
+    from b03h.watchomgeving import android_ready_uitkomst
+
+    groep, telefoon, ander = "a" * 32, "b" * 32, "c" * 32
+    spoor = {"observatie_ms": 45000, "voortgang_ms": [42000, 41000]}
+    regel = f'Group "{groep}" waited 30100 ms for session(s) "{telefoon}" to report ready, giving up.'
+    assert android_ready_uitkomst(groep, telefoon, regel, spoor)["ok"] is False
+    assert android_ready_uitkomst(ander, telefoon, regel, spoor)["ok"] is True
+    assert android_ready_uitkomst(groep, ander, regel, spoor)["ready_timeouts_android_ms"] == []
+    kort = android_ready_uitkomst(groep, telefoon, "", {**spoor, "voortgang_ms": [41000, 0]})
+    assert kort["status"] == "niet reproduceerbaar in de simulatie" and "ok" not in kort
 
 
 def test_s2_weigert_software_en_twee_transcodes(tmp_path):

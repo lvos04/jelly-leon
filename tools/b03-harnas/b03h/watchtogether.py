@@ -12,10 +12,10 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from pathlib import Path
 
-from . import bewijs, meetslot, watchmeting, watchomgeving, web
+from . import android, bewijs, meetslot, watchmeting, watchomgeving, web
 from .baseline import REPO, _lees_transcodelog
 from .corpus import CORPUS, UITVOER, manifest
 from .corpus.ffmpeg import Ffmpeg
@@ -97,6 +97,18 @@ def bronmedia(werk: Path, frame_set: Path) -> tuple[dict, dict, float]:
     return koppelingen, herkomst, frameperiode
 
 
+def geerfd_slot(pad: Path) -> bool:
+    if not os.environ.get("STACKSLOT"):
+        return False
+    try:
+        if not os.path.samestat(os.fstat(9), pad.stat()):
+            return False
+        fcntl.flock(9, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except OSError:
+        return False
+
+
 @contextmanager
 def meetvenster():
     """Sluit ook de andere gedeelde testsloten uit. Een door stackslot geërfd fd 9 houden we zelf open."""
@@ -105,11 +117,7 @@ def meetvenster():
             pad = meetslot.LOCK_DIR / naam
             if naam != meetslot.STACK_LOCK and not pad.exists():
                 continue
-            try:
-                geerfd = os.path.samestat(os.fstat(9), pad.stat())
-            except OSError:
-                geerfd = False
-            if geerfd and os.environ.get("STACKSLOT"):
+            if geerfd_slot(pad):
                 continue
             # Zware bouwsloten worden door meetslot.run gecontroleerd. De emulator neemt gradle.lock zelf.
             if naam in meetslot.ZWARE_SLOTEN:
@@ -305,7 +313,8 @@ def functieproef(a: argparse.Namespace) -> int:
     """Functionele stockproef zonder prestatiewaarden. Een afwijking blijft zichtbaar in het regressierapport."""
     doc = {"schema": "jelly-leon/b03-020-functieproef/1", "image": STOCK_IMAGE, "begin": meetslot.nu()}
     WERK.mkdir(parents=True, exist_ok=True)
-    with meetslot.exclusief_slot(), ExitStack() as stapel:
+    heeft_slot = any(geerfd_slot(meetslot.LOCK_DIR / n) for n in (meetslot.STACK_LOCK, "stack2.lock", "stack3.lock"))
+    with (nullcontext() if heeft_slot else meetslot.exclusief_slot()), ExitStack() as stapel:
         werk = Path(stapel.enter_context(tempfile.TemporaryDirectory(dir=WERK))).resolve()
         meerdere_sporen = "afgeleid/formaten/tos-multiaudio-5.1-me-subs.mkv"
         mounts = {"/media/movies/Hero/Hero.mp4": BRONNEN["hero"], "/media/movies/Sintel/Sintel.mkv": BRONNEN["sintel"],
@@ -334,11 +343,19 @@ def functieproef(a: argparse.Namespace) -> int:
         cfg = {"url": server.url, "namen": namen, "wachtwoord": wachtwoord, "beheer": jf.a.headers["Authorization"],
                "browser": "firefox", "tweede": "chromium", "item": hero["Id"], "volgende": sintel["Id"],
                "duurTicks": hero["RunTimeTicks"], "versieItem": versie.get("Id"), "systeem": "stock-standaard"}
-        doc["regressies"] = web.harnas("watchfunctie", cfg, pogingen=1, timeout=300)
+        mobiel = {**cfg, "browser": "chromium", "namen": maak_kijkers(server, wachtwoord, "meetmobiel")}
+        doc["regressies"] = {}
+        try:
+            doc["regressies"]["server-18121"] = watchomgeving.android_ready(server, werk, mobiel, a.android_apk)
+        except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as fout:
+            # Fouten uit de app kunnen schermtekst bevatten. Alleen de foutsoort komt in het bewijs.
+            doc["regressies"]["server-18121"] = {"status": "proef onderbroken", "reden": type(fout).__name__}
+        bewaar(a.uit, doc)
+        doc["regressies"].update(web.harnas("watchfunctie", cfg, pogingen=1, timeout=300))
         doc["eind"] = meetslot.nu()
         bewaar(a.uit, doc)
-        afwijkingen = [k for k, r in doc["regressies"].items() if r.get("ok") is False]
-        print("Stockafwijkingen: " + ", ".join(afwijkingen) if afwijkingen else "Functionele proef uitgevoerd")
+        afwijkingen = [k for k, r in doc["regressies"].items() if r.get("ok") is False or r.get("status") == "proef onderbroken"]
+        print("Afwijkende of onderbroken regressies: " + ", ".join(afwijkingen) if afwijkingen else "Functionele proef uitgevoerd")
         return int(bool(afwijkingen))
 
 
@@ -352,6 +369,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--desktopbouw", type=Path, default=CLIENTBUILD)
     p.add_argument("--desktop-image", default=DESKTOP_IMAGE)
     p.add_argument("--netem-image", help="optionele lokale proefimage met tc en sleep, op vaste digest of lokaal image-ID")
+    p.add_argument("--android-apk", type=Path, default=android.APK_MAP / android.APKS["android"]["naam"],
+                   help="lokale officiële telefoon-APK voor de Ready-regressie, met controle van de B03-016-digest")
     p.add_argument("--label", choices=sorted(bewijs.LABELS), default="definitief-forkbasis")
     p.add_argument("--runs", type=int, default=5)
     a = p.parse_args(argv)

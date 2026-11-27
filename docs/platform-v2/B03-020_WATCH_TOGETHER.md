@@ -41,16 +41,17 @@ Elk scenario gebruikt minstens vijf onafhankelijke runs per stockprofiel van vij
 
 ## Rollen en upstream-regressies
 
-De functionele proef kan los van de prestatiebaseline draaien. Gebruik binnen het gedeelde stackslot een eigen binnenslot voor deze wegwerpserver. De opdracht geeft exitcode 1 als zij een stockafwijking vindt. De waarnemingen staan dan in het rapport.
+De functionele proef kan los van de prestatiebaseline draaien en herkent het geërfde gedeelde stackslot. De opdracht geeft exitcode 1 bij een stockafwijking of een onderbroken proef. De waarnemingen staan in het rapport.
 
 ```sh
-mkdir -p "$B03_WERK/functieslot"
-"$SLOT" nice -n 10 env B03_LOCK_DIR="$B03_WERK/functieslot" "$PY" -m b03h watchtogether \
+"$SLOT" nice -n 10 "$PY" -m b03h watchtogether \
   --functieproef --uit "$BEWIJS/b03-020-functieproef.json"
 ```
 
 Voor een bekende testgroep vraagt elke rol de lijst en het groepsdetail op. Het bewijs telt groepen en unieke deelnemersnamen. De eigenaar en het lid vormen de positieve controle. De testrol zonder SyncPlay-recht moet een weigering krijgen. In dezelfde groep meet het harnas met een tijdelijk toegangsschema of een actief lid binnen 90 s verdwijnt.
 
-De browsertests controleren starten en synchronisatie (#17351, #16241), versie- en spoorkeuze (#18422, #16964), HLS-segmenten na een seek (#17654), groepsopruiming (#17352), updates na verlaten (#8727), het volgende wachtrij-item (#8690) en aantal en positie van Ready-meldingen (#8408, #8396). Een ontbrekende tweede versie of ontbrekende HLS-waarneming krijgt een eigen reden. De Android-Ready-melding (#18121) is niet reproduceerbaar in de tweebrowsersimulatie. S4 registreert de Ready-positie van de desktop na een groepsseek voor #1290.
+De browsertests controleren starten en synchronisatie (#17351, #16241), versie- en spoorkeuze (#18422, #16964), HLS-segmenten na een seek (#17654), groepsopruiming (#17352), updates na verlaten (#8727), het volgende wachtrij-item (#8690) en aantal en positie van Ready-meldingen (#8408, #8396). Een ontbrekende tweede versie of ontbrekende HLS-waarneming krijgt een eigen reden. S4 registreert de Ready-positie van de desktop na een groepsseek voor #1290.
+
+De Android-proef opent de officiële telefoonapp in een eigen emulator onder het Gradle-slot. Met `--android-apk` kan de vastgezette APK van B03-016 worden meegegeven. De app voegt zich bij een al spelende Chromium-groep. Het harnas volgt beide afspeelposities gedurende 45 s en controleert of de server een Ready-timeout aan deze specifieke Android-sessie toeschrijft. Bij ontbrekende emulator of APK vermeldt het bewijs de reden. [Upstreammelding over Android Ready](https://github.com/jellyfin/jellyfin/issues/18121)
 
 NIET GEVALIDEERD (hardware): A310, UHD 770 en echte tv's; NIET GEVALIDEERD (Mac/Xcode): Swiftfin; NIET GEVALIDEERD (echte NAS).

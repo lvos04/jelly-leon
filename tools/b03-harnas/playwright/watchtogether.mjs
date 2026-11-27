@@ -145,23 +145,30 @@ async function deelnemer(cfg, soort, url, naam, login, afsluiten) {
   return { page, api, ready, segmenten };
 }
 
-async function openGroep(a, b) {
-  const menu = 'button[aria-label="SyncPlay"]:visible, .headerSyncButton:visible';
+const menu = 'button[aria-label="SyncPlay"]:visible, .headerSyncButton:visible';
+
+async function sluitAan(b, naam) {
+  if (b.sluitAan) return b.sluitAan(naam);
+  // Stock bewaart de lijst tot een minuut. Deze deelnemer is ingelogd en heeft nog geen actieve groep.
+  await b.page.reload({ waitUntil: 'domcontentloaded' });
+  await b.page.locator(menu).first().click();
+  const rij = b.page.locator('[role=menu] li:visible').filter({ hasText: naam });
+  const klassiek = b.page.locator('.actionSheetMenuItem:visible').filter({ hasText: naam });
+  await rij.getByRole('button', { name: /deelnemen|join/i }).or(klassiek).first().click();
+}
+
+async function maakGroep(a) {
   await fase('SyncPlay-menu van de eerste deelnemer ontbreekt', () => a.page.locator(menu).first().click());
   const [gemaakt] = await fase('stockclient maakt geen nieuwe groep', () => Promise.all([
     a.page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/SyncPlay/New') && r.request().method() === 'POST'),
     a.page.locator('[role=menuitem]:visible, .actionSheetMenuItem:visible').filter({ hasText: /nieuw|new/i }).first().click()
   ]));
-  const { GroupId: id, GroupName: naam } = await gemaakt.json();
-  if (b.sluitAan) await b.sluitAan(naam);
-  else await fase('de aangemaakte groep ontbreekt in de tweede stockclient', async () => {
-    // Stock bewaart de lijst tot een minuut. Deze deelnemer is ingelogd en heeft nog geen actieve groep.
-    await b.page.reload({ waitUntil: 'domcontentloaded' });
-    await b.page.locator(menu).first().click();
-    const rij = b.page.locator('[role=menu] li:visible').filter({ hasText: naam });
-    const klassiek = b.page.locator('.actionSheetMenuItem:visible').filter({ hasText: naam });
-    await rij.getByRole('button', { name: /deelnemen|join/i }).or(klassiek).first().click();
-  });
+  return gemaakt.json();
+}
+
+async function openGroep(a, b) {
+  const { GroupId: id, GroupName: naam } = await maakGroep(a);
+  await fase('de aangemaakte groep ontbreekt in de tweede stockclient', () => sluitAan(b, naam));
   await wachtOp(async () => (await a.api('GET', '/SyncPlay/' + id)).Participants.length === 2, 'tweede deelnemer ontbreekt');
   return id;
 }
@@ -180,10 +187,37 @@ async function currentTimeKlok(page) {
   return opnamen;
 }
 
-async function afspelen(a, cfg) {
+async function startFilm(a, cfg) {
   await a.page.goto(cfg.url + '/web/#/details?id=' + cfg.item, { waitUntil: 'domcontentloaded' });
   await a.page.locator('.mainDetailButtons .btnPlay:visible, button.btnPlay:visible').first().click();
+}
+
+async function afspelen(a, cfg) {
+  await startFilm(a, cfg);
   await wachtOp(async () => (await videoStand(a.page))?.[1] > 500, 'eerste deelnemer speelt niet');
+}
+
+async function androidGroep(cfg, a) {
+  const groep = await maakGroep(a);
+  const detail = '/SyncPlay/' + groep.GroupId;
+  await afspelen(a, cfg);
+  // De telefoon sluit via zijn eigen UI aan op de afspelende webgroep.
+  await wachtOp(async () => (await a.api('GET', detail)).Participants.length === 2, 'Android trad niet toe tot de webgroep', 135000);
+  await a.api('POST', '/SyncPlay/Unpause');
+  const begin = nu(), staten = [];
+  const posities = cfg.namen.map(() => []);
+  while (nu() - begin < 45000) {
+    const groep = await a.api('GET', detail);
+    if (groep.Participants.length !== 2) throw meetfout('een client verliet de Android-groep');
+    if (staten.at(-1) !== groep.State) staten.push(groep.State);
+    const sessies = await actieveSessies(cfg);
+    sessies.forEach((s, i) => {
+      if (s?.NowPlayingItem?.Id === cfg.item && Number.isFinite(s.PlayState?.PositionTicks)) posities[i].push(s.PlayState.PositionTicks);
+    });
+    await wacht(750);
+  }
+  await a.api('POST', '/SyncPlay/Leave');
+  return { observatie_ms: nu() - begin, groepsstaten: staten, voortgang_ms: posities.map(p => p.length ? (Math.max(...p) - p[0]) / 10000 : 0) };
 }
 
 async function groepsrun(cfg, a, b, xwd) {
@@ -270,6 +304,7 @@ export async function meet(opdracht, cfg, login) {
   const afsluiten = [];
   try {
     const a = await fase('aanmelding eerste testclient', () => deelnemer(cfg, cfg.browser, cfg.url, cfg.namen[0], login, afsluiten));
+    if (opdracht === 'watchandroid') return await fase('Android-groep starten en volgen', () => androidGroep(cfg, a));
     if (opdracht === 'watchklok') {
       await afspelen(a, cfg);
       const lezers = await currentTimeKlok(a.page);
@@ -379,7 +414,6 @@ async function functieproef(cfg, a, b) {
     ready_van_vertrokken_client: b.ready.length - klaarVoor, onverwachte_positiewijziging_ms: sprong };
   await a.api('POST', '/SyncPlay/Leave');
   uit['server-17352'] = { ok: !(await a.api('GET', '/SyncPlay/List')).some(g => g.GroupId === id) };
-  uit['server-18121'] = { status: 'niet reproduceerbaar in de simulatie', reden: 'de Android-app is geen deelnemer aan deze twee browsers' };
   uit['desktop-1290'] = { status: 'niet gemeten', reden: 'de Ready-positie van de echte desktop wordt in S4 getoetst' };
   return uit;
 }

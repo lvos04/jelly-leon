@@ -59,8 +59,9 @@ def rollenproef(server: StockServer, wachtwoord: str) -> dict:
         matrix[rol] = {"lijst": tel(api.ruw("GET", "/SyncPlay/List"), groep, zichtbaar, True),
                        "detail": tel(api.ruw("GET", detail), groep, zichtbaar, False)}
     for route in ("lijst", "detail"):
-        if matrix["eigenaar"][route]["deelnemersnamen"] != 2 or matrix["eigenaar"][route]["groepen"] != 1:
-            raise ValueError("positieve controle mist de eigen groep met twee deelnemers")
+        for rol in ("eigenaar", "deelnemer"):
+            if matrix[rol][route]["deelnemersnamen"] != 2 or matrix[rol][route]["groepen"] != 1:
+                raise ValueError(f"positieve controle mist de eigen groep met twee deelnemers voor {rol} op {route}")
         if matrix["zonder_recht"][route]["http"] not in (401, 403):
             raise ValueError("negatieve controle: rol zonder SyncPlay-recht niet geweigerd")
 

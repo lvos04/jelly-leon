@@ -115,7 +115,7 @@ def _speel_via_afstandsbediening(server: StockServer, client_patroon: str, timeo
             "sessie_client": sessie.get("Client")}
 
 
-def _inloggen_telefoon(emu: Emulator, url: str) -> list[str]:
+def _inloggen_telefoon(emu: Emulator, url: str, gebruiker: str = ANDROID_GEBRUIKER, wachtwoord: str = ANDROID_WACHTWOORD) -> list[str]:
     stappen = []
     emu.sh("monkey -p org.jellyfin.mobile -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1")
     for _ in range(3):  # toestemmingsdialogen (meldingen) wegklikken
@@ -143,12 +143,12 @@ def _inloggen_telefoon(emu: Emulator, url: str) -> list[str]:
     if len(velden) < 2:
         raise RuntimeError(f"geen inlogvelden in de webweergave; scherm: {emu.teksten()}")
     emu.tik(velden[0])
-    emu.typ(ANDROID_GEBRUIKER)
+    emu.typ(gebruiker)
     # Met Tab naar het wachtwoordveld: na het typen schuift het toetsenbord de pagina op, dus oude coördinaten kloppen niet
     # meer (gemeten op de tablet: het wachtwoord kwam dan in het gebruikersveld terecht).
     emu.toets("KEYCODE_TAB")
     time.sleep(1)
-    emu.typ(ANDROID_WACHTWOORD)
+    emu.typ(wachtwoord)
     # Enter verstuurt het formulier; niet op 'Sign In' tikken: de batterijmelding kan erover liggen.
     emu.toets("KEYCODE_ENTER")
     if not emu.wacht_op(r"^(My Media|Mijn media|Home|Startscherm)$", timeout=45):
