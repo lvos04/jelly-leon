@@ -1,0 +1,14 @@
+{
+  "werkpakket": "B03-020",
+  "soort": "netem-proefcontainer",
+  "begin": "2026-11-27T23:02:00Z",
+  "waarneming": {
+    "status": "tc gecontroleerd",
+    "vertraging_ms": 80,
+    "spreiding_ms": 20,
+    "verlies_pct": 1,
+    "image": "sha256:1cbf6c971a29e1ff8be67ab7cf7a46afb7bc59b1bf61178ab098ee6b31cb275f"
+  },
+  "http_doorvoer": 200,
+  "eind": "2026-11-27T23:02:04Z"
+}

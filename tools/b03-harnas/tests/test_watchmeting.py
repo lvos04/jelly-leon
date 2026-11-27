@@ -240,6 +240,39 @@ def test_android_ready_koppelt_de_timeout_alleen_aan_de_eigen_groep_en_sessie():
     assert kort["status"] == "niet reproduceerbaar in de simulatie" and "ok" not in kort
 
 
+def test_lokaal_netembeeld_bevat_alleen_het_gereedschap_en_wordt_opgeruimd(monkeypatch, tmp_path):
+    import hashlib
+    import tarfile
+    from contextlib import ExitStack
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    from b03h import watchomgeving as om
+
+    for naam in ("tc", "sleep", "bibliotheek"):
+        (tmp_path / naam).write_bytes(naam.encode())
+    bibliotheek = tmp_path / "bibliotheek"
+    monkeypatch.setattr(om, "WERK", tmp_path)
+    monkeypatch.setattr(om.shutil, "which", lambda k: str(tmp_path / k))
+    monkeypatch.setattr(om.subprocess, "run", lambda *_, **_kw: SimpleNamespace(returncode=0, stdout=f"lib => {bibliotheek} (adres)"))
+    opruiming, sommen = [], []
+
+    def docker(*args):
+        if args[:2] == ("image", "import"):
+            pakket = Path(args[-1])
+            sommen.append(hashlib.sha256(pakket.read_bytes()).hexdigest())
+            with tarfile.open(pakket) as inhoud:
+                assert set(inhoud.getnames()) == {"usr/bin/tc", "usr/bin/sleep", str(bibliotheek).lstrip("/")}
+            return SimpleNamespace(stdout="eigen-testimage")
+        opruiming.append(args)
+
+    monkeypatch.setattr(om, "docker", docker)
+    with ExitStack() as eigen:
+        beeld, som = om.lokaal_netembeeld(eigen)
+        assert beeld == "eigen-testimage" and sommen == [som] and not opruiming
+    assert opruiming == [("image", "rm", beeld)]
+
+
 def test_functieproef_kiest_een_aflevering_en_bewaart_stockafwijking(monkeypatch, tmp_path):
     import json
     from contextlib import nullcontext

@@ -8,6 +8,8 @@ import secrets
 import shutil
 import struct
 import subprocess
+import tarfile
+import tempfile
 import time
 import uuid
 import zipfile
@@ -20,7 +22,7 @@ from . import android, meetslot, web
 from .clientmatrix import _inloggen_telefoon
 from .corpus.manifest import sha256_bestand
 from .desktop import BINARY, NODE_IMAGE
-from .stock import StockServer, docker
+from .stock import WERK, StockServer, docker
 from .watchmeting import nulproef
 
 ANDROID_KLOK = web.WEB.parent / "android-klok"
@@ -65,6 +67,38 @@ def netwerk(server: StockServer):
         docker("network", "rm", net)
 
 
+def lokaal_netembeeld(stapel: ExitStack) -> tuple[str, str] | None:
+    """Verpak de lokale tc, sleep en hun ELF-bibliotheken voor uitvoering in een eigen container."""
+    ldd_pad = shutil.which("ldd")
+    if not ldd_pad:
+        return None
+    bestanden = {}
+    for naam in ("tc", "sleep"):
+        binair = shutil.which(naam)
+        if not binair:
+            return None
+        bestanden["usr/bin/" + naam] = Path(binair)
+        ldd = subprocess.run([ldd_pad, binair], text=True, capture_output=True, timeout=10, check=False)
+        if ldd.returncode or "not found" in ldd.stdout:
+            return None
+        for lib in re.findall(r"(/[^\s()]+)", ldd.stdout):
+            bestanden[lib.lstrip("/")] = Path(lib)
+    with tempfile.TemporaryDirectory(dir=WERK) as bouw:
+        pakket = Path(bouw) / "gereedschap.tar"
+        with tarfile.open(pakket, "w", format=tarfile.USTAR_FORMAT) as tar:
+            for naam, bron in sorted(bestanden.items()):
+                info = tarfile.TarInfo(naam)
+                info.size, info.mode = bron.stat().st_size, 0o755
+                with bron.open("rb") as f:
+                    tar.addfile(info, f)
+        som = sha256_bestand(pakket)
+        # Het unieke label identificeert uitsluitend de image van deze meetpoging voor het opruimen.
+        beeld = docker("image", "import", "--change", "LABEL b03020-proef=" + uuid.uuid4().hex,
+                       "--change", "ENV PATH=/usr/bin:/usr/sbin", str(pakket)).stdout.strip()
+        stapel.callback(docker, "image", "rm", beeld)
+    return beeld, som
+
+
 @contextmanager
 def netem(server: StockServer, net: str, image: str | None = None):
     """De proef en B's doorvoer delen één nieuw netwerknamespace. Alleen daarin is NET_ADMIN beschikbaar."""
@@ -81,6 +115,19 @@ def netem(server: StockServer, net: str, image: str | None = None):
             return
         proef = docker("exec", cid, "tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", "80ms", "20ms",
                        "loss", "1%", check=False)
+        if proef.returncode == 127 and image is None:
+            stapel.close()
+            try:
+                hulpmiddel = lokaal_netembeeld(stapel)
+            except (OSError, subprocess.SubprocessError) as fout:
+                yield None, {"status": "niet gemeten", "stock_tc_exit": 127,
+                             "reden": "eigen tc-image kon niet worden gemaakt", "foutsoort": type(fout).__name__}
+                return
+            if hulpmiddel:
+                beeld, som = hulpmiddel
+                with netem(server, net, beeld) as (url, waarneming):
+                    yield url, {**waarneming, "stock_tc_exit": 127, "gereedschap_sha256": som}
+                return
         if proef.returncode:
             yield None, {"status": "niet gemeten", "reden": "tc netem niet beschikbaar in de proefcontainer",
                          "exitcode_tc": proef.returncode, "image": image or server.image}
