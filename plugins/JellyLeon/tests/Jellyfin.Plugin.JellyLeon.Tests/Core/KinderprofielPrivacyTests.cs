@@ -165,12 +165,13 @@ public sealed class KinderprofielPrivacyTests : IDisposable
         using (var server = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = kijk, Pooling = false }.ToString()))
         using (var guard = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = voortgang, Pooling = false }.ToString()))
         {
-            server.Open();
-            guard.Open();
+            var stop = TestContext.Current.CancellationToken;
+            await server.OpenAsync(stop);
+            await guard.OpenAsync(stop);
             JlDatabase.Voer(server, "CREATE TABLE UserData(Played INTEGER, PlaybackPositionTicks INTEGER); INSERT INTO UserData VALUES(1,15000000)");
             JlDatabase.Voer(guard, "CREATE TABLE voortgang(positie INTEGER); INSERT INTO voortgang VALUES(37)");
-            var kijkVoor = File.ReadAllBytes(kijk);
-            var guardVoor = File.ReadAllBytes(voortgang);
+            var kijkVoor = await File.ReadAllBytesAsync(kijk, stop);
+            var guardVoor = await File.ReadAllBytesAsync(voortgang, stop);
             var kijkpositie = JlDatabase.Getal(server, "SELECT PlaybackPositionTicks FROM UserData WHERE Played=1");
             var guardpositie = JlDatabase.Getal(guard, "SELECT positie FROM voortgang");
             Assert.Equal(15000000L, kijkpositie);
@@ -182,8 +183,8 @@ public sealed class KinderprofielPrivacyTests : IDisposable
 
             Assert.Equal(kijkpositie, JlDatabase.Getal(server, "SELECT PlaybackPositionTicks FROM UserData WHERE Played=1"));
             Assert.Equal(guardpositie, JlDatabase.Getal(guard, "SELECT positie FROM voortgang"));
-            Assert.Equal(kijkVoor, File.ReadAllBytes(kijk));
-            Assert.Equal(guardVoor, File.ReadAllBytes(voortgang));
+            Assert.Equal(kijkVoor, await File.ReadAllBytesAsync(kijk, stop));
+            Assert.Equal(guardVoor, await File.ReadAllBytesAsync(voortgang, stop));
         }
 
         var nieuweKern = _h.Dienst<CoreDatabase>().Db;
