@@ -443,26 +443,31 @@ async function functieproef(cfg, a, b, uit) {
   try {
     await fase('groepsfilm starten', () => afspelen(a, cfg));
     await wachtOp(async () => (await videoStand(b.page))?.[1] > 500, 'tweede deelnemer start niet (#17351)');
+    uit['server-17351'] = { ok: true, spelende_deelnemers: 2 };
   } catch (fout) {
     if (!['eerste deelnemer speelt niet', 'tweede deelnemer start niet (#17351)'].includes(fout.fase)) throw fout;
     uit['server-17351'] = { ok: false, reden: fout.fase };
-    uit['server-17352'] = await naVenstersSluiten(cfg, a, b, id);
-    for (const nr of ['server-16241', 'server-16964', 'server-17654', 'server-18422', 'web-8408', 'web-8396', 'web-8690', 'web-8727']) {
+    for (const nr of ['server-16241', 'web-8408', 'web-8396', 'web-8690', 'web-8727']) {
       uit[nr] = { status: 'niet reproduceerbaar in de simulatie', reden: 'de afspeelproef heeft geen twee spelende deelnemers' };
     }
-    return;
   }
-  uit['server-17351'] = { ok: true, spelende_deelnemers: 2 };
-  const seek = await seekProef(a, b);
-  const [pa, pb] = await Promise.all([videoStand(a.page), videoStand(b.page)]);
-  uit['server-16241'] = { ok: !!pa && !!pb && Math.abs(pa[1] - pb[1]) <= 1000 && pa[1] >= 9000 && pb[1] >= 9000 };
-  const meldingen = seek['web-8396'].ready_posities_ms;
-  uit['web-8408'] = { ...seek['web-8408'], ok: meldingen.length === 1 };
-  uit['web-8396'] = { ...seek['web-8396'], ok: meldingen.length > 0 && meldingen.every(t => Math.abs(t - 10000) <= 1000) };
+  if (uit['server-17351'].ok) {
+    const seek = await seekProef(a, b);
+    const [pa, pb] = await Promise.all([videoStand(a.page), videoStand(b.page)]);
+    uit['server-16241'] = { ok: !!pa && !!pb && Math.abs(pa[1] - pb[1]) <= 1000 && pa[1] >= 9000 && pb[1] >= 9000 };
+    const meldingen = seek['web-8396'].ready_posities_ms;
+    uit['web-8408'] = { ...seek['web-8408'], ok: meldingen.length === 1 };
+    uit['web-8396'] = { ...seek['web-8396'], ok: meldingen.length > 0 && meldingen.every(t => Math.abs(t - 10000) <= 1000) };
+  }
+  // De aflevering en HEVC-clip starten elk een eigen afspeelproef met dezelfde twee groepsleden.
   try { Object.assign(uit, await versiesEnSporen(cfg, a)); }
   catch (fout) { uit['server-16964'] = uit['server-18422'] = onderbroken('alternatieve aflevering en sporen', fout); }
   try { uit['server-17654'] = await hlsNaCorrectie(cfg, a, b); }
   catch (fout) { uit['server-17654'] = onderbroken('HLS na positiecorrectie', fout); }
+  if (!uit['server-17351'].ok) {
+    uit['server-17352'] = await naVenstersSluiten(cfg, a, b, id);
+    return;
+  }
   await a.api('POST', '/SyncPlay/SetNewQueue', {
     PlayingQueue: [cfg.item, cfg.volgende], PlayingItemPosition: 0, StartPositionTicks: cfg.duurTicks - 5 * 10000000
   });

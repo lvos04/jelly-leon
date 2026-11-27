@@ -237,6 +237,7 @@ def meet(a: argparse.Namespace, document: dict, logmap: Path, poging: Path) -> i
                 for browser in ("chromium", "firefox"):
                     r = web.harnas("watchklok", {**cfg, **(cdp if browser == "chromium" else {}), "browser": browser, "item": items["hero"]},
                                    pogingen=1)
+                    r.pop("harnaspogingen")
                     uit[browser] = {naam: watchmeting.nulproef(rij) for naam, rij in r.items()}
                 return uit
 
@@ -311,7 +312,8 @@ def meet(a: argparse.Namespace, document: dict, logmap: Path, poging: Path) -> i
 
 def functieproef(a: argparse.Namespace) -> int:
     """Functionele stockproef zonder prestatiewaarden. Een afwijking blijft zichtbaar in het regressierapport."""
-    doc = {"schema": "jelly-leon/b03-020-functieproef/1", "image": STOCK_IMAGE, "begin": meetslot.nu()}
+    doc = {"schema": "jelly-leon/b03-020-functieproef/1", "werkpakket": "B03-020", "label": a.label,
+           "image": STOCK_IMAGE, "begin": meetslot.nu()}
     WERK.mkdir(parents=True, exist_ok=True)
     heeft_slot = any(geerfd_slot(meetslot.LOCK_DIR / n) for n in (meetslot.STACK_LOCK, "stack2.lock", "stack3.lock"))
     with (nullcontext() if heeft_slot else meetslot.exclusief_slot()), ExitStack() as stapel:
@@ -359,7 +361,9 @@ def functieproef(a: argparse.Namespace) -> int:
             # Fouten uit de app kunnen schermtekst bevatten. Alleen de foutsoort komt in het bewijs.
             doc["regressies"]["server-18121"] = {"status": "proef onderbroken", "reden": type(fout).__name__}
         bewaar(a.uit, doc)
-        doc["regressies"].update(web.harnas("watchfunctie", cfg, pogingen=1, timeout=300))
+        browser = web.harnas("watchfunctie", cfg, pogingen=1, timeout=300)
+        doc["browserpogingen"] = browser.pop("harnaspogingen")
+        doc["regressies"].update(browser)
         doc["eind"] = meetslot.nu()
         bewaar(a.uit, doc)
         afwijkingen = [k for k, r in doc["regressies"].items() if r.get("ok") is False or r.get("status") == "proef onderbroken"]

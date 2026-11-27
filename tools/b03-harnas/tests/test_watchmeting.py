@@ -297,16 +297,20 @@ def test_functieproef_kiest_een_aflevering_en_bewaart_stockafwijking(monkeypatch
     monkeypatch.setattr(wt.watchomgeving, "netem", lambda *_: nullcontext((None, {"status": "niet gemeten"})))
     monkeypatch.setattr(wt.watchomgeving, "android_ready", lambda *_: {"status": "niet reproduceerbaar in de simulatie"})
 
-    def browser(opdracht, cfg, **opties):
-        assert opdracht == "watchfunctie" and opties["pogingen"] == 1
+    def browser(opdracht, cfg, timeout):
+        assert opdracht == "watchfunctie" and timeout == 300
         assert (cfg["versieItem"], cfg["hlsItem"]) == ("aflevering", "Hlsproef")
         return {"server-17352": {"ok": False, "resterende_deelnemers": 2}}
 
-    monkeypatch.setattr(wt.web, "harnas", browser)
+    monkeypatch.setattr(wt.web, "_harnas", browser)
+    aanroepen = Mock(wraps=wt.web.harnas)
+    monkeypatch.setattr(wt.web, "harnas", aanroepen)
     uit = tmp_path / "functie.json"
     assert wt.main(["--functieproef", "--uit", str(uit)]) == 1
+    assert aanroepen.call_count == 1 and aanroepen.call_args.kwargs["pogingen"] == 1
     doc = json.loads(uit.read_text())
     assert doc["regressies"]["server-17352"]["ok"] is False and "server-18121" in doc["regressies"]
+    assert doc["browserpogingen"] == 1 and "harnaspogingen" not in doc["regressies"]
     assert "metingen" not in doc and "eind" in doc
 
 
@@ -330,6 +334,7 @@ def test_matrices_en_bewijs_via_normale_ingang(monkeypatch, tmp_path, spoor):
     from contextlib import nullcontext
     from pathlib import Path
     from types import SimpleNamespace
+    from unittest.mock import Mock
 
     from b03h import watchtogether as wt
 
@@ -360,8 +365,8 @@ def test_matrices_en_bewijs_via_normale_ingang(monkeypatch, tmp_path, spoor):
     matrix = []
     klok = [{"voor_ms": t, "na_ms": t + 1, "klok_ms": t} for t in range(0, 100, 10)]
 
-    def browser(opdracht, cfg, **kwargs):
-        assert kwargs["pogingen"] == 1 and cfg["namen"][0] != cfg["namen"][1]
+    def browser(opdracht, cfg, timeout):
+        assert cfg["namen"][0] != cfg["namen"][1]
         if opdracht == "watchklok":
             return {"currentTime": klok, "browser-screenshot": klok, **({"Xvfb": klok} if "cdp" in cfg else {})}
         matrix.append((cfg["scenario"], cfg["systeem"], tuple(cfg["namen"])))
@@ -370,12 +375,15 @@ def test_matrices_en_bewijs_via_normale_ingang(monkeypatch, tmp_path, spoor):
         assert ("cdp" in cfg) == (cfg["scenario"] == "S4")
         return {**spoor, "sessies": [], "regressies": {}}
 
-    monkeypatch.setattr(wt.web, "harnas", browser)
+    monkeypatch.setattr(wt.web, "_harnas", browser)
+    aanroepen = Mock(wraps=wt.web.harnas)
+    monkeypatch.setattr(wt.web, "harnas", aanroepen)
     uit = tmp_path / "meting.json"
     binary = tmp_path / wt.BINARY
     binary.parent.mkdir(parents=True)
     binary.write_bytes(b"testclient")
     assert wt.main(["--uit", str(uit), "--desktopbouw", str(tmp_path)]) == 0
+    assert all(aanroep.kwargs["pogingen"] == 1 for aanroep in aanroepen.call_args_list)
     d = json.loads(uit.read_text())
     assert not bewijs.controleer(d)
     assert set(d["scenarios"]) == set(wt.SCENARIOS)

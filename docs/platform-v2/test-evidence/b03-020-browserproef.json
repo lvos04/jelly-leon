@@ -1,0 +1,78 @@
+{
+  "schema": "jelly-leon/b03-020-browserproef/1",
+  "werkpakket": "B03-020",
+  "label": "definitief-forkbasis",
+  "begin": "2026-11-27T23:21:59Z",
+  "eind": "2026-11-27T23:24:51Z",
+  "image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "server": {
+    "versie": "12.4.0",
+    "image_id": "sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "browserpogingen": 1,
+  "regressies": {
+    "server-18121": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "KVM of het lokale emulator-SDK ontbreekt voor de Android-groepsproef"
+    },
+    "server-17351": {
+      "ok": false,
+      "reden": "tweede deelnemer start niet (#17351)"
+    },
+    "server-16241": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "de afspeelproef heeft geen twee spelende deelnemers"
+    },
+    "server-16964": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "de afspeelproef heeft geen twee spelende deelnemers"
+    },
+    "server-18422": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "de afspeelproef heeft geen twee spelende deelnemers"
+    },
+    "server-17654": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "de afspeelproef heeft geen twee spelende deelnemers"
+    },
+    "server-17352": {
+      "ok": true,
+      "observatie_ms": 53.240966796875,
+      "resterende_deelnemers": 0
+    },
+    "web-8408": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "de afspeelproef heeft geen twee spelende deelnemers"
+    },
+    "web-8396": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "de afspeelproef heeft geen twee spelende deelnemers"
+    },
+    "web-8690": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "de afspeelproef heeft geen twee spelende deelnemers"
+    },
+    "web-8727": {
+      "status": "niet reproduceerbaar in de simulatie",
+      "reden": "de afspeelproef heeft geen twee spelende deelnemers"
+    },
+    "desktop-1290": {
+      "status": "niet gemeten",
+      "reden": "de desktop-proef staat in S4"
+    }
+  },
+  "tc_proef": {
+    "status": "tc gecontroleerd",
+    "vertraging_ms": 80,
+    "spreiding_ms": 20,
+    "verlies_pct": 1,
+    "image": "sha256:3dd6371fa5c3962851d97cca99f6b0f551af69bb6f9c3688e3988b249c1d6179",
+    "stock_tc_exit": 127,
+    "gereedschap_sha256": "52bb5b7a2074b1248382888775c40b1300eb48f3d58e305123b4c6d76abeeae5"
+  },
+  "toegangstijd_laatste_waarneming": {
+    "na_s": 91.41,
+    "in_groep": true,
+    "http_lijst": 403
+  }
+}
