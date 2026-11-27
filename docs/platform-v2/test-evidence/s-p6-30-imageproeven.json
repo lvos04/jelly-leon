@@ -1,0 +1,55 @@
+{
+  "stap": "S-P6-30",
+  "datum": "2026-11-27",
+  "image": "jelly-leon:p6",
+  "image_id": "sha256:87a5e00d59597f60ab37a1822bf9f84d8394048845e85a7152d0c8a7f5594417",
+  "servercommit": "5d8784c635ea012065b3b2d312117e73fc88d7ae",
+  "proeven": {
+    "rollback": {
+      "uitvoering": "niet uitgevoerd"
+    },
+    "upgrade": {
+      "uitvoering": "niet uitgevoerd"
+    },
+    "plugin": {
+      "uitvoering": "niet uitgevoerd"
+    },
+    "lifecycle": {
+      "uitvoering": "niet uitgevoerd"
+    },
+    "guard-image": {
+      "uitvoering": "niet uitgevoerd"
+    },
+    "compat": {
+      "uitvoering": "niet uitgevoerd"
+    },
+    "gedrag-runtime": {
+      "uitvoering": "niet uitgevoerd"
+    },
+    "spike": {
+      "uitvoering": "niet uitgevoerd"
+    }
+  },
+  "jlt_61_c": {
+    "uitvoering": "niet uitgevoerd",
+    "reden": "De geladen modules devices en quality bieden geen beheeractie om na een verse export de modulegegevens te verwijderen. De UserDeleted-afhandeling wist uitsluitend gegevens van één verwijderd account.",
+    "gevolg": "Geen restantenvergelijking of opzettelijk onbekend restant, geen afspeelproef met Direct Play en transcode na deze route en geen bijbehorende CI-stap.",
+    "beheerroutes_uit_openapi": [
+      "GET /media/v1/devices/settings",
+      "GET /media/v1/devices/status",
+      "GET /media/v1/modules",
+      "GET /media/v1/quality/settings",
+      "GET /media/v1/quality/status",
+      "PUT /media/v1/devices/settings",
+      "PUT /media/v1/modules/{slug}",
+      "PUT /media/v1/quality/settings"
+    ],
+    "broncontrole": [
+      "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Core/Http/RouteTable.cs",
+      "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Core/Modules/ModuleSwitches.cs",
+      "docs/openapi/jelly-leon-plugin.openapi.json"
+    ]
+  },
+  "niet_gevalideerd": "NIET GEVALIDEERD (echte NAS): echte bibliotheek en echte datamap (N-P6-09, N-P6-12)",
+  "meetmoment_utc": "2026-11-27T22:04:53Z"
+}
