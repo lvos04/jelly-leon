@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import fcntl
 import os
+import subprocess
 import threading
 import time
 from collections.abc import Iterator, Sequence
@@ -63,19 +64,18 @@ def exclusief_slot(naam: str = STACK_LOCK, lock_dir: Path = LOCK_DIR, timeout: f
     pad = lock_dir / naam
     fd = os.open(pad, os.O_RDONLY | os.O_CREAT, 0o664)
     begin = time.monotonic()
-    gemeld = False
     try:
-        while True:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if time.monotonic() - begin > timeout:
-                    raise TimeoutError(f"{pad} niet vrij binnen {timeout:.0f} s") from None
-                if not gemeld and callable(bij_wachten):
-                    bij_wachten(f"wacht op {pad} …")
-                    gemeld = True
-                time.sleep(2)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            if callable(bij_wachten):
+                bij_wachten(f"wacht op {pad} …")
+            # Wacht in de kernel naast de andere flock-gebruikers. Het geërfde fd houdt het slot
+            # in dit proces vast zodra flock terugkeert, ook bij een rij wachtende bouwketens.
+            wacht = subprocess.run(["flock", "-x", "-w", str(max(0, timeout)), str(fd)], pass_fds=(fd,), check=False)
+            if wacht.returncode == 1:
+                raise TimeoutError(f"{pad} niet vrij binnen {timeout:.0f} s") from None
+            wacht.check_returncode()
         yield time.monotonic() - begin
     finally:
         try:

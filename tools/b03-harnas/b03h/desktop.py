@@ -1,159 +1,162 @@
-"""Gezamenlijke desktop-spike (B03 2.0 §10.14, analyse 5 §4): jellyfin-desktop 2.0.0 onder Xvfb in een container.
-
-De broncode komt **alleen-lezen** uit ``jelly-leon-clients/desktop`` (forkversie 2.0.0-jl.0) en wordt gebouwd met de
-bouwomgeving van die repo (``tools/clients/bouwverificatie/desktop.Dockerfile``) onder ``docker-build.lock``; de uitvoer
-staat buiten elke repo. Daarna draait de app in een container met Xvfb, libmpv op ``vaapi-copy`` en
-``--remote-debugging-port``; ``desktop/cdp.mjs`` bestuurt hem via ruwe CDP. Geslaagd = de server ziet de desktop-sessie
-hero.mp4 afspelen (PositionTicks ≥ 2 s). Anders: **Geblokkeerd** met de gemeten reden (acceptatie B03-016).
-
-    python -m b03h desktop [--uit …json] [--stap bouw|draai|alles]
-"""
+"""Desktoprooktest met een bestaande clientbuild, Xvfb en een eigen Jellyfin-testserver (B03-016, JLT-63)."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import secrets
 import subprocess
-import time
-import traceback
-import urllib.request
+import tempfile
+import uuid
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
 from . import meetslot
-from .stock import GEBRUIKER, STOCK_IMAGE, WACHTWOORD, WERK, StockServer, docker, render_gid
+from .stock import STOCK_IMAGE, WERK, StockServer, docker
 
 REPO = Path(__file__).resolve().parents[3]
-CLIENTS = REPO.parent / "jelly-leon-clients"
-DOCKERFILE = CLIENTS / "tools/clients/bouwverificatie/desktop.Dockerfile"
-IMAGE = "jelly-leon-b03-016/desktop-spike:dev"
-UIT = WERK / "desktop-bouw"
-CDP_POORT = 9333
-APP_LOG = "/tmp/app.log"  # noqa: S108 - pad binnen de wegwerpcontainer
+BINARY = Path("build/src/jellyfin-desktop")
+CLIENTBUILD = REPO.parent / "jelly-leon-clients/.bouw/desktop"
+DESKTOP_IMAGE = "jelly-leon-clients/desktop-test:dev"
+# Dezelfde gepinde Node-runtime als de webbouw in deploy/allinone/Dockerfile.
+NODE_IMAGE = "docker.io/library/node:24.22.2-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9"
 HERO = "/media/movies/hero/hero.mp4"
+CDP_JS = REPO / "tools/b03-harnas/desktop/cdp.mjs"
+APP = ("Xvfb :99 -screen 0 1600x900x24 >/dev/null 2>&1 & sleep 2; "
+       "exec /out/build/src/jellyfin-desktop --remote-debugging-port 9222")
 
 
-def log(tekst: str) -> None:
-    print(f"[{time.strftime('%H:%M:%S')}] {tekst}", flush=True)
+class DesktopFout(RuntimeError):
+    """Diagnose zonder accountgegevens of ruwe serveruitvoer, geschikt voor het bewijs."""
 
 
-def bouw() -> dict[str, Any]:
-    if not DOCKERFILE.exists():
-        raise RuntimeError(f"{DOCKERFILE} ontbreekt (jelly-leon-clients niet naast deze repo)")
-    commit = subprocess.run(["git", "-C", str(CLIENTS), "rev-parse", "HEAD"], capture_output=True, text=True, check=False).stdout.strip()
-    t0 = time.monotonic()
-    with meetslot.exclusief_slot("docker-build.lock", bij_wachten=log):
-        b = subprocess.run(["nice", "-n", "10", "docker", "buildx", "build", "--load", "-f", str(DOCKERFILE), "-t", IMAGE,
-                            str(CLIENTS / "desktop")], capture_output=True, text=True, check=False, timeout=3600)
-    if b.returncode != 0:
-        raise RuntimeError(f"bouwimage faalde: {b.stderr[-800:]}")
-    UIT.mkdir(parents=True, exist_ok=True)
-    c = subprocess.run(["nice", "-n", "10", "docker", "run", "--rm", "--network", "none", "--cpus", "4", "--memory", "6g",
-                        "--security-opt", "no-new-privileges", "--cap-drop", "ALL", "--user", f"{os.getuid()}:{os.getgid()}",
-                        "-v", f"{CLIENTS / 'desktop'}:/src:ro", "-v", f"{UIT}:/out", IMAGE, "bash", "-euo", "pipefail", "-c",
-                        "cmake -S /src -B /out/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_STATIC_MPVQT=ON >/out/cmake.log 2>&1 && "
-                        "cmake --build /out/build -j 4 >/out/build.log 2>&1"],
-                       capture_output=True, text=True, check=False, timeout=5400)
-    binary = next(iter(UIT.glob("build/**/jellyfin-desktop")), None)
-    if c.returncode != 0 or binary is None:
-        staart = (UIT / "build.log").read_text(errors="replace")[-800:] if (UIT / "build.log").exists() else c.stderr[-800:]
-        raise RuntimeError(f"compileren faalde: {staart}")
-    return {"clients_commit": commit, "bouw_s": round(time.monotonic() - t0), "binary": str(binary.relative_to(UIT))}
+def beoordeel(cdp: dict[str, Any]) -> str:
+    """Geef de eerste ontbrekende of onjuiste meting terug. Alle posities zijn in seconden."""
+    if cdp.get("chunkloaderror") is True:
+        return "ChunkLoadError waargenomen"
+    if not cdp.get("webclient_geladen"):
+        return cdp.get("fout") or "webclient van de testserver niet geladen"
+    if not cdp.get("ingelogd"):
+        return cdp.get("fout") or "niet ingelogd"
+    if 0 in cdp.get("voortgang_hervatten_s", []) or any(p == 0 for _, p in cdp.get("hervatten", [])):
+        return "positie 0 gemeld bij hervatten"
+    if cdp.get("fout"):
+        return cdp["fout"]
+    if cdp.get("beginpunt_s") != 0:
+        return "beginpositie van het nieuwe testaccount niet bevestigd"
+    if not cdp.get("voortgang_hervatten_s"):
+        return "geen voortgangsmelding van de desktop bij hervatten"
+    for fase in ("afspelen", "hervatten"):
+        rij = cdp.get(fase, [])
+        if len(rij) < 2 or rij[-1][1] - rij[0][1] < 2 or any(b[1] < a[1] for a, b in zip(rij, rij[1:], strict=False)):
+            return f"{fase}: geen oplopende afspeelpositie van minstens twee seconden"
+    punt = cdp.get("hervatpunt_s")
+    na = cdp.get("eindpunt_s")
+    if punt is None or punt <= 0 or abs(punt - cdp["afspelen"][-1][1]) > 5:
+        return "opgeslagen hervatpunt wijkt af van de eerste afspeelsessie"
+    tijd, eerste = cdp["hervatten"][0]
+    if not punt - 3 <= eerste <= punt + tijd + 3:
+        return "desktop begon buiten het opgeslagen hervatpunt"
+    if na is None or na <= punt or abs(na - cdp["hervatten"][-1][1]) > 5:
+        return "voortgang na hervatten niet bewaard"
+    if cdp.get("chunkloaderror") is not False:
+        return "controle op ChunkLoadError onvolledig"
+    return ""
 
 
-def draai(uitmap: Path, resultaat: dict[str, Any]) -> dict[str, Any]:
-    binary = next(iter(UIT.glob("build/**/jellyfin-desktop")), None)
-    if binary is None:
-        raise RuntimeError("geen gebouwde jellyfin-desktop; eerst --stap bouw")
-    koppelingen = {"/media/movies/hero": "bron/blender/hero"}
-    with meetslot.exclusief_slot(bij_wachten=log):
-        server = StockServer("desktop", koppelingen=koppelingen, gpu=False).start()
-        naam = "b03016-desktop-app"  # niet gelijk aan de stockserver (die heet b03016-desktop)
-        try:
-            server.inrichten([("Films", "movies", ["/media/movies"])])
-            assert server.jf
-            hero = next(i for i in server.jf.items() if i["Path"] == HERO)
-            docker("rm", "-f", naam, check=False)
-            gid = render_gid()
-            docker("run", "-d", "--name", naam, "--network", "host", "--memory", "3g", "--security-opt", "no-new-privileges",
-                   "--device", "/dev/dri/renderD128", *(["--group-add", str(gid)] if gid else []), "-v", f"{UIT}:/out:ro",
-                   "-e", "HOME=/tmp", IMAGE, "sleep", "infinity")
-            apt = docker("exec", "-u", "0", naam, "sh", "-c", "apt-get update -qq >/dev/null && DEBIAN_FRONTEND=noninteractive "
-                         "apt-get install -y -qq --no-install-recommends xvfb xauth mesa-va-drivers intel-media-va-driver "
-                         "fonts-dejavu-core qml6-module-qtwebengine qml6-module-qtwebchannel qml6-module-qtquick-controls "
-                         "qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates >/dev/null",
-                         check=False, timeout=900)
-            # Runtime-QML-modules uit desktop/debian/control (Depends); zonder deze faalt de app met
-            # "Failed to parse application engine script" (gemeten in de eerste spike-poging).
-            resultaat["runtime_apt"] = "ok" if apt.returncode == 0 else apt.stderr[-300:]
-            app = (f"Xvfb :99 -screen 0 1600x900x24 >/tmp/xvfb.log 2>&1 & sleep 2; "
-                   f"DISPLAY=:99 QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox LIBVA_DRIVER_NAME=iHD "
-                   f"/out/{binary.relative_to(UIT)} --remote-debugging-port {CDP_POORT} >{APP_LOG} 2>&1")
-            subprocess.run(["docker", "exec", "-d", "-u", f"{os.getuid()}:{os.getgid()}", naam, "sh", "-c", app], check=True)
-            cdp = f"http://127.0.0.1:{CDP_POORT}"
-            klaar = False
-            for _ in range(60):
-                try:
-                    with urllib.request.urlopen(f"{cdp}/json/version", timeout=2) as r:  # noqa: S310 - lokaal
-                        resultaat["cdp_versie"] = json.loads(r.read()).get("Browser")
-                        klaar = True
-                        break
-                except OSError:
-                    time.sleep(2)
-            if not klaar:
-                raise RuntimeError("CDP antwoordt niet: " + docker("exec", naam, "tail", "-30", APP_LOG, check=False).stdout[-800:])
-            web = Path(__file__).resolve().parents[1] / "desktop" / "cdp.mjs"
-            cfg = {"cdp": cdp, "server": server.url, "gebruiker": GEBRUIKER, "wachtwoord": WACHTWOORD, "item": hero["Id"],
-                   "scherm": str(uitmap / "desktop-spike.png")}
-            try:
-                r = subprocess.run(["node", str(web), json.dumps(cfg)], capture_output=True, text=True, timeout=420, check=False)
-                resultaat["cdp"] = json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else {"fout": r.stderr[-400:]}
-            except subprocess.TimeoutExpired as fout:
-                staart = fout.stderr.decode(errors="replace") if isinstance(fout.stderr, bytes) else (fout.stderr or "")
-                resultaat["cdp"] = {"ok": False, "fout": "CDP-besturing liep vast (420 s)", "stappen_tot_dan": staart[-800:]}
-            # Afspelen aan de serverkant controleren (de desktop speelt via libmpv, niet via een <video>-element).
-            pos = []
-            for _ in range(40):
-                for s in server.jf.a.doe("GET", "/Sessions"):
-                    if (s.get("NowPlayingItem") or {}).get("Id") == hero["Id"]:
-                        pos.append(round(((s.get("PlayState") or {}).get("PositionTicks") or 0) / 1e7, 2))
-                        resultaat["sessie"] = {"client": s.get("Client"), "versie": s.get("ApplicationVersion"),
-                                               "methode": (s.get("PlayState") or {}).get("PlayMethod")}
-                if pos and pos[-1] >= 2:
-                    break
-                time.sleep(1)
-            resultaat["posities_s"] = pos[-5:]
-        finally:
-            resultaat["app_log"] = docker("exec", naam, "tail", "-25", APP_LOG, check=False).stdout[-2000:]
-            staat = docker("inspect", "--format", "{{json .State}}", server.naam, check=False).stdout.strip()
-            resultaat["server_staat"] = staat[:400]
-            resultaat["server_log"] = server.logs(25)[-1500:]
-            docker("rm", "-f", naam, check=False)
-            server.verwijder()
-    ok = bool(resultaat.get("posities_s")) and resultaat["posities_s"][-1] >= 2
-    resultaat["status"] = "Sim-getest (spike geslaagd: hero.mp4 speelt)" if ok else "Geblokkeerd (spike niet geslaagd)"
-    return resultaat
+def draai(build: Path, image: str, desktop_image: str, uitmap: Path, resultaat: dict[str, Any]) -> None:
+    WERK.mkdir(parents=True, exist_ok=True)
+    with meetslot.exclusief_slot(bij_wachten=lambda s: print(s, flush=True)), ExitStack() as stapel:
+        werk = Path(stapel.enter_context(tempfile.TemporaryDirectory(dir=WERK)))
+        netwerk = docker("network", "create", "--internal", "--ipv6=false", "--opt", "com.docker.network.bridge.inhibit_ipv4=true",
+                         f"b03016-desktop-{uuid.uuid4().hex}").stdout.strip()
+        stapel.callback(docker, "network", "rm", netwerk)
+        server = stapel.enter_context(StockServer("desktop", image=image, werk=werk, gpu=False, cpus="2",
+                                                  koppelingen={"/media/movies/hero": "bron/blender/hero"}))
+        # De fork controleert de opslagrechten. Elke run heeft al een eigen lege werkmap.
+        for sub in ("config", "cache"):
+            (server.map / sub).mkdir(parents=True, mode=0o700)
+        server.start(schoon=False)
+        server.inrichten([("Films", "movies", ["/media/movies"])])
+        assert server.jf
+        jf = server.jf
+        hero = next((i for i in jf.items() if i.get("Path") == HERO), None)
+        if not hero:
+            raise DesktopFout("hero.mp4 niet gevonden in het testcorpus")
+        # hero.mp4 duurt korter dan de standaard ondergrens van vijf minuten voor het bewaren van hervatpunten.
+        config = jf.a.doe("GET", "/System/Configuration")
+        jf.a.doe("POST", "/System/Configuration", body={**config, "MinResumeDurationSeconds": 0})
+        kijker = "desktopkijker"
+        wachtwoord = secrets.token_urlsafe(24)
+        uid = jf.gebruiker(kijker, wachtwoord)
+        resultaat.update(server_image_id=server.digest(), server_versie=server.info["Version"], min_hervatduur_s=0)
+        docker("network", "connect", "--alias", "testserver", netwerk, server.container_id)
+        beperkt = ["--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL", "--security-opt", "no-new-privileges"]
+        app = docker("run", "-d", "--network", netwerk, *beperkt, "--shm-size", "1g", "--memory", "2g", "--cpus", "2",
+                     "-e", "HOME=/tmp", "-e", "DISPLAY=:99", "-e", "QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox",
+                     "-v", f"{build}:/out:ro", desktop_image, "sh", "-c", APP).stdout.strip()
+        stapel.callback(docker, "rm", "-f", "-v", app)
+        image_id, shm_bytes = docker("inspect", "--format", "{{.Image}} {{.HostConfig.ShmSize}}", app).stdout.split()
+        resultaat.update(desktop_image_id=image_id, shm_bytes=int(shm_bytes))
+        # De besturing deelt uitsluitend de netwerkruimte van de desktop. CDP heeft geen hostpoort.
+        stuurder = docker("create", "-i", "--network", f"container:{app}", *beperkt, "--memory", "256m", "--cpus", "1",
+                          "-v", f"{CDP_JS}:/cdp.mjs:ro", "-v", f"{uitmap}:/bewijs", NODE_IMAGE, "node", "/cdp.mjs").stdout.strip()
+        stapel.callback(docker, "rm", "-f", "-v", stuurder)
+        cfg = {"gebruiker": kijker, "wachtwoord": wachtwoord, "uid": uid, "item": hero["Id"], "autorisatie": jf.a.headers["Authorization"]}
+        proces = subprocess.run(["docker", "start", "-a", "-i", stuurder], input=json.dumps(cfg), text=True,
+                                capture_output=True, timeout=360, check=False)
+        if proces.returncode or not proces.stdout.strip():
+            raise DesktopFout(f"CDP-besturing eindigde zonder meting (exit {proces.returncode})")
+        resultaat["cdp"] = json.loads(proces.stdout)
+        if not resultaat["cdp"].get("webclient_geladen"):
+            # Alleen herkenbare startfouten uit de app bewaren, nooit ruwe logs of adressen.
+            logs = docker("logs", "--tail", "80", app, check=False)
+            resultaat["app_diagnose"] = [term for term in ("Failed to parse application engine script", "error while loading shared libraries",
+                                                           "Could not connect to display", "DevTools listening")
+                                         if term.lower() in (logs.stdout + logs.stderr).lower()]
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="b03h desktop")
-    p.add_argument("--stap", choices=["bouw", "draai", "alles"], default="alles")
+    p.add_argument("--stap", choices=["bouw", "draai", "alles"], default="alles",
+                   help="bouw controleert de bestaande clientbuild; draai en alles voeren de rooktest uit")
+    p.add_argument("--build", type=Path, help="uitvoermap van make desktop-bouw in jelly-leon-clients")
+    p.add_argument("--image", default=STOCK_IMAGE, help="image voor de wegwerptestserver")
+    p.add_argument("--desktop-image", default=DESKTOP_IMAGE, help="runtime met Xvfb uit het doel test van de clientrepo")
     p.add_argument("--uit", type=Path, default=REPO / "docs/platform-v2/test-evidence/b03-016-desktop-spike.json")
     a = p.parse_args(argv)
-    uitmap = a.uit.with_suffix("")
-    uitmap.mkdir(parents=True, exist_ok=True)
-    document: dict[str, Any] = {"schema": "jelly-leon/b03-016-desktop-spike/1", "client": "jellyfin-desktop 2.0.0 (forkbron 2.0.0-jl.0, "
-                                "jelly-leon-clients/desktop) onder Xvfb", "server": STOCK_IMAGE}
+    build = a.build or (CLIENTBUILD if (CLIENTBUILD / BINARY).is_file() else WERK / "desktop-bouw")
+    document: dict[str, Any] = {"schema": "jelly-leon/b03-016-desktop-spike/2", "client": "Jellyfin Desktop onder Xvfb",
+                                "server": a.image, "stap": a.stap, "begin": meetslot.nu()}
     try:
-        if a.stap in ("bouw", "alles"):
-            document["bouw"] = bouw()
-        if a.stap in ("draai", "alles"):
-            draai(uitmap, document)
-    except Exception as fout:  # noqa: BLE001 - de spike rapporteert elke fout eerlijk als blokkade
-        document["status"] = "Geblokkeerd (spike niet geslaagd)"
-        document["reden"] = str(fout)[:1500]
-        document["traceback"] = traceback.format_exc()[-1500:]
+        if not (build / BINARY).is_file() or not os.access(build / BINARY, os.X_OK):
+            raise DesktopFout("uitvoerbare desktopbuild ontbreekt; de clientbaan levert make desktop-bouw")
+        with (build / BINARY).open("rb") as bestand:
+            document["bouw"] = {"binary": str(BINARY), "sha256": hashlib.file_digest(bestand, "sha256").hexdigest()}
+        if a.stap == "bouw":
+            document["status"] = "Bouw gecontroleerd"
+        else:
+            uitmap = a.uit.resolve().with_suffix("")
+            uitmap.mkdir(parents=True, exist_ok=True)
+            draai(build.resolve(), a.image, a.desktop_image, uitmap, document)
+            reden = beoordeel(document["cdp"])
+            if reden:
+                raise DesktopFout(reden)
+            document["status"] = "Sim-getest"
+    except DesktopFout as fout:
+        document.update(status="Sim-mislukt", reden=str(fout))
+    except subprocess.CalledProcessError as fout:
+        document.update(status="Sim-mislukt", reden=f"Docker-opdracht {fout.cmd[1]} gaf exitcode {fout.returncode}")
+    except subprocess.TimeoutExpired:
+        document.update(status="Sim-mislukt", reden="tijdlimiet van de lokale proef verstreken")
+    except (OSError, ValueError, RuntimeError) as fout:
+        # Onverwachte API-antwoorden kunnen URL's of accountgegevens bevatten.
+        document.update(status="Sim-mislukt", reden=f"lokale proef onderbroken ({type(fout).__name__})")
+    document["eind"] = meetslot.nu()
+    a.uit.parent.mkdir(parents=True, exist_ok=True)
     a.uit.write_text(json.dumps(document, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    log(document["status"])
-    return 0
+    print(document["status"], flush=True)
+    return int(document["status"] == "Sim-mislukt")

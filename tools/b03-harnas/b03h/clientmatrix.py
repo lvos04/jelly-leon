@@ -66,7 +66,7 @@ def stockweb_uit_image(image: str, doel: Path) -> Path:
     try:
         docker("cp", f"{cid}:/jellyfin/jellyfin-web", str(doel))
     finally:
-        docker("rm", "-f", cid, check=False)
+        docker("rm", "-f", "-v", cid, check=False)
     return doel
 
 

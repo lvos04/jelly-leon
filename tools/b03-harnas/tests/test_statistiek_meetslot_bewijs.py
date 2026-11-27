@@ -114,6 +114,17 @@ def test_exclusief_slot_wacht_en_timeout(tmp_path: Path):
         assert wacht < 1
 
 
+def test_na_wachten_blijft_het_slot_vast_tot_het_einde_van_de_proef(tmp_path: Path):
+    pad = tmp_path / "stack.lock"
+    pad.touch()
+    with pad.open("rb") as ander:
+        fcntl.flock(ander, fcntl.LOCK_EX)
+        with meetslot.exclusief_slot("stack.lock", tmp_path, timeout=1,
+                                     bij_wachten=lambda _: fcntl.flock(ander, fcntl.LOCK_UN)):
+            assert meetslot.slot_bezet(pad)
+    assert not meetslot.slot_bezet(pad)
+
+
 def test_cpu_meting_eigen_processen():
     m = meetslot.CpuMeting().start()
     subprocess.run(["python3", "-c", "s=0\nfor i in range(3_000_000): s+=i"], check=True)

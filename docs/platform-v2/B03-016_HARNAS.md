@@ -58,12 +58,34 @@ met `hero.mp4` (orakel: binnen 15 s currentTime ≥ 2 s, beeld, geen fout en gee
 | derden-client met legacy-headers | stock-native (derden) | X-Emby-Token, X-MediaBrowser-Token, X-Emby-Authorization, `api_key`, `ApiKey` | Sim-getest (gemeten status per vorm; besluit BG-01) |
 | Android-telefoon (API 35, pixel_6), tablet (API 35, pixel_tablet) | officiële jellyfin-android 2.7.3 = Jelly Leon-webclient (webweergave) | emulator in een container met `--device /dev/kvm`, 4 GiB, onder `gradle.lock` in `stack.lock`; afspelen via `POST /Sessions/{id}/Playing`, gecontroleerd aan de serverkant | Sim-getest of Sim-mislukt met reden |
 | Android TV (API 34 x86, tv_1080p) | officiële jellyfin-androidtv 0.19.10 (native) | idem | idem |
-| Desktop 2.0.0 onder Xvfb | Jelly Leon-webclient | alleen na de gezamenlijke spike (`desktop/`) | Geblokkeerd zonder geslaagde spike |
+| Desktop 2.0.0 onder Xvfb | Jelly Leon-webclient | bestaande desktopbuild van de clientrepo, echte afspeel- en hervatknop, posities uit de desktopsessie | [Desktopbewijs](test-evidence/b03-016-desktop-spike.json) |
 | Swiftfin, Safari, Apple TV | stock-native | — | NIET GEVALIDEERD (Mac/Xcode) |
 | Echte tv's, telefoons, receivers, Chromecast, DLNA | alle | — | NIET GEVALIDEERD (hardware), JLT-69 (D15) |
 
 De emulator mist AC3/E-AC3/DTS/TrueHD- en Dolby Vision-decoders (analyse 5 §2.2); passthrough- en HDR-beslissingen van
 echte tv's zijn hier dus niet te toetsen.
+
+### Desktoprooktest met hero.mp4
+
+```sh
+python -m b03h desktop --stap alles --build <clientbouwmap> --image <lokale-serverimage> --uit <bewijs.json>
+```
+
+In een ketenkloon wijst `B03_LOCK_DIR` naar de gedeelde map met `stack.lock`, `B03_CORPUS` naar het testcorpus en
+`B03_WERK` naar een eigen tijdelijke werkmap. De bouwmap van `make desktop-bouw` bevat `build/src/jellyfin-desktop`.
+Het harnas controleert de uitvoerbare build
+en legt zijn SHA-256 vast. Voor Xvfb gebruikt het de testimage uit de clientrepo (`--desktop-image`) met 1 GiB
+gedeeld geheugen. De desktop en de CDP-besturing bereiken de wegwerptestserver via een eigen intern netwerk.
+
+Een nieuwe testkijker opent `hero.mp4`, speelt, stopt en drukt op **Hervatten**. Omdat dit corpusbestand korter
+duurt dan vijf minuten staat `MinResumeDurationSeconds` op deze testserver op nul. Het bewijs bevat het opgeslagen
+hervatpunt, de eerste positie na de klik en het opnieuw opgeslagen punt na stoppen. Elke meetreeks bevat paren
+`[seconden sinds de klik, afspeelpositie in seconden]`. Een nulmelding bij hervatten, een ontbrekende webclient,
+een ChunkLoadError of minder dan twee seconden gemeten voortgang geeft `Sim-mislukt` en exitcode 1.
+
+Het CDP-consolelog groepeert herkenbare meldingen per fase, bron en niveau. Vrije consoleargumenten kunnen
+aanmeldgegevens bevatten en worden als aantallen bewaard. Bij een afgebroken meting betekent `chunkloaderror: null`
+dat de vraag openstaat.
 
 ## 3. Harnas, meetprotocol en baselines (deel c)
 
