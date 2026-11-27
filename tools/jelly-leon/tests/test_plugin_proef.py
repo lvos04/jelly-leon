@@ -15,6 +15,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
 import plugin_proef as proef  # noqa: E402
 
 
+def test_jl4_proef_meldt_een_opstartfout_zonder_verzoekgegevens(tmp_path: Path, monkeypatch) -> None:
+    rapport = tmp_path / "jl4.json"
+    opgeruimd = []
+
+    def zonder_server(_server):
+        raise OSError("testwaarde_uit_de_aanvraag")
+
+    monkeypatch.setattr(proef.Server, "start", zonder_server)
+    monkeypatch.setattr(proef.Server, "ruim_op", lambda server: opgeruimd.append(server.naam))
+    assert proef.main(["--alleen-hub", "--image", "proef", "--werkmap", str(tmp_path), "--rapport", str(rapport)]) == 1
+    inhoud = json.loads(rapport.read_text())
+    assert inhoud["schema"] == "jelly-leon/jl4-proef/1"
+    assert not inhoud["geslaagd"]
+    assert inhoud["openapi_sha256"] == hashlib.sha256(proef.OPENAPI.read_bytes()).hexdigest()
+    assert len(opgeruimd) == 1 and not (tmp_path / opgeruimd[0]).exists()
+    assert "testwaarde_uit_de_aanvraag" not in rapport.read_text()
+
+
 @pytest.mark.parametrize("afwijkende_revisie", [False, True])
 def test_rapport_identificeert_exact_het_gekozen_plugincontract(tmp_path: Path, monkeypatch, afwijkende_revisie: bool) -> None:
     rapport = tmp_path / "rapport.json"

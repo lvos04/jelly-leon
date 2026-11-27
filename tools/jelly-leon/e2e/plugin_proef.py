@@ -38,6 +38,7 @@ import sys
 import tempfile
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from ipaddress import IPv4Address
 from pathlib import Path
@@ -51,7 +52,7 @@ sys.path.insert(0, str(E2E))
 
 import proef_lib as pl  # noqa: E402
 from b03h.jfapi import Http, wacht_klaar  # noqa: E402
-from hub_sim import HubSim, Sleutel  # noqa: E402
+from hub_sim import HubSim, Sleutel, vingerafdruk  # noqa: E402
 from upgrade_proef import FILM_REL, FILMS, GUEST_PREFS, maak_sporenfilm  # noqa: E402
 
 PREFIXEN = ("/connector/v1", "/media/v1")
@@ -138,7 +139,7 @@ class Server:
     def stop(self) -> None:
         docker("stop", "-t", "60", self.container_id)
         uitvoer = docker("logs", self.container_id, check=False)
-        self.log = (uitvoer.stdout or "") + (uitvoer.stderr or "")
+        self.log += (uitvoer.stdout or "") + (uitvoer.stderr or "")
         self.ruim_op()
 
     def ruim_op(self) -> None:
@@ -164,8 +165,8 @@ class Sessie:
 
 
 # ----------------------------------------------------------------------------------------------- zaaien
-def zaai(server: Server, wachtwoorden: dict[str, str]) -> tuple[str, str]:
-    """Richt de stockserver in en zet kijkgeschiedenis en voorkeuren via de officiële API."""
+def eerste_beheerder(server: Server, wachtwoord: str) -> Sessie:
+    """Rond de wizard van deze lege wegwerpserver af met de persoonlijke testsessie."""
     anoniem = Http(server.url, client(TOESTEL_BEHEER, "jl-proef-beheer"))
     for poging in range(30):
         status, _, _ = anoniem.ruw("POST", "/Startup/Configuration", body={
@@ -176,10 +177,15 @@ def zaai(server: Server, wachtwoorden: dict[str, str]) -> tuple[str, str]:
             raise RuntimeError(f"wizard start niet (HTTP {status})")
         time.sleep(2)
     anoniem.doe("GET", "/Startup/User")
-    anoniem.doe("POST", "/Startup/User", body={"Name": BEHEER, "Password": wachtwoorden[BEHEER]})
+    anoniem.doe("POST", "/Startup/User", body={"Name": BEHEER, "Password": wachtwoord})
     anoniem.doe("POST", "/Startup/RemoteAccess", body={"EnableRemoteAccess": False, "EnableAutomaticPortMapping": False})
     anoniem.doe("POST", "/Startup/Complete")
-    beheer = Sessie(server, BEHEER, wachtwoorden[BEHEER], TOESTEL_BEHEER, "jl-proef-beheer")
+    return Sessie(server, BEHEER, wachtwoord, TOESTEL_BEHEER, "jl-proef-beheer")
+
+
+def zaai(server: Server, wachtwoorden: dict[str, str]) -> tuple[str, str]:
+    """Richt de stockserver in en zet kijkgeschiedenis en voorkeuren via de officiële API."""
+    beheer = eerste_beheerder(server, wachtwoorden[BEHEER])
     for naam, soort, pad, typen in (("Muziek", "music", MUZIEK, ("MusicAlbum", "MusicArtist", "Audio")),
                                      ("Films", "movies", FILMS, ("Movie",))):
         opties = {"PathInfos": [{"Path": pad}], "EnableRealtimeMonitor": False,
@@ -337,8 +343,12 @@ class Plugin:
     # -- kleine hulpjes
     def hub_vraag(self, methode: str, pad: str, token: str | None, query: dict[str, Any] | None = None,
                   body: Any = None, idempotentiesleutel: str | None = None) -> tuple[int, Any, bytes]:
-        if token is not None and not token.startswith("svc_"):
-            self.tokens.append(token)
+        if token is not None:
+            if token.startswith("svc_"):
+                self.v.geheim("diensttoken:weigering", token)
+            else:
+                self.tokens.append(token)
+                self.v.geheim(f"hubtoken:{len(self.tokens) - 1}", token)
         kop = {"Authorization": "Bearer " + token} if token is not None else {}
         if idempotentiesleutel is not None:
             kop["Idempotency-Key"] = idempotentiesleutel
@@ -366,7 +376,7 @@ class Plugin:
         if kreeg != status or verwacht is None:
             return self.v.test(jlt, naam, False, f"HTTP {kreeg} (verwacht {status})")
         fouten = pl.valideer(inhoud, verwacht, self.doc)
-        return self.v.test(jlt, naam, not fouten, f"HTTP {kreeg}, schema: {'in orde' if not fouten else '; '.join(fouten[:4])}")
+        return self.v.test(jlt, naam, not fouten, f"HTTP {kreeg}, {len(fouten)} schema-afwijkingen")
 
     def sessie_vraag(self, wie: Sessie | None, methode: str, pad: str, body: Any = None,
                      kop: dict[str, str] | None = None) -> tuple[int, Any, dict[str, str]]:
@@ -435,7 +445,7 @@ class Plugin:
                   self.hub_vraag("GET", "/connector/v1/discover", self.hub.token()), 401, "unauthorized", "not_linked")
         status, inhoud, _ = self.sessie_vraag(self.beheer, "GET", "/media/v1/hub-link")
         self.v.test("JLT-68", "hub-link begint als not_linked", status == 200 and inhoud.get("status") == "not_linked"
-                    and inhoud.get("fingerprint") is None, f"HTTP {status} {pl.tekst_van(inhoud)[:160]}")
+                    and inhoud.get("fingerprint") is None, f"HTTP {status}")
 
     def modules_uit(self, moment: str) -> None:
         status, inhoud, _ = self.sessie_vraag(self.beheer, "GET", "/media/v1/modules")
@@ -476,6 +486,10 @@ class Plugin:
         self.v.test("JLT-68", "verify rekent dezelfde vingerafdruk als de Hub-simulator",
                     status == 200 and inhoud.get("fingerprint") == afdruk,
                     f"HTTP {status}, vingerafdruk vergeleken")
+        self.v.test("JLT-68", "verify bewaart geen pin",
+                    not (self.server.config / "data/jelly-leon/secrets/hub-pin.json").exists())
+        self.v.geheim("hubsleutel:jwt", self.hub.jwt.x)
+        self.v.geheim("hubsleutel:policy", self.hub.policy.x)
         verkeerd = HubSim().vingerafdruk()
         body = {"keyset": set_, "fingerprint": verkeerd, "service_id": self.hub.service_id}
         self._laatste = ("PUT", "/media/v1/hub-link")
@@ -551,6 +565,67 @@ class Plugin:
         self._laatste = ("GET", "/connector/v1/items")
         self.fout("JLT-68", "items van een onbekend type → 422",
                   self.hub_vraag("GET", "/connector/v1/items", hub.token(), {"type": "titels"}), 422, "validation_error")
+
+    def hub_herstart(self, wachtwoord: str) -> None:
+        """Eén mutatie bereikt de controller. Dezelfde JWT blijft ook na een procesherstart verbruikt."""
+        token = self.hub.token(levensduur=120)
+        pad = "/connector/v1/propose"
+        self._laatste = ("POST", pad)
+        with ThreadPoolExecutor(max_workers=2) as werkers:
+            vragen = [werkers.submit(self.hub_vraag, "POST", pad, token, body={}) for _ in range(2)]
+            antwoorden = sorted((vraag.result() for vraag in vragen), key=lambda a: a[0])
+        self.fout("JLT-68", "gelijktijdige mutatie geweigerd", antwoorden[0], 401, "unauthorized", "token_replayed")
+        self.fout("JLT-68", "één gelijktijdige mutatie bereikt de actie", antwoorden[1], 501, "capability_unavailable")
+        self.server.stop()
+        self.server.start()
+        self.beheer = Sessie(self.server, BEHEER, wachtwoord, TOESTEL_BEHEER, "jl-proef-beheer")
+        self.v.geheim("sessietoken:herstart", self.beheer.token)
+        self.fout("JLT-68", "gebruikte jti na herstart", self.hub_vraag("POST", pad, token, body={}),
+                  401, "unauthorized", "token_replayed")
+        d = ("GET", "/connector/v1/discover")
+        self.schema("JLT-68", "opgeslagen pin na herstart", *d, self.hub_vraag(*d, self.hub.token()))
+
+    def hub_rotatie(self) -> None:
+        pad = "/media/v1/hub-link"
+        ander = HubSim()
+        set_ = ander.sleutelset()
+        set_["policy_public_keys"] = [self.hub.policy.jwk()]
+        afdruk = vingerafdruk([ander.jwt.x], [ander.policy.x, self.hub.policy.x])
+        body = {"keyset": set_, "service_id": ander.service_id, "fingerprint": ander.vingerafdruk()}
+        self._laatste = ("PUT", pad)
+        status, inhoud, _ = self.sessie_vraag(self.beheer, "PUT", pad, body, {"Idempotency-Key": str(uuid.uuid4())})
+        self.fout("JLT-68", "rotatie met onvolledige vingerafdruk", (status, inhoud, b""), 422, "validation_error")
+        self.v.geheim("hubsleutel:nieuwe_jwt", ander.jwt.x)
+        self.v.geheim("hubsleutel:nieuwe_policy", ander.policy.x)
+        body["fingerprint"] = afdruk
+        status, inhoud, _ = self.sessie_vraag(self.beheer, "PUT", pad, body, {"Idempotency-Key": str(uuid.uuid4())})
+        self.v.test("JLT-68", "rotatie met beide policy-sleutels", status == 200 and inhoud.get("policy_sleutels") == 2
+                    and inhoud.get("fingerprint") == afdruk, f"HTTP {status}")
+        d = ("GET", "/connector/v1/discover")
+        self._laatste = d
+        # Beide simulators gebruiken standaard dezelfde kid. Alleen het werkelijk gepinde sleutelmateriaal telt.
+        self.fout("JLT-68", "oude sleutel na rotatie", self.hub_vraag(*d, self.hub.token()), 401, "unauthorized", "invalid_token")
+        token = ander.token(gebruik="hub_service")
+        self.schema("JLT-68", "nieuwe dienstregistratie na rotatie", *d, self.hub_vraag(*d, token))
+        pin = self.server.config / "data/jelly-leon/secrets/hub-pin.json"
+        self.v.test("JLT-68", "pin en geheimenmap hebben de vereiste rechten",
+                    stat.S_IMODE(pin.stat().st_mode) == 0o600 and stat.S_IMODE(pin.parent.stat().st_mode) == 0o700)
+        origineel = pin.read_bytes()
+        try:
+            pin.chmod(0o640)
+            self.fout("JLT-68", "ruime pinrechten tijdens bedrijf", self.hub_vraag(*d, token), 401, "unauthorized", "not_linked")
+            pin.chmod(0o600)
+            pin.write_bytes(b"{")
+            self.fout("JLT-68", "beschadigde pin tijdens bedrijf", self.hub_vraag(*d, token), 401, "unauthorized", "not_linked")
+            status, inhoud, _ = self.sessie_vraag(self.beheer, "GET", pad)
+            self.v.test("JLT-68", "beheerder ziet de oorzaak", status == 200 and inhoud.get("status") == "not_linked"
+                        and inhoud.get("reason") == "koppelstatus_onleesbaar", f"HTTP {status}")
+        finally:
+            pin.chmod(0o600)
+            pin.write_bytes(origineel)
+        status, inhoud, _ = self.sessie_vraag(self.beheer, "DELETE", pad, kop={"Idempotency-Key": str(uuid.uuid4())})
+        self.v.test("JLT-68", "beheerder verwijdert de pin", status == 200 and inhoud.get("status") == "not_linked" and not pin.exists())
+        self.fout("JLT-68", "verwijderde pin sluit de connector", self.hub_vraag(*d, token), 401, "unauthorized", "not_linked")
 
     def modules_aan(self) -> None:
         for slug in ("devices", "quality"):
@@ -797,6 +872,60 @@ def corpus(media: Path) -> dict[str, tuple[str, int, int]]:
             for p in sorted(media.rglob("*")) if p.is_file()}
 
 
+def jl4_proef(args: argparse.Namespace, openapi: bytes) -> int:
+    """Meet de Hub-koppeling op één lokale server met een lege bibliotheek en wegwerpaccounts."""
+    v = Verslag()
+    ww = {naam: v.geheim("wachtwoord:" + naam, uuid.uuid4().hex) for naam in (BEHEER, KIJKER)}
+    with tempfile.TemporaryDirectory(prefix="jl4-", dir=args.werkmap) as tijdelijk:
+        werk = Path(tijdelijk)
+        server = Server(werk.name, args.image, werk / "server", werk / "media")
+        server.media.mkdir()
+        try:
+            if args.plugin_map:
+                server.config.mkdir(mode=0o700, parents=True)
+                (server.config / "plugins").mkdir(mode=0o700)
+                doel = server.config / "plugins" / "JellyLeon_0.1.0.0"
+                doel.mkdir(mode=0o700)
+                shutil.copy2(args.plugin_map / PLUGIN_DLL, doel / PLUGIN_DLL)
+            server.start()
+            beheer = eerste_beheerder(server, ww[BEHEER])
+            beheer.http.doe("POST", "/Users/New", body={"Name": KIJKER, "Password": ww[KIJKER]})
+            kijker = Sessie(server, KIJKER, ww[KIJKER], "jl4-kijker", "jl4-kijker")
+            v.geheim("sessietoken:beheer", beheer.token)
+            v.geheim("sessietoken:kijker", kijker.token)
+            plugin = Plugin(v, server, beheer, kijker, json.loads(openapi))
+            plugin.zonder_pin()
+            plugin.pin()
+            plugin.hub_weigeringen()
+            beleid = beheer.http.doe("GET", f"/Users/{kijker.id}")["Policy"]
+            beheer.http.doe("POST", f"/Users/{kijker.id}/Policy", body={**beleid, "IsAdministrator": True, "BlockedTags": ["jl4-kind"]})
+            plugin._laatste = ("DELETE", "/media/v1/hub-link")
+            status, inhoud, _ = plugin.sessie_vraag(kijker, *plugin._laatste, kop={"Idempotency-Key": str(uuid.uuid4())})
+            plugin.fout("JLT-68", "persoonlijke kindersessie met beheerrecht", (status, inhoud, b""), 403, "forbidden", "kid_profile")
+            plugin.hub_herstart(ww[BEHEER])
+            plugin.hub_rotatie()
+            pad = f"/Plugins/{PLUGIN_ID}/Configuration"
+            configuratie = plugin.beheer.http.doe("GET", pad)
+            plugin.beheer.http.doe("POST", pad, body=configuratie)
+            xml = server.config / "plugins/configurations/Jellyfin.Plugin.JellyLeon.xml"
+            server.stop()
+            waarden = [waarde for sleutel, waarde in v.geheimen.items() if sleutel.startswith(("hubsleutel:", "hubtoken:", "diensttoken:"))]
+            for naam, tekst in (("serverlog", server.logtekst()), ("plugin-XML", xml.read_text()), ("instellingen", json.dumps(configuratie))):
+                v.test("JLT-68", naam + " zonder Hub-sleutels of JWT's",
+                       bool(tekst) and not any(x in tekst for x in waarden), f"{len(tekst)} tekens gecontroleerd")
+        except (RuntimeError, subprocess.SubprocessError, OSError, KeyError, ValueError) as fout:
+            v.test("JLT-68", "uitvoering van de lokale JL4-proef", False,
+                   f"{type(fout).__name__}, HTTP-status {getattr(fout, 'status', 'onbekend')}")
+        finally:
+            server.ruim_op()
+    if args.rapport:
+        args.rapport.parent.mkdir(parents=True, exist_ok=True)
+        args.rapport.write_text(json.dumps({"schema": "jelly-leon/jl4-proef/1", "openapi_sha256": hashlib.sha256(openapi).hexdigest(),
+                                          "geslaagd": v.geslaagd, "tests": v.regels}, ensure_ascii=False, indent=2) + "\n")
+    print(f"JL4: {sum(r['geslaagd'] for r in v.regels)}/{len(v.regels)} controles akkoord.")
+    return 0 if v.geslaagd else 1
+
+
 # ----------------------------------------------------------------------------------------------- hoofdprogramma
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Pluginproef JLT-64/65/68 (B03-017) in wegwerpcontainers.")
@@ -807,12 +936,15 @@ def main(argv: list[str] | None = None) -> int:
                         help="plugincontract van de geteste bronrevisie (standaard: het bestand in deze checkout)")
     parser.add_argument("--werkmap", default=None, help="map met minstens 2 GiB vrij (geen tmpfs)")
     parser.add_argument("--rapport", type=Path)
+    parser.add_argument("--alleen-hub", action="store_true", help="alleen JL4 op één lokale wegwerpserver, inclusief herstart en rotatie")
     args = parser.parse_args(argv)
     stock = args.stock_image or args.image
     if args.plugin_map is not None and not (args.plugin_map / PLUGIN_DLL).is_file():
         print(f"[FOUT] {args.plugin_map / PLUGIN_DLL} bestaat niet", file=sys.stderr)
         return 2
     openapi_bytes = args.openapi_bestand.read_bytes()
+    if args.alleen_hub:
+        return jl4_proef(args, openapi_bytes)
     doc = json.loads(openapi_bytes)
     werk = Path(tempfile.mkdtemp(prefix="jl-pluginproef-", dir=args.werkmap))
     media = werk / "media"

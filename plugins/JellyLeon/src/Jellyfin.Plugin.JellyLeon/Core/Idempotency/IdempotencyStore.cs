@@ -25,25 +25,27 @@ internal sealed class IdempotencyStore
     }
 
     /// <summary>Start een verzoek. Geeft het bewaarde antwoord terug bij een herhaling, anders <c>null</c>.</summary>
-    public JlResult? Begin(string scope, string sleutel, string verzoekHash, DateTimeOffset nu)
+    public JlResult? Begin(string scope, string sleutel, string verzoekHash, DateTimeOffset nu, bool alleenHerhalen = false)
     {
         var seconden = nu.ToUnixTimeSeconds();
         return _db.Met<JlResult?>(v =>
         {
             JlDatabase.Voer(v, "DELETE FROM idempotentie WHERE gemaakt < $grens", ("$grens", seconden - BewaarSeconden));
-            var toegevoegd = JlDatabase.Voer(
-                v,
-                "INSERT OR IGNORE INTO idempotentie(scope, sleutel, verzoek_hash, staat, gemaakt) VALUES($s, $k, $h, 'bezig', $nu)",
-                ("$s", scope),
-                ("$k", sleutel),
-                ("$h", verzoekHash),
-                ("$nu", seconden));
-            if (toegevoegd == 1)
+            if (!alleenHerhalen && JlDatabase.Voer(
+                    v,
+                    "INSERT OR IGNORE INTO idempotentie(scope, sleutel, verzoek_hash, staat, gemaakt) VALUES($s, $k, $h, 'bezig', $nu)",
+                    ("$s", scope), ("$k", sleutel), ("$h", verzoekHash), ("$nu", seconden)) == 1)
             {
                 return null;
             }
 
-            var rij = JlDatabase.Rijen(v, "SELECT verzoek_hash, staat, status, body, etag FROM idempotentie WHERE scope=$s AND sleutel=$k", ("$s", scope), ("$k", sleutel))[0];
+            var rijen = JlDatabase.Rijen(v, "SELECT verzoek_hash, staat, status, body, etag FROM idempotentie WHERE scope=$s AND sleutel=$k", ("$s", scope), ("$k", sleutel));
+            if (rijen.Count == 0)
+            {
+                throw Fouten.NietGeauthenticeerd("token_replayed");
+            }
+
+            var rij = rijen[0];
             if (!string.Equals((string)rij[0]!, verzoekHash, StringComparison.Ordinal))
             {
                 throw Fouten.SleutelHergebruikt();

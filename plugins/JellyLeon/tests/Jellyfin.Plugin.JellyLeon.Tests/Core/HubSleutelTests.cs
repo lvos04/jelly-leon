@@ -79,6 +79,8 @@ public class HubSleutelTests
         Assert.Equal("validation_error", Assert.Throws<JlException>(() => HubKeySet.Parse(dubbel, "keyset")).Code);
 
         Assert.Equal("validation_error", Assert.Throws<JlException>(() => HubKeySet.Parse(JsonValue.Create("tekst"), "keyset")).Code);
+        keyset["policy_public_keys"] = "ongeldige tweede set";
+        Assert.Equal("validation_error", Assert.Throws<JlException>(() => HubKeySet.Parse(keyset, "keyset")).Code);
     }
 
     [Fact]

@@ -101,16 +101,16 @@ internal sealed class HubKeySet
         }
 
         var policy = new List<HubKey>();
-        if (wortel["policy_public_key"] is JsonObject enkele)
+        if (wortel.ContainsKey("policy_public_key"))
         {
-            policy.Add(LeesSleutel(enkele, veld + ".policy_public_key"));
+            policy.Add(LeesSleutel(wortel["policy_public_key"], veld + ".policy_public_key"));
         }
 
-        if (wortel["policy_public_keys"] is JsonArray meerdere)
+        if (wortel.ContainsKey("policy_public_keys"))
         {
-            if (policy.Count + meerdere.Count > 8)
+            if (wortel["policy_public_keys"] is not JsonArray meerdere || policy.Count + meerdere.Count > 8)
             {
-                throw Fouten.Validatie((veld, "sleutelset_onvolledig", "De sleutelset bevat te veel policy-sleutels."));
+                throw Fouten.Validatie((veld, "sleutelset_onvolledig", "Verwacht een lijst met samen hooguit acht policy-sleutels."));
             }
 
             policy.AddRange(meerdere.Select((s, i) => LeesSleutel(s, $"{veld}.policy_public_keys[{i}]")));

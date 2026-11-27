@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Jellyfin.Data;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Database.Implementations.Entities;
@@ -174,7 +176,12 @@ public sealed class PrivacyTests : IDisposable
         _h.Dienst<DevicesModule>().RegistreerStart([gebruiker], "TV Woonkamer", "sessie-1", "transcode", true, _h.Klok.Nu);
         _h.Dienst<QualityModule>().Onderdruk(Guid.NewGuid(), "audio_clipping", gebruiker, _h.Klok.Nu);
 
-        var sleutel = _h.Hub.Keyset()["jwks"]!["keys"]![0]!["x"]!.GetValue<string>();
+        var sleutelset = _h.Hub.Keyset();
+        var sleutel = sleutelset["jwks"]!["keys"]![0]!["x"]!.GetValue<string>();
+        var beleidsleutel = sleutelset["policy_public_key"]!["x"]!.GetValue<string>();
+        var token = _h.Hub.Token(_h.Klok.Nu);
+        var connector = await _h.RoepHub("connector.discover", token);
+        Assert.Equal(200, connector.Status);
         var zout = Convert.ToHexStringLower(await File.ReadAllBytesAsync(Path.Combine(_h.Map, "data", "jelly-leon", "secrets", "opaque-id.salt"), TestContext.Current.CancellationToken));
 
         // De instellingen van de plugin (XML van de server) hebben geen veld voor een geheim.
@@ -184,6 +191,10 @@ public sealed class PrivacyTests : IDisposable
 
         // Export per module en de beheerantwoorden bevatten geen sleutel, zout of account-ID.
         var teksten = _h.Dienst<ModuleRegistry>().Alle.Select(m => m.Exporteer().ToJsonString()).ToList();
+        using var xml = new StringWriter(CultureInfo.InvariantCulture);
+        new XmlSerializer(typeof(PluginConfiguration)).Serialize(xml, new PluginConfiguration());
+        teksten.Add(xml.ToString());
+        teksten.Add(connector.Json!.ToJsonString());
         teksten.Add((await _h.Roep("hublink.get")).Json!.ToJsonString());
         teksten.Add((await _h.Roep("modules.list")).Json!.ToJsonString());
         teksten.Add((await _h.Roep("devices.status")).Json!.ToJsonString());
@@ -191,6 +202,8 @@ public sealed class PrivacyTests : IDisposable
         foreach (var tekst in teksten)
         {
             Assert.DoesNotContain(sleutel, tekst, StringComparison.Ordinal);
+            Assert.DoesNotContain(beleidsleutel, tekst, StringComparison.Ordinal);
+            Assert.DoesNotContain(token, tekst, StringComparison.Ordinal);
             Assert.DoesNotContain(zout, tekst, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain(gebruiker.ToString("N"), tekst, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain(gebruiker.ToString("D"), tekst, StringComparison.OrdinalIgnoreCase);

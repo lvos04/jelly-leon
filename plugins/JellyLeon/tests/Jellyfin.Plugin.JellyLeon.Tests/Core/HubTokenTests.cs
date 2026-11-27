@@ -2,9 +2,11 @@ using System;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Hub;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
+using Microsoft.AspNetCore.Http;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
@@ -196,6 +198,46 @@ public sealed class HubTokenTests : IDisposable
         var antwoorden = await Task.WhenAll(verzoeken);
         Assert.Single(antwoorden, a => a.Status == 501 && a.Code == "capability_unavailable");
         Assert.Single(antwoorden, a => a.Status == 401 && a.Reden == "token_replayed");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExacteHubHerhalingKanAlleenEenBewaardAntwoordLezen(bool bewaard)
+    {
+        _h.Koppel();
+        var route = RouteTable.Zoek("connector.propose") with { Idempotentie = JlIdem.Verplicht };
+        var token = _h.Hub.Token(_h.Klok.Nu);
+        var sleutel = Guid.NewGuid().ToString();
+        var pipeline = _h.Dienst<JlPipeline>();
+        Task<JlContext> Begin()
+        {
+            var http = new DefaultHttpContext();
+            http.Request.Method = route.Methode;
+            http.Request.Path = route.Pad;
+            http.Request.Headers.Authorization = "Bearer " + token;
+            http.Request.Headers["Idempotency-Key"] = sleutel;
+            http.Request.Body = new System.IO.MemoryStream("{}"u8.ToArray());
+            return pipeline.BereidVoorAsync(http, route, "proef");
+        }
+
+        var eerste = await Begin();
+        Assert.Null(eerste.Herhaling);
+        if (bewaard)
+        {
+            var antwoord = JlResult.Ok(new JsonObject { ["aantal"] = 1 });
+            pipeline.Rond(eerste, antwoord);
+            var opnieuw = (await Begin()).Herhaling;
+            Assert.NotNull(opnieuw);
+            Assert.Equal(antwoord.Body, opnieuw.Body);
+            Assert.Equal("true", opnieuw.Headers["Idempotent-Replay"]);
+        }
+        else
+        {
+            pipeline.Rond(eerste, JlResult.Fout(Fouten.AfhankelijkheidOnbeschikbaar("proef"), "proef"));
+            var fout = await Assert.ThrowsAsync<JlException>(Begin);
+            Assert.Equal((401, "token_replayed"), (fout.Status, (string?)fout.Details["reason"]));
+        }
     }
 
     [Fact]

@@ -18,14 +18,14 @@ internal sealed class JtiStore
         _db = db.Db;
     }
 
-    public void Controleer(HubPrincipal wie, string methode, string pad, string? idempotencyKey, DateTimeOffset nu)
+    /// <summary>Geeft alleen bij een exacte tweede mutatie true: de aanroeper mag dan uitsluitend een bewaard antwoord lezen.</summary>
+    public bool Controleer(HubPrincipal wie, string methode, string pad, string? idempotencyKey, DateTimeOffset nu)
     {
         var mutatie = methode is not ("GET" or "HEAD");
         var seconden = nu.ToUnixTimeSeconds();
-        bool herhaald;
         try
         {
-            herhaald = _db.Met(v =>
+            return _db.Met(v =>
             {
                 JlDatabase.Voer(v, "DELETE FROM hub_jti WHERE exp + 30 < $nu", ("$nu", seconden));
                 var toegevoegd = JlDatabase.Voer(
@@ -48,17 +48,17 @@ internal sealed class JtiStore
                     ("$m", methode),
                     ("$p", pad),
                     ("$i", idempotencyKey));
-                return zelfde == 0;
+                if (zelfde == 0)
+                {
+                    throw Fouten.NietGeauthenticeerd("token_replayed");
+                }
+
+                return true;
             });
         }
-        catch (JlException)
+        catch (JlException fout) when (fout.Code == "storage_unavailable")
         {
             throw Fouten.ReplayControleOnbeschikbaar();
-        }
-
-        if (herhaald)
-        {
-            throw Fouten.NietGeauthenticeerd("token_replayed");
         }
     }
 }

@@ -43,12 +43,13 @@ internal sealed class JlPipeline
         var sleutel = Kop(verzoek, "Idempotency-Key");
 
         JlPrincipal wie;
+        var alleenHerhalen = false;
         if (route.Auth == JlAuth.Hub)
         {
             var hub = HubTokenValidator.Valideer(Kop(verzoek, "Authorization"), _pin.Huidig, nu);
             // Alleen een route met antwoordopslag kan een exacte herhaling afhandelen.
             // Open opslagdiensten pas na de pin- en tokencontrole, ook bij een opslagfout na de start.
-            _diensten.GetRequiredService<JtiStore>().Controleer(hub, verzoek.Method, pad, route.Idempotentie == JlIdem.Verplicht ? sleutel : null, nu);
+            alleenHerhalen = ControleerJti(hub, verzoek.Method, pad, route.Idempotentie == JlIdem.Verplicht ? sleutel : null, nu);
             if (hub.IsKind)
             {
                 throw Fouten.Verboden("role_kind");
@@ -125,7 +126,7 @@ internal sealed class JlPipeline
             }
 
             var hash = Convert.ToHexStringLower(SHA256.HashData([.. bytes, .. Encoding.UTF8.GetBytes(voorwaarden)]));
-            herhaling = opslag.Begin(scope, sleutel!, hash, nu);
+            herhaling = opslag.Begin(scope, sleutel!, hash, nu, alleenHerhalen);
         }
 
         return new JlContext
@@ -140,6 +141,19 @@ internal sealed class JlPipeline
             IdemSleutel = sleutel,
             Herhaling = herhaling,
         };
+    }
+
+    private bool ControleerJti(HubPrincipal hub, string methode, string pad, string? sleutel, DateTimeOffset nu)
+    {
+        try
+        {
+            return _diensten.GetRequiredService<JtiStore>().Controleer(hub, methode, pad, sleutel, nu);
+        }
+        catch (Exception fout) when (fout is IOException or UnauthorizedAccessException or JlException { Code: "storage_unavailable" })
+        {
+            // Ook het openen van de database bij het aanmaken van de dienst kan worden geweigerd.
+            throw Fouten.ReplayControleOnbeschikbaar();
+        }
     }
 
     /// <summary>Legt het antwoord van een muterende route vast vóór het verzonden wordt; serverfouten geven de sleutel vrij.</summary>
