@@ -88,6 +88,13 @@ doorstonden de rooktest. Chromium toonde op beide servers beeld zonder gemeten a
 De gesimuleerde derden-client kreeg in beide runs HTTP 401 met de oude koppen en `?api_key=`, HTTP 200 met moderne
 authenticatie en met `?ApiKey=`, en HTTP 206 bij een statische stream zonder token. [Stockbrowserproef](test-evidence/2026-11-18-s-p40-40/clientmatrix-synthetisch-stock.json) · [Jelly Leon-browserproef](test-evidence/2026-11-18-s-p40-40/clientmatrix-synthetisch-jelly-leon.json)
 
+### Desktoprooktest in het serverharnas op 27 november 2026
+
+De controle vond de bestaande build van Desktop 2.0.0 uit S-P40-72. Drie aanroepen tegen de Jelly Leon-image
+van bronrevisie `48293b48a` eindigden met `Sim-mislukt` na elk 7.200 seconden wachten op het gedeelde stackslot.
+De app startte daardoor niet. Voor deze image blijven het laden van de webclient, inloggen, afspelen van `hero.mp4`,
+hervatten en de ChunkLoadError-vraag open. [Desktopbewijs van het serverharnas](test-evidence/b03-016-desktop-spike.json)
+
 ### Clientmetingen uit jelly-leon-clients
 
 De clients-repo mat server 12.4 uit jelly-leon `e294f84` en jelly-leon-web `5ced8a2` met stock 12.4 op digest als

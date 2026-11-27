@@ -73,9 +73,8 @@ python -m b03h desktop --stap alles --build <clientbouwmap> --image <lokale-serv
 
 In een ketenkloon wijst `B03_LOCK_DIR` naar de gedeelde map met `stack.lock`, `B03_CORPUS` naar het testcorpus en
 `B03_WERK` naar een eigen tijdelijke werkmap. De bouwmap van `make desktop-bouw` bevat `build/src/jellyfin-desktop`.
-Het harnas controleert de uitvoerbare build
-en legt zijn SHA-256 vast. Voor Xvfb gebruikt het de testimage uit de clientrepo (`--desktop-image`) met 1 GiB
-gedeeld geheugen. De desktop en de CDP-besturing bereiken de wegwerptestserver via een eigen intern netwerk.
+Het harnas legt de SHA-256 van het uitvoerbare bestand vast. Voor Xvfb gebruikt het de testimage uit de clientrepo
+(`--desktop-image`) met 1 GiB gedeeld geheugen. De desktop en de CDP-besturing bereiken de wegwerptestserver via een eigen intern netwerk.
 
 Een nieuwe testkijker opent `hero.mp4`, speelt, stopt en drukt op **Hervatten**. Omdat dit corpusbestand korter
 duurt dan vijf minuten staat `MinResumeDurationSeconds` op deze testserver op nul. Het bewijs bevat het opgeslagen
@@ -86,6 +85,12 @@ een ChunkLoadError of minder dan twee seconden gemeten voortgang geeft `Sim-misl
 Het CDP-consolelog groepeert herkenbare meldingen per fase, bron en niveau. Vrije consoleargumenten kunnen
 aanmeldgegevens bevatten en worden als aantallen bewaard. Bij een afgebroken meting betekent `chunkloaderror: null`
 dat de vraag openstaat.
+
+Op 27 november 2026 gaf de aanroep tegen de Jelly Leon-image van bronrevisie `48293b48a` driemaal `Sim-mislukt`.
+Elke aanroep wachtte 7.200 seconden op het gedeelde stackslot en eindigde vóór de testserver en desktop startten.
+De controle van het uitvoerbare bestand is uitgevoerd. De grootte van het gedeelde geheugen, het laden van de
+webclient, de aanmelding, beide afspeelposities en het optreden van een ChunkLoadError blijven ongemeten.
+[Uitvoer van de laatste aanroep](test-evidence/b03-016-desktop-spike.json)
 
 ## 3. Harnas, meetprotocol en baselines (deel c)
 

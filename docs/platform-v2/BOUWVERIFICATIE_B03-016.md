@@ -87,9 +87,9 @@ speelt wel; met webOS/Tizen-UA wel audio) en blijft WebKit/GStreamer na ~0,2 s h
 In CI telt daarom het beeld voor die twee (waarschuwing in de log); het audio-orakel en WebKit zijn lokaal getoetst (tabel
 hierboven). CI-run 42728331528 (commit bd5488d2b): alle 8 jobs groen.
 
-### 2.3 Desktop-spike — **Geblokkeerd** (spike niet geslaagd)
+### 2.3 Desktop-spike van 10 november 2026 — Geblokkeerd
 
-`python -m b03h desktop` (bewijs `test-evidence/b03-016-desktop-spike.json`). jellyfin-desktop 2.0.0 is gebouwd uit de
+Bij de voormeting met `python -m b03h desktop` (bewijs `test-evidence/b03-016-desktop-spike.json` in commit `e03a0456f`) is jellyfin-desktop 2.0.0 gebouwd uit de
 forkbron in `jelly-leon-clients/desktop` (commit f11bf13, alleen gelezen) met de bouwomgeving van die repo onder
 `docker-build.lock` (62/62 stappen) en draait onder Xvfb in een container met libmpv en de Intel-VA-API-driver. Gemeten:
 de app start (na het toevoegen van de QML-runtimemodules uit `desktop/debian/control`), en **ruwe CDP via de Node
@@ -97,9 +97,8 @@ de app start (na het toevoegen van de QML-runtimemodules uit `desktop/debian/con
 `connectOverCDP` is daarvoor niet nodig. **Niet gelukt:** na het versturen van het serveradres laadt de app de
 jellyfin-web van de server niet binnen 60 s (blijft op `find-webclient.html`; oorzaak in `jmpCheckServerConnectivity` niet
 vastgesteld). Inloggen en afspelen van `hero.mp4` en de ChunkLoadError-vraag uit analyse 5 §4 zijn daardoor niet beproefd.
-Volgens de acceptatie staat de desktop daarom op **Geblokkeerd**; vervolg is de gezamenlijke spike met
-`jelly-leon-clients` (consolelog van de app uitlezen via CDP `Runtime.consoleAPICalled`, of de servers-check overslaan met
-een vooraf ingevuld profiel).
+De voormeting kreeg de status **Geblokkeerd**. De proef van S-P40-90 gebruikt het CDP-consolelog en 1 GiB gedeeld
+geheugen. [Procedure en desktopbewijs](B03-016_HARNAS.md#desktoprooktest-met-heromp4)
 
 ## 3. Baselines (deel c)
 
