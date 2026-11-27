@@ -53,7 +53,8 @@ internal sealed class JlPipeline
         if (route.Auth == JlAuth.Hub)
         {
             var hub = HubTokenValidator.Valideer(Kop(verzoek, "Authorization"), _pin.Huidig, nu);
-            _jti.Controleer(hub, verzoek.Method, pad, sleutel, nu);
+            // Alleen een route met antwoordopslag kan een exacte herhaling afhandelen.
+            _jti.Controleer(hub, verzoek.Method, pad, route.Idempotentie == JlIdem.Verplicht ? sleutel : null, nu);
             if (hub.IsKind)
             {
                 throw Fouten.Verboden("role_kind");

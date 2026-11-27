@@ -29,6 +29,20 @@ public sealed class ConnectorTests : IDisposable
 
     private string Token => _h.Hub.Token(_h.Klok.Nu);
 
+    [Theory]
+    [InlineData("propose")]
+    [InlineData("apply")]
+    [InlineData("rollback")]
+    public async Task VrijgesteldeHubActieWordtOokMetDezelfdeSleutelEenmaalAfgehandeld(string actie)
+    {
+        var token = Token;
+        string[] kop = ["Idempotency-Key: " + Guid.NewGuid()];
+        var eerste = await _h.RoepHub("connector." + actie, token, "{}", kop);
+        Assert.Equal((501, "capability_unavailable"), (eerste.Status, eerste.Code));
+        var tweede = await _h.RoepHub("connector." + actie, token, "{}", kop);
+        Assert.Equal((401, "unauthorized", "token_replayed"), (tweede.Status, tweede.Code, tweede.Reden));
+    }
+
     private static JsonNode Check(Antwoord health, string naam) =>
         Assert.Single(health.Json!["checks"]!.AsArray(), c => c!["name"]!.GetValue<string>() == naam)!;
 

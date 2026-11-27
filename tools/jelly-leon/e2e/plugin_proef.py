@@ -336,10 +336,12 @@ class Plugin:
 
     # -- kleine hulpjes
     def hub_vraag(self, methode: str, pad: str, token: str | None, query: dict[str, Any] | None = None,
-                  body: Any = None) -> tuple[int, Any, bytes]:
+                  body: Any = None, idempotentiesleutel: str | None = None) -> tuple[int, Any, bytes]:
         if token is not None and not token.startswith("svc_"):
             self.tokens.append(token)
         kop = {"Authorization": "Bearer " + token} if token is not None else {}
+        if idempotentiesleutel is not None:
+            kop["Idempotency-Key"] = idempotentiesleutel
         status, ruw, _ = Http(self.server.url).ruw(methode, pad, query, body, kop)
         return status, _json(ruw), ruw
 
@@ -354,8 +356,7 @@ class Plugin:
         schema = pl.antwoordschema(self.doc, *self._laatste, kreeg) if self._laatste else {}
         if ok and schema is None:
             ok = False
-        kort = pl.tekst_van(inhoud)[:160] if not ok else ""
-        return self.v.test(jlt, naam, ok, f"HTTP {kreeg} (verwacht {status} {code}{'/' + reden if reden else ''}) {kort}")
+        return self.v.test(jlt, naam, ok, f"HTTP {kreeg} (verwacht {status} {code}{'/' + reden if reden else ''})")
 
     _laatste: tuple[str, str] | None = None
 
@@ -363,7 +364,7 @@ class Plugin:
         kreeg, inhoud, _ = antwoord
         verwacht = pl.antwoordschema(self.doc, methode, pad, kreeg)
         if kreeg != status or verwacht is None:
-            return self.v.test(jlt, naam, False, f"HTTP {kreeg} (verwacht {status}): {pl.tekst_van(inhoud)[:200]}")
+            return self.v.test(jlt, naam, False, f"HTTP {kreeg} (verwacht {status})")
         fouten = pl.valideer(inhoud, verwacht, self.doc)
         return self.v.test(jlt, naam, not fouten, f"HTTP {kreeg}, schema: {'in orde' if not fouten else '; '.join(fouten[:4])}")
 
@@ -511,6 +512,9 @@ class Plugin:
             ("gebroken handtekening", hub.token(vervals=True), 401, "unauthorized", "invalid_token"),
             ("alg none", hub.token(kop={"alg": "none"}), 401, "unauthorized", "invalid_token"),
             ("verkeerde audience", hub.token(wijzig={"aud": "mediaguard"}), 401, "unauthorized", "invalid_token"),
+            ("audience als lijst", hub.token(wijzig={"aud": [hub.audience]}), 401, "unauthorized", "invalid_token"),
+            ("iat buiten de klokspeling", hub.token(wijzig={"iat": int(time.time()) + 50}), 401, "unauthorized", "invalid_token"),
+            ("ongeldige tekst in de kop", hub.token(kop={"kid": "\ud800"}), 401, "unauthorized", "invalid_token"),
             ("verkeerde issuer", hub.token(wijzig={"iss": "iemand"}), 401, "unauthorized", "invalid_token"),
             ("levensduur langer dan 120 s", hub.token(levensduur=600), 401, "unauthorized", "invalid_token"),
             ("policy-sleutel als JWT-sleutel", hub.token(sleutel=hub.policy), 401, "unauthorized", "unknown_key"),
@@ -520,7 +524,7 @@ class Plugin:
              401, "unauthorized", "token_use_invalid"),
             ("gebruikers-JWT zonder rollen", hub.token(wijzig={"roles": []}), 401, "unauthorized", "token_use_invalid"),
             ("onbekende token_use", hub.token(wijzig={"token_use": "iets"}), 401, "unauthorized", "token_use_invalid"),
-            ("zonder Authorization", None, 401, "unauthorized", None),
+            ("zonder Authorization", None, 401, "unauthorized", "invalid_token"),
         ]
         for naam, token, status, code, reden in gevallen:
             self.fout("JLT-68", f"Hub: {naam}", self.hub_vraag(*d, token), status, code, reden)
@@ -534,6 +538,10 @@ class Plugin:
         self._laatste = ("POST", "/connector/v1/propose")
         self.fout("JLT-68", "tweede mutatie met dezelfde jti → 401 token_replayed",
                   self.hub_vraag("POST", "/connector/v1/propose", token, body={}), 401, "unauthorized", "token_replayed")
+        token, idem = hub.token(), str(uuid.uuid4())
+        for status, code, reden in ((501, "capability_unavailable", None), (401, "unauthorized", "token_replayed")):
+            self.fout("JLT-68", f"vrijgestelde route met dezelfde sleutel geeft {status}",
+                      self.hub_vraag("POST", "/connector/v1/propose", token, body={}, idempotentiesleutel=idem), status, code, reden)
         self._laatste = ("GET", "/connector/v1/evidence/{id}")
         self.fout("JLT-68", "GET /connector/v1/evidence/{id} → 501",
                   self.hub_vraag("GET", "/connector/v1/evidence/abc", hub.token()), 501, "capability_unavailable")

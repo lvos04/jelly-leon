@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Hub;
+using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
 using Xunit;
 
@@ -41,13 +42,9 @@ public sealed class HubTokenTests : IDisposable
         Assert.Equal("invalid_token", Reden("MediaBrowser Token=\"abc\""));
         Assert.Equal("service_token_not_accepted", Reden("Bearer svc_0123456789"));
         Assert.Equal("invalid_token", Reden("Bearer geen.jwt"));
-        Assert.Equal("invalid_token", Reden(Met((h, _) => h["alg"] = "HS256")));
-        Assert.Equal("invalid_token", Reden(Met((h, _) => h["alg"] = "none")));
-        Assert.Equal("unknown_key", Reden(Met((h, _) => h["kid"] = "0000000000000000")));
         Assert.Equal("unknown_key", Reden(Met((h, _) => h.Remove("kid"))));
         Assert.Equal("invalid_token", Reden(Met((_, c) => c["iss"] = "iemand-anders")));
         Assert.Equal("invalid_token", Reden(Met((_, c) => c["aud"] = "mediaguard")));
-        Assert.Equal("invalid_token", Reden(Met((_, c) => c["aud"] = new JsonArray("jelly-leon", "mediaguard"))));
         Assert.Equal("invalid_token", Reden(Met((_, c) => c["exp"] = c["iat"]!.GetValue<long>() + 121)));
         Assert.Equal("invalid_token", Reden(Met((_, c) => c["nbf"] = c["iat"]!.GetValue<long>() + 300)));
         Assert.Equal("token_use_invalid", Reden(Met((_, c) => c["token_use"] = "refresh")));
@@ -56,6 +53,67 @@ public sealed class HubTokenTests : IDisposable
         Assert.Equal("jti_missing", Reden(Met((_, c) => c.Remove("jti"))));
         Assert.Equal("invalid_token", Reden(Met((_, c) => c["jti"] = "geen-uuid")));
     }
+
+    [Fact]
+    public void AudienceAlsLijstWordtGeweigerd() =>
+        Assert.Equal("invalid_token", Reden(Met((_, c) => c["aud"] = new JsonArray("jelly-leon", "mediaguard"))));
+
+    [Theory]
+    [InlineData("HS256")]
+    [InlineData("none")]
+    public void VerkeerdAlgoritmeWordtGeweigerd(string alg) =>
+        Assert.Equal("invalid_token", Reden(Met((h, _) => h["alg"] = alg)));
+
+    [Fact]
+    public void OnbekendeKidWordtGeweigerd() =>
+        Assert.Equal("unknown_key", Reden(Met((h, _) => h["kid"] = "onbekend")));
+
+    [Fact]
+    public void GepindePolicysleutelMagGeenJwtOndertekenen() =>
+        Assert.Equal("unknown_key", Reden("Bearer " + _h.Hub.Token(_h.Klok.Nu, metPolicysleutel: true)));
+
+    [Fact]
+    public void OngeldigeTekstInDeKopGeeftDeContractfout()
+    {
+        var delen = _h.Hub.Token(_h.Klok.Nu).Split('.');
+        delen[0] = NepHub.B64("{\"alg\":\"EdDSA\",\"typ\":\"JWT\",\"kid\":\"\\ud800\"}"u8.ToArray());
+        Assert.Equal("invalid_token", Reden("Bearer " + string.Join('.', delen)));
+    }
+
+    [Fact]
+    public void OnjuistHeaderTypeWordtGeweigerd() =>
+        Assert.Equal("invalid_token", Reden(Met((h, _) => h["typ"] = "anders")));
+
+    [Fact]
+    public void JtiVereistUuidVersieVier() =>
+        Assert.Equal("invalid_token", Reden(Met((_, c) => c["jti"] = Guid.CreateVersion7().ToString())));
+
+    [Fact]
+    public void LevensduurBuitenHetBereikWordtGeweigerd()
+    {
+        var token = Met((_, c) =>
+        {
+            c["iat"] = long.MinValue;
+            c["exp"] = long.MaxValue;
+        });
+        Assert.Equal("invalid_token", Reden(token));
+    }
+
+    [Theory]
+    [InlineData("iat")]
+    [InlineData("nbf")]
+    public void ToekomstigeTijdHeeftHooguitDertigSecondenSpeling(string claim)
+    {
+        var nu = _h.Klok.Nu;
+        var pin = new HubPinState(_h.Hub.Sleutels(), _h.Hub.ServiceId, "x");
+        string MetTijd(int verschil) => Met((_, c) => c[claim] = nu.ToUnixTimeSeconds() + verschil);
+        Assert.False(HubTokenValidator.Valideer(MetTijd(30), pin, nu).IsService);
+        Assert.Equal("invalid_token", Reden(MetTijd(31)));
+    }
+
+    [Fact]
+    public void VerlopenTokenWordtGeweigerd() =>
+        Assert.Equal("token_expired", Reden("Bearer " + _h.Hub.Token(_h.Klok.Nu.AddSeconds(-91))));
 
     [Fact]
     public void Handtekening_VanEenAndereSleutelWordtGeweigerd()
@@ -95,14 +153,49 @@ public sealed class HubTokenTests : IDisposable
 
         var kind = HubTokenValidator.Valideer(Met((_, c) => c["roles"] = new JsonArray("admin", "kind")), pin, _h.Klok.Nu);
         Assert.True(kind.IsKind);
+    }
 
-        // Een dienst-token met de service_id van een andere dienst hoort niet bij deze koppeling.
+    [Fact]
+    public void AndereDienstregistratieWordtGeweigerd()
+    {
         Assert.Equal("token_use_invalid", Reden("Bearer " + _h.Hub.Token(_h.Klok.Nu, "service", (_, c) =>
         {
             c["sub"] = "hub";
             c["token_use"] = "hub_service";
             c["service_id"] = "99999999-9999-4999-8999-999999999999";
         })));
+    }
+
+    [Fact]
+    public void HeropendeReplayopslagWeigertGebruikteJti()
+    {
+        var nu = _h.Klok.Nu;
+        _h.Koppel();
+        var wie = HubTokenValidator.Valideer("Bearer " + _h.Hub.Token(nu), _h.Dienst<HubPin>().Huidig, nu);
+        var eerste = _h.Dienst<JtiStore>();
+        eerste.Controleer(wie, "POST", "/connector/v1/propose", null, nu);
+        var heropend = new JtiStore(new CoreDatabase(_h.Dienst<JlPaths>()));
+        var fout = Assert.Throws<JlException>(() => heropend.Controleer(wie, "POST", "/connector/v1/propose", null, nu));
+        Assert.Equal((401, "token_replayed"), (fout.Status, fout.Details["reason"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public async Task GelijktijdigeMutatiesMetEenJtiLatenEenVerzoekDoor()
+    {
+        _h.Koppel();
+        var token = _h.Hub.Token(_h.Klok.Nu);
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        async Task<Antwoord> Verzoek()
+        {
+            await start.Task;
+            return await _h.RoepHub("connector.propose", token, "{}");
+        }
+
+        var verzoeken = new[] { Verzoek(), Verzoek() };
+        start.SetResult();
+        var antwoorden = await Task.WhenAll(verzoeken);
+        Assert.Single(antwoorden, a => a.Status == 501 && a.Code == "capability_unavailable");
+        Assert.Single(antwoorden, a => a.Status == 401 && a.Reden == "token_replayed");
     }
 
     [Fact]

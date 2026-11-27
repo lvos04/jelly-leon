@@ -92,9 +92,10 @@ internal sealed class NepHub
     public HubKeySet Sleutels() => HubKeySet.Parse(Keyset(), "keyset");
 
     /// <summary>Een geldig gebruikers-JWT; <paramref name="wijzig"/> mag claims en header aanpassen.</summary>
-    public string Token(DateTimeOffset nu, string rol = "viewer", Action<JsonObject, JsonObject>? wijzig = null)
+    public string Token(DateTimeOffset nu, string rol = "viewer", Action<JsonObject, JsonObject>? wijzig = null, bool metPolicysleutel = false)
     {
-        var header = new JsonObject { ["alg"] = "EdDSA", ["typ"] = "JWT", ["kid"] = Kid };
+        var sleutel = metPolicysleutel ? _policy : _jwt;
+        var header = new JsonObject { ["alg"] = "EdDSA", ["typ"] = "JWT", ["kid"] = KidVan(sleutel) };
         var t = nu.ToUnixTimeSeconds();
         var claims = new JsonObject
         {
@@ -109,7 +110,7 @@ internal sealed class NepHub
             ["jti"] = Guid.NewGuid().ToString(),
         };
         wijzig?.Invoke(header, claims);
-        return Teken(header, claims);
+        return Teken(header, claims, sleutel);
     }
 
     public string DienstToken(DateTimeOffset nu) => Token(nu, "service", (_, c) =>

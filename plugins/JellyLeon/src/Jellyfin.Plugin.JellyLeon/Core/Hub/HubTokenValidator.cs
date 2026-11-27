@@ -37,14 +37,27 @@ internal static class HubTokenValidator
             throw Fouten.NietGeauthenticeerd("service_token_not_accepted");
         }
 
-        var delen = token.Split('.');
+        try
+        {
+            return ValideerJwt(token, pin, nu);
+        }
+        catch (InvalidOperationException)
+        {
+            // System.Text.Json decodeert tekst pas bij het uitlezen van een veld.
+            throw Fouten.NietGeauthenticeerd("invalid_token");
+        }
+    }
+
+    private static HubPrincipal ValideerJwt(string token, HubPinState pin, DateTimeOffset nu)
+    {
+        var delen = token.Split('.', 3);
         if (delen.Length != 3 || !Json(delen[0], out var kop) || !Json(delen[1], out var claims)
-            || !Base64Url.IsValid(delen[2]) || kop.ValueKind != JsonValueKind.Object || claims.ValueKind != JsonValueKind.Object)
+            || delen[2].Length != 86 || !IsBase64Url(delen[2]) || kop.ValueKind != JsonValueKind.Object || claims.ValueKind != JsonValueKind.Object)
         {
             throw Fouten.NietGeauthenticeerd("invalid_token");
         }
 
-        if (Tekst(kop, "alg") != "EdDSA")
+        if (Tekst(kop, "alg") != "EdDSA" || Tekst(kop, "typ") != "JWT")
         {
             throw Fouten.NietGeauthenticeerd("invalid_token");
         }
@@ -64,12 +77,12 @@ internal static class HubTokenValidator
         var seconden = nu.ToUnixTimeSeconds();
         if (Tekst(claims, "iss") != "hub" || Tekst(claims, "aud") != Audience
             || !Getal(claims, "iat", out var iat) || !Getal(claims, "nbf", out var nbf) || !Getal(claims, "exp", out var exp)
-            || exp - iat > MaxLevensduur || exp < iat || nbf > seconden + Speling || iat > seconden + Speling)
+            || iat > seconden + Speling || exp < iat || exp > iat + MaxLevensduur || nbf > seconden + Speling || nbf > exp)
         {
             throw Fouten.NietGeauthenticeerd("invalid_token");
         }
 
-        if (seconden > exp + Speling)
+        if (exp < seconden - Speling)
         {
             throw Fouten.NietGeauthenticeerd("token_expired");
         }
@@ -105,7 +118,8 @@ internal static class HubTokenValidator
             throw Fouten.NietGeauthenticeerd("jti_missing");
         }
 
-        if (jti.Length > 64 || !Guid.TryParse(jti, out _))
+        if (jti.Length != 36 || !Guid.TryParseExact(jti, "D", out var uuid) || uuid.Version != 4
+            || char.ToLowerInvariant(jti[19]) is not ('8' or '9' or 'a' or 'b'))
         {
             throw Fouten.NietGeauthenticeerd("invalid_token");
         }
@@ -116,14 +130,14 @@ internal static class HubTokenValidator
     private static bool Json(string deel, out JsonElement element)
     {
         element = default;
-        if (deel.Length == 0 || deel.Length > 8192 || !Base64Url.IsValid(deel))
+        if (deel.Length == 0 || deel.Length > 8192 || !IsBase64Url(deel))
         {
             return false;
         }
 
         try
         {
-            using var document = JsonDocument.Parse(Base64Url.DecodeFromChars(deel));
+            using var document = JsonDocument.Parse(Base64Url.DecodeFromChars(deel), new JsonDocumentOptions { AllowDuplicateProperties = false });
             element = document.RootElement.Clone();
             return true;
         }
@@ -132,6 +146,9 @@ internal static class HubTokenValidator
             return false;
         }
     }
+
+    private static bool IsBase64Url(string deel) =>
+        deel.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_') && Base64Url.IsValid(deel);
 
     private static string? Tekst(JsonElement o, string naam) =>
         o.TryGetProperty(naam, out var waarde) && waarde.ValueKind == JsonValueKind.String ? waarde.GetString() : null;
