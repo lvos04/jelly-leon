@@ -16,6 +16,10 @@ Opzet (alles in wegwerpcontainers op localhost, als de aanroeper, zonder capabil
    gelijk zijn; UserData zonder enig masker), de bestandsboom, de sha256 van het mediacorpus en een scan van de logs
    op geheimen. Met `--plugin-map` volgt run **D**: plugin weggehaald → de server geeft weer dezelfde antwoorden.
 
+Bij een bewaarde image hoort het OpenAPI-bestand van haar bronrevisie. Haal dat bestand op met
+`git show <bronrevisie>:docs/openapi/jelly-leon-plugin.openapi.json` en geef het mee via `--openapi-bestand`.
+De proef vergelijkt alle routes van de draaiende server en registreert de SHA-256 van het gebruikte contract.
+
 Dit is een simulatie: geen echte Hub, geen echte NAS, geen echte clients. Exitcode 0 = alle onderdelen geslaagd.
 """
 from __future__ import annotations
@@ -791,6 +795,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--image", required=True, help="image onder test (stock 12.x met --plugin-map, of de jelly-leon-image)")
     parser.add_argument("--stock-image", default=None, help="stock 12.x-image voor de zaai- en controle-runs (standaard: --image)")
     parser.add_argument("--plugin-map", type=Path, default=None, help="map met de gebouwde plugin-DLL; weglaten als de image hem meelevert")
+    parser.add_argument("--openapi-bestand", type=Path, default=OPENAPI,
+                        help="plugincontract van de geteste bronrevisie (standaard: het bestand in deze checkout)")
     parser.add_argument("--werkmap", default=None, help="map met minstens 2 GiB vrij (geen tmpfs)")
     parser.add_argument("--rapport", type=Path)
     args = parser.parse_args(argv)
@@ -798,10 +804,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.plugin_map is not None and not (args.plugin_map / PLUGIN_DLL).is_file():
         print(f"[FOUT] {args.plugin_map / PLUGIN_DLL} bestaat niet", file=sys.stderr)
         return 2
+    openapi_bytes = args.openapi_bestand.read_bytes()
+    doc = json.loads(openapi_bytes)
     werk = Path(tempfile.mkdtemp(prefix="jl-pluginproef-", dir=args.werkmap))
     media = werk / "media"
     media.mkdir()
-    doc = json.loads(OPENAPI.read_text(encoding="utf-8"))
     v = Verslag()
     ww = {BEHEER: v.geheim("wachtwoord:beheer", uuid.uuid4().hex), KIJKER: v.geheim("wachtwoord:kijker", uuid.uuid4().hex)}
     ww_weg = v.geheim("wachtwoord:tijdelijk", uuid.uuid4().hex)
@@ -1015,13 +1022,14 @@ def main(argv: list[str] | None = None) -> int:
         args.rapport.parent.mkdir(parents=True, exist_ok=True)
         args.rapport.write_text(json.dumps({
             "schema": "jelly-leon/pluginproef/1", "image": args.image, "stock_image": stock,
+            "openapi_sha256": hashlib.sha256(openapi_bytes).hexdigest(),
             "proefbestanden_sha256": {naam: hashlib.sha256((E2E / naam).read_bytes()).hexdigest()
                                       for naam in ("plugin_proef.py", "proef_lib.py", "upgrade_proef.py", "hub_sim.py", "make_test_media.py")},
             "plugin": "los gebouwde DLL" if args.plugin_map is not None else "meegeleverd in de image",
             "server": {"versie": info.get("Version"), "product": info.get("ProductName")},
             "tijd": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "geslaagd": geslaagd, "per_test": per_jlt,
             "tests": v.regels, "databases": db_rapport, "logs": log_rapport,
-            "soort": "Sim-getest (wegwerpcontainers op 127.0.0.1, Hub-simulator; geen echte Hub, NAS of clients)",
+            "soort": "Sim-getest (lokale wegwerpcontainers, Hub-simulator; geen echte Hub, NAS of clients)",
         }, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"RESULTAAT: {'GESLAAGD' if geslaagd else 'MISLUKT'} {per_jlt}")
     return 0 if geslaagd else 1

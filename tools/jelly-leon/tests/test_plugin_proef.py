@@ -1,6 +1,8 @@
 """Controleert het eindoordeel van JLT-65 met drie wegwerpdatabases en bestandsbomen."""
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 import sys
 import uuid
@@ -11,6 +13,26 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
 
 import plugin_proef as proef  # noqa: E402
+
+
+@pytest.mark.parametrize("afwijkende_revisie", [False, True])
+def test_rapport_identificeert_exact_het_gekozen_plugincontract(tmp_path: Path, monkeypatch, afwijkende_revisie: bool) -> None:
+    rapport = tmp_path / "rapport.json"
+    args = ["--image", "proef", "--werkmap", str(tmp_path), "--rapport", str(rapport)]
+    contract = proef.OPENAPI
+    if afwijkende_revisie:
+        contract = tmp_path / "prototype.json"
+        contract.write_text('{"paths": {}}')
+        args.extend(["--openapi-bestand", str(contract)])
+
+    def zonder_server(*args, **kwargs):
+        raise OSError("deze unittestrun heeft geen server")
+
+    monkeypatch.setattr(proef.subprocess, "run", zonder_server)
+    assert proef.main(args) == 1
+    uitkomst = json.loads(rapport.read_text())
+    assert uitkomst["openapi_sha256"] == hashlib.sha256(contract.read_bytes()).hexdigest()
+    assert not uitkomst["geslaagd"]
 
 
 def test_zaaien_voegt_hoofdstuk_en_segment_toe_naast_bestaande_rijen(tmp_path: Path) -> None:
