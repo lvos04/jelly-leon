@@ -7,7 +7,7 @@ import sys
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    hulp = ("gebruik: python -m b03h {corpus|guard|baseline|apparaten|segmenten|diffrun|legacy|clientmatrix|desktop|rapport} …\n"
+    hulp = ("gebruik: python -m b03h {corpus|guard|baseline|apparaten|segmenten|diffrun|legacy|clientmatrix|desktop|rapport|watchtogether} …\n"
             "  corpus        corpusgenerator (recepten F1–F6, manifest, bevriezen, opruimen)\n"
             "  guard         CI-guard testdatalicenties (repo, commitbereik, image, map)\n"
             "  baseline      baselinemetingen tegen stock jellyfin/jellyfin (stock-standaard en stock-best)\n"
@@ -17,7 +17,8 @@ def main(argv: list[str] | None = None) -> int:
             "  legacy        derden-client met legacy-headers (wat doet 12.x?)\n"
             "  clientmatrix  rooktest van de clientmatrix (web, UA-simulatie, legacy, Android-emulator)\n"
             "  desktop       gezamenlijke desktop-spike (jellyfin-desktop 2.0.0 onder Xvfb, ruwe CDP)\n"
-            "  rapport       baselinebewijs als Markdown-tabel")
+            "  rapport       baselinebewijs als Markdown-tabel\n"
+            "  watchtogether  Watch Together-voormeting S1–S5 op de forkdigest")
     if not argv or argv[0] in ("-h", "--help"):
         print(hulp)
         return 0
@@ -42,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
         from .desktop import main as m
     elif onderdeel == "rapport":
         from .rapport import main as m
+    elif onderdeel == "watchtogether":
+        from .watchtogether import main as m
     else:
         print(hulp, file=sys.stderr)
         return 2

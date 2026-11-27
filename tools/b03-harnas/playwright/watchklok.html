@@ -1,0 +1,19 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referentieklok voor de framecode</title>
+<style>* { margin: 0 } canvas { display: block; width: 100vw; height: 100vh }</style>
+<canvas width="1280" height="64"></canvas>
+<script>
+const raster = document.querySelector('canvas').getContext('2d');
+function teken() {
+    const frame = Math.floor(Date.now() * 24 / 1001);
+    raster.fillStyle = 'black';
+    raster.fillRect(0, 0, 1280, 64);
+    raster.fillStyle = 'white';
+    for (let i = 0; i < 16; i++) {
+        if ((frame >> i) & 1) raster.fillRect(i * 80, 0, 72, 64);
+    }
+    requestAnimationFrame(teken);
+}
+teken();
+</script>

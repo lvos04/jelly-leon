@@ -18,7 +18,17 @@
     "PreferSystemNativeHwDecoder": true
   },
   "client": {
-    "syncplay_correctie": {"waarde": true, "waar": "jellyfin-web: SyncPlay-instellingen 'Synchronisatiecorrectie' (localStorage); F1 meet dit in B03-020"},
+    "syncplay_correctie": {
+      "waarde": true,
+      "waar": "Handmatig per apparaat in de SyncPlay-instellingen van stock-web voor B03-020",
+      "localStorage": {
+        "syncPlay-enableSyncCorrection": "true",
+        "syncPlay-minDelaySpeedToSync": "80",
+        "syncPlay-maxDelaySpeedToSync": "1500",
+        "syncPlay-speedToSyncDuration": "5000",
+        "syncPlay-minDelaySkipToSync": "1500"
+      }
+    },
     "startscherm": {"waarde": "Recent toegevoegd + Doorgaan met kijken + Volgende", "waar": "weergave-instellingen per gebruiker; F2 meet dit in B03-030"},
     "dts_truehd": {"waarde": "alleen waar het apparaat het kan", "waar": "web-afspeelinstellingen; headless browsers kunnen geen passthrough, dus hier niet van toepassing"}
   },

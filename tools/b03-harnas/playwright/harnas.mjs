@@ -35,8 +35,8 @@ const HAAK = `(() => {
   }
 })();`;
 
-async function login(page) {
-  await page.goto(base + '/web/', { waitUntil: 'domcontentloaded' });
+async function login(page, gebruiker = cfg.gebruiker, wachtwoord = cfg.wachtwoord, server = base) {
+  await page.goto(server + '/web/', { waitUntil: 'domcontentloaded' });
   // Wachten tot het inlogveld óf de knop 'handmatig inloggen' echt zichtbaar is (niet alleen in de DOM).
   await page.waitForFunction(() => {
     const zichtbaar = (e) => !!e && e.offsetParent !== null;
@@ -48,8 +48,8 @@ async function login(page) {
       page.evaluate(() => [...document.querySelectorAll('.btnManual')].find((e) => e.offsetParent !== null)?.click()));
   }
   await page.locator('#txtManualName').waitFor({ state: 'visible', timeout: 20000 });
-  await page.locator('#txtManualName').fill(cfg.gebruiker);
-  await page.locator('#txtManualPassword').fill(cfg.wachtwoord);
+  await page.locator('#txtManualName').fill(gebruiker);
+  await page.locator('#txtManualPassword').fill(wachtwoord);
   const verstuur = page.locator('.manualLoginForm button[type=submit]').filter({ visible: true }).first();
   if (await verstuur.count()) await verstuur.click({ timeout: 10000 }).catch(() => page.locator('#txtManualPassword').press('Enter'));
   else await page.locator('#txtManualPassword').press('Enter');
@@ -261,6 +261,12 @@ async function speelItem(page, item, opts) {
 }
 
 async function main() {
+  if (['watchtogether', 'watchklok', 'watchfunctie'].includes(opdracht)) {
+    const { meet } = await import('./watchtogether.mjs');
+    const resultaat = await meet(opdracht, cfg, login);
+    process.stdout.write(JSON.stringify(resultaat) + '\n');
+    return;
+  }
   const bt = BROWSERS[cfg.browser];
   if (!bt) throw new Error(`onbekende browser ${cfg.browser}`);
   const browser = await bt.launch({ headless: true });
@@ -296,4 +302,9 @@ async function main() {
   process.stdout.write(JSON.stringify(uit) + '\n');
 }
 
-main().catch((e) => { process.stdout.write(JSON.stringify({ fout: String(e).slice(0, 600) }) + '\n'); process.exit(1); });
+main().catch((e) => {
+  // Playwright-fouten kunnen URL's en ingevulde velden bevatten. Voor deze proef alleen de vaste fasenaam bewaren.
+  const fout = opdracht.startsWith('watch') ? 'Watch Together: ' + (e.fase || 'clientproef onderbroken') : String(e).slice(0, 600);
+  process.stdout.write(JSON.stringify({ fout }) + '\n');
+  process.exit(1);
+});

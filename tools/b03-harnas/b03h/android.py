@@ -27,7 +27,6 @@ SDK = Path(os.environ.get("ANDROID_HOME", str(Path.home() / "android-sdk")))
 DEBIAN = "docker.io/library/debian:trixie-20261104-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2"
 APK_MAP = WERK / "apk"
 AVD_MAP = WERK / "avd"
-EMU = "b03016-emu"
 APKS = {
     "android": {"naam": "jellyfin-android-v2.7.3-libre-release.apk", "pakket": "org.jellyfin.mobile",
                 "url": "https://github.com/jellyfin/jellyfin-android/releases/download/v2.7.3/jellyfin-android-v2.7.3-libre-release.apk",
@@ -65,16 +64,16 @@ def haal_apks() -> dict[str, Path]:
     return uit
 
 
-def maak_avd(soort: str) -> str:
+def maak_avd(soort: str, avd_map: Path = AVD_MAP) -> str:
     """Maakt het AVD op de host (avdmanager heeft Java nodig, de container niet) in een eigen map buiten de repo."""
     a = AVDS[soort]
-    AVD_MAP.mkdir(parents=True, exist_ok=True)
-    env = {**os.environ, "ANDROID_HOME": str(SDK), "ANDROID_SDK_ROOT": str(SDK), "ANDROID_AVD_HOME": str(AVD_MAP)}
+    avd_map.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "ANDROID_HOME": str(SDK), "ANDROID_SDK_ROOT": str(SDK), "ANDROID_AVD_HOME": str(avd_map)}
     subprocess.run([str(SDK / "cmdline-tools/latest/bin/avdmanager"), "create", "avd", "-n", a["avd"], "-k", a["image"],
                     "-d", a["apparaat"], "--force"], input="no\n", text=True, capture_output=True, env=env, check=True)
-    for slot in AVD_MAP.rglob("*.lock"):
+    for slot in avd_map.rglob("*.lock"):
         slot.unlink(missing_ok=True) if slot.is_file() else None
-    ini = AVD_MAP / f"{a['avd']}.avd" / "config.ini"
+    ini = avd_map / f"{a['avd']}.avd" / "config.ini"
     regels = [r for r in ini.read_text(encoding="utf-8").splitlines() if r.split("=", 1)[0].strip() not in a["config"]]
     regels += [f"{k}={v}" for k, v in a["config"].items()]
     ini.write_text("\n".join(regels) + "\n", encoding="utf-8")
@@ -97,7 +96,10 @@ class Knoop:
 
 
 class Emulator:
-    def __init__(self, soort: str, gpu: str = "swiftshader_indirect", geheugen_gib: int = 4) -> None:
+    def __init__(self, soort: str, gpu: str = "swiftshader_indirect", geheugen_gib: int = 4, *, netwerk: str = "host",
+                 avd_map: Path = AVD_MAP) -> None:
+        self.netwerk = netwerk
+        self.avd_map = avd_map
         self.soort = soort
         self.avd = AVDS[soort]["avd"]
         self.cid = ""
@@ -105,7 +107,7 @@ class Emulator:
         self.geheugen_gib = geheugen_gib
 
     def adb(self, *args: str, timeout: float = 120, check: bool = False) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(["docker", "exec", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp", EMU,
+        return subprocess.run(["docker", "exec", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp", self.cid,
                                str(SDK / "platform-tools/adb"), *args], capture_output=True, text=True, timeout=timeout,
                               check=check)
 
@@ -113,15 +115,14 @@ class Emulator:
         return self.adb("shell", opdracht, timeout=timeout).stdout
 
     def start(self, apk_map: Path) -> float:
-        docker("rm", "-f", EMU, check=False)
         kvm_gid = os.stat("/dev/kvm").st_gid
-        self.cid = docker("run", "-d", "--name", EMU, "--device", "/dev/kvm", "--group-add", str(kvm_gid),
-                          "--memory", f"{self.geheugen_gib}g", "--memory-swap", f"{self.geheugen_gib}g", "--network", "host",
+        self.cid = docker("run", "-d", "--device", "/dev/kvm", "--group-add", str(kvm_gid),
+                          "--memory", f"{self.geheugen_gib}g", "--memory-swap", f"{self.geheugen_gib}g", "--network", self.netwerk,
                           "--security-opt", "no-new-privileges",
-                          "-e", f"ANDROID_AVD_HOME={AVD_MAP}", "-e", f"ANDROID_SDK_ROOT={SDK}", "-e", "HOME=/tmp",
-                          "-v", f"{SDK}:{SDK}:ro", "-v", f"{AVD_MAP}:{AVD_MAP}", "-v", f"{apk_map}:/apk:ro",
+                          "-e", f"ANDROID_AVD_HOME={self.avd_map}", "-e", f"ANDROID_SDK_ROOT={SDK}", "-e", "HOME=/tmp",
+                          "-v", f"{SDK}:{SDK}:ro", "-v", f"{self.avd_map}:{self.avd_map}", "-v", f"{apk_map}:/apk:ro",
                           DEBIAN, "sleep", "infinity").stdout.strip()
-        uit = docker("exec", EMU, "sh", "-c", f"apt-get update -qq >/dev/null && apt-get install -y -qq --no-install-recommends {LIBS} "
+        uit = docker("exec", self.cid, "sh", "-c", f"apt-get update -qq >/dev/null && apt-get install -y -qq --no-install-recommends {LIBS} "
                      ">/dev/null", check=False, timeout=900)
         if uit.returncode != 0:
             raise RuntimeError(f"apt in de emulatorcontainer faalde: {uit.stderr[-400:]}")
@@ -129,7 +130,7 @@ class Emulator:
         # Gemeten: zonder dit blijft het Android TV-image (ro.adb.secure) op 'unauthorized'.
         self.adb("start-server")
         t0 = time.monotonic()
-        subprocess.run(["docker", "exec", "-d", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp", EMU, "sh", "-c",
+        subprocess.run(["docker", "exec", "-d", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp", self.cid, "sh", "-c",
                         f"{SDK}/emulator/emulator -avd {self.avd} -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data "
                         f"-gpu {self.gpu} -feature -Vulkan -memory 2048 -cores 4 -accel on -no-metrics > /tmp/emu.log 2>&1"],  # noqa: S108
                        check=True)
@@ -138,7 +139,7 @@ class Emulator:
                 return time.monotonic() - t0
             time.sleep(1)
         log_in_container = "/tmp/emu.log"  # noqa: S108 - pad binnen de wegwerpcontainer
-        raise RuntimeError("emulator niet opgestart binnen 600 s: " + docker("exec", EMU, "tail", "-20", log_in_container,
+        raise RuntimeError("emulator niet opgestart binnen 600 s: " + docker("exec", self.cid, "tail", "-20", log_in_container,
                                                                              check=False).stdout)
 
     def geheugen(self) -> dict[str, Any]:
@@ -154,7 +155,9 @@ class Emulator:
         return uit
 
     def stop(self) -> None:
-        docker("rm", "-f", EMU, check=False)
+        if self.cid:
+            docker("rm", "-f", "-v", self.cid, check=False)
+            self.cid = ""
 
     # --- UI ---------------------------------------------------------------------------------------------------
 
@@ -201,7 +204,7 @@ class Emulator:
 
     def schermafdruk(self, pad: Path) -> None:
         pad.parent.mkdir(parents=True, exist_ok=True)
-        uit = subprocess.run(["docker", "exec", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp", EMU,
+        uit = subprocess.run(["docker", "exec", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp", self.cid,
                               str(SDK / "platform-tools/adb"), "exec-out", "screencap", "-p"], capture_output=True, timeout=60,
                              check=False)
         pad.write_bytes(uit.stdout)

@@ -77,3 +77,114 @@ def test_klokvenster_en_bevroren_klok():
         watchmeting.nulproef([{**r, "klok_ms": 1} for r in opnamen])
     with pytest.raises(ValueError, match="tien"):
         watchmeting.nulproef([])
+
+
+def test_meetpoging_zonder_baseline_laat_bestaand_bewijs_staan(monkeypatch, tmp_path):
+    import json
+
+    from b03h import watchtogether
+
+    monkeypatch.setattr(meetslot, "loadavg", lambda: (1, 2, 3))
+    monkeypatch.setattr(watchtogether, "meet", lambda *args: pytest.fail("geen server starten"))
+    uit = tmp_path / "meting.json"
+    uit.write_text("vorige meting")
+    assert watchtogether.main(["--baseline", str(tmp_path / "ontbreekt"), "--uit", str(uit)]) == 3
+    doc = json.loads((tmp_path / "meting-meetpoging.json").read_text())
+    assert doc["status"] == "NIET GEMETEN (machinelast)" and doc["metingen"] == []
+    assert doc["startcontrole"]["baseline_s_p40_50"] == "ontbreekt"
+    assert uit.read_text() == "vorige meting"
+
+
+def test_definitieve_baseline_beide_profielen_en_digest(tmp_path):
+    import json
+
+    from b03h import watchtogether
+
+    pad = tmp_path / "baseline.json"
+    runs = [{"last": {"loadavg_voor": [1, 2, 3], "run": i, "geldig": True}} for i in range(3)]
+    ms = [bewijs.metriek(id="proef", functie="F1", omschrijving="proef", methode="tellen", systeem=s,
+                         soort="telling", image=STOCK_IMAGE, seed=None, runs=runs, waarde={"k": 3}, interval=None, n=3)
+          for s in watchmeting.SYSTEMEN]
+    d = {"schema": bewijs.SCHEMA, "label": "definitief-forkbasis", "images": {"stock": STOCK_IMAGE}, "metingen": ms}
+    pad.write_text(json.dumps(d))
+    assert watchtogether.controle_baseline(pad)
+    for wijziging in ({"label": "voormeting-12.4"}, {"images": {"stock": "stock:12.4"}}, {"metingen": ms[:1]}, {"metingen": []}):
+        pad.write_text(json.dumps(d | wijziging))
+        with pytest.raises(ValueError):
+            watchtogether.controle_baseline(pad)
+    runs[2]["last"]["geldig"] = False
+    pad.write_text(json.dumps(d))
+    with pytest.raises(ValueError):
+        watchtogether.controle_baseline(pad)
+
+
+def test_begin_en_eindlast_weigeren_run(monkeypatch, tmp_path):
+    from b03h import watchtogether
+
+    monkeypatch.setattr(meetslot, "actieve_zware_sloten", lambda *_: [])
+    for lasten, start in [([4.1, 1], False), ([1, 4.1], True)]:
+        reeks = iter(lasten)
+        monkeypatch.setattr(meetslot, "loadavg", lambda reeks=reeks: (next(reeks), 1, 1))
+        last, spoor = watchtogether.meet_run("stock-best", 0, [], lambda: {"gestart": True}, 4)
+        assert not last["geldig"] and bool(spoor) == start
+
+
+def test_gedeeld_slot_twee_sluit_de_meting_uit(monkeypatch, tmp_path):
+    import fcntl
+
+    from b03h import watchtogether
+
+    monkeypatch.setattr(meetslot, "LOCK_DIR", tmp_path)
+    with (tmp_path / "stack2.lock").open("w") as ander:
+        fcntl.flock(ander, fcntl.LOCK_EX)
+        with watchtogether.meetvenster() as bezet:
+            assert bezet == "stack2.lock"
+    with watchtogether.meetvenster() as bezet:
+        assert bezet is None
+
+
+def test_rollen_tellen_alleen_bekende_groep_geen_namen_in_bewijs():
+    import json
+
+    from b03h.watchrollen import tel
+
+    rij = {"GroupId": "eigen", "Participants": ["testlid-a", "testlid-b"]}
+    body = json.dumps([rij, {**rij, "GroupId": "andere"}]).encode()
+    zichtbaar = tel((200, body, {}), "eigen", True, True)
+    gast = tel((200, body, {}), "eigen", False, True)
+    assert zichtbaar["gelekte_groepen"] == 0
+    assert (gast["gelekte_groepen"], gast["gelekte_namen"]) == (1, 2)
+    assert "testlid" not in json.dumps(gast)
+    assert tel((403, b"", {}), "eigen", False, False)["gelekte_namen"] == 0
+    with pytest.raises(ValueError):
+        tel((500, b"", {}), "eigen", False, True)
+
+
+def test_adb_bekende_frameklok_en_ongeldig_pixelformaat():
+    import struct
+
+    from b03h.watchomgeving import adb_klok
+
+    frame, breedte, hoogte = 1301, 320, 180
+    ruw = bytearray(breedte * hoogte * 4)
+    for i in range(16):
+        if frame & (1 << i):
+            ruw[((hoogte // 2) * breedte + int((i + .45) * breedte / 16)) * 4] = 255
+    tijd = (65536 + frame) * 1001 / 24
+    assert adb_klok(struct.pack("<IIII", breedte, hoogte, 1, 0) + ruw, tijd, tijd + 10)["klok_ms"] == pytest.approx(tijd)
+    with pytest.raises(ValueError):
+        adb_klok(struct.pack("<III", breedte, hoogte, 5) + ruw, tijd, tijd + 10)
+
+
+def test_s2_weigert_software_en_twee_transcodes(tmp_path):
+    from b03h.watchtogether import vereis_afspeelpad
+
+    p = tmp_path / "transcode.log"
+    sessies = [{"methode": "DirectPlay", "video_transcode": False}, {"methode": "Transcode", "video_transcode": True}]
+    p.write_text("ffmpeg -i bron -c:v libx264 doel")
+    with pytest.raises(ValueError, match="QSV"):
+        vereis_afspeelpad("S2", sessies, [p])
+    p.write_text("ffmpeg -i bron -c:v h264_qsv doel")
+    vereis_afspeelpad("S2", sessies, [p])
+    with pytest.raises(ValueError, match="QSV"):
+        vereis_afspeelpad("S2", [sessies[1], sessies[1]], [p])
