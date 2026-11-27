@@ -41,6 +41,7 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0033](ADR-0033-b03-017-spike-istartupfilter-1-mib-voor-authenticatie.md) | B03-017: spike `IStartupFilter` — een laag uit de plugin vóór routing en authenticatie werkt op stock 12.4 (413 vóór 401 bij meer dan 1 MiB); blijft standaard uit tot het contract de volgorde wijzigt | Aanvaard (Sim-getest; echte NAS NIET GEVALIDEERD) |
 | [ADR-0034](ADR-0034-b03-009-mediaguard-viewerclient-via-de-hub.md) | B03-009: MediaGuard-viewerclient via de Hub zonder sleutel in Jelly Leon (BG-04); standaard geen vervoer en status `onbekend`; rolcontrole fail-closed, routes- en veldenwitte lijst; `IsKid` (B03-010, deel) | Aanvaard (Unit-getest; echte Hub en MediaGuard NIET GEVALIDEERD) |
 | [ADR-0035](ADR-0035-b03-018-uitvoering-planner-budget-en-werkerinterface.md) | B03-018: uitvoering planner, budget en werkerinterface (stand na ronde 3) — één planner met regels zonder toestand, leesfoutonderbreker, `GeenWerker` als standaard, batch nooit op een GPU, beheerroute `GET /media/v1/planner`; wat open is staat in de ADR | Aanvaard (Unit-getest; echte NAS NIET GEVALIDEERD) |
+| [ADR-0036](ADR-0036-b03-015-overname-assistent-in-het-beheer.md) | B03-015 — Overname-assistent in het beheer van Jelly Leon, met de interpreter van de analysewerker en akkoord per verschil | Aanvaard (ontwerp, bouw in S-P40-82) |
 
 ## B03 2.0 — herkomst van de ADR's
 

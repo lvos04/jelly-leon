@@ -70,6 +70,8 @@ bestand heeft geen onthouden spoorkeuze, dus er gaat niets verloren.
 
 - D07 meten (wizard of TrueNAS-API): Emby-versie en -digest, gebruikers, bibliotheken, mountpaden; daarna de proefrun
   herhalen met precies die Emby-versie op vaste digest.
-- De overname-assistent in het beheer van Jelly Leon (P4-0), zodat u geen terminal nodig hebt; tot die er is, voert de
-  tool alleen de proefrun in de testomgeving uit.
-- De proefrun herhalen tegen `jelly-leon:12.x` (gate P4-0) en de echte overname op de NAS (JLT-74).
+- De beheerpagina toont straks uw rapport per gebruiker en vraagt op het scherm akkoord op elk verschil. S-P40-82 bouwt
+  de pagina zodra S-G1-30 de interpreter van de analysewerker levert. Tot dan draait de tool alleen in de testomgeving
+  en CI. [Ontwerp van de overname-assistent (ADR-0036)](../adr/ADR-0036-b03-015-overname-assistent-in-het-beheer.md)
+- S-P40-30 heeft de tool tegen de Jelly Leon-testimage beproefd. De proef via de beheerpagina volgt in S-P40-82.
+  De echte overname en de controlelijst **Emby verwijderen** vallen onder JLT-74.
