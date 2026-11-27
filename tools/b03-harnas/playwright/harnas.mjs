@@ -8,7 +8,7 @@
 // Alleen voor ontwikkeling/CI; draait nooit op de NAS.
 import { chromium, firefox, webkit } from 'playwright';
 import fs from 'node:fs';
-import { beoordeling, cpuSeconden, geforceerdeProef, sessieInfo } from './apparaten.mjs';
+import { beeldmetingAfgerond, beoordeling, cpuSeconden, geforceerdeProef, sessieInfo } from './apparaten.mjs';
 import path from 'node:path';
 
 const BROWSERS = { chromium, firefox, webkit };
@@ -135,13 +135,13 @@ async function speelItem(page, item, opts) {
     const muurBegin = performance.now();
     let laatsteSessiepeiling = -500;
     while (true) {
-      const s = await page.evaluate(() => {
+      const s = await page.evaluate((grensMs) => {
         const v = document.querySelector('video');
         return { ct: v?.currentTime ?? 0, w: v?.videoWidth ?? 0, rs: v?.readyState ?? 0,
           err: v?.error?.code ?? null, p: v?.paused ?? true, ab: v?.webkitAudioDecodedByteCount ?? null,
           ma: v?.mozHasAudio ?? null, t: performance.now() - window.__b03.klik,
-          fout: window.__b03.events.some((e) => e.ev === 'error') };
-      });
+          fout: window.__b03.events.some((e) => e.ev === 'error' && e.t - window.__b03.klik <= grensMs) };
+      }, grens);
       if (!Number.isFinite(s.t) || performance.now() - muurBegin > Math.max(grens, 60000) + 5000) {
         throw new Error('Klik of meetklok ontbreekt');
       }
@@ -157,7 +157,7 @@ async function speelItem(page, item, opts) {
       }
       const metAudio = vang.antwoord?.MediaSources?.[0]?.MediaStreams?.some((x) => x.Type === 'Audio');
       const decodeOntbreekt = metAudio && (s.ab === 0 || s.ma === false);
-      if (s.t <= grens && (s.fout || (dp && vang.hls))) {
+      if (s.fout || (dp && vang.hls)) {
         ok = false;
         tot2 = null;
       }
@@ -171,7 +171,7 @@ async function speelItem(page, item, opts) {
         const nu = await sessieInfo(page, item.id);
         if (cpu0 !== null && einde !== null && nu?.video_direct === false) cpuKernen = (einde - cpu0) * 1000 / (performance.now() - cpuBegin);
       }
-      if (ok && (!opts.apparaten || !vang.hls || cpuKernen !== null || s.t >= grens)) break;
+      if (beeldmetingAfgerond(ok, s.t, grens, opts.apparaten)) break;
       if (opts.apparaten && dp && !ok && (s.fout || vang.hls || s.t >= grens)) {
         // Twee opeenvolgende waarnemingen ná de mislukte start bewijzen dat het herstelde beeld vooruitgaat.
         if (vorigeNaFout && s.t <= 60000 && !s.p && !s.err && s.w > 0 && s.ct > vorigeNaFout.ct) {

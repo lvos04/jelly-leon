@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { beoordeling, geforceerdeProef } from './apparaten.mjs';
+import { beeldmetingAfgerond, beoordeling, geforceerdeProef } from './apparaten.mjs';
 
 const beeld = { t: 10000, ct: 2, w: 640, p: false, err: null };
 
@@ -16,6 +16,13 @@ test('een vervangen speler met beeld wist de fout of de terugval van de eerste D
   assert.equal(beoordeling(beeld, 10000, false, true), false);
   assert.equal(beoordeling({ ...beeld, t: 60000 }, 60000, false), true);
   assert.equal(beoordeling({ ...beeld, t: 60001 }, 60000, false), false);
+});
+
+test('de apparaatproef blijft na het eerste beeld luisteren tot de tiende seconde', () => {
+  assert.equal(beeldmetingAfgerond(true, 2050, 10000, true), false);
+  assert.equal(beeldmetingAfgerond(false, 10000, 10000, true), false);
+  assert.equal(beeldmetingAfgerond(true, 10000, 10000, true), true);
+  assert.equal(beeldmetingAfgerond(true, 2050, 10000, false), true);
 });
 
 test('een geweigerde statische bron telt niet als een decoderfout', async () => {

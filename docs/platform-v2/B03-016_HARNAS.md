@@ -172,7 +172,7 @@ testgebruiker Nederlandse ondertitels. De ondertitelinstelling wordt na de metin
 
 | Metriek | Waarneming |
 |---|---|
-| K1 | Een door PlaybackInfo gekozen Direct Play is onterecht bij een mediafout, terugval of onvoldoende voortgang. Binnen tien seconden na de afspeelklik moet `currentTime ≥ 2` zijn met een positieve videobreedte. Een geregistreerde fout blijft meetellen wanneer de speler wordt vervangen. |
+| K1 | Een door PlaybackInfo gekozen Direct Play is onterecht bij een mediafout, terugval of onvoldoende voortgang. Binnen tien seconden na de afspeelklik moet `currentTime ≥ 2` zijn met een positieve videobreedte. De proef blijft het hele startvenster op fouten letten, ook bij vervanging van de speler. |
 | K2 | Na een mislukte Direct Play blijft dezelfde klik maximaal 60 seconden onder observatie. Een voortschrijdende beeldklok levert de hersteltijd in milliseconden. Zonder herstel staat er `> 60 s (geen automatisch herstel)`. |
 | K3 | Direct Plays die het beeldorakel halen, gedeeld door alle starts. De noemer en het Wilson-95%-interval staan bij elke set en elk startnummer. |
 | K4 en K5 | K4 vergelijkt effectieve Direct Plays met het bevestigde potentieel van de geforceerde statische proef. HDR zonder bevestigde scherm- of tonemapcapaciteit krijgt een aparte telling. K5 telt transcodes waarbij de geforceerde proef wel speelt. |

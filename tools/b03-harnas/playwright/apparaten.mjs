@@ -5,6 +5,11 @@ export function beoordeling(s, grensMs, fout, teruggevallen = false) {
   return !!s && s.t >= 0 && s.t <= grensMs && s.ct >= 2 && s.w > 0 && !s.p && !s.err && !fout && !teruggevallen;
 }
 
+export function beeldmetingAfgerond(beeldGemeten, tijd, grens, apparaten) {
+  // Bij B03-060 telt ook een afspeelfout tussen de eerste twee seconden beeld en het einde van het startvenster.
+  return beeldGemeten && (!apparaten || tijd >= grens);
+}
+
 export function cpuSeconden(id) {
   if (!id || !/^[a-f0-9]{64}$/.test(id)) return null;
   for (const dir of [`system.slice/docker-${id}.scope`, `docker/${id}`]) {
