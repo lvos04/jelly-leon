@@ -142,10 +142,24 @@ def startcontrole(pad: Path) -> dict:
 
 
 def meet_run(systeem: str, nr: int, containers: list[str], actie: Callable, grens: float) -> tuple[dict, dict | None]:
-    with meetslot.run(systeem, nr, containers, grens=grens) as last:
-        # Een te hoge beginlast start geen browsers. Een clientfout bij een geldige start wordt nooit herprobeerd.
-        te_druk = last.loadavg_voor[0] > grens or last.zware_sloten_voor
-        spoor = None if te_druk else actie()
+    spoor = None
+    bezet = None
+    with meetslot.run(systeem, nr, containers, grens=grens) as last, ExitStack() as sloten:
+        if last.loadavg_voor[0] <= grens and not last.zware_sloten_voor:
+            # Geen bouwstart tussen twee lastpeilingen. Vóór de eindpeiling zijn de eigen sloten weer vrij.
+            for naam in meetslot.ZWARE_SLOTEN:
+                pad = meetslot.LOCK_DIR / naam
+                f = sloten.enter_context(pad.open("rb") if pad.exists() else pad.open("a+b"))
+                try:
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    bezet = naam
+                    break
+            if bezet is None:
+                spoor = actie()
+    if bezet:
+        last.geldig = False
+        last.reden = f"ander zwaar slot actief: {bezet}"
     if last.loadavg_na[0] > grens:
         last.geldig = False
         last.reden = (last.reden + " " if last.reden else "") + "loadavg na de run boven de grens"

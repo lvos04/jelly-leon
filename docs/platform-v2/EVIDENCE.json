@@ -130,6 +130,16 @@
     "bijgewerkt": "2026-11-09"
   },
   {
+    "id": "B03-020",
+    "status": "Bezig",
+    "validatie": "Unit-getest; NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (Mac/Xcode); NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "tools/b03-harnas/b03h/watchtogether.py, tools/b03-harnas/tests/test_watchmeting.py en docs/platform-v2/B03-020_WATCH_TOGETHER.md. Het framecoderecept en het bijbehorende SHA-256-manifest staan in test-evidence/b03-016-corpus/f1-framecode.v1.vol.manifest.json. De startcontrole staat in test-evidence/b03-020-meetpoging.json.",
+    "blokkade": "NIET GEVALIDEERD (hardware): A310, UHD 770 en echte tv's; NIET GEVALIDEERD (Mac/Xcode): Swiftfin; NIET GEVALIDEERD (echte NAS).",
+    "opmerking": "NIET GEMETEN (machinelast). S-P40-50 heeft geen definitieve baseline. Eénminuutslast 12,13 bij grens 4,00. Geen gemeten drift, tijd tot spelen, stilstand, meetonzekerheid of QSV-resultaat voor S1–S5.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-27"
+  },
+  {
     "id": "B03-016",
     "status": "Bezig",
     "validatie": "Sim-getest; Intel-iGPU-getest (ontwikkelmachine); NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (Mac/Xcode)",

@@ -65,3 +65,5 @@ Dit schrijft ook `jlt-40-apparaatprofielen.md`. In S-P40-64 draait dezelfde inga
 stockprofielen en als uitvoer `b03-060-voormeting.json`. Laat daarvoor `--fork-image` weg. Een ontbrekende
 definitieve baseline of te hoge startlast geeft exitcode 1 en een rapport met de reden. De devset blijft apart van
 de testset bij het berekenen van de tellers. De emulator- en desktopresultaten voor JLT-40 komen uit S-G4-30.
+
+De voormeting voor Watch Together draait met twee afzonderlijke SyncPlay-clients. [S1–S5, kalibratie en rollenproef](../../docs/platform-v2/B03-020_WATCH_TOGETHER.md)

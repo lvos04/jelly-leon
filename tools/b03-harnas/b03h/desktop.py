@@ -104,7 +104,7 @@ def draai(build: Path, image: str, desktop_image: str, uitmap: Path, resultaat: 
         resultaat.update(desktop_image_id=image_id, shm_bytes=int(shm_bytes))
         # De besturing deelt uitsluitend de netwerkruimte van de desktop. CDP heeft geen hostpoort.
         stuurder = docker("create", "-i", "--network", f"container:{app}", *beperkt, "--memory", "256m", "--cpus", "1",
-                          "-v", f"{CDP_JS}:/cdp.mjs:ro", "-v", f"{uitmap}:/bewijs", NODE_IMAGE, "node", "/cdp.mjs").stdout.strip()
+                          "-v", f"{CDP_JS.parent}:/cdp:ro", "-v", f"{uitmap}:/bewijs", NODE_IMAGE, "node", "/cdp/cdp.mjs").stdout.strip()
         stapel.callback(docker, "rm", "-f", "-v", stuurder)
         cfg = {"gebruiker": kijker, "wachtwoord": wachtwoord, "uid": uid, "item": hero["Id"], "autorisatie": jf.a.headers["Authorization"]}
         proces = subprocess.run(["docker", "start", "-a", "-i", stuurder], input=json.dumps(cfg), text=True,

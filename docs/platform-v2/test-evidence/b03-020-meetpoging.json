@@ -1,0 +1,29 @@
+{
+  "schema": "jelly-leon/b03-020-meetpoging/1",
+  "werkpakket": "B03-020",
+  "label": "definitief-forkbasis",
+  "images": {
+    "stock": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+  },
+  "framecode_set_sha256": "6242248286af8718f2e11ebd6492e4e2f8050fbf64177ed7519b2e0a8ac408be",
+  "metingen": [],
+  "scenarios": {},
+  "clientdekking": {
+    "android-web": "geen groepsrun in S1–S5",
+    "androidtv": "geen SyncPlay-client in deze stockmatrix",
+    "Swiftfin": "NIET GEVALIDEERD (Mac/Xcode)",
+    "echte tv": "NIET GEVALIDEERD (hardware)"
+  },
+  "startcontrole": {
+    "datum": "2026-11-27T21:43:13Z",
+    "loadavg": [
+      12.12646484375,
+      8.85595703125,
+      7.46044921875
+    ],
+    "lastgrens": 4.0,
+    "baseline_s_p40_50": "ontbreekt",
+    "meten": false
+  },
+  "status": "NIET GEMETEN (machinelast)"
+}

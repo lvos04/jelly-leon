@@ -1,6 +1,7 @@
 // Besturing van de echte QtWebEngine-pagina en meting op de wegwerptestserver.
 // Alleen de desktop en de CDP-besturing delen deze netwerkruimte.
 import fs from 'node:fs';
+import { doelen, verbind } from './pagina.mjs';
 
 const cfg = JSON.parse(fs.readFileSync(0, 'utf8'));
 const server = 'http://testserver:8096';
@@ -47,67 +48,6 @@ async function wachtTot(meting, reden, ms = 30000) {
     await wacht(400);
   } while (Date.now() < einde);
   throw new Error(reden);
-}
-
-async function doelen() {
-  try {
-    const r = await fetch(cdp + '/json/list', { redirect: 'error', signal: AbortSignal.timeout(2000) });
-    return (await r.json()).filter((d) => d.type === 'page');
-  } catch { return []; } // Xvfb en Qt zijn nog aan het starten.
-}
-
-async function verbind(doel) {
-  if (!/^[\w-]+$/.test(doel.id)) throw new Error('ongeldig CDP-paginadoel');
-  const ws = new WebSocket('ws://localhost:9222/devtools/page/' + doel.id);
-  const wachtend = new Map();
-  let id = 0;
-  function sluit() {
-    for (const vraag of wachtend.values()) {
-      clearTimeout(vraag.timer);
-      vraag.weiger(new Error('CDP-pagina gesloten'));
-    }
-    wachtend.clear();
-    ws.close();
-  }
-  ws.onclose = sluit;
-  ws.onmessage = ({ data }) => {
-    const d = JSON.parse(data);
-    const vraag = wachtend.get(d.id);
-    if (vraag) {
-      clearTimeout(vraag.timer);
-      wachtend.delete(d.id);
-      if (d.error) vraag.weiger(new Error('CDP-opdracht geweigerd: ' + vraag.method));
-      else vraag.klaar(d.result);
-    } else if (d.method) gebeurtenis(d.method, d.params);
-  };
-  try {
-    await new Promise((klaar, weiger) => {
-      const timer = setTimeout(() => weiger(new Error('CDP-verbinding liep vast')), 10000);
-      ws.onopen = () => { clearTimeout(timer); klaar(); };
-      ws.onerror = () => { clearTimeout(timer); weiger(new Error('CDP-verbinding mislukt')); };
-    });
-    function stuur(method, params = {}) {
-      return new Promise((klaar, weiger) => {
-        const nummer = ++id;
-        const timer = setTimeout(() => {
-          wachtend.delete(nummer);
-          weiger(new Error('CDP-time-out: ' + method));
-        }, 10000);
-        wachtend.set(nummer, { method, timer, klaar, weiger });
-        try { ws.send(JSON.stringify({ id: nummer, method, params })); }
-        catch { sluit(); }
-      });
-    }
-    async function evalueer(expression) {
-      const r = await stuur('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-      if (r.exceptionDetails) throw new Error('pagina kon de UI-opdracht niet uitvoeren');
-      return r.result?.value;
-    }
-    await stuur('Runtime.enable');
-    await stuur('Log.enable');
-    await stuur('Network.enable', { maxPostDataSize: 65536 });
-    return { stuur, evalueer, sluit };
-  } catch (fout) { sluit(); throw fout; }
 }
 
 async function klik(pagina, selector, bijKlik = fase) {
@@ -175,17 +115,17 @@ async function speel(pagina, naam, minimum) {
 }
 
 async function main() {
-  const eerste = await wachtTot(async () => (await doelen())[0], 'geen CDP-paginadoel onder Xvfb', 60000);
-  let pagina = await verbind(eerste);
+  const eerste = await wachtTot(async () => (await doelen(cdp))[0], 'geen CDP-paginadoel onder Xvfb', 60000);
+  let pagina = await verbind(cdp, eerste, gebeurtenis);
   try {
     if (eerste.url.startsWith('qrc:')) {
       await wachtTot(() => pagina.evalueer("!!document.getElementById('address')"), 'serverkeuze ontbreekt');
       await pagina.evalueer(`(() => { const a = document.getElementById('address'); a.value = ${JSON.stringify(server)};
         a.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('connect-form').requestSubmit(); })()`);
     }
-    const web = await wachtTot(async () => (await doelen()).find((d) => d.url?.startsWith(server + '/')),
+    const web = await wachtTot(async () => (await doelen(cdp)).find((d) => d.url?.startsWith(server + '/')),
       'webclient van de testserver niet geladen', 60000);
-    if (web.id !== eerste.id) { pagina.sluit(); pagina = await verbind(web); }
+    if (web.id !== eerste.id) { pagina.sluit(); pagina = await verbind(cdp, web, gebeurtenis); }
     await wachtTot(() => pagina.evalueer("!!document.querySelector('#txtManualName, .btnManual')"), 'inlogscherm niet geladen');
     uit.webclient_geladen = true;
     fase = 'inloggen';

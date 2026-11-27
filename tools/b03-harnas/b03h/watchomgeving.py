@@ -43,7 +43,7 @@ def tijdelijk(stapel: ExitStack, *args: str) -> str:
 
 def lokaal_adres(cid: str, poort: int) -> str:
     binding = docker("port", cid, f"{poort}/tcp").stdout.strip()
-    return "http://localhost:" + binding.rsplit(":", 1)[1]
+    return "http://" + binding
 
 
 @contextmanager
@@ -97,7 +97,7 @@ def desktop(server: StockServer, net: str, build: Path, image: str, werk: Path):
                         "sh", "-c", "Xvfb :99 -screen 0 1280x720x24 -fbdir /scherm >/dev/null 2>&1 & sleep 2; "
                         "exec /out/build/src/jellyfin-desktop --fullscreen --remote-debugging-port 9222")
         tijdelijk(stapel, "--network", f"container:{cid}", *BEPERKT, NODE_IMAGE, "node", "-e", DOORVOER,
-                  "9223", "localhost", "9222")
+                  "9223", urlsplit(server.url).hostname, "9222")
         yield {"cdp": lokaal_adres(cid, 9223), "xwd": str(scherm / "Xvfb_screen0"), "desktopUrl": "http://testserver:8096",
                "desktop_image_id": docker("inspect", "--format", "{{.Image}}", cid).stdout.strip(), "cid": cid}
 

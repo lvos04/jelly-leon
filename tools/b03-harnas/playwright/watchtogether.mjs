@@ -1,10 +1,11 @@
 // Twee afzonderlijke stock-clients, dezelfde groep en één klok op de ontwikkelmachine.
-import { chromium, firefox, webkit } from 'playwright';
+import { chromium, firefox } from 'playwright';
+import { openDesktop } from './watchdesktop.mjs';
 import fs from 'node:fs';
 import { setTimeout as wacht } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
-const browsers = { chromium, firefox, webkit };
+const browsers = { chromium, firefox };
 const klokHtml = fs.readFileSync(fileURLToPath(new URL('./watchklok.html', import.meta.url)), 'utf8');
 const nu = () => performance.timeOrigin + performance.now();
 const frameMs = 1001 / 24;
@@ -72,8 +73,8 @@ async function rasterKlok(page, xwd) {
   const decoder = xwd ? null : await page.context().newPage();
   try {
     // Vervang alleen de actuele documentinhoud. De volgende navigatie herstelt de stock-webclient.
-    await page.setContent(klokHtml);
-    await page.bringToFront();
+    if (xwd) await page.toonKlok(klokHtml);
+    else { await page.setContent(klokHtml); await page.bringToFront(); }
     await wacht(200);
     const opnamen = [];
     for (let i = 0; i < 15; i++) {
@@ -97,34 +98,16 @@ async function videoStand(page) {
   });
 }
 
-async function openDesktop(cfg, afsluiten) {
-  await wachtOp(async () => {
-    try { return (await fetch(cfg.cdp + '/json/list', { signal: AbortSignal.timeout(1000) })).ok; }
-    catch { return false; }
-  }, 'desktop-CDP niet beschikbaar', 60000);
-  const browser = await chromium.connectOverCDP(cfg.cdp);
-  afsluiten.push(() => browser.close());
-  const ctx = browser.contexts()[0];
-  let page = ctx.pages()[0];
-  if (page.url().startsWith('qrc:')) {
-    await page.locator('#address').fill(cfg.desktopUrl);
-    await page.locator('#connect-form').evaluate(form => form.requestSubmit());
-    page = await wachtOp(() => ctx.pages().find(p => p.url().startsWith(cfg.desktopUrl + '/')), 'desktop opent de testserver niet');
-  }
-  return page;
-}
-
 async function deelnemer(cfg, soort, url, naam, login, afsluiten) {
-  const desktop = soort === 'desktop';
-  let page;
-  if (desktop) {
-    page = await openDesktop(cfg, afsluiten);
-  } else {
-    const browser = await browsers[soort].launch({ headless: true });
-    afsluiten.push(() => browser.close());
-    const ctx = await browser.newContext({ locale: 'nl-NL', viewport: { width: 1280, height: 720 } });
-    page = await ctx.newPage();
+  if (soort === 'desktop') {
+    const qt = await openDesktop(cfg, afsluiten, wachtOp);
+    await qt.login();
+    return qt;
   }
+  const browser = await browsers[soort].launch({ headless: true });
+  afsluiten.push(() => browser.close());
+  const ctx = await browser.newContext({ locale: 'nl-NL', viewport: { width: 1280, height: 720 } });
+  const page = await ctx.newPage();
   if (cfg.systeem === 'stock-best') {
     await page.addInitScript(kv => {
       if (/^https?:$/.test(location.protocol)) for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, v);
@@ -168,8 +151,11 @@ async function openGroep(a, b) {
   const gemaakt = a.page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/SyncPlay/New') && r.request().method() === 'POST');
   await a.page.locator('[role=menuitem]:visible, .actionSheetMenuItem:visible').filter({ hasText: /nieuw|new/i }).first().click();
   const id = (await (await gemaakt).json()).GroupId;
-  await b.page.locator(menu).first().click();
-  await b.page.getByRole('button', { name: /deelnemen|join/i }).first().click();
+  if (b.sluitAan) await b.sluitAan();
+  else {
+    await b.page.locator(menu).first().click();
+    await b.page.getByRole('button', { name: /deelnemen|join/i }).first().click();
+  }
   await wachtOp(async () => (await a.api('GET', '/SyncPlay/' + id)).Participants.length === 2, 'tweede deelnemer ontbreekt');
   return id;
 }
@@ -282,7 +268,7 @@ export async function meet(opdracht, cfg, login) {
       const screenshot = await rasterKlok(a.page);
       const uit = { currentTime: lezers, 'browser-screenshot': screenshot };
       if (cfg.cdp) {
-        const page = await openDesktop(cfg, afsluiten);
+        const page = await openDesktop(cfg, afsluiten, wachtOp);
         const lezer = xwdLezer(cfg.xwd);
         afsluiten.push(() => lezer.sluit());
         uit.Xvfb = await rasterKlok(page, lezer);
