@@ -56,6 +56,8 @@ internal sealed class JlPaths
 
     public string CoreDb => Path.Combine(DataRoot, "core", "core.db");
 
+    public string KinderprofielenDb => Path.Combine(DataRoot, "core", "kinderprofielen.db");
+
     /// <summary>Map van de unix-socket van de analysewerker: /run/jelly-leon als die bestaat, anders onder de cache.</summary>
     public string RunDir => Directory.Exists(RunWortel) ? RunWortel : Path.Combine(CacheRoot, "run");
 

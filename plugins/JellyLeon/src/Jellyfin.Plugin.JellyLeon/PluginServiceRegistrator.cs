@@ -19,6 +19,7 @@ using Jellyfin.Plugin.JellyLeon.Modules.Quality;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
+using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,7 +61,10 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<ModuleRegistry>();
 
         serviceCollection.AddSingleton<PrivacyService>();
-        serviceCollection.AddSingleton<ISessionAuthenticator, JellyfinSessionAuthenticator>();
+        serviceCollection.AddSingleton<KidPolicy>();
+        serviceCollection.AddSingleton<ISessionAuthenticator>(sp => new JellyfinSessionAuthenticator(
+            sp.GetRequiredService<IAuthService>(),
+            sp.GetRequiredService<PluginOpslag>().Beschikbaar ? sp.GetRequiredService<KidPolicy>() : null));
         serviceCollection.AddSingleton<JlPipeline>();
         serviceCollection.AddSingleton<IMediaMappen, BibliotheekMappen>();
         serviceCollection.AddSingleton<ConnectorService>();

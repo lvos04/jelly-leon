@@ -152,7 +152,9 @@ elke regel in deze tabel staat):
 | `User` | `Id` | `Core.Http.JellyfinSessionAuthenticator` | Het ID van de aangemelde gebruiker. |
 | `UserEntityExtensions` | `HasPermission` | `Core.Http.JellyfinSessionAuthenticator` | Leest één recht (beheerder) uit de lijst van de entiteit. |
 | `User` | `MaxParentalRatingScore`, `AccessSchedules` | `Core.Privacy.KidPolicy` | Kind-signalen: kijken of er een leeftijdsgrens is en de schema's tellen. |
+| `User` | `Id` | `Core.Privacy.KidPolicy` | Identificeert de profielbeslissing via het bestaande accountpseudoniem. |
 | `UserEntityExtensions` | `GetPreference` | `Core.Privacy.KidPolicy` | Leest de geblokkeerde tags uit de voorkeuren van de entiteit. |
+| `IUserManager` | `GetUserById` | `Core.Privacy.KidPolicy` | Leest één bestaand account bij het beoordelen van een voorstel. De serverquery gebruikt `AsNoTracking`. |
 | `GenericEventArgs` | `Argument` | `Core.Privacy.UserDeletedConsumer` | De verwijderde gebruiker uit het event. |
 | `User` | `Id` | `Core.Privacy.UserDeletedConsumer` | Het ID, om de eigen gegevens van die gebruiker te wissen (c09698f09). |
 | `BasePlugin` (met `T` = `PluginConfiguration`) | `Configuration` (lezen) en `SaveConfiguration` | `Core.Modules.PluginModuleSwitches` | De eigen moduleschakelaars, via de officiële route. Niet zuiver lezen, en de enige schrijvende regel: de server schrijft dan alleen het eigen XML-bestand, omdat het pad vastligt (punt 4). Ook `Configuration` lezen kan dat bestand schrijven (bij een leesfout). |

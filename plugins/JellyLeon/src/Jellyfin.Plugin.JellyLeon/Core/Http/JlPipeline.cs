@@ -64,15 +64,7 @@ internal sealed class JlPipeline
         else
         {
             var sessie = await _sessies.AuthenticeerAsync(verzoek).ConfigureAwait(false);
-            if (sessie.IsKid)
-            {
-                throw Fouten.Verboden("kid_profile");
-            }
-
-            if (!sessie.IsBeheerder)
-            {
-                throw Fouten.Verboden("admin_required");
-            }
+            sessie.EisBeheerder(route.Auth);
 
             var id = sessie.GebruikerId is Guid gebruiker ? "session:" + _privacy.Pseudoniem(gebruiker) : "session:api-key";
             wie = new JlPrincipal(id, false, false, ["admin"]);

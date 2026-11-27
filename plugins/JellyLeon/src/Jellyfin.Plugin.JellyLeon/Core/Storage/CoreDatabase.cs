@@ -1,6 +1,6 @@
 namespace Jellyfin.Plugin.JellyLeon.Core.Storage;
 
-/// <summary>De database van Core: herhaalcache, idempotentie, outbox en de jobwachtrij van de planner.</summary>
+/// <summary>De gedeelde kerntabellen en de afzonderlijke opslag voor de kinderprofielen.</summary>
 internal sealed class CoreDatabase
 {
     private static readonly string[] _migraties =
@@ -19,10 +19,21 @@ internal sealed class CoreDatabase
         """,
     ];
 
+    private static readonly string[] _profielmigraties =
+    [
+        """
+        CREATE TABLE kinderprofielen(account TEXT NOT NULL PRIMARY KEY,
+            status TEXT NOT NULL CHECK(status IN ('voorgesteld', 'bevestigd_kind', 'bevestigd_volwassene')));
+        """,
+    ];
+
     public CoreDatabase(JlPaths paden)
     {
         Db = new JlDatabase(paden, paden.CoreDb, _migraties);
+        Kinderprofielen = new JlDatabase(paden, paden.KinderprofielenDb, _profielmigraties);
     }
 
     public JlDatabase Db { get; }
+
+    public JlDatabase Kinderprofielen { get; }
 }

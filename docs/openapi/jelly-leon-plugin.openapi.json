@@ -1241,6 +1241,240 @@
         }
       }
     },
+    "/media/v1/privacy/kid-profiles/{id}": {
+      "get": {
+        "operationId": "JlPrivacyKidGet",
+        "summary": "Voorstel en effectieve kinderstatus van het gekozen account",
+        "tags": [
+          "beheer"
+        ],
+        "security": [
+          {
+            "CustomAuthentication": []
+          }
+        ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Voorstel en effectieve kinderstatus van het gekozen account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kinderprofiel"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Niet aangemeld, niet gekoppeld (not_linked) of een ongeldig token; zie details.reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/v1/privacy/kid-profiles/confirm": {
+      "post": {
+        "operationId": "JlPrivacyKidConfirm",
+        "summary": "Bevestig het gekozen account als kind of volwassene",
+        "tags": [
+          "beheer"
+        ],
+        "security": [
+          {
+            "CustomAuthentication": []
+          }
+        ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "UUID; dezelfde sleutel met hetzelfde verzoek geeft het oorspronkelijke antwoord met Idempotent-Replay: true"
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "De ETag van de laatste GET"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KinderprofielBevestiging"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bevestig het gekozen account als kind of volwassene",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kinderprofiel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Idempotency-Key ontbreekt of is geen UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Niet aangemeld, niet gekoppeld (not_linked) of een ongeldig token; zie details.reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Een verzoek met dezelfde Idempotency-Key wordt nog verwerkt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "If-Match klopt niet meer; details.huidige_etag geeft de huidige ETag.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ongeldige invoer (details.fouten) of een hergebruikte Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match ontbreekt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/media/v1/planner": {
       "get": {
         "operationId": "JlPlannerStatus",
@@ -2540,6 +2774,45 @@
             "items": {
               "$ref": "#/components/schemas/PrivacyRegel"
             }
+          }
+        }
+      },
+      "Kinderprofiel": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "is_kid"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "geen_voorstel",
+              "voorgesteld",
+              "bevestigd_kind",
+              "bevestigd_volwassene"
+            ]
+          },
+          "is_kid": {
+            "type": "boolean"
+          }
+        }
+      },
+      "KinderprofielBevestiging": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user_id",
+          "is_kid"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Account-ID uit Jellyfin, met of zonder streepjes"
+          },
+          "is_kid": {
+            "type": "boolean"
           }
         }
       },

@@ -234,6 +234,20 @@ internal static partial class OpenApiBouwer
         "type": "object", "additionalProperties": false, "required": ["items"],
         "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/PrivacyRegel" } } }
       },
+      "Kinderprofiel": {
+        "type": "object", "additionalProperties": false, "required": ["status", "is_kid"],
+        "properties": {
+          "status": { "type": "string", "enum": ["geen_voorstel", "voorgesteld", "bevestigd_kind", "bevestigd_volwassene"] },
+          "is_kid": { "type": "boolean" }
+        }
+      },
+      "KinderprofielBevestiging": {
+        "type": "object", "additionalProperties": false, "required": ["user_id", "is_kid"],
+        "properties": {
+          "user_id": { "type": "string", "description": "Account-ID uit Jellyfin, met of zonder streepjes" },
+          "is_kid": { "type": "boolean" }
+        }
+      },
       "Planner": {
         "type": "object", "additionalProperties": false, "description": "Stand van de ene planner; alleen aantallen, tijden en vaste woorden",
         "required": ["observed_at", "zwaar_toegestaan", "licht_toegestaan", "reden", "redenen", "sessies", "software_transcodes", "rust_sinds", "mediaguard", "media_mount", "werker", "werker_reden", "leesfouten", "nachtvenster", "grenzen", "budget"],
@@ -366,7 +380,7 @@ internal static partial class OpenApiBouwer
             codes.Add(200);
         }
 
-        if (route.Module is not null || heeftPadParameter)
+        if (route.Module is not null || heeftPadParameter || route.Id == "privacy.kid.confirm")
         {
             codes.Add(404);
         }
@@ -444,6 +458,11 @@ internal static partial class OpenApiBouwer
             ["tags"] = new JsonArray(route.Module ?? (route.Auth == JlAuth.Hub ? "connector" : "beheer")),
             ["security"] = new JsonArray(new JsonObject { [route.Auth == JlAuth.Hub ? "HubJwt" : "CustomAuthentication"] = new JsonArray() }),
         };
+        if (route.Auth == JlAuth.PersoonlijkeBeheerder)
+        {
+            operatie["description"] = "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder.";
+        }
+
         if (route.Vrijstelling is not null)
         {
             operatie["description"] = "Geen Idempotency-Key: " + route.Vrijstelling + ".";

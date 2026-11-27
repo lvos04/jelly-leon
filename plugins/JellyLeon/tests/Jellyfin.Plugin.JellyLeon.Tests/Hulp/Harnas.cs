@@ -169,7 +169,7 @@ internal sealed class Harnas : IDisposable
         .Where(m => m.GetCustomAttribute<JlRouteAttribute>() is not null)
         .ToDictionary(m => m.GetCustomAttribute<JlRouteAttribute>()!.Id, StringComparer.Ordinal);
 
-    public Harnas()
+    public Harnas(bool gebruikServerauth = false)
     {
         Map = Directory.CreateTempSubdirectory("jl-test-").FullName;
         var paden = new Mock<IApplicationPaths>();
@@ -181,10 +181,14 @@ internal sealed class Harnas : IDisposable
         diensten.AddSingleton(paden.Object);
         diensten.AddSingleton(Mock.Of<ISessionManager>());
         diensten.AddSingleton(Mock.Of<ILibraryManager>());
-        diensten.AddSingleton(Mock.Of<IAuthService>());
+        diensten.AddSingleton(Authenticatie.Object);
+        diensten.AddSingleton(Gebruikers.Object);
         new PluginServiceRegistrator().RegisterServices(diensten, Mock.Of<IServerApplicationHost>());
         diensten.AddSingleton<IModuleSwitches>(Schakelaars);
-        diensten.AddSingleton<ISessionAuthenticator>(Sessies);
+        if (!gebruikServerauth)
+        {
+            diensten.AddSingleton<ISessionAuthenticator>(Sessies);
+        }
         diensten.AddSingleton<IMediaMappen>(Media);
         Diensten = diensten.BuildServiceProvider();
     }
@@ -196,6 +200,10 @@ internal sealed class Harnas : IDisposable
     public NepSchakelaars Schakelaars { get; } = new();
 
     public NepSessies Sessies { get; } = new();
+
+    public Mock<IAuthService> Authenticatie { get; } = new();
+
+    public Mock<IUserManager> Gebruikers { get; } = new(MockBehavior.Strict);
 
     public NepMedia Media { get; } = new();
 

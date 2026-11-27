@@ -35,7 +35,7 @@ internal sealed class PluginOpslag
             var paden = new JlPaths(data, cache);
             // Deel 1e: in dezelfde beslissing, vóór elke afhankelijke dienst, ook elke database van Core en van elke module
             // (de lijst met moduleschakelaars), met de bestanden die SQLite ernaast schrijft en hun mappen.
-            foreach (var db in new PluginConfiguration().Schakelaars().Select(s => paden.ModuleDb(s.Slug)).Prepend(paden.CoreDb))
+            foreach (var db in new PluginConfiguration().Schakelaars().Select(s => paden.ModuleDb(s.Slug)).Prepend(paden.CoreDb).Prepend(paden.KinderprofielenDb))
             {
                 JlDatabase.EisVeiligBijStart(paden, db);
             }

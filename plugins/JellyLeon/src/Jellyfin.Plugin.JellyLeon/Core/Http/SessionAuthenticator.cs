@@ -11,7 +11,21 @@ using Microsoft.AspNetCore.Http;
 namespace Jellyfin.Plugin.JellyLeon.Core.Http;
 
 /// <summary>Uitkomst van de sessiecontrole van de server.</summary>
-internal sealed record SessieIdentiteit(Guid? GebruikerId, bool IsBeheerder, bool IsKid);
+internal sealed record SessieIdentiteit(Guid? GebruikerId, bool IsBeheerder, bool IsKid)
+{
+    public void EisBeheerder(JlAuth auth)
+    {
+        if (IsKid)
+        {
+            throw Fouten.Verboden("kid_profile");
+        }
+
+        if (!IsBeheerder || (auth == JlAuth.PersoonlijkeBeheerder && GebruikerId is null))
+        {
+            throw Fouten.Verboden("admin_required");
+        }
+    }
+}
 
 /// <summary>Controleert een gewone serversessie (of API-sleutel) via de officiële auth-service van de server.</summary>
 internal interface ISessionAuthenticator
@@ -23,10 +37,12 @@ internal interface ISessionAuthenticator
 internal sealed class JellyfinSessionAuthenticator : ISessionAuthenticator
 {
     private readonly IAuthService _auth;
+    private readonly KidPolicy? _kindbeleid;
 
-    public JellyfinSessionAuthenticator(IAuthService auth)
+    public JellyfinSessionAuthenticator(IAuthService auth, KidPolicy? kindbeleid)
     {
         _auth = auth;
+        _kindbeleid = kindbeleid;
     }
 
     public async Task<SessieIdentiteit> AuthenticeerAsync(HttpRequest verzoek)
@@ -51,6 +67,8 @@ internal sealed class JellyfinSessionAuthenticator : ISessionAuthenticator
             throw Fouten.NietGeauthenticeerd("invalid_token");
         }
 
-        return new SessieIdentiteit(info.User.Id, info.User.HasPermission(PermissionKind.IsAdministrator), KidPolicy.IsKid(info.User));
+        // Bij geweigerde opslag volgt altijd een fout in het routefilter. Lees daar geen profielopslag.
+        var kind = _kindbeleid?.IsKid(info.User) ?? KidPolicy.Signalen(info.User).SteltKindVoor;
+        return new SessieIdentiteit(info.User.Id, info.User.HasPermission(PermissionKind.IsAdministrator), kind);
     }
 }

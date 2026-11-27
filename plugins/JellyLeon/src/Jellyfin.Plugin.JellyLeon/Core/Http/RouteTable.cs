@@ -12,6 +12,9 @@ internal enum JlAuth
 
     /// <summary>Een beheerder met een gewone serversessie (of een API-sleutel van de server).</summary>
     SessieBeheerder,
+
+    /// <summary>Een beheerder met een eigen gebruikerssessie om een kinderprofiel te beoordelen.</summary>
+    PersoonlijkeBeheerder,
 }
 
 /// <summary>Of een route een Idempotency-Key vraagt.</summary>
@@ -64,6 +67,8 @@ internal static class RouteTable
         new("modules.list", "GET", "/media/v1/modules", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Modules: lijst met schakelaars", "Modules"),
         new("modules.put", "PUT", "/media/v1/modules/{slug}", JlAuth.SessieBeheerder, null, JlIdem.Verplicht, "Modules: één module aan- of uitzetten", "Modules", "ModuleVerzoek", IfMatch: true),
         new("privacy.register", "GET", "/media/v1/privacy/register", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Register van persoonsgegevens per module", "PrivacyRegister"),
+        new("privacy.kid.get", "GET", "/media/v1/privacy/kid-profiles/{id}", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Geen, "Voorstel en effectieve kinderstatus van het gekozen account", "Kinderprofiel"),
+        new("privacy.kid.confirm", "POST", "/media/v1/privacy/kid-profiles/confirm", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Bevestig het gekozen account als kind of volwassene", "Kinderprofiel", "KinderprofielBevestiging", IfMatch: true),
         new("planner.status", "GET", "/media/v1/planner", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Planner: mag er batchwerk draaien en waarom niet (aantallen en vaste woorden)", "Planner"),
         new("devices.status", "GET", "/media/v1/devices/status", JlAuth.SessieBeheerder, "devices", JlIdem.Geen, "Devices: status (aantallen)", "ModuleStatus"),
         new("devices.settings.get", "GET", "/media/v1/devices/settings", JlAuth.SessieBeheerder, "devices", JlIdem.Geen, "Devices: instellingen van de module", "ModuleInstellingen"),

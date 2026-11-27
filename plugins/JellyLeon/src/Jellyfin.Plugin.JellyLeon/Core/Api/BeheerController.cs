@@ -14,7 +14,7 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Api;
 
 /// <summary>
 /// Beheerroutes van Core voor een beheerder met een serversessie: de Hub-koppeling (JL4), de moduleschakelaars en het
-/// register van persoonsgegevens.
+/// register van persoonsgegevens met de beoordeling van kinderprofielen.
 /// </summary>
 [Route("media/v1")]
 public sealed class BeheerController : ControllerBase
@@ -26,6 +26,7 @@ public sealed class BeheerController : ControllerBase
     private ModuleRegistry Register => (ModuleRegistry)_diensten.GetService(typeof(ModuleRegistry))!;
     private IModuleSwitches Schakelaars => (IModuleSwitches)_diensten.GetService(typeof(IModuleSwitches))!;
     private PrivacyService Privacy => (PrivacyService)_diensten.GetService(typeof(PrivacyService))!;
+    private KidPolicy Kindbeleid => (KidPolicy)_diensten.GetService(typeof(KidPolicy))!;
     private BatchPlanner Batch => (BatchPlanner)_diensten.GetService(typeof(BatchPlanner))!;
     private TimeProvider Klok => (TimeProvider)_diensten.GetService(typeof(TimeProvider))!;
 
@@ -147,6 +148,46 @@ public sealed class BeheerController : ControllerBase
         }).ToArray();
         return JlResult.Ok(new JsonObject { ["items"] = new JsonArray(regels) });
     }
+
+    /// <summary>Beoordeelt het gekozen account op de actuele signalen en geeft de vastgelegde profielstatus.</summary>
+    /// <param name="id">De account-ID uit het gebruikersbeheer van Jellyfin.</param>
+    /// <returns>De profielstatus met de ETag voor de bevestiging.</returns>
+    [HttpGet("privacy/kid-profiles/{id}")]
+    [JlRoute("privacy.kid.get")]
+    public IActionResult KinderprofielLees([FromRoute] string id)
+    {
+        if (!AccountId(id, out var account))
+        {
+            throw Fouten.NietGevonden();
+        }
+
+        return ProfielAntwoord(Kindbeleid.VoorAccount(account));
+    }
+
+    /// <summary>Legt de keuze van de beheerder voor een voorgesteld of eerder bevestigd account vast.</summary>
+    /// <returns>De nieuwe profielstatus met ETag.</returns>
+    [HttpPost("privacy/kid-profiles/confirm")]
+    [JlRoute("privacy.kid.confirm")]
+    public IActionResult KinderprofielBevestig()
+    {
+        var context = JlContext.Van(HttpContext);
+        var lezer = new BodyLezer(context.Body);
+        var id = lezer.Tekst("user_id", true, 36);
+        var kind = lezer.Bool("is_kid", true);
+        if (!AccountId(id, out var account))
+        {
+            lezer.Fout("user_id", "uuid", "Verwacht een geldige account-ID.");
+        }
+
+        lezer.Klaar();
+        return ProfielAntwoord(Kindbeleid.Bevestig(account, kind!.Value, context.IfMatch!));
+    }
+
+    private static bool AccountId(string? id, out Guid account) =>
+        (Guid.TryParseExact(id, "D", out account) || Guid.TryParseExact(id, "N", out account)) && account != Guid.Empty;
+
+    private static JlResult ProfielAntwoord(Kinderprofiel profiel) =>
+        JlResult.Ok(new JsonObject { ["status"] = profiel.Status, ["is_kid"] = profiel.IsKid }, profiel.Etag);
 
     /// <summary>De stand van de planner: mag er batchwerk draaien, en zo niet, waarom niet.</summary>
     /// <returns>Aantallen, tijden en vaste woorden; geen titels, namen of paden.</returns>

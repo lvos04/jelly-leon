@@ -33,6 +33,7 @@ internal sealed class PrivacyService
         var regels = new List<PersoonsgegevenRegel>
         {
             new("core", "idempotentie", "pseudoniem van het account (HMAC, niet terug te rekenen)", "herhaalde wijzigingen herkennen", "24 uur"),
+            new("core", "kinderprofielen", "accountpseudoniem en profielstatus", "kinderregels toepassen en de beheerkeuze bewaren", "tot het account wordt verwijderd"),
         };
         regels.AddRange(_modules.Alle.SelectMany(m => m.Persoonsgegevens));
         return regels;
@@ -42,8 +43,9 @@ internal sealed class PrivacyService
 
     public int VerwijderGebruiker(Guid gebruiker)
     {
-        var pseudoniem = "session:" + Pseudoniem(gebruiker);
-        var verwijderd = _core.Db.Met(v => JlDatabase.Voer(v, "DELETE FROM idempotentie WHERE scope LIKE $p || '%'", ("$p", pseudoniem)));
+        var pseudoniem = Pseudoniem(gebruiker);
+        var verwijderd = _core.Kinderprofielen.Met(v => JlDatabase.Voer(v, "DELETE FROM kinderprofielen WHERE account=$p", ("$p", pseudoniem)));
+        verwijderd += _core.Db.Met(v => JlDatabase.Voer(v, "DELETE FROM idempotentie WHERE scope LIKE $p || '%'", ("$p", "session:" + pseudoniem)));
         foreach (var module in _modules.Alle)
         {
             verwijderd += module.VerwijderGebruiker(gebruiker);
@@ -52,6 +54,7 @@ internal sealed class PrivacyService
         // Ook de resten weg: secure_delete overschrijft de vrije pagina's, dit kort het WAL in (JLT-65: 0 GUID's in de
         // bestanden, niet alleen in de tabellen).
         _core.Db.WisSporen();
+        _core.Kinderprofielen.WisSporen();
         foreach (var module in _modules.Alle)
         {
             module.WisSporen();
@@ -60,7 +63,12 @@ internal sealed class PrivacyService
         return verwijderd;
     }
 
-    public int TelGebruiker(Guid gebruiker) => _modules.Alle.Sum(m => m.TelGebruiker(gebruiker));
+    public int TelGebruiker(Guid gebruiker)
+    {
+        var pseudoniem = Pseudoniem(gebruiker);
+        return (int)_core.Kinderprofielen.Met(v => JlDatabase.Getal(v, "SELECT count(*) FROM kinderprofielen WHERE account=$p", ("$p", pseudoniem)))
+            + _modules.Alle.Sum(m => m.TelGebruiker(gebruiker));
+    }
 }
 
 /// <summary>De ene UserDeleted-afhandeling van de plugin (officiële gebeurtenis van de server).</summary>

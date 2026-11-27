@@ -608,6 +608,8 @@ internal static class Regels
         new ServerWit("Jellyfin.Data.UserEntityExtensions", "HasPermission", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
         // Kind-signalen van een gebruiker (alleen tellen en kijken of er een grens is).
         new ServerWit("Jellyfin.Database.Implementations.Entities.User", "MaxParentalRatingScore", PluginNamespace + ".Core.Privacy.KidPolicy"),
+        new ServerWit("Jellyfin.Database.Implementations.Entities.User", "Id", PluginNamespace + ".Core.Privacy.KidPolicy"),
+        new ServerWit("MediaBrowser.Controller.Library.IUserManager", "GetUserById", PluginNamespace + ".Core.Privacy.KidPolicy"),
         new ServerWit("Jellyfin.Database.Implementations.Entities.User", "AccessSchedules", PluginNamespace + ".Core.Privacy.KidPolicy"),
         new ServerWit("Jellyfin.Data.UserEntityExtensions", "GetPreference", PluginNamespace + ".Core.Privacy.KidPolicy"),
         // Een verwijderde gebruiker: alleen het ID, om de eigen gegevens te wissen.

@@ -55,10 +55,28 @@ sleutel in Jelly Leon, en niets raden over een Hub-route die nog niet bestaat.
    `unknown` als een actieve module batchwerk heeft en `healthy` als geen module MediaGuard nodig heeft. Het detail
    bevat alleen `nodig`, `koppeling` en `reden`.
 9. **Batchwerk** (B03-018) mag alleen bij status `ok`. `onbekend`, `geweigerd` en `onbereikbaar` betekenen: geen batch.
-10. **`IsKid` (B03-010, deel).** `Core/Privacy/KidPolicy.IsKid` is de ene regel voor kindprofielen: Hub-rol kind, of in
-    Jellyfin een leeftijdsgrens, geblokkeerde tags of een toegangsschema. BG-03 is open, dus geldt de breedste regel.
-    De pipeline weigert zo'n sessie met 403 `kid_profile` en een Hub-rol kind met 403 `role_kind`, vóór de beheercontrole.
-    De rest van B03-010 (register, bewaartermijnen per module, export) hoort bij latere golven.
+10. **Kinderprofielen (B03-010 en B03-017).** BG-03, optie 1, genomen op 27 november 2026. Bij de eerste beoordeling
+    van een Jellyfin-account met een leeftijdsgrens, geblokkeerde tags of een toegangsschema legt `KidPolicy` een
+    voorstel vast. Dat gebeurt bij een plug-insessie of wanneer de beheerder de profielstatus opvraagt. Een open
+    voorstel telt direct als kind, ook als het oorspronkelijke signaal verdwijnt. Een beheerder bevestigt het
+    account als kind of volwassene. Elke volgende plug-insessie gebruikt die keuze. De Jellyfin-beperkingen op
+    het account blijven van toepassing. De Hub-rol `kind` krijgt op de connector altijd 403 `role_kind`.
+
+### Een kinderprofiel beoordelen
+
+1. Meld aan met de persoonlijke Jellyfin-sessie van een volwassen beheerder. Kies het account in het gebruikersbeheer
+   en vraag `GET /media/v1/privacy/kid-profiles/{id}` op met zijn Jellyfin-ID. Het antwoord bevat `status`, `is_kid`
+   en de kop `ETag`. Bij `geen_voorstel` telt het account als volwassene. Bij `voorgesteld` geldt de kinderbescherming.
+2. Stuur `POST /media/v1/privacy/kid-profiles/confirm` met de account-ID in `user_id` en een expliciete boolean
+   `is_kid`. Stuur de ontvangen ETag als `If-Match` en een nieuwe UUID als `Idempotency-Key`.
+   Een antwoord met `bevestigd_kind` of `bevestigd_volwassene` legt de keuze voor dit account vast.
+3. Een beheerder kan de keuze later herzien. Bij 412 heeft een ander de keuze gewijzigd. Lees dan de huidige status
+   en ETag opnieuw. Voor een herhaling van hetzelfde verzoek gebruikt de beheerder dezelfde idempotentiesleutel.
+
+Een sessie zonder beheerrecht, een kinderprofiel en een API-sleutel krijgen op beide routes 403. Een beheerder met
+een open voorstel voor het eigen account heeft voor die bevestiging een tweede volwassen beheerder nodig. De plugin bewaart
+alleen het accountpseudoniem en de status in de eigen database `core/kinderprofielen.db`. Bij verwijdering van een account
+wist de bestaande `UserDeleted`-afhandeling de rij. De profielkeuze schrijft uitsluitend in de pluginopslag.
 
 ## Grenzen
 

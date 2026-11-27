@@ -72,6 +72,7 @@ public sealed class OpslagTerugvalTests : IDisposable
     [InlineData("modulemap-koppeling")] // een onveilige map dieper in de boom die de start opent,
     [InlineData("modulemap-groep")]
     [InlineData("moduledb-koppeling")]
+    [InlineData("kinderprofielen-koppeling")]
     [InlineData("core-eigenaar")] // en een bestand van een andere eigenaar.
     public async Task OnveiligeOpslag_HostStartDoorAllePluginroutesDichtEnNietsGeschreven(string geval)
     {
@@ -295,6 +296,9 @@ public sealed class OpslagTerugvalTests : IDisposable
             case "moduledb-koppeling":
                 File.CreateSymbolicLink(Path.Combine(Maak(Path.Combine(eigenData, "quality")), "quality.db"), kijk);
                 return true;
+            case "kinderprofielen-koppeling":
+                File.CreateSymbolicLink(Path.Combine(Maak(Path.Combine(eigenData, "core")), "kinderprofielen.db"), kijk);
+                return true;
             default:
                 return false;
         }
@@ -323,7 +327,7 @@ public sealed class OpslagTerugvalTests : IDisposable
             Assert.Equal("down", (string?)json["details"]?["health"]?["status"]);
             Assert.False((bool?)json["details"]?["modules_enabled"]);
             Assert.Equal("no-store", antwoord.Headers.CacheControl?.ToString());
-            if (route.Auth == JlAuth.SessieBeheerder)
+            if (route.Auth != JlAuth.Hub)
             {
                 Assert.Equal(TimeSpan.FromSeconds(30), antwoord.Headers.RetryAfter?.Delta);
             }

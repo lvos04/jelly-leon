@@ -37,10 +37,27 @@ public sealed class PrivacyTests : IDisposable
             {
                 foreach (var schemas in new[] { 0, 1 })
                 {
+                    var gebruiker = new User("profiel", "aanbieder", "aanbieder");
+                    if (grens)
+                    {
+                        gebruiker.MaxParentalRatingScore = 0;
+                    }
+
+                    if (tags > 0)
+                    {
+                        gebruiker.SetPreference(PreferenceKind.BlockedTags, ["eng", "geweld"]);
+                    }
+
+                    if (schemas > 0)
+                    {
+                        gebruiker.AccessSchedules.Add(new AccessSchedule(DynamicDayOfWeek.Everyday, 8, 20, gebruiker.Id));
+                    }
+
+                    _h.Gebruikers.Setup(g => g.GetUserById(gebruiker.Id)).Returns(gebruiker);
                     foreach (var rolKind in new[] { false, true })
                     {
                         var verwacht = grens || tags > 0 || schemas > 0 || rolKind;
-                        Assert.Equal(verwacht, KidPolicy.IsKid(new KidSignalen(grens, tags, schemas, rolKind)));
+                        Assert.Equal(verwacht, _h.Dienst<KidPolicy>().IsKid(gebruiker, rolKind));
                     }
                 }
             }
@@ -50,27 +67,42 @@ public sealed class PrivacyTests : IDisposable
     [Fact]
     public void IsKid_LeestDeSignalenVanHetAccount()
     {
-        Assert.False(KidPolicy.IsKid(new User("volwassene", "aanbieder", "aanbieder")));
+        bool IsKid(User account)
+        {
+            _h.Gebruikers.Setup(g => g.GetUserById(account.Id)).Returns(account);
+            return _h.Dienst<KidPolicy>().IsKid(account);
+        }
+
+        Assert.False(IsKid(new User("volwassene", "aanbieder", "aanbieder")));
 
         var metGrens = new User("kind-a", "aanbieder", "aanbieder") { MaxParentalRatingScore = 10 };
-        Assert.True(KidPolicy.IsKid(metGrens));
+        Assert.True(IsKid(metGrens));
         Assert.True(KidPolicy.Signalen(metGrens).HeeftLeeftijdsgrens);
 
         var metTags = new User("kind-b", "aanbieder", "aanbieder");
         metTags.SetPreference(PreferenceKind.BlockedTags, ["eng"]);
-        Assert.True(KidPolicy.IsKid(metTags));
+        Assert.True(IsKid(metTags));
         Assert.Equal(1, KidPolicy.Signalen(metTags).GeblokkeerdeTags);
 
         var metSchema = new User("kind-c", "aanbieder", "aanbieder");
         metSchema.AccessSchedules.Add(new AccessSchedule(DynamicDayOfWeek.Everyday, 8, 20, metSchema.Id));
-        Assert.True(KidPolicy.IsKid(metSchema));
+        Assert.True(IsKid(metSchema));
+        Assert.Equal(1, KidPolicy.Signalen(metSchema).Toegangsschemas);
     }
 
     [Fact]
     public async Task GebruikerVerwijderd_LaatInGeenEnkeleModuleIetsAchter()
     {
-        var weg = new User("weg", "aanbieder", "aanbieder");
+        var weg = new User("weg", "aanbieder", "aanbieder") { MaxParentalRatingScore = 10 };
+        _h.Gebruikers.Setup(g => g.GetUserById(weg.Id)).Returns(weg);
+        var kindbeleid = _h.Dienst<KidPolicy>();
+        var voorstel = kindbeleid.VoorAccount(weg.Id);
+        Assert.True(voorstel.IsKid);
+        Assert.Equal(Kinderprofiel.Kind, kindbeleid.Bevestig(weg.Id, true, voorstel.Etag).Status);
         var blijft = Guid.Parse("99999999-8888-4777-8666-555555555555");
+        var ander = new User("ander", "aanbieder", "aanbieder") { Id = blijft, MaxParentalRatingScore = 5 };
+        _h.Gebruikers.Setup(g => g.GetUserById(blijft)).Returns(ander);
+        Assert.True(kindbeleid.IsKid(ander));
         var item = Guid.Parse("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee");
         var nu = _h.Klok.Nu;
 
@@ -92,7 +124,8 @@ public sealed class PrivacyTests : IDisposable
         Assert.Equal(200, gewijzigd.Status);
 
         var privacy = _h.Dienst<PrivacyService>();
-        Assert.Equal(3, privacy.TelGebruiker(weg.Id));
+        Assert.Equal(4, privacy.TelGebruiker(weg.Id));
+        Assert.Contains("kinderprofielen.db:kinderprofielen", Vindplaatsen(weg.Id));
         Assert.NotEmpty(Vindplaatsen(weg.Id));
         Assert.NotEmpty(RuweVindplaatsen(weg.Id));
 
@@ -104,7 +137,8 @@ public sealed class PrivacyTests : IDisposable
         // Ook niet meer in de bestanden zelf (vrije pagina's, WAL): secure_delete en het inkorten van het WAL.
         Assert.Empty(RuweVindplaatsen(weg.Id));
         Assert.NotEmpty(RuweVindplaatsen(blijft));
-        Assert.Equal(2, privacy.TelGebruiker(blijft));
+        Assert.Equal(3, privacy.TelGebruiker(blijft));
+        Assert.Equal(Kinderprofiel.Voorgesteld, kindbeleid.VoorAccount(blijft).Status);
 
         // Een tweede keer is onschadelijk.
         Assert.Equal(0, privacy.VerwijderGebruiker(weg.Id));
@@ -117,6 +151,7 @@ public sealed class PrivacyTests : IDisposable
         Assert.Equal(200, antwoord.Status);
         Assert.Empty(SchemaControle.Afwijkingen(OpenApiBouwer.Bouw(), "PrivacyRegister", antwoord.Json));
         var regels = antwoord.Json!["items"]!.AsArray();
+        Assert.Contains(regels, r => (string?)r?["tabel"] == "kinderprofielen" && (string?)r?["module"] == "core");
         foreach (var module in _h.Dienst<ModuleRegistry>().Alle)
         {
             Assert.Contains(regels, r => r!["module"]!.GetValue<string>() == module.Slug);

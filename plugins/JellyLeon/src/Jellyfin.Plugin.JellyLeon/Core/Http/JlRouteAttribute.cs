@@ -40,13 +40,10 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter, IAsyncAlwa
             var route = RouteTable.Zoek(Id);
             try
             {
-                if (route.Auth == JlAuth.SessieBeheerder)
+                if (route.Auth != JlAuth.Hub)
                 {
                     var wie = await http.RequestServices.GetRequiredService<ISessionAuthenticator>().AuthenticeerAsync(http.Request).ConfigureAwait(false);
-                    if (wie.IsKid || !wie.IsBeheerder)
-                    {
-                        throw Fouten.Verboden(wie.IsKid ? "kid_profile" : "admin_required");
-                    }
+                    wie.EisBeheerder(route.Auth);
                 }
 
                 throw opslag.Fout(route.Auth == JlAuth.Hub, http.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow());
