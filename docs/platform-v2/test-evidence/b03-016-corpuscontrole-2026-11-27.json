@@ -1,0 +1,14 @@
+{
+ "SHA256SUMS.bron.txt": {
+  "ok": true,
+  "bestanden": 34
+ },
+ "SHA256SUMS.ondertitels.txt": {
+  "ok": true,
+  "bestanden": 75
+ },
+ "SHA256SUMS.afgeleid.txt": {
+  "ok": true,
+  "bestanden": 31
+ }
+}

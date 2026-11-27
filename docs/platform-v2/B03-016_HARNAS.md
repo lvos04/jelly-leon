@@ -15,6 +15,7 @@ image-guard in CI controleert dat). Er is dus geen Custom App-formulier voor; de
 - **Bestaand corpus** (`<WERKMAP>/.lokaal/media-corpus`, CORPUS.md): 34 bronbestanden, 75 ondertitels,
   31 afgeleide gevallen, sha256 per bestand en licentie per bron. Controle: `python -m b03h corpus bron-controle`
   (= `sha256sum -c` op `SHA256SUMS.bron.txt`, `SHA256SUMS.ondertitels.txt` en `SHA256SUMS.afgeleid.txt`).
+  Op 27 november 2026 kwamen alle 140 bestanden overeen met hun manifest. [Corpuscontrole voor S-P40-50](test-evidence/b03-016-corpuscontrole-2026-11-27.json)
 - **Eén generator, acht recepten** (`python -m b03h corpus lijst`):
 
 | Recept | Functie | Wat (grondwaarheid in de set) | Streef-n bij `--schaal vol` |
@@ -113,6 +114,9 @@ een eigen `B03_LOCK_DIR`. Het veld `stackslot_wacht_s` meet de wachttijd op dat 
   stock-best; alleen tegen stock-standaard heet het "beter dan de standaardinstelling".
 - **Voormeting en definitief apart gelabeld:** `--label voormeting-12.4` (nu) of `definitief-forkbasis` (P4-0, met
   `--image` op de 12.x-digest van de forkbasis).
+- `python -m b03h rapport <baseline.json>` toont per metriek de steekproefgrootte, het interval, de image, de seed en
+  de éénminuutslast vóór elke run van beide sessies. Bij een telling vergelijkt het rapport de afzonderlijke herhalingen.
+  Het JSON-bewijs bevat ook de meetmethode en de belasting na afloop.
 - **Differentiële controle-run** (`python -m b03h diffrun`): twee systemen, hetzelfde scenario (gezien met vaste datum,
   favoriet, vind-ik-leuk, hervatpunt met spoorkeuze) op kopieën van dezelfde datamap; vergelijking van de echte
   12.x-tabellen met vaste uitzonderingen (`Users.LastActivityDate`/`LastLoginDate`, `BaseItems.DateLastSaved`,

@@ -5,8 +5,8 @@
 
 from __future__ import annotations
 
+import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -34,24 +34,43 @@ def regel(m: dict[str, Any]) -> str:
         binnen = (w.get("herhaalsessie") or {}).get("binnen_voorspellingsinterval")
     else:
         punt = ", ".join(f"{k}={v}" for k, v in w.items() if k not in ("herhalingen", "herhaalsessie"))
-        gelijk = all({k: v for k, v in h.items() if k != "herhalingen"} == {k: v for k, v in w.items() if k not in (
-            "herhalingen", "herhaalsessie")} for h in w.get("herhalingen", []) + ([w["herhaalsessie"]["waarde"]]
-                                                                            if w.get("herhaalsessie") else []))
-        interval, herhaling, binnen = "—", "runs + sessie 2" if w.get("herhaalsessie") else "runs", gelijk
+        herhaald = list(w.get("herhalingen", []))
+        if w.get("herhaalsessie"):
+            tweede = w["herhaalsessie"]["waarde"]
+            herhaald += [tweede, *tweede.get("herhalingen", [])]
+        eerste = {k: v for k, v in w.items() if k not in ("herhalingen", "herhaalsessie")}
+        binnen = all({k: v for k, v in h.items() if k != "herhalingen"} == eerste for h in herhaald) if herhaald else None
+        interval = "—"
+        herhaling = "runs + sessie 2" if w.get("herhaalsessie") else len(herhaald)
     geldig = f"{m.get('runs_geldig')}/{len(m.get('runs', []))}"
     binnen_t = {True: "ja", False: "**nee**", None: "—"}[binnen]
     return (f"| {m['id']} | {m['systeem']} | {punt} | {interval} | {m.get('gate') or '—'} | {geldig} | {herhaling} | {binnen_t} |")
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = sys.argv[1:] if argv is None else argv
-    if not argv:
-        print("gebruik: python -m b03h rapport <baseline.json>", file=sys.stderr)
-        return 2
-    d = json.loads(Path(argv[0]).read_text(encoding="utf-8"))
+    parser = argparse.ArgumentParser(prog="b03h rapport", description="Toon het baselinebewijs en de meetomstandigheden per metriek.")
+    parser.add_argument("baseline", type=Path, help="JSON-bestand van b03h baseline")
+    d = json.loads(parser.parse_args(argv).baseline.read_text(encoding="utf-8"))
     print(f"Label: **{d['label']}** · image `{d['images']['stock']}` · server {d['server']['versie']} · {d['begin']} – {d['eind']}\n")
     print("| Metriek | Systeem | Waarde (eerste meting) | 95 %-interval | Gate | Geldige runs | Herhaling(en) | Herhaling binnen interval |")
     print("|---|---|---|---|---|---|---|---|")
     for m in d["metingen"]:
         print(regel(m))
+    print("\n### Meetomstandigheden\n")
+    namen = {ref: naam for naam, ref in d["images"].items()}
+    for ref, naam in namen.items():
+        print(f"- **{naam}** gebruikt `{ref}`.")
+    print("\nDe loadavg is het éénminuutsgemiddelde vóór elke run, in meetvolgorde. Een streep betekent dat de meting ontbreekt.")
+    print("\n| Metriek | Systeem | Image | n | Seed | Loadavg | Loadavg herhaalsessie |")
+    print("|---|---|---|---:|---|---|---|")
+    for m in d["metingen"]:
+        tweede = (m["waarde"].get("herhaalsessie") or {}).get("runs", [])
+        eerste_last = _lastreeks(m["runs"])
+        tweede_last = _lastreeks(tweede)
+        seed = "geen toeval" if m["seed"] is None else m["seed"]
+        print(f"| {m['id']} | {m['systeem']} | {namen.get(m['image'], m['image'])} | {m['n']} | {seed} | {eerste_last} | {tweede_last} |")
     return 0
+
+
+def _lastreeks(runs: list[dict[str, Any]]) -> str:
+    return " / ".join(_getal(r['last']['loadavg_voor'][0]) for r in runs) or "—"

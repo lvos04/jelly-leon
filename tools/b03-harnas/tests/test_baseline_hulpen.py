@@ -76,3 +76,21 @@ def test_rapport_regels():
                        waarde={"gemiddelde": 6.5, "waarden": [6.5, 6.4, 6.6], "herhaling_binnen_interval_eerste_runs": True},
                        interval=statistiek.t_interval([6.5, 6.4, 6.6]), n=3, eenheid="× realtime")
     assert "6,5 × realtime" in rapport.regel(c)
+
+
+def test_rapport_meetomstandigheden_en_herhaling_van_telling(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+    image = "stock@sha256:" + "1" * 64
+    run = {"last": {"loadavg_voor": [1.25, 0, 0]}}
+    m = {"id": "F2-a", "systeem": "stock-best", "soort": "telling", "image": image, "n": 1, "seed": 0,
+         "runs": [run], "runs_geldig": 1, "waarde": {"aantal": 2}}
+    assert rapport.regel(m).endswith("| — |")
+    m["waarde"]["herhaalsessie"] = {"waarde": {"aantal": 2, "herhalingen": [{"aantal": 3}]},
+                                 "runs": [{"last": {"loadavg_voor": [2.5, 0, 0]}}]}
+    pad = tmp_path / "baseline.json"
+    pad.write_text(json.dumps({"label": "voormeting-12.4", "images": {"stock": image}, "server": {"versie": "12.4"},
+                               "begin": "a", "eind": "b", "metingen": [m]}), encoding="utf-8")
+    assert rapport.main([str(pad)]) == 0
+    uitvoer = capsys.readouterr().out
+    assert image in uitvoer
+    assert "| **nee** |" in uitvoer
+    assert "| F2-a | stock-best | stock | 1 | 0 | 1,25 | 2,5 |" in uitvoer
