@@ -1,0 +1,16 @@
+{
+  "catalogus": {
+    "a": ["Drama"],
+    "b": ["Drama", "Avontuur"],
+    "c": ["Avontuur"],
+    "d": [],
+    "e": []
+  },
+  "gevallen": [
+    {"top": ["a", "b", "c"], "holdout": ["a", "c", "d"], "NDCG@10": 0.7039180890341347, "Recall@10": 0.6666666666666666, "ILD": 0.6666666666666666},
+    {"top": ["e", "d"], "holdout": ["a"], "NDCG@10": 0.0, "Recall@10": 0.0, "ILD": 0.0},
+    {"top": [], "holdout": ["a"], "NDCG@10": 0.0, "Recall@10": 0.0, "ILD": 0.0}
+  ],
+  "coverage_eerste_twee": 1.0,
+  "coverage_eerste": 0.6
+}

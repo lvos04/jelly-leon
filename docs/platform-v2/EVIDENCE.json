@@ -140,6 +140,16 @@
     "bijgewerkt": "2026-11-27"
   },
   {
+    "id": "B03-030",
+    "status": "Bezig",
+    "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "Drempels en marges M1–M10 zijn vóór de engine vastgelegd in test-evidence/b03-030-preregistratie.json. Het bevroren D-SYN-manifest is test-evidence/b03-016-corpus/f2-dsyn.v1.vol.manifest.json. De handvoorbeelden voor NDCG@10, Recall@10, coverage en ILD staan in tools/b03-harnas/tests/voorbeelden/f2-metrieken.json.",
+    "blokkade": "NIET GEVALIDEERD (echte NAS): echte bibliotheek en echte kijkgeschiedenis (JLT-15).",
+    "opmerking": "NIET GEMETEN (machinelast). De definitieve baseline van S-P40-50 ontbreekt. G-F2-0 en de onafhankelijke beoordeling van het bevroren recept staan open. De .NET-CLI jl-rec-eval gebruikt vanaf S-G2-22 dezelfde handvoorbeelden.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-27"
+  },
+  {
     "id": "B03-014",
     "status": "Bezig",
     "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",

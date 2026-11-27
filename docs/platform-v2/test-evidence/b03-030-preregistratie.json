@@ -1,0 +1,28 @@
+{
+  "werkpakket": "B03-030",
+  "bron": "B03 F2.1.3 en F2.8, gate G-F2-0",
+  "vastgelegd": "2026-11-27",
+  "stand": "Vóór de eerste F2-engine en vóór afstelling. Onafhankelijke receptreview staat open.",
+  "protocol": {
+    "k": 10,
+    "bootstrap": "1000 hertrekkingen met teruglegging over dezelfde gebruikers, percentielen 2,5 en 97,5 van de gepaarde verschillen",
+    "seed": 20261109,
+    "relevantie": "Binair. D-ML gebruikt beoordelingen vanaf 4,0. D-SYN gebruikt de achtergehouden items van het bevroren recept.",
+    "D-SYN": "Alleen functionele uitkomsten. Het bestaande recept bepaalt T per profiel, drie huishoudens en zes gebruikers.",
+    "D-ML": "Eén globaal T. Minstens 100 gebruikers met vijf positieven ervoor en twee erna. De laatste 10 procent van de training is de validatiesplit voor latere afstelling.",
+    "selectie": "Per kwaliteitsmetriek de beste categorie en het beste stocksysteem op de gehele testgroep. S-BEST omvat S-REC, S-REC-best, S-SIM, S-LAT en S-TMDB. Bij ontbrekende S-TMDB is de vergelijking onvolledig.",
+    "lekproef": "Verwissel de holdouts tussen gebruikers met vaste seed. Ondergrens van het gepaarde 95%-interval voor NDCG@10 van F2 min POP moet hooguit nul zijn."
+  },
+  "drempels": {
+    "M1": "D-ML of M10. NDCG@10 minstens 1,25 maal en Recall@10 minstens 1,20 maal S-BEST. Voor beide moet de ondergrens van het gepaarde verschil met S-BEST, POP en S-LAT boven nul liggen. Tegen uitsluitend max(S-REC, S-SIM, S-LAT) geldt hoogstens de claim ‘beter dan de standaardinstelling’.",
+    "M2": "Koude start met één of twee interacties: ondergrens verschil in NDCG@10 met max(S-LAT, S-RND, POP) boven nul. Met nul interacties en huishouden uit: boven max(S-LAT, S-RND). Met huishouden aan: ondergrens ten opzichte van POP minstens −0,02. Minstens tien aanbevelingen binnen profiel.",
+    "M3": "Na Niet interessant binnen twee seconden nul herhalingen. Ongedaan maken herstelt het item.",
+    "M4": "100 procent dezelfde top tien bij herhaling met vaste klok en ongewijzigde gegevens.",
+    "M5": "Bij provider vooraan voor bibliotheek en type krijgt minstens 95 procent van de items met metadata minstens min(10, zichtbaar − 1) vergelijkbare items.",
+    "M6": "ILD minstens die van S-REC. Hooguit twee items per serie of collectie per tien en minstens één exploratie-item als exploratie aanstaat.",
+    "M7": "Nul items buiten toegang, nul uitleg over andere profielen en nul huishoudsignalen bij minder dan k andere delers.",
+    "M8": "Bij 10000 items p95 maximaal 250 ms koud en 50 ms uit cache. Similar p95 hooguit 1,5 maal stock. Extra PSS hooguit 200 MiB, herberekening hooguit 120 s op één thread, nul gelezen mediabytes.",
+    "M9": "100 procent van de items heeft minstens één redencode uit eigen geschiedenis of metadata.",
+    "M10": "Zelfde evaluatie als M1, uitsluitend met toestemming en per gebruiker opt-out. NIET GEVALIDEERD (echte NAS)."
+  }
+}
