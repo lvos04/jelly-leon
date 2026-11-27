@@ -1,8 +1,10 @@
 """JLT-70: alleen een volledige clientproef publiceert herbruikbare testdata."""
 
+import io
 import json
 import secrets
 import stat
+import urllib.error
 from subprocess import CompletedProcess
 
 import pytest
@@ -101,3 +103,16 @@ def test_geen_clientpakket_zonder_optie_of_bij_afkeuring(tmp_path, monkeypatch, 
     bewijs = proefrun.Bewijs("synthetisch")
     assert proefrun.rond_proef_af(tmp_path, bewijs, [], False, code, overdracht if heeft_overdracht else None, {}) == code
     assert {p.name for p in tmp_path.iterdir()} == {"bewijs.json"}
+
+
+def test_geweigerde_login_toont_geen_teruggekaatst_wachtwoord(monkeypatch):
+    wachtwoord = secrets.token_urlsafe(24)
+    url = "http://localhost"
+
+    def weigering(*_args, **_kwargs):
+        raise urllib.error.HTTPError(url, 401, "test", {}, io.BytesIO(wachtwoord.encode()))
+
+    monkeypatch.setattr(proefrun.urllib.request, "urlopen", weigering)
+    with pytest.raises(RuntimeError) as fout:
+        proefrun.Http(url, {}).doe("POST", "/Users/AuthenticateByName", body={"Pw": wachtwoord})
+    assert str(fout.value) == "POST /Users/AuthenticateByName → HTTP 401"

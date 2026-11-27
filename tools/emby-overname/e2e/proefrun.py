@@ -91,7 +91,8 @@ class Http:
         except urllib.error.HTTPError as fout:
             status, ruw = fout.code, fout.read()
         if status not in verwacht:
-            raise RuntimeError(f"{methode} {pad} → HTTP {status}: {ruw[:300]!r}")
+            # Een foutantwoord kan de inloggegevens uit het verzoek herhalen.
+            raise RuntimeError(f"{methode} {pad} → HTTP {status}")
         if not ruw:
             return None
         try:

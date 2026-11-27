@@ -107,6 +107,7 @@ uitkeek het oorspronkelijke hervatpunt. De proef meldt iedere gebruiker op het d
 
 `clientproef.json` (0600) heeft schema `jelly-leon/clientproef/1`. Start de daarin genoemde `image` met `datamap` op
 `/config` (schrijfbaar) en `media` op `/data/media` (alleen-lezen). Beide paden zijn relatief aan het JSON-bestand.
+Gebruik dezelfde lokale UID en GID als de proefrun en koppel een lege, schrijfbare testmap aan `/cache`.
 Elke rij in `gebruikers` bevat `naam`, een voor deze run gegenereerd `wachtwoord`, het Jelly Leon-`item_id` en
 `verwacht_ticks` als positief geheel aantal eenheden van 100 ns. Kies voor de emulator een gewone proefgebruiker.
 
