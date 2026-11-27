@@ -8,6 +8,7 @@
 // Alleen voor ontwikkeling/CI; draait nooit op de NAS.
 import { chromium, firefox, webkit } from 'playwright';
 import fs from 'node:fs';
+import { beoordeling, cpuSeconden, geforceerdeProef, sessieInfo } from './apparaten.mjs';
 import path from 'node:path';
 
 const BROWSERS = { chromium, firefox, webkit };
@@ -18,6 +19,12 @@ const base = cfg.url.replace(/\/$/, '');
 const HAAK = `(() => {
   if (window.__b03) return;
   window.__b03 = { events: [] };
+  document.addEventListener('click', () => {
+    if (window.__b03.wachtOpKlik) {
+      window.__b03.klik = performance.now();
+      window.__b03.wachtOpKlik = false;
+    }
+  }, true);
   for (const ev of ['loadedmetadata', 'playing', 'error', 'waiting', 'stalled', 'ended']) {
     document.addEventListener(ev, (e) => {
       const t = e.target;
@@ -67,18 +74,23 @@ async function stopEncodering(page, playSessionId) {
 }
 
 async function speelItem(page, item, opts) {
-  const vang = { profiel: null, antwoord: null, hls: false, statisch: false };
+  const vang = { profiel: null, antwoord: null, hls: false, statisch: false, teruggevallen: false, ingebrand: false };
+  const isBesluit = (r) => r.method() === 'POST' && new URL(r.url()).pathname.toLowerCase() === `/items/${item.id}/playbackinfo`.toLowerCase();
   const opVerzoek = (r) => {
     const u = r.url();
-    if (r.method() === 'POST' && /\/Items\/[0-9a-f]+\/PlaybackInfo/i.test(u) && !vang.profiel) {
+    if (isBesluit(r) && !vang.profiel) {
       try { vang.profiel = r.postDataJSON()?.DeviceProfile ?? null; } catch { /* geen JSON */ }
     }
-    if (/\.m3u8/i.test(u)) vang.hls = true;
+    if (/\.m3u8/i.test(u)) {
+      vang.hls = true;
+      if (vang.statisch) vang.teruggevallen = true;
+      if (new URL(u).searchParams.get('SubtitleMethod')?.toLowerCase() === 'encode') vang.ingebrand = true;
+    }
     if (/\/(Videos|Audio)\/[0-9a-f]+\/stream/i.test(u) && /static=true/i.test(u)) vang.statisch = true;
   };
   const opAntwoord = async (r) => {
-    if (/\/Items\/[0-9a-f]+\/PlaybackInfo/i.test(r.url()) && !vang.antwoord) {
-      try { vang.antwoord = await r.json(); } catch { /* leeg */ }
+    if (isBesluit(r.request()) && !vang.antwoord && r.ok()) {
+      try { vang.antwoord ??= await r.json(); } catch { /* leeg */ }
     }
   };
   page.on('request', opVerzoek);
@@ -95,27 +107,55 @@ async function speelItem(page, item, opts) {
     }
     // Klikken met herhaling: vlak na een scan kan de detailpagina nog opnieuw renderen (knop niet 'stabiel').
     for (let poging = 0; ; poging++) {
-      await page.evaluate(() => { window.__b03.events = []; window.__b03.klik = performance.now(); });
+      await page.evaluate(() => { window.__b03.events = []; window.__b03.wachtOpKlik = true; });
       try { await knop.click({ timeout: 10000, force: poging >= 2 }); break; } catch (e) {
         if (poging >= 2) throw e;
         await page.waitForTimeout(1500);
       }
     }
     const spoor = [];
-    const t0 = Date.now();
     let ok = false;
-    while (Date.now() - t0 < opts.orakelMs) {
+    let tot2 = null;
+    let herstel = null;
+    let info = null;
+    let cpu0 = null;
+    let cpuBegin = null;
+    let cpuKernen = null;
+    const grens = opts.orakelMs;
+    while (true) {
       const s = await page.evaluate(() => {
         const v = document.querySelector('video');
-        return v ? { ct: v.currentTime, w: v.videoWidth, rs: v.readyState, err: v.error ? v.error.code : null, p: v.paused,
-          ab: v.webkitAudioDecodedByteCount ?? null, ma: v.mozHasAudio ?? null, t: performance.now() - window.__b03.klik } : null;
+        return { ct: v?.currentTime ?? 0, w: v?.videoWidth ?? 0, rs: v?.readyState ?? 0,
+          err: v?.error?.code ?? null, p: v?.paused ?? true, ab: v?.webkitAudioDecodedByteCount ?? null,
+          ma: v?.mozHasAudio ?? null, t: performance.now() - window.__b03.klik,
+          fout: window.__b03.events.some((e) => e.ev === 'error') };
       });
-      if (s) spoor.push(s);
-      // Beeld loopt ≥ 2 s; heeft het item audio, dan ook wachten tot er audio gedecodeerd is (trage runners starten audio
-      // later), binnen het venster. Items zonder audiospoor (o.a. de Jellyfin-testvideo's) wachten niet.
-      const metAudio = (vang.antwoord?.MediaSources?.[0]?.MediaStreams || []).some((x) => x.Type === 'Audio');
-      const audioNogNiet = metAudio && s && (s.ab === 0 || s.ma === false);
-      if (s && s.ct >= 2 && s.w > 0 && !s.err && !audioNogNiet) { ok = true; break; }
+      spoor.push(s);
+      const dp = vang.antwoord?.MediaSources?.[0]?.SupportsDirectPlay;
+      if (opts.apparaten && vang.hls && !info && s.t >= 500) {
+        info = await sessieInfo(page, item.id);
+        if (info?.video_direct === false) {
+          cpu0 = cpuSeconden(cfg.containerId);
+          cpuBegin = performance.now();
+        }
+      }
+      const metAudio = vang.antwoord?.MediaSources?.[0]?.MediaStreams?.some((x) => x.Type === 'Audio');
+      const decodeOntbreekt = metAudio && (s.ab === 0 || s.ma === false);
+      if (tot2 === null && !decodeOntbreekt && beoordeling(s, grens, s.fout, dp && vang.teruggevallen)) {
+        tot2 = Math.round(s.t);
+        ok = true;
+      }
+      // Voor een video-encode nog een actief venster bemonsteren. Niet de inlogtijd of de geforceerde proef meerekenen.
+      if (cpuBegin !== null && cpuKernen === null && performance.now() - cpuBegin >= 1000) {
+        const einde = cpuSeconden(cfg.containerId);
+        const nu = await sessieInfo(page, item.id);
+        if (cpu0 !== null && einde !== null && nu?.video_direct === false) cpuKernen = (einde - cpu0) * 1000 / (performance.now() - cpuBegin);
+      }
+      if (ok && (!opts.apparaten || !vang.hls || cpuKernen !== null || s.t >= grens)) break;
+      if (opts.apparaten && dp && !ok && (s.fout || vang.teruggevallen || s.t > grens)) {
+        if (beoordeling(s, 60000, false)) { herstel = Math.round(s.t); break; }
+        if (s.t >= 60000) break;
+      } else if (s.t >= grens) break;
       await page.waitForTimeout(100);
     }
     if (ok && opts.duurMs > 0) {
@@ -135,21 +175,29 @@ async function speelItem(page, item, opts) {
     const tu = ms.TranscodingUrl || '';
     const heeftAudio = (ms.MediaStreams || []).some((x) => x.Type === 'Audio');
     const l = spoor[spoor.length - 1] ?? {};
-    // Orakel (F5 K1): ook stilte bij een item met audio telt als falen (Chromium/WebKit: gedecodeerde audiobytes; Firefox: mozHasAudio).
     res.heeft_audio = heeftAudio;
     res.audio_gedecodeerd = !heeftAudio ? null : (l.ab != null ? l.ab > 0 : l.ma != null ? !!l.ma : null);
-    if (!ok && l.ct >= 2 && l.w > 0 && !l.err && heeftAudio && res.audio_gedecodeerd === false) {
-      res.orakel_reden = 'geen audio gedecodeerd (stil)';
+    res.audio_niet_stil = 'niet gemeten';
+    if (opts.apparaten) {
+      const video = (ms.MediaStreams || []).find((x) => x.Type === 'Video');
+      const ot = (ms.MediaStreams || []).find((x) => x.Type === 'Subtitle' && x.Index === ms.DefaultSubtitleStreamIndex);
+      res.videobereik = video?.VideoRangeType ?? video?.VideoRange ?? null;
+      res.herstel_ms = herstel;
+      res.transcoding_info = info;
+      res.cpu_kernen = cpuKernen;
+      res.ingebrand = vang.ingebrand;
+      res.ondertitel = ot?.Codec ?? null;
+      res.extern_mogelijk = !!ot && !!vang.profiel?.SubtitleProfiles?.some((x) =>
+        x.Format?.toLowerCase() === ot.Codec?.toLowerCase() && x.Method === 'External');
     }
-    if (ok && heeftAudio && res.audio_gedecodeerd === false) { ok = false; res.orakel_reden = 'geen audio gedecodeerd (stil)'; }
     res.besluit = ms.SupportsDirectPlay ? 'DirectPlay' : ms.SupportsDirectStream ? 'DirectStream' : ms.SupportsTranscoding ? 'Transcode' : 'Geen';
     res.redenen = (tu.match(/TranscodeReasons=([^&]*)/) || [])[1] || '';
     res.playSessionId = vang.antwoord?.PlaySessionId ?? null;
     res.hls = vang.hls;
     res.statisch = vang.statisch;
-    res.orakel_ok = ok;
+    res.orakel_ok = ok && !ev.some((e) => e.ev === 'error' && e.t - klik <= opts.orakelMs);
     res.eerste_frame_ms = playing ? Math.round(playing.t - klik) : null;
-    res.tijd_tot_2s_ms = ok ? Math.round(spoor[spoor.length - 1].t) : null;
+    res.tijd_tot_2s_ms = res.orakel_ok ? tot2 : null;
     res.laatste = spoor[spoor.length - 1] ?? null;
     res.fouten = ev.filter((e) => e.ev === 'error');
     res.spoor = spoor.filter((_, i) => i % 5 === 0).map((s) => [Math.round(s.t), +s.ct.toFixed(3)]);
@@ -193,8 +241,18 @@ async function main() {
     await login(page);
     uit.ua_effectief = await page.evaluate(() => navigator.userAgent);
     const opts = { orakelMs: cfg.orakelMs ?? 10000, duurMs: opdracht === 'speel' ? (cfg.duurMs ?? 0) : 0,
-      metProfiel: opdracht === 'profiel', schermMap: cfg.schermMap };
-    for (const item of cfg.items) uit.items.push(await speelItem(page, item, opts));
+      metProfiel: opdracht === 'profiel', schermMap: cfg.schermMap, apparaten: opdracht === 'apparaten' };
+    for (const item of cfg.items) {
+      const starts = opts.apparaten ? 2 : 1;
+      for (let start = 1; start <= starts; start++) {
+        const rij = await speelItem(page, item, opts);
+        if (opts.apparaten) {
+          rij.start = start;
+          if (!rij.fout) rij.geforceerd_ok = await geforceerdeProef(page, item.id);
+        }
+        uit.items.push(rij);
+      }
+    }
     if (opdracht === 'profiel') uit.deviceProfile = uit.items.find((i) => i.deviceProfile)?.deviceProfile ?? null;
     await ctx.close();
   } finally {

@@ -8,7 +8,7 @@ krijgt een herhaling die binnen het interval van de eerste meting moet vallen.
 
 Metingen:
   dp         Direct Play-beslissingen met de echte jellyfin-web-profielen (Chromium, Firefox, WebKit) — F5 B1/K3
-  orakel     effectieve Direct Play: elk item echt afspelen (currentTime ≥ 2 s, beeld, geen fout, geen stilte) — F5 K1/K3
+  orakel     effectieve Direct Play: elk item echt afspelen (currentTime ≥ 2 s, beeld, geen fout; stilte niet gemeten) — F5 K1/K3
   transcode  DV P8.1 en HEVC10-HDR10 in een echte websessie: snelheid, CPU per mediaseconde, eerste frame — F5 B5/B5b/K6, F1 B11
   functies   API-baselines F2 (koude start), F3 (NL-ondertitels zoeken), F4 (kwaliteitsmeldingen), F6 (MediaSegments)
 """
@@ -235,8 +235,7 @@ def meet_orakel(sessie: Sessie, runs: int, uitmap: Path) -> list[dict[str, Any]]
             id=f"F5-K3-dp-effectief-{b}", functie="F5", systeem=systeem, soort="proportie", image=sessie.s.image, seed=None,
             omschrijving=f"Direct Play-starts die het orakel halen, {b} (A5-set, 25 items)",
             methode="elk item via de UI starten (Playwright 1.63); orakel = binnen 10 s currentTime ≥ 2 s, videoWidth > 0, geen "
-                    "error-event en geen stilte bij een item met audio (Chromium/WebKit: webkitAudioDecodedByteCount; Firefox: "
-                    "mozHasAudio); daarna DELETE /Videos/ActiveEncodings",
+                    "error-event; audio niet stil: niet gemeten (S-G2-35); daarna DELETE /Videos/ActiveEncodings",
             runs=rs, n=eerste["n"], interval=iv, gate=statistiek.gate_label(eerste["n"], 20), eenheid="aandeel items",
             waarde={"k_dp_effectief": eerste["dp_ok"], "dp_gekozen": eerste["dp"], "onterechte_dp": eerste["onterechte_dp"],
                     "speelt_totaal": eerste["speelt"], "speelt_interval": iv_alle.als_dict(),
