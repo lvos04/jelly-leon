@@ -85,8 +85,11 @@
     "versie": "12.0.8.0",
     "pakket_sha256": "a898f2e451a5421e02d09efb9c11d7fe3226ea122605260a3c57811ce01963ff",
     "status": "Geblokkeerd",
-    "reden": "Na twee uur wachten op een gedeeld testslot was de laadproef met het ongewijzigde pakket nog niet gestart. De compatibiliteit en zichtbaarheid van segmenten zijn onbevestigd.",
-    "datum_status": "2026-11-28"
+    "reden": "De lokale laadproef is vóór het starten van de server beëindigd na ruim 135 minuten wachten op een gedeeld slot (exit 130). Compatibiliteit en zichtbaarheid van segmenten zijn onbevestigd.",
+    "datum_status": "2026-11-28",
+    "exitcode_stackslot": 130,
+    "server_gestart": false,
+    "wachttijd_minuten_ten_minste": 135
   },
   "metingen": {
     "status": "NIET GEMETEN (machinelast)",
@@ -136,5 +139,22 @@
     "pioneer_one_bevestigde_labels": 0,
     "status": "Geblokkeerd",
     "blokkade": "NIET GEVALIDEERD (echte NAS): winst op echte series zonder bevestigde Pioneer One-labels (BG-34) en zonder eigen bibliotheek-steekproef."
+  },
+  "lokale_poort_9": {
+    "clientmatrix": {
+      "onderdelen": [
+        "web",
+        "ua",
+        "legacy",
+        "webdir"
+      ],
+      "status": "vóór de start onderbroken",
+      "exitcode_stackslot": 130,
+      "wachttijd_minuten_ten_minste": 125
+    },
+    "diffrun_stock_tegen_stock": "niet gestart",
+    "diffrun_negatieve_proef": "niet gestart",
+    "vergelijker_en_clientmatrix_unittests": 21,
+    "reden": "Alle drie de gedeelde testsloten waren bij het beëindigen bezet. De twee serververgelijkingen stonden na de clientmatrix gepland."
   }
 }
