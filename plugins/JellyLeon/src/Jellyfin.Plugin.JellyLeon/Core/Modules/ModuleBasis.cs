@@ -4,8 +4,10 @@ using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Secrets;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
+using Microsoft.Data.Sqlite;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Modules;
 
@@ -13,7 +15,7 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Modules;
 /// Gedeelde basis van een module: het eigen SQLite-bestand onder <c>jelly-leon/&lt;slug&gt;/</c> en de instellingen
 /// met ETag. Zo geeft elke module dezelfde fout voor dezelfde situatie (één catalogus, JLT-68).
 /// </summary>
-internal abstract class ModuleBasis : IJellyLeonModule
+internal abstract class ModuleBasis : ModuleOverdracht, IJellyLeonModule
 {
     private const string InstellingenTabel =
         "CREATE TABLE instellingen(id INTEGER PRIMARY KEY CHECK(id = 1), bewaar_dagen INTEGER NOT NULL, versie INTEGER NOT NULL);";
@@ -26,7 +28,7 @@ internal abstract class ModuleBasis : IJellyLeonModule
         Gegevensbeheer = new ModuleGegevensbeheer(Db, paden, slug, geheimen, tabellen);
     }
 
-    public string Slug { get; }
+    public override string Slug { get; }
 
     public abstract string Naam { get; }
 
@@ -56,12 +58,28 @@ internal abstract class ModuleBasis : IJellyLeonModule
 
     public void ControleerOpslag() => Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM instellingen"));
 
-    public virtual JsonObject Exporteer() => new()
+    protected override JsonObject ExportInhoud() => new()
     {
         ["module"] = Slug,
         ["schema_version"] = "1.0",
         ["instellingen"] = LeesInstellingen().Waarde,
     };
+
+    protected override Herstelplan LeesHerstel(BodyLezer lezer)
+    {
+        if (lezer.Node("instellingen", true) is not JsonObject instellingen)
+        {
+            throw Fouten.Validatie(("instellingen", "type", "Verwacht de module-instellingen."));
+        }
+
+        var velden = new BodyLezer(instellingen);
+        var dagen = velden.Geheel("bewaar_dagen", true, 1, 365);
+        velden.Klaar();
+        var verwacht = Db.Bestaat ? LeesInstellingen().Etag : Etag(0);
+        return new Herstelplan(new JsonObject { ["instellingen"] = 1 }, () => Db.MetImportkopie(
+            v => ControleerVersie(v, verwacht),
+            v => ZetBewaarDagen(v, dagen!.Value)));
+    }
 
     public (JsonObject Waarde, string Etag) LeesInstellingen() => Db.Met(v =>
     {
@@ -71,21 +89,26 @@ internal abstract class ModuleBasis : IJellyLeonModule
         return (new JsonObject { ["bewaar_dagen"] = dagen }, Etag(versie));
     });
 
-    public (JsonObject Waarde, string Etag) SchrijfInstellingen(int bewaarDagen, string ifMatch) => Db.Met(v =>
+    public (JsonObject Waarde, string Etag) SchrijfInstellingen(int bewaarDagen, string ifMatch) => Db.Transactioneel(v =>
+    {
+        ControleerVersie(v, ifMatch);
+        var versie = ZetBewaarDagen(v, bewaarDagen);
+        return (new JsonObject { ["bewaar_dagen"] = bewaarDagen }, Etag(versie));
+    });
+
+    private void ControleerVersie(SqliteConnection v, string verwacht)
     {
         var versie = JlDatabase.Getal(v, "SELECT COALESCE((SELECT versie FROM instellingen WHERE id = 1), 0)");
-        if (!string.Equals(ifMatch, Etag(versie), StringComparison.Ordinal))
+        if (!string.Equals(verwacht, Etag(versie), StringComparison.Ordinal))
         {
             throw Fouten.PreconditieMislukt(Etag(versie));
         }
+    }
 
-        JlDatabase.Voer(
-            v,
-            "INSERT INTO instellingen(id, bewaar_dagen, versie) VALUES(1, $d, $v) ON CONFLICT(id) DO UPDATE SET bewaar_dagen = $d, versie = $v",
-            ("$d", bewaarDagen),
-            ("$v", versie + 1));
-        return (new JsonObject { ["bewaar_dagen"] = bewaarDagen }, Etag(versie + 1));
-    });
+    private static long ZetBewaarDagen(SqliteConnection v, int bewaarDagen) =>
+        JlDatabase.Getal(v, "INSERT INTO instellingen(id, bewaar_dagen, versie) VALUES(1, $d, 1) "
+            + "ON CONFLICT(id) DO UPDATE SET bewaar_dagen = $d, versie = instellingen.versie + 1 RETURNING versie",
+            ("$d", bewaarDagen));
 
     protected int BewaarDagen() => LeesInstellingen().Waarde["bewaar_dagen"]!.GetValue<int>();
 

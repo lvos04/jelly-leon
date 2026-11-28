@@ -531,6 +531,25 @@ internal static partial class OpenApiBouwer
         }
       },
       "SegmentOntdooid": {"type": "object", "additionalProperties": false, "required": ["frozen"], "properties": {"frozen": {"type": "boolean"}}},
+      "ModuleBundel": {
+        "type": "object", "additionalProperties": false, "required": ["module"],
+        "properties": {
+          "module": {"type": "string"},
+          "schema_version": {"type": "string", "enum": ["1.0"]},
+          "instellingen": {"$ref": "#/components/schemas/ModuleInstellingen"},
+          "sessies": {"type": "integer", "minimum": 0},
+          "bevindingen": {"type": "integer", "minimum": 0},
+          "onderdrukt": {"type": "integer", "minimum": 0},
+          "preview_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "SHA-256 van de JSON-inhoud met gesorteerde objectvelden, zonder dit veld. Optioneel voor oudere exports."}
+        }
+      },
+      "ModuleImportVoorbeeld": {
+        "type": "object", "additionalProperties": false, "required": ["preview_hash", "counts"],
+        "properties": {
+          "preview_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "counts": {"$ref": "#/components/schemas/ModuleAantallen"}
+        }
+      },
       "ModuleExport": {
         "type": "object", "additionalProperties": false, "required": ["created_at", "module", "schema_version", "tables", "counts"],
         "properties": {
@@ -650,9 +669,14 @@ internal static partial class OpenApiBouwer
             codes.UnionWith([412, 428]);
         }
 
-        if (route.Id == "segments.import.preview")
+        if (route.Id == "modules.import.apply")
         {
-            codes.Add(429);
+            codes.Add(412);
+        }
+
+        if (route.Id is "segments.import.preview" or "modules.import.preview")
+        {
+            codes.UnionWith([409, 429]);
         }
 
         return [.. codes];

@@ -69,7 +69,8 @@ internal sealed class JlPipeline
             wie = new JlPrincipal(id, false, false, sessie.IsBeheerder && !sessie.IsKid ? ["admin"] : ["user"]);
         }
 
-        if (route.Module is not null && !_diensten.GetRequiredService<ModuleRegistry>().IsAan(route.Module))
+        var moduleSlug = route.ActieveModule(pad);
+        if (moduleSlug is not null && !_diensten.GetRequiredService<ModuleRegistry>().IsAan(moduleSlug))
         {
             throw Fouten.NietGevonden();
         }

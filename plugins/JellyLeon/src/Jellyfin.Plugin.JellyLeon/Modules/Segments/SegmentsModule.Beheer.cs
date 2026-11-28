@@ -158,23 +158,20 @@ internal sealed partial class SegmentsModule
                 throw Fouten.Conflict("import_conflict");
             }
 
-            var aantal = Db.Transactioneel(v =>
+            var aantal = Db.MetImportkopie(v =>
             {
-                if (JlDatabase.Getal(v, "SELECT versie FROM beheer") != preview.Versie)
+                if (JlDatabase.Getal(v, "SELECT versie FROM beheer") != preview.Versie ||
+                    preview.Inhoud.Any(item => Vind(v, item.ItemId) is { } oud && Schrijf(oud) != Schrijf(item)))
                 {
                     throw Fouten.Conflict("import_conflict");
                 }
 
+            }, v =>
+            {
                 var nieuw = 0;
                 foreach (var item in preview.Inhoud)
                 {
-                    var oud = Vind(v, item.ItemId);
-                    if (oud is not null && Schrijf(oud) != Schrijf(item))
-                    {
-                        throw Fouten.Conflict("import_conflict");
-                    }
-
-                    if (oud is null)
+                    if (Vind(v, item.ItemId) is null)
                     {
                         SchrijfItem(v, item);
                         nieuw++;

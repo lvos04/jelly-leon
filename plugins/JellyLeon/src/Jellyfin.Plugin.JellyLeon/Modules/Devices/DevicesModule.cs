@@ -129,9 +129,11 @@ internal sealed class DevicesModule : ModuleBasis
     public override int TelGebruiker(Guid gebruiker) =>
         (int)Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM playback_sessions WHERE gebruiker = $g", ("$g", gebruiker.ToString("N"))));
 
-    public override JsonObject Exporteer()
+    protected override IReadOnlyList<string> ExportTellingen => ["sessies"];
+
+    protected override JsonObject ExportInhoud()
     {
-        var export = base.Exporteer();
+        var export = base.ExportInhoud();
         export["sessies"] = Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(DISTINCT sessie) FROM playback_sessions"));
         return export;
     }

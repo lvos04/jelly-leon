@@ -120,6 +120,33 @@ public sealed class BeheerController : ControllerBase
     [JlRoute("modules.list")]
     public IActionResult Modules() => JlResult.Ok(ModulesJson(), Schakelaars.Etag);
 
+    /// <summary>Downloadt de overdraagbare gegevens van een actieve module.</summary>
+    [HttpGet("modules/{slug}/export")]
+    [JlRoute("modules.export")]
+    public IActionResult ModuleExport([FromRoute] string slug) => JlResult.Ok(Register.Zoek(slug)!.Exporteer());
+
+    /// <summary>Controleert de volledige herstelbundel voor deze beheerder.</summary>
+    [HttpPost("modules/{slug}/import/preview")]
+    [JlRoute("modules.import.preview")]
+    public IActionResult ModuleImportVoorbeeld([FromRoute] string slug)
+    {
+        var context = JlContext.Van(HttpContext);
+        return JlResult.Ok(Register.Zoek(slug)!.ImporteerVoorbeeld(context.Body!, context.Wie.Id, Klok.GetUtcNow()));
+    }
+
+    /// <summary>Past het goedgekeurde voorbeeld op de eigen module toe.</summary>
+    [HttpPost("modules/{slug}/import/apply")]
+    [JlRoute("modules.import.apply")]
+    public IActionResult ModuleImport([FromRoute] string slug)
+    {
+        var module = Register.Zoek(slug)!;
+        var context = JlContext.Van(HttpContext);
+        var velden = new BodyLezer(context.Body);
+        var hash = velden.Tekst("preview_hash", true, 64);
+        velden.Klaar();
+        return JlResult.Ok(module.Importeer(hash!, context.Wie.Id, Klok.GetUtcNow()));
+    }
+
     /// <summary>Zet één module aan of uit.</summary>
     /// <param name="slug">De korte naam van de module.</param>
     /// <returns>De lijst van modules na de wijziging.</returns>

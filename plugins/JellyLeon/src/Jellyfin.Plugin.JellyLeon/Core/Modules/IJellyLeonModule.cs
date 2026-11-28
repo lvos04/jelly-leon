@@ -43,4 +43,8 @@ internal interface IJellyLeonModule
 
     /// <summary>Export van de eigen gegevens zonder persoonsgegevens en zonder geheimen.</summary>
     JsonObject Exporteer();
+
+    JsonObject ImporteerVoorbeeld(JsonObject bundel, string aanvrager, DateTimeOffset nu);
+
+    JsonObject Importeer(string previewHash, string aanvrager, DateTimeOffset nu);
 }

@@ -184,9 +184,9 @@ public sealed class ModuleTests : IDisposable
         Assert.Contains("drie segmenten", fout.Message, StringComparison.Ordinal);
     }
 
-    private sealed class Dubbel(string slug, string itemType, string eventType, string jobType) : IJellyLeonModule
+    private sealed class Dubbel(string slug, string itemType, string eventType, string jobType) : ModuleOverdracht, IJellyLeonModule
     {
-        public string Slug => slug;
+        public override string Slug => slug;
 
         public string Naam => slug;
 
@@ -211,7 +211,5 @@ public sealed class ModuleTests : IDisposable
         public void ControleerOpslag()
         {
         }
-
-        public JsonObject Exporteer() => [];
     }
 }

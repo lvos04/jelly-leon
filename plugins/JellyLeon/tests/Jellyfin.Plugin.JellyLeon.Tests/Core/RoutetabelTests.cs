@@ -25,7 +25,7 @@ namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
 public sealed class RoutetabelTests
 {
     /// <summary>De vrijstellingslijst van contract §5; elke andere muterende route vraagt een Idempotency-Key.</summary>
-    private static readonly string[] _vrijgesteld = ["connector.propose", "connector.apply", "connector.rollback", "hublink.verify", "segments.import.preview"];
+    private static readonly string[] _vrijgesteld = ["connector.propose", "connector.apply", "connector.rollback", "hublink.verify", "segments.import.preview", "modules.import.preview"];
 
     private static IEnumerable<(Type Controller, MethodInfo Actie)> Acties() =>
         typeof(Plugin).Assembly.GetTypes()

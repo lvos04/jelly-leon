@@ -90,6 +90,23 @@ internal sealed partial class JlDatabase
         return resultaat;
     });
 
+    /// <summary>Toetst het voorbeeld onder het schrijfslot en kopieert ook de vastgelegde WAL-pagina’s vóór de import.</summary>
+    public T MetImportkopie<T>(Action<SqliteConnection> controleer, Func<SqliteConnection, T> pasToe) => Met(v =>
+    {
+        using var transactie = v.BeginTransaction(deferred: false);
+        controleer(v);
+        // De online back-up leest via een tweede verbinding. SQLite kan de verbinding met de schrijftransactie
+        // niet als bron gebruiken. Het schrijfslot houdt de bron tot en met de commit op dezelfde versie.
+        using (var bron = Open())
+        {
+            MaakKopie(bron, checked((int)Getal(bron, "PRAGMA user_version")));
+        }
+
+        var resultaat = pasToe(v);
+        transactie.Commit();
+        return resultaat;
+    });
+
     public void Transactioneel(Action<SqliteConnection> werk) => Transactioneel(v =>
     {
         werk(v);

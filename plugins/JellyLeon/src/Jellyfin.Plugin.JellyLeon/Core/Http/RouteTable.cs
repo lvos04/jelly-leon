@@ -46,9 +46,23 @@ internal sealed record RouteSpec(
     string? VerzoekSchema = null,
     bool IfMatch = false,
     string? Vrijstelling = null,
-    string? WisModule = null)
+    string? WisModule = null,
+    string? ModuleParameter = null)
 {
     public bool HeeftBody => VerzoekSchema is not null;
+
+    public string? ActieveModule(string canoniekPad)
+    {
+        if (ModuleParameter is null)
+        {
+            return Module;
+        }
+
+        var delen = canoniekPad.Split('/');
+        var sjabloon = Pad.Split('/');
+        var positie = Array.IndexOf(sjabloon, "{" + ModuleParameter + "}");
+        return delen.Length == sjabloon.Length && positie >= 0 ? delen[positie] : string.Empty;
+    }
 
     // MVC vergelijkt de vaste delen hoofdletterongevoelig. Parameterwaarden behouden hun eigen identiteit.
     public string CanoniekPad(string pad)
@@ -103,6 +117,9 @@ internal static class RouteTable
         new("hublink.put", "PUT", "/media/v1/hub-link", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Hub-koppeling: sleutelset pinnen na het overtikken van de vingerafdruk", "HubLink", "HubLinkVerzoek"),
         new("hublink.delete", "DELETE", "/media/v1/hub-link", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Hub-koppeling: pin verwijderen (daarna not_linked)", "HubLink"),
         new("modules.list", "GET", "/media/v1/modules", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Modules: lijst met schakelaars", "Modules"),
+        new("modules.export", "GET", "/media/v1/modules/{slug}/export", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Geen, "Downloadt de overdraagbare modulebundel", "ModuleBundel", ModuleParameter: "slug"),
+        new("modules.import.preview", "POST", "/media/v1/modules/{slug}/import/preview", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Vrijgesteld, "Toont de aantallen en de inhoudshash vóór herstel", "ModuleImportVoorbeeld", "ModuleBundel", Vrijstelling: "tijdelijk importvoorbeeld zonder wijzigingen aan de herstelgegevens", ModuleParameter: "slug"),
+        new("modules.import.apply", "POST", "/media/v1/modules/{slug}/import/apply", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Herstelt het bevestigde modulevoorbeeld met een voorafgaande databasekopie", "ModuleWisResultaat", "SegmentHash", ModuleParameter: "slug"),
         new("modules.put", "PUT", "/media/v1/modules/{slug}", JlAuth.SessieBeheerder, null, JlIdem.Verplicht, "Modules: één module aan- of uitzetten", "Modules", "ModuleVerzoek", IfMatch: true),
         new("privacy.register", "GET", "/media/v1/privacy/register", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Register van persoonsgegevens per module", "PrivacyRegister"),
         new("privacy.kid.get", "GET", "/media/v1/privacy/kid-profiles/{id}", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Geen, "Voorstel en effectieve kinderstatus van het gekozen account", "Kinderprofiel"),

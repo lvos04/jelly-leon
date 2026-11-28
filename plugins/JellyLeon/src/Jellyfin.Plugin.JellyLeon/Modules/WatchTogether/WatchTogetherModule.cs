@@ -12,7 +12,7 @@ using Jellyfin.Plugin.JellyLeon.Core.Storage;
 namespace Jellyfin.Plugin.JellyLeon.Modules.WatchTogether;
 
 /// <summary>WT-1 bewaart uitsluitend groepsmetadata. De server beheert de groepen en het afspelen.</summary>
-internal sealed class WatchTogetherModule : IJellyLeonModule
+internal sealed class WatchTogetherModule : ModuleOverdracht, IJellyLeonModule
 {
     public const string ModuleSlug = "watch";
     private const string Zout = "wt-hmac.key";
@@ -42,7 +42,8 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
         ]);
     }
 
-    public string Slug => ModuleSlug;
+    public override string Slug => ModuleSlug;
+    protected override bool HadVersielozeExport => true;
     public string Naam => "Watch Together";
     public IReadOnlyList<string> ItemTypes => [];
     public IReadOnlyList<string> EventTypes => ["media.watchgroup.ended", "media.watchgroup.degraded"];
@@ -54,7 +55,6 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
         ];
 
     public IReadOnlyList<JsonObject> Items(string type, DateTimeOffset nu) => [];
-    public JsonObject Exporteer() => new() { ["module"] = Slug };
     public void ControleerOpslag() => _db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta"));
     public void WisSporen()
     {

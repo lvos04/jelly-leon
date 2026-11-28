@@ -57,3 +57,18 @@ van de gebruiker op elk verschil, ook door upstream-migraties; (3) de bestaande 
 meet) blijft ongewijzigd als terugval; (4) vóór Emby verwijderd wordt, staat een blijvend JSON-exportarchief van alle
 Emby-kijkgegevens met sha256 in de back-updekking (bouwplan §10.9.2); (5) MediaGuard-releases bewijzen een upgrade op een
 gevulde database van de vorige versie zonder gegevensverlies (eis aan media-guard-ultimate).
+
+## Uitvoering van de moduleoverdracht (S-G1-20)
+
+Een volwassen beheerder downloadt de bundel via `GET /media/v1/modules/{slug}/export` en stuurt hem naar
+`POST /media/v1/modules/{slug}/import/preview`. Het antwoord geeft per onderdeel het aantal te herstellen records
+en de SHA-256 over de UTF-8-JSON met ordinaal gesorteerde objectvelden, zonder het veld `preview_hash`. De module
+bewaart het gevalideerde voorbeeld vijftien minuten voor deze beheerder. De beheerder bevestigt via
+`POST /media/v1/modules/{slug}/import/apply` met `preview_hash` en een `Idempotency-Key`. Een gewijzigde bundel,
+een verlopen voorbeeld of een andere beheerder krijgt 409. Gewijzigde doelinstellingen vragen een nieuw voorbeeld (412).
+Vóór de eerste schrijfhandeling wordt de eigen module-DB met de migratieprocedure gekopieerd en op integriteit getoetst.
+
+De bundel herstelt de bewaartermijn van modules met deze instelling. Tellingen van sessies en bevindingen beschrijven
+de bron. Afspeelgeschiedenis, groepsleden, auditregels en sleutels worden niet geïmporteerd. De bestaande persoonlijke
+beheerarchieven van Devices en Quality hebben een eigen SHA-256 voor het wisakkoord. Voor de segmentgegevens bestaat
+de getypeerde segmentbundel met haar eigen voorbeeld en toepassingsroute.

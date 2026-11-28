@@ -133,9 +133,11 @@ internal sealed class QualityModule : ModuleBasis
     public override int TelGebruiker(Guid gebruiker) =>
         (int)Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM suppressions WHERE gebruiker = $g", ("$g", gebruiker.ToString("N"))));
 
-    public override JsonObject Exporteer()
+    protected override IReadOnlyList<string> ExportTellingen => ["bevindingen", "onderdrukt"];
+
+    protected override JsonObject ExportInhoud()
     {
-        var export = base.Exporteer();
+        var export = base.ExportInhoud();
         export["bevindingen"] = Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM findings"));
         export["onderdrukt"] = Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM suppressions"));
         return export;

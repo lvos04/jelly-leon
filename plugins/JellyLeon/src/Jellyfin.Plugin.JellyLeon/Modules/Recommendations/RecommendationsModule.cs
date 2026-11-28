@@ -6,9 +6,9 @@ using Jellyfin.Plugin.JellyLeon.Core.Modules;
 namespace Jellyfin.Plugin.JellyLeon.Modules.Recommendations;
 
 /// <summary>F2-1 leest alleen bibliotheekmetadata via de server en bewaart geen eigen gegevens.</summary>
-internal sealed class RecommendationsModule : IJellyLeonModule
+internal sealed class RecommendationsModule : ModuleOverdracht, IJellyLeonModule
 {
-    public string Slug => "recommendations";
+    public override string Slug => "recommendations";
 
     public string Naam => "Aanbevelingen";
 
@@ -35,5 +35,4 @@ internal sealed class RecommendationsModule : IJellyLeonModule
     {
     }
 
-    public JsonObject Exporteer() => new() { ["module"] = Slug, ["schema_version"] = "1.0" };
 }
