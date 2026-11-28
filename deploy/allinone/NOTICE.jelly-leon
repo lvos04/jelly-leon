@@ -19,3 +19,19 @@ Upstream-projecten en credits (licenties van de respectieve projecten blijven va
   - Intel-mediastack (o.a. intel-media-driver, compute-runtime) zoals opgenomen in de officiële runtime-image.
 
 Jelly Leon is geen officiële Jellyfin-release en wordt niet door het Jellyfin-project ondersteund.
+
+Analysewerker (B03-018, apart CPython-proces)
+  - CPython 3.12 uit de op digest vastgezette officiële Python-image. Bron: https://www.python.org/downloads/source/
+    PSF License Agreement en overige vermeldingen in /opt/jelly-leon/python/lib/python3.12/LICENSE.txt.
+  - ffsubsync, future, charset-normalizer, srt, pysubs2, rich, markdown-it-py en mdurl: MIT.
+    webrtcvad-wheels: MIT voor de binding, BSD-3-Clause voor de meegeleverde WebRTC-code.
+  - ffmpeg-python: Apache-2.0. De binding wordt uitsluitend in het afzonderlijke Python-proces gebruikt.
+  - NumPy: BSD-3-Clause, 0BSD, MIT, Zlib en CC0-1.0. De wheel bevat ook OpenBLAS (BSD-3-Clause),
+    LAPACK (BSD-3-Clause-Open-MPI) en de GCC-runtime (GPL-3.0-or-later WITH GCC-exception-3.1).
+    De bronnen en auteurs van deze onderdelen staan in numpy-*.dist-info/licenses/LICENSE.txt.
+  - faust-cchardet: MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later. tqdm: MPL-2.0 AND MIT.
+    chardet: 0BSD. Pygments: BSD-2-Clause. typing-extensions: PSF-2.0.
+  - Exacte pakketversies, distributiehashes en verwijzingen naar de bronarchieven: /opt/jelly-leon/werker.cdx.json.
+    De bronarchieven zijn ook per pakket en versie verkrijgbaar via https://pypi.org.
+    De meegeleverde licentieteksten blijven bij de pakketten in /opt/jelly-leon/python/lib/python3.12/site-packages/.
+    De inventaris van de volledige image staat in /opt/jelly-leon/image.cdx.json en /opt/jelly-leon/licenties.tsv.

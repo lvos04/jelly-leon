@@ -34,3 +34,9 @@
 ## Verificatie
 
 CI-guard (negatieve test), SBOM-controle in B03-018, licentie-inventaris bij elke release.
+
+### Inventaris van de analysewerker (S-G1-30)
+
+De CPython-werker draait als afzonderlijk proces. Het pakket ffmpeg-python (Apache-2.0) wordt daar geladen. ffsubsync gebruikt WebRTC. De distributies, hun hashes en de beoordeelde licenties staan in `/opt/jelly-leon/werker.cdx.json`. De upstreamvermeldingen, inclusief WebRTC en de in NumPy meegeleverde native bibliotheken, staan bij de pakketten en in [NOTICE.jelly-leon](../../deploy/allinone/NOTICE.jelly-leon).
+
+Syft scant het volledige samengevoegde bestandssysteem tijdens de bouw. De image bevat de resulterende CycloneDX-SBOM (`/opt/jelly-leon/image.cdx.json`) en de licentie-inventaris (`/opt/jelly-leon/licenties.tsv`). Een ongemelde licentie van een bestaande imagecomponent krijgt de waarde `onbekend`. Een nieuw werkerpakket vereist een vastgezette distributie én een beoordeelde licentie. CI bewaart de drie inventarissen uit de geteste image en voert pip-audit uit op de vastgezette runtime- en bouwpakketten.

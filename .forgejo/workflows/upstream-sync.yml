@@ -173,6 +173,13 @@ jobs:
           echo "- Nieuwe runtime voor UG-tests: \`$runtime\`" >> "$GITHUB_STEP_SUMMARY"
           echo "NIEUWE_RUNTIME=$runtime" >> "$GITHUB_ENV"
 
+      - name: Tool-smoketest van de analysewerker op de nieuwe runtime, zonder netwerk
+        run: |
+          image="jelly-leon:werker-sync-$(cat /proc/sys/kernel/random/uuid)"
+          trap 'docker image rm "$image" >/dev/null 2>&1 || true' EXIT
+          docker buildx build -f deploy/allinone/Dockerfile --target werkerproef --build-arg RUNTIME_IMAGE="$NIEUWE_RUNTIME" --load -t "$image" .
+          bash tools/analysewerker/imageproef.sh "$image" "$RUNNER_TEMP/analysewerker-sync" --alleen-werker
+
       # Kanaal x.y.x uit de global.json van de NIEUWE basis (bv. 12.x: 10.0.0 → 10.0.x); de exacte ondergrens uit
       # global.json bestaat niet als download (zie tools/jelly-leon/dotnet_sdk_kanaal.py).
       - name: .NET-SDK-kanaal uit global.json (van de nieuwe basis)
@@ -294,6 +301,7 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
           path: |
+            ${{ runner.temp }}/analysewerker-sync/werker.cdx.json
             ${{ runner.temp }}/sync.bundle
             ${{ runner.temp }}/proefrapporten/stock-client-smoke.json
             ${{ runner.temp }}/sync-resultaat.json

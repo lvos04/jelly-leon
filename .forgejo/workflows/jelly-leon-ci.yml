@@ -63,6 +63,15 @@ jobs:
       - name: Tests van de forktools (incl. EX48-simulatie)
         run: bash tools/jelly-leon/test_forktools.sh
 
+      - name: Analysewerker testen en vastgezette pakketten auditen
+        run: |
+          cd tools/analysewerker
+          python -m pytest -q tests
+          ruff check --config ../jelly-leon/ruff.toml .
+          python -m venv "$RUNNER_TEMP/werker-audit"
+          "$RUNNER_TEMP/werker-audit/bin/python" -m pip install --no-deps --require-hashes --only-binary=:all: -r audit.lock
+          "$RUNNER_TEMP/werker-audit/bin/pip-audit" --require-hashes --disable-pip --strict --progress-spinner off -r requirements.lock -r bouw.lock
+
       - name: Lint forktools (ruff)
         run: ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon
 
@@ -336,10 +345,16 @@ jobs:
         run: |
           set -eu
           fork_version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['fork_version'])")
-          docker buildx build -f deploy/allinone/Dockerfile \
+          bash tools/analysewerker/bouw_met_groeimeting.sh "$JL_CI_IMAGE" "$RUNNER_TEMP/analysewerker-groei.json" \
             --build-context jelly-leon-web="$RUNNER_TEMP/jelly-leon-web" \
             --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" --build-arg WEB_REF="$WEB_REF" \
-            --build-arg BUILD_JOBS=2 --build-arg WEB_BUILD_JOBS=2 --load -t "$JL_CI_IMAGE" .
+            --build-arg BUILD_JOBS=2 --build-arg WEB_BUILD_JOBS=2
+
+      - name: Negatieve bouwproef met één ontbrekende distributiehash
+        run: bash tools/analysewerker/proef_ontbrekende_hash.sh
+
+      - name: Offline tool-smoketest als 568 en SBOM met licentie-inventaris uit de image
+        run: bash tools/analysewerker/imageproef.sh "$JL_CI_IMAGE" "$RUNNER_TEMP/analysewerker"
 
       - name: Proefcontainer met lokale dataset voor de database starten
         run: bash .forgejo/proeven/proefomgeving.sh start chromium dataset
@@ -435,6 +450,8 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
           path: |
+            ${{ runner.temp }}/analysewerker/
+            ${{ runner.temp }}/analysewerker-groei.json
             ${{ runner.temp }}/proefrapporten/image-lifecycle.json
             ${{ runner.temp }}/proefrapporten/rollback-sim.json
             ${{ runner.temp }}/proefrapporten/upgrade-proef.json

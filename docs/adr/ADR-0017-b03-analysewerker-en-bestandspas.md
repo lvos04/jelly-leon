@@ -1,7 +1,6 @@
 # ADR-0017 — B03: Eén analysewerker, één Python-omgeving, één bestandspas
 
-- **Status:** Aanvaard (uitvoering later) — het B03 2.0-plan is op 2026-11-09 door de gebruiker goedgekeurd; er is
-  nog niets gebouwd. Uitvoering volgens `docs/platform-v2/02_BOUWPLANNEN/B03_FASERING.md`: golf 0 nu, tegen stock
+- **Status:** Aanvaard. S-G1-30 levert de runtime en het berichtenproces van deel (a). De bewaker en bestandspas hebben eigen vervolgstappen. Uitvoering volgens `docs/platform-v2/02_BOUWPLANNEN/B03_FASERING.md`: golf 0 nu, tegen stock
   12.4; modulewerk pas na de P4-0-gate op de 12.x-basis (ADR-0011).
 - **Herkomst:** voorstel ADR-B03-03 uit het bouwplan (`docs/platform-v2/02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md` §10.6). Jurypunten J-COMPAT (werkervorm), J-HAALB A-4, A-6, A-7.
 - **Werkpakket:** B03-018; testen JLT-66, JLT-28, JLT-36, JLT-58.
@@ -42,10 +41,16 @@
 
 ## Gevolgen
 
-- De image groeit met een Python-runtime; dat is gemeten en begrensd.
+- Beide afnemers gebruiken `/opt/jelly-leon/python/bin/python3`. De overname-assistent wordt in S-P40-82 verpakt (ADR-0036).
 - Eén plek voor procesbewaking en opruimen; makkelijker te testen zonder netwerk (`--network none`).
 
 ## Verificatie
 
 Smoketest in de image, kill-test (0 wees-processen en 0 zombies na 100 herhalingen), SBOM-controle, gelezen bytes
 ≤ 1,1 × bestandsgrootte voor F3/F4/F6 samen (B03-018-acceptatie).
+
+### Eerste groeimeting (S-G1-30)
+
+De lokale referentie uit S-G1-16, `jelly-leon:lokaal-48293b48a`, meet **865.208.951 bytes** volgens `docker image inspect --format '{{.Size}}'`. Het voorstel voor de regisseur is **maximaal 192 MiB groei (201.326.592 bytes)** voor de interpreter, de analysepakketten en de inventarissen. Dit voorstel is vóór de eindmeting vastgelegd. CI bouwt en vergelijkt bovendien `serverbasis` en de volledige image uit dezelfde checkout met dezelfde webbron en Docker-daemon. De grens is inclusief.
+
+De tool-smoketest start als 568:568 zonder netwerk, vergelijkt de vier gereedschapsversies met de meegeleverde CycloneDX-inventaris en controleert eigenaarschap en schrijfrechten onder `/opt/jelly-leon`. Bij upstream-sync draait de werkerlaag op de kandidaatdigest vóór de sync kan worden aanvaard. Het gebruik van de JSON-interface staat in de [werkerhandleiding](../../tools/analysewerker/README.md).

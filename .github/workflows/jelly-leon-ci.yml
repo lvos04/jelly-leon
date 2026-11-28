@@ -70,6 +70,15 @@ jobs:
       - name: Tests van de forktools (incl. EX48-simulatie)
         run: python -m pytest -q tools/jelly-leon/tests
 
+      - name: Analysewerker testen en vastgezette pakketten auditen
+        run: |
+          cd tools/analysewerker
+          python -m pytest -q tests
+          ruff check --config ../jelly-leon/ruff.toml .
+          python -m venv "$RUNNER_TEMP/werker-audit"
+          "$RUNNER_TEMP/werker-audit/bin/python" -m pip install --no-deps --require-hashes --only-binary=:all: -r audit.lock
+          "$RUNNER_TEMP/werker-audit/bin/pip-audit" --require-hashes --disable-pip --strict --progress-spinner off -r requirements.lock -r bouw.lock
+
       - name: Lint forktools (ruff)
         run: ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon
 
@@ -276,10 +285,16 @@ jobs:
         run: |
           set -eu
           fork_version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon/baseline.json'))['fork_version'])")
-          docker buildx build -f deploy/allinone/Dockerfile \
+          bash tools/analysewerker/bouw_met_groeimeting.sh jelly-leon:ci "$RUNNER_TEMP/analysewerker-groei.json" \
             --build-context jelly-leon-web="$RUNNER_TEMP/jelly-leon-web" \
             --build-arg FORK_VERSION="$fork_version" --build-arg VCS_REF="$GITHUB_SHA" --build-arg WEB_REF="$WEB_REF" \
-            --build-arg BUILD_JOBS=4 --load -t jelly-leon:ci .
+            --build-arg BUILD_JOBS=4
+
+      - name: Negatieve bouwproef met één ontbrekende distributiehash
+        run: bash tools/analysewerker/proef_ontbrekende_hash.sh
+
+      - name: Offline tool-smoketest als 568 en SBOM met licentie-inventaris uit de image
+        run: bash tools/analysewerker/imageproef.sh jelly-leon:ci "$RUNNER_TEMP/analysewerker"
 
       - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568 zonder rechten, herkomst web, herstart, Custom User, weigeringen)
         env:
@@ -358,6 +373,8 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
           path: |
+            ${{ runner.temp }}/analysewerker/
+            ${{ runner.temp }}/analysewerker-groei.json
             ${{ runner.temp }}/image-lifecycle.json
             ${{ runner.temp }}/rollback-sim.json
             ${{ runner.temp }}/upgrade-proef.json

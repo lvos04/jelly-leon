@@ -7,7 +7,7 @@
   "future": "MIT",
   "markdown-it-py": "MIT",
   "mdurl": "MIT",
-  "numpy": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+  "numpy": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 AND BSD-3-Clause-Open-MPI AND (GPL-3.0-or-later WITH GCC-exception-3.1)",
   "pygments": "BSD-2-Clause",
   "pysubs2": "MIT",
   "rich": "MIT",

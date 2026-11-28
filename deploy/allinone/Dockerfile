@@ -21,6 +21,33 @@ ARG SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0.403@sha256:212fe4cb74627d5adf981
 ARG NODE_IMAGE=docker.io/library/node:24.22.2-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9
 ARG RUNTIME_IMAGE=docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
 
+ARG PYTHON_IMAGE=docker.io/library/python:3.12.16-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
+ARG SYFT_IMAGE=docker.io/anchore/syft:v1.57.2@sha256:e97e20b6e6d1699c60296b66ab337941724f9bd06ac279d893eda89601fc4b2a
+
+# Eén eigen CPython voor de analysewerker en de overname-assistent (ADR-0017, ADR-0036).
+FROM ${PYTHON_IMAGE} AS analysepython
+COPY tools/analysewerker/bouw.lock tools/analysewerker/requirements.lock /bouw/
+RUN --mount=type=secret,id=ca_bundle,required=false \
+    set -eu; p=/opt/jelly-leon/python; mkdir -p "$p/bin" "$p/lib"; \
+    cp /usr/local/bin/python3.12 "$p/bin/"; ln -s python3.12 "$p/bin/python3"; ln -s python3 "$p/bin/python"; \
+    cp -a /usr/local/lib/libpython3.12.so* /usr/local/lib/python3.12 "$p/lib/"; \
+    test "$("$p/bin/python3" -I -c 'import sys; print(sys.prefix)')" = "$p"; \
+    if [ -s /run/secrets/ca_bundle ]; then export PIP_CERT=/run/secrets/ca_bundle; fi; \
+    "$p/bin/python3" -m pip install --no-cache-dir --no-deps --require-hashes --only-binary=:all: -r /bouw/bouw.lock; \
+    "$p/bin/python3" -m pip install --no-cache-dir --no-compile --ignore-installed --no-build-isolation \
+        --no-deps --require-hashes --only-binary=:all: --no-binary=srt -r /bouw/requirements.lock; \
+    "$p/bin/python3" -m pip uninstall -y setuptools pip; \
+    rm -rf "$p/lib/python3.12/ensurepip/_bundled"; \
+    find "$p" -name __pycache__ -type d -prune -exec rm -rf {} +
+COPY tools/analysewerker/jl_werker/ /opt/jelly-leon/python/lib/python3.12/site-packages/jl_werker/
+COPY tools/analysewerker/requirements.lock tools/analysewerker/licenties.json /opt/jelly-leon/
+
+# Zelfde bovenlaag op de vaste of de kandidaat-upstream-runtime. Los bouwbaar voor upstream-sync.
+FROM ${RUNTIME_IMAGE} AS werkerproef
+COPY --from=analysepython /opt/jelly-leon /opt/jelly-leon
+RUN --network=none set -eu; chmod -R go-w /opt/jelly-leon; umask 022; \
+    /opt/jelly-leon/python/bin/python3 -IB -m jl_werker.inventaris werker
+
 # ---------------------------------------------------------------- server + plugin (.NET)
 FROM ${SDK_IMAGE} AS server
 # Beperkt MSBuild-parallelisme (gedeelde/kleine bouwomgevingen); in CI desgewenst hoger zetten.
@@ -70,7 +97,7 @@ RUN set -eu; \
       --plugins-map src/plugins --uit dist/config.json --controleer
 
 # ---------------------------------------------------------------- runtime
-FROM ${RUNTIME_IMAGE}
+FROM ${RUNTIME_IMAGE} AS serverbasis
 ARG FORK_VERSION=0.0.0-jl.0
 ARG VCS_REF=unknown
 # Commit van lvos04/jelly-leon-web waaruit de web-client is gebouwd (GPL "bron beschikbaar", ADR-0004).
@@ -115,3 +142,17 @@ VOLUME ["/config", "/cache"]
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
   CMD ["/usr/local/bin/jelly-leon-healthcheck"]
 ENTRYPOINT ["/usr/local/bin/jelly-leon-entrypoint"]
+
+# De scan leest de samengevoegde runtime inclusief server, web en werker. Syft blijft in de bouwfase.
+FROM serverbasis AS inhoud
+COPY --from=werkerproef /opt/jelly-leon /opt/jelly-leon
+
+FROM ${SYFT_IMAGE} AS catalogus
+USER 0
+ENV SYFT_CHECK_FOR_APP_UPDATE=false SYFT_PARALLELISM=2
+RUN --network=none --mount=type=bind,from=inhoud,source=/,target=/rootfs,ro \
+    ["/syft", "scan", "dir:/rootfs", "--quiet", "--source-name", "jelly-leon", "-o", "cyclonedx-json=/image.cdx.json"]
+
+FROM inhoud
+RUN --network=none --mount=type=bind,from=catalogus,source=/image.cdx.json,target=/inventaris.json,ro \
+    /opt/jelly-leon/python/bin/python3 -IB -m jl_werker.inventaris image /inventaris.json
