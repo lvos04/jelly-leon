@@ -92,3 +92,24 @@ def test_eindscan_ziet_sleutel_in_herimportrapport_zonder_waarde_te_loggen(tmp_p
     assert bewijs.data["controles"][-1]["ok"] is False
     assert bewijs.data["controles"][-1]["detail"] == ["rapport.json:jl"]
     assert waarde not in json.dumps(bewijs.data)
+
+
+@pytest.mark.parametrize("onderbreking", [BrokenPipeError, ConnectionResetError])
+def test_afgebroken_clientantwoord_blijft_geteld_zonder_foutlog(emby, monkeypatch, onderbreking):
+    proxy = proefrun.LoggendeProxy("localhost", urlsplit(emby.url).port, "emby", alleen_get=True)
+    fouten = []
+
+    def gesloten_verbinding(self):
+        raise onderbreking
+
+    monkeypatch.setattr(proxy.httpd.RequestHandlerClass, "end_headers", gesloten_verbinding)
+    monkeypatch.setattr(proxy.httpd, "handle_error", lambda *args: fouten.append(True))
+    try:
+        with closing(http.client.HTTPConnection("localhost", proxy.poort, timeout=5)) as client:
+            client.request("GET", "/System/Info/Public")
+            with pytest.raises(http.client.RemoteDisconnected):
+                client.getresponse()
+        assert fouten == []
+        assert [(r["methode"], r["status"]) for r in proxy.regels] == [("GET", 200)]
+    finally:
+        proxy.stop()

@@ -57,8 +57,12 @@ class LoggendeProxy:
                 for k, v in antwoord_headers.items():
                     self.send_header(k, v)
                 self.send_header("Content-Length", str(len(inhoud)))
-                self.end_headers()
-                self.wfile.write(inhoud)
+                try:
+                    self.end_headers()
+                    self.wfile.write(inhoud)
+                except (BrokenPipeError, ConnectionResetError):
+                    # Een speler kan een mediaverzoek afbreken. Het verzoek is hierboven al geteld.
+                    self.close_connection = True
 
             def _doorgeven(self) -> tuple[int, bytes, dict[str, str]]:
                 lengte = int(self.headers.get("Content-Length") or 0)
