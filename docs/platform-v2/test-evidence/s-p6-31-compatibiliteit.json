@@ -3,7 +3,8 @@
   "servercommit": "5d8784c635ea012065b3b2d312117e73fc88d7ae",
   "images": {
     "stock": {
-      "referentie": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
+      "referentie": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+      "image_id": "sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771"
     },
     "p6": {
       "referentie": "jelly-leon:p6",
@@ -11,91 +12,195 @@
     }
   },
   "JLT-63": {
-    "sessies": {},
-    "actieve_modules_per_proefserver": {},
+    "sessies": {
+      "stock": {
+        "begin": "2026-11-28T00:32:38Z",
+        "eind": "2026-11-28T00:34:20Z"
+      },
+      "p6": {
+        "begin": "2026-11-28T00:01:12Z",
+        "eind": "2026-11-28T00:32:38Z"
+      }
+    },
+    "actieve_modules_per_proefserver": {
+      "ingebouwde_webclient": [
+        "devices",
+        "quality"
+      ],
+      "stock_webdir": [
+        "devices",
+        "quality"
+      ]
+    },
     "clientrollen": [
       {
         "id": "web-chromium",
         "client": "Chromium, echte headless browser",
         "stock": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         },
         "p6": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         }
       },
       {
         "id": "web-firefox",
         "client": "Firefox, echte headless browser",
         "stock": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         },
         "p6": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         }
       },
       {
         "id": "web-webkit",
         "client": "WebKit, echte headless Linux-browser",
         "stock": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": false,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         },
         "p6": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 1,
+          "reden": "tijdlimiet van de browserproef bereikt"
         }
       },
       {
         "id": "ua-webos",
         "client": "webOS, nagebootst profiel in Chromium",
         "stock": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         },
         "p6": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         }
       },
       {
         "id": "ua-tizen",
         "client": "Tizen, nagebootst profiel in Chromium",
         "stock": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         },
         "p6": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         }
       },
       {
         "id": "webdir",
         "client": "Stock-web uit de stock-image, echte Chromium-browser",
         "stock": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         },
         "p6": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
         }
       },
       {
         "id": "legacy",
         "client": "Derden-client, nagebootste HTTP-verzoeken",
         "stock": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "http_statussen": {
+            "authorization_mediabrowser_token": {
+              "system_info": 200,
+              "gebruiker_items": 200,
+              "stream_statisch": 206
+            },
+            "x_emby_token": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            },
+            "x_mediabrowser_token": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            },
+            "x_emby_authorization": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            },
+            "query_api_key": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            },
+            "query_apikey_hoofdletter": {
+              "system_info": 200,
+              "gebruiker_items": 200,
+              "stream_statisch": 206
+            },
+            "zonder_token": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            }
+          }
         },
         "p6": {
-          "speelt": null,
-          "pogingen": null
+          "speelt": true,
+          "pogingen": 1,
+          "http_statussen": {
+            "authorization_mediabrowser_token": {
+              "system_info": 200,
+              "gebruiker_items": 200,
+              "stream_statisch": 206
+            },
+            "x_emby_token": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            },
+            "x_mediabrowser_token": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            },
+            "x_emby_authorization": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            },
+            "query_api_key": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            },
+            "query_apikey_hoofdletter": {
+              "system_info": 200,
+              "gebruiker_items": 200,
+              "stream_statisch": 206
+            },
+            "zonder_token": {
+              "system_info": 401,
+              "gebruiker_items": 401,
+              "stream_statisch": 206
+            }
+          }
         }
       },
       {
@@ -103,11 +208,13 @@
         "client": "Officiële Android-app, telefoonemulator",
         "stock": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 0,
+          "reden": "KVM ontbreekt"
         },
         "p6": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 0,
+          "reden": "KVM ontbreekt"
         }
       },
       {
@@ -115,11 +222,13 @@
         "client": "Officiële Android-app, tabletemulator",
         "stock": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 0,
+          "reden": "KVM ontbreekt"
         },
         "p6": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 0,
+          "reden": "KVM ontbreekt"
         }
       },
       {
@@ -127,11 +236,13 @@
         "client": "Officiële Android TV-app, emulator API 34",
         "stock": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 0,
+          "reden": "KVM ontbreekt"
         },
         "p6": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 0,
+          "reden": "KVM ontbreekt"
         }
       },
       {
@@ -139,15 +250,69 @@
         "client": "Officiële Android TV-app, emulator API 36",
         "stock": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 0,
+          "reden": "KVM ontbreekt"
         },
         "p6": {
           "speelt": null,
-          "pogingen": null
+          "pogingen": 0,
+          "reden": "KVM ontbreekt"
         }
       }
     ],
-    "stock_en_p6_vergeleken": false
+    "stock_en_p6_vergeleken": true,
+    "testitem": "bron/blender/hero/hero.mp4 (CC BY 4.0)",
+    "stockmeting_buiten_meetdag": {
+      "begin": "2026-11-27T23:59:04Z",
+      "eind": "2026-11-28T00:01:12Z",
+      "meegenomen": false
+    },
+    "eerste_vergelijking": {
+      "regressies": [],
+      "onbeslist": [
+        "web-webkit",
+        "telefoon",
+        "tablet",
+        "tv",
+        "tv36"
+      ]
+    },
+    "p6_eerdere_websessie": {
+      "begin": "2026-11-28T00:01:12Z",
+      "eind": "2026-11-28T00:32:38Z",
+      "clientrollen": {
+        "web-chromium": {
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
+        },
+        "web-firefox": {
+          "speelt": true,
+          "pogingen": 1,
+          "afspeelbesluit": "DirectPlay"
+        },
+        "web-webkit": {
+          "speelt": null,
+          "pogingen": 1,
+          "reden": "tijdlimiet van de browserproef bereikt"
+        }
+      }
+    },
+    "regressies": [],
+    "onbeslist": [
+      "web-webkit",
+      "telefoon",
+      "tablet",
+      "tv",
+      "tv36"
+    ],
+    "meetdag_utc": "2026-11-28",
+    "negatieve_proef": {
+      "alleen_in_rapportkopie": [
+        "web-chromium"
+      ],
+      "exitcode": 1
+    }
   },
   "JLT-64": {
     "negatieve_proef": {
@@ -182,6 +347,43 @@
       "schema ForkVersionInfo"
     ],
     "openapi_afwijkingen": [],
+    "modulestanden": {
+      "alleen devices": {
+        "actief": [
+          "devices"
+        ],
+        "aantal": 19,
+        "verschillen": []
+      },
+      "alleen quality": {
+        "actief": [
+          "quality"
+        ],
+        "aantal": 19,
+        "verschillen": []
+      },
+      "alle aan": {
+        "actief": [
+          "devices",
+          "quality"
+        ],
+        "aantal": 19,
+        "verschillen": []
+      },
+      "weer uit": {
+        "actief": [],
+        "aantal": 19,
+        "verschillen": []
+      },
+      "plugin verwijderd": {
+        "moduleroute_http": 404,
+        "aantal": 19,
+        "verschillen": []
+      }
+    },
+    "positieve_proef": true,
+    "aanvragen_per_stand": 19,
+    "verschillen": 0,
     "sdk": {
       "generator_zonder_plugin": {
         "total": 1,

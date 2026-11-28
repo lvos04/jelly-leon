@@ -129,19 +129,20 @@ Proef van 28 november 2026. De eindimage `jelly-leon:p6` bevat servercommit `5d8
 
 | Client en proefvorm | Stock 12.4 (pogingen) | Eindimage (pogingen) |
 |---|---|---|
-| Chromium, echte headless browser | Niet gemeten | Niet gemeten |
-| Firefox, echte headless browser | Niet gemeten | Niet gemeten |
-| WebKit, echte headless Linux-browser | Niet gemeten | Niet gemeten |
-| webOS, nagebootst profiel in Chromium | Niet gemeten | Niet gemeten |
-| Tizen, nagebootst profiel in Chromium | Niet gemeten | Niet gemeten |
-| Stock-web uit de stock-image, echte Chromium-browser | Niet gemeten | Niet gemeten |
-| Derden-client, nagebootste HTTP-verzoeken | Niet gemeten | Niet gemeten |
-| Officiële Android-app, telefoonemulator | Niet gemeten | Niet gemeten |
-| Officiële Android-app, tabletemulator | Niet gemeten | Niet gemeten |
-| Officiële Android TV-app, emulator API 34 | Niet gemeten | Niet gemeten |
-| Officiële Android TV-app, emulator API 36 | Niet gemeten | Niet gemeten |
+| Chromium, echte headless browser | speelt (1) | speelt (1) |
+| Firefox, echte headless browser | speelt (1) | speelt (1) |
+| WebKit, echte headless Linux-browser | afspeelcriterium niet gehaald (1) | tijdlimiet van de browserproef bereikt (1) |
+| webOS, nagebootst profiel in Chromium | speelt (1) | speelt (1) |
+| Tizen, nagebootst profiel in Chromium | speelt (1) | speelt (1) |
+| Stock-web uit de stock-image, echte Chromium-browser | speelt (1) | speelt (1) |
+| Derden-client, nagebootste HTTP-verzoeken | HTTP-matrix conform stockgedrag (1) | HTTP-matrix conform stockgedrag (1) |
+| Officiële Android-app, telefoonemulator | KVM ontbreekt (0) | KVM ontbreekt (0) |
+| Officiële Android-app, tabletemulator | KVM ontbreekt (0) | KVM ontbreekt (0) |
+| Officiële Android TV-app, emulator API 34 | KVM ontbreekt (0) | KVM ontbreekt (0) |
+| Officiële Android TV-app, emulator API 36 | KVM ontbreekt (0) | KVM ontbreekt (0) |
 
-Een volledige vergelijking op één UTC-meetdag ontbreekt. Voor de vier Android-rollen ontbreekt `/dev/kvm` in de testomgeving. Een cel met “Niet gemeten” heeft geen afgeronde meting in deze proef.
+Op 2026-11-28 (UTC) waren 0 regressies meetbaar en bleven 5 van de 11 rollen onbeslist. Op beide P6-proefservers stonden devices en quality aan.
+In een kopie van het eindimagerapport werd voor web-chromium de gemeten afspeeluitkomst op onwaar gezet. De vergelijking wees die toegevoegde regressie aan met exitcode 1.
 
 Bij de twee tv-profielen meet het harnas Chromium met een andere user-agent. De legacy-rij toetst zeven aanmeldvormen op drie routes. De afzonderlijke MediaGuard-proef met `TV_PROFILE` uit S-P6-33 staat open.
 
