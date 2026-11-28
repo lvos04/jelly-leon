@@ -20,6 +20,13 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Recommendations;
 internal sealed class AanbevelingsBibliotheek(ILibraryManager bibliotheek, IUserDataManager gebruikersdata,
     ITVSeriesManager series, TimeProvider klok, Func<AnimeOptions> leesAnime)
 {
+    public bool SimilarIngesteld(BaseItem bron)
+    {
+        var opties = bibliotheek.GetLibraryOptions(bron).GetTypeOptions(bron.GetType().Name);
+        var volgorde = opties?.SimilarItemProviderOrder is { Length: > 0 } expliciet ? expliciet : opties?.SimilarItemProviders;
+        return volgorde?.Contains(SimilarProvider.ProviderNaam, StringComparer.OrdinalIgnoreCase) == true;
+    }
+
     public IReadOnlyList<BaseItem> Similar(BaseItem bron, SimilarItemsQuery vraag, CancellationToken stop)
     {
         if (vraag.User is not { } gebruiker) { return []; }

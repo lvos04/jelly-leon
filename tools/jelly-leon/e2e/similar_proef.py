@@ -288,12 +288,13 @@ def waarnemersproef(server, wachtwoord, ids, basis, meet):
 
     schakel(beheer, True)
     voor = tel("aanroep")
-    eis(similar(beheer, ids["Bron"]) == basis[0]["Bron"] and tel("aanroep") == voor, "core vult limit=1, maar de plugin is aangeroepen")
+    eis(similar(beheer, ids["Bron"]) == basis[0]["Bron"] and tel("aanroep") == voor,
+        "zonder providerkeuze veranderde de volle stockuitkomst of werd eigen metadata gelezen")
     stel_volgorde(beheer, ["Jelly Leon"])
     for wie, naam in ((beheer, "Alfa"), (kijker, "Beta"), (beheer, "Alfa")):
         eis(similar(wie, ids["Bron"]) == ids[naam], "de provider zag het verkeerde profiel")
     eis(tel("aanroep") == voor + 3, "herhaalde lokale aanroepen bereikten de provider niet steeds opnieuw")
-    meet("similar_exportvolgorde", "zonder volgorde nul aanroepen bij een volle core-uitkomst")
+    meet("similar_exportvolgorde", "zonder providerkeuze dezelfde volle stockuitkomst en nul eigen metadatalezingen")
     meet("similar_zonder_cache", "drie verzoeken aan dezelfde bron bereikten de lokale provider drie keer")
     for naam, marker in (("Bronfout", "uitzondering"), ("Bronduur", "vertraging")):
         voor = tel(marker)

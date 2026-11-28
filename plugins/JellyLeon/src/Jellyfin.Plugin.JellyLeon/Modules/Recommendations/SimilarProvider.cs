@@ -17,26 +17,30 @@ internal delegate IReadOnlyList<BaseItem> LeesSimilarMetadata(BaseItem bron, Sim
 /// <summary>Klassieke aanbevelingen voor Meer zoals dit. De host ontdekt deze publieke provider in de plugin-DLL.</summary>
 public sealed class SimilarProvider : ILocalSimilarItemsProvider<Movie>, ILocalSimilarItemsProvider<Series>
 {
+    internal const string ProviderNaam = "Jelly Leon";
     internal static readonly TimeSpan Tijdslimiet = TimeSpan.FromMilliseconds(300);
     private readonly Func<bool> _aan;
+    private readonly Func<BaseItem, bool> _ingesteld;
     private readonly LeesSimilarMetadata _lees;
     private int _bezet;
 
     /// <summary>Bindt de provider aan de moduleschakelaar en de gebruikersgebonden bibliotheekquery.</summary>
     /// <param name="diensten">De gedeelde diensten van de plugin.</param>
     public SimilarProvider(IServiceProvider diensten)
-        : this(diensten.GetRequiredService<PluginModuleSwitches>().SimilarAan, diensten.GetRequiredService<LeesSimilarMetadata>())
+        : this(diensten.GetRequiredService<PluginModuleSwitches>().SimilarAan,
+            diensten.GetRequiredService<AanbevelingsBibliotheek>().SimilarIngesteld, diensten.GetRequiredService<LeesSimilarMetadata>())
     {
     }
 
-    internal SimilarProvider(Func<bool> aan, LeesSimilarMetadata lees)
+    internal SimilarProvider(Func<bool> aan, Func<BaseItem, bool> ingesteld, LeesSimilarMetadata lees)
     {
         _aan = aan;
+        _ingesteld = ingesteld;
         _lees = lees;
     }
 
     /// <inheritdoc />
-    public string Name => "Jelly Leon";
+    public string Name => ProviderNaam;
 
     /// <inheritdoc />
     public MetadataPluginType Type => MetadataPluginType.LocalSimilarityProvider;
@@ -82,7 +86,7 @@ public sealed class SimilarProvider : ILocalSimilarItemsProvider<Movie>, ILocalS
         {
             try
             {
-                if (stop.IsCancellationRequested || !_aan())
+                if (stop.IsCancellationRequested || !_aan() || !_ingesteld(item))
                 {
                     return [];
                 }

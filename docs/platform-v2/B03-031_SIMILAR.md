@@ -4,7 +4,9 @@ De module **Aanbevelingen** voegt de lokale provider **Jelly Leon** toe aan de b
 `/Items/{itemId}/Similar`. Zet de module aan op de Jelly Leon-beheerpagina. Zet daarna per bibliotheek en
 mediatype Jelly Leon bovenaan in de volgorde van Similar-providers om de selectie te gebruiken.
 `Recommendations.Enabled` staat standaard uit. Binnen een actieve module kan `Recommendations.Similar.Enabled`
-de provider afzonderlijk uitschakelen. De plugin wijzigt zelf geen bibliotheekopties.
+de provider afzonderlijk uitschakelen. De plugin leest de bestaande instelling voor het type van de bron.
+Een lege volgorde gebruikt de selectielijst van de bibliotheek. Ontbreekt Jelly Leon in de toepasselijke
+lijst, dan blijft de metadatalezing achterwege en levert de host de stockresultaten.
 
 Sinds B03-032 rangschikt de klassieke engine de films of series uit de toegankelijke bibliotheken van de vrager.
 De metadata van het bronitem bepalen de overeenkomst. De eigen kijkgeschiedenis personaliseert de volgorde.

@@ -172,7 +172,9 @@ elke regel in deze tabel staat):
 | `BaseItem` | `Id` | `Modules.Recommendations.SimilarProvider` | Controleert of de bron een bibliotheekitem is. |
 | `User` | `Id` | `Modules.Recommendations.AanbevelingsBibliotheek` | Identificeert uitsluitend de vrager voor de smaaktoestand en de vaste exploratieplek. |
 | `SimilarItemsQuery` | `User`, `Limit`, `ExcludeItemIds` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de vrager, paginagrens en uitsluitingen uit het hostverzoek. |
-| `ILibraryManager` | `GetVirtualFolders`, `GetItemById`, `GetItemList`, `GetPeopleByItems` | `Modules.Recommendations.AanbevelingsBibliotheek` | Selecteert film- en seriemappen, controleert de map met de vrager, leest zichtbare items en hun betrokken personen. |
+| `ILibraryManager` | `GetVirtualFolders`, `GetItemById`, `GetItemList`, `GetPeopleByItems`, `GetLibraryOptions` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de providerkeuze voor de bron, controleert de map met de vrager en leest zichtbare items en hun betrokken personen. |
+| `LibraryOptions` | `GetTypeOptions` | `Modules.Recommendations.AanbevelingsBibliotheek` | Zoekt de configuratie van het mediatype van de bron. |
+| `TypeOptions` | `SimilarItemProviderOrder`, `SimilarItemProviders` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de expliciete volgorde of de gebruikte selectielijst vóór een metadatalezing. |
 | `VirtualFolderInfo` | `CollectionType`, `ItemId` | `Modules.Recommendations.AanbevelingsBibliotheek` | Selecteert film-, serie- en collectiemappen. |
 | `BaseItem` | `Id`, `Genres`, `Tags`, `Studios`, `OfficialRating`, `CommunityRating`, `ProductionLocations`, `ProductionYear`, `DateCreated`, `RunTimeTicks` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest kenmerken, identiteit, versheid en duur voor de fractie van het hervatpunt. |
 | `Movie` | `CollectionName` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de bestaande metadatanaam van een filmcollectie. |

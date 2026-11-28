@@ -46,7 +46,7 @@ public sealed class SimilarProviderTests
         Assert.Equal(typeof(IReadOnlyList<Guid>), queryType.GetProperty("ExcludeItemIds")!.PropertyType);
         Assert.Equal(typeof(User), queryType.GetProperty("User")!.PropertyType);
         Assert.Equal(typeof(int?), queryType.GetProperty("Limit")!.PropertyType);
-        ILocalSimilarItemsProvider provider = new SimilarProvider(() => false, (_, _, _) => []);
+        ILocalSimilarItemsProvider provider = new SimilarProvider(() => false, _ => true, (_, _, _) => []);
         Assert.Equal("Jelly Leon", provider.Name);
         Assert.Equal(MetadataPluginType.LocalSimilarityProvider, provider.Type);
         Assert.True(provider.Supports(typeof(Movie)));
@@ -67,7 +67,7 @@ public sealed class SimilarProviderTests
         var eerder = Guid.NewGuid();
         vraag.ExcludeItemIds = [eerder, bron.Id];
         var treffer = Bron();
-        ILocalSimilarItemsProvider provider = new SimilarProvider(() => true, (item, query, stop) =>
+        ILocalSimilarItemsProvider provider = new SimilarProvider(() => true, _ => true, (item, query, stop) =>
         {
             Assert.Same(bron, item);
             Assert.Same(vraag.User, query.User);
@@ -84,7 +84,7 @@ public sealed class SimilarProviderTests
     {
         var aan = false;
         var lezingen = 0;
-        var provider = new SimilarProvider(() => aan, (_, _, _) => { lezingen++; return []; });
+        var provider = new SimilarProvider(() => aan, _ => true, (_, _, _) => { lezingen++; return []; });
         Assert.Empty(await provider.GetSimilarItemsAsync(Bron(), Vraag(), CancellationToken.None));
         aan = true;
         Assert.Empty(await provider.GetSimilarItemsAsync(Bron(), new SimilarItemsQuery(), CancellationToken.None));
@@ -99,7 +99,7 @@ public sealed class SimilarProviderTests
     public async Task Fout_LevertRuimteVoorStockEnBlokkeertDeVolgendeVraagNiet()
     {
         var lezingen = 0;
-        var provider = new SimilarProvider(() => true, (_, _, _) => ++lezingen == 1 ? throw new InvalidOperationException() : [Bron()]);
+        var provider = new SimilarProvider(() => true, _ => true, (_, _, _) => ++lezingen == 1 ? throw new InvalidOperationException() : [Bron()]);
         Assert.Empty(await provider.GetSimilarItemsAsync(Bron(), Vraag(), CancellationToken.None));
         Assert.Single(await provider.GetSimilarItemsAsync(Bron(), Vraag(), CancellationToken.None));
     }
@@ -110,7 +110,7 @@ public sealed class SimilarProviderTests
         var vrij = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var begonnen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var lezingen = 0;
-        var provider = new SimilarProvider(() => true, (_, _, _) =>
+        var provider = new SimilarProvider(() => true, _ => true, (_, _, _) =>
         {
             if (Interlocked.Increment(ref lezingen) == 2)
             {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.JellyLeon.Configuration;
@@ -11,6 +12,7 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.TV;
+using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using Moq;
 using Xunit;
@@ -19,6 +21,31 @@ namespace Jellyfin.Plugin.JellyLeon.Tests.Recommendations;
 
 public sealed class AanbevelingsBibliotheekTests
 {
+    [Fact]
+    public async Task AlleenDeGekozenProviderLeestNaDeModulekeuze()
+    {
+        var film = new Movie { Id = Guid.NewGuid() };
+        var serie = new Series { Id = Guid.NewGuid() };
+        var type = new TypeOptions { Type = "Movie" };
+        var opties = new LibraryOptions { TypeOptions = [type] };
+        var bibliotheek = new Mock<ILibraryManager>(MockBehavior.Strict);
+        bibliotheek.Setup(b => b.GetLibraryOptions(It.IsAny<BaseItem>())).Returns(opties);
+        var adapter = new AanbevelingsBibliotheek(bibliotheek.Object, Mock.Of<IUserDataManager>(), Mock.Of<ITVSeriesManager>(),
+            TimeProvider.System, () => new AnimeOptions());
+        var lezingen = 0;
+        var provider = new SimilarProvider(() => true, adapter.SimilarIngesteld, (_, _, _) => { lezingen++; return [film]; });
+        var vraag = new SimilarItemsQuery { User = new User("test", "lokaal", "lokaal"), Limit = 1 };
+        Assert.Empty(await provider.GetSimilarItemsAsync(film, vraag, CancellationToken.None));
+        type.SimilarItemProviders = ["JELLY LEON"];
+        Assert.Single(await provider.GetSimilarItemsAsync(film, vraag, CancellationToken.None));
+        type.SimilarItemProviderOrder = ["Local Genre/Tag"];
+        Assert.Empty(await provider.GetSimilarItemsAsync(film, vraag, CancellationToken.None));
+        type.SimilarItemProviderOrder = ["Jelly Leon", "Local Genre/Tag"];
+        Assert.Single(await provider.GetSimilarItemsAsync(film, vraag, CancellationToken.None));
+        Assert.Empty(await provider.GetSimilarItemsAsync(serie, vraag, CancellationToken.None));
+        Assert.Equal(2, lezingen);
+    }
+
     [Fact]
     public void Bibliotheek_LeestAlleenHuidigeToestandVanDeVragerEnBewaartDeKijkgegevens()
     {
