@@ -1,0 +1,114 @@
+{
+  "stap": "S-G2-10",
+  "werkpakket": "B03-021",
+  "datum": "2026-11-28",
+  "niveau": "N5",
+  "status": "Bezig",
+  "codecommit": "5e035515146a0cadef9b8271f1b682f89bdd90a1",
+  "omgeving": "Lokale SDK en simulatoren met testgegevens. De drie Unix-rechtentests draaiden als gewone gebruiker in een geïsoleerde Linux-container. ASSEMBLY is de vooraf gebouwde upstream-serverassembly. Bouw en .NET-tests draaiden onder het gedeelde bouwslot.",
+  "wt_1": {
+    "a": "De gepubliceerde OpenAPI bevat 22 SyncPlay-operaties en GET /GetUtcTime. De harnastest detecteert het weglaten van een operatie of een verandering in een gerefereerd schema. De live vergelijking in drie pluginstanden is niet uitgevoerd.",
+    "b": "Niet uitgevoerd. SyncPlayManagerTests construeert zelf SyncPlayManager en de controllersuite gebruikt haar eigen JellyfinApplicationFactory. De upstream-suites hebben in de serverjob geen geactiveerde plugin.",
+    "c": "De harnastest staat uitsluitend normalisatie van het groeps-ID en LastUpdatedAt toe. Andere deelnemers, lege groepen en veranderde JSON-opmaak worden opgemerkt. Live bytevergelijking niet uitgevoerd.",
+    "d": "50 simulatierondes. Voor elk van de 150 beëindigingen zijn de actieve rijen en de outbox gecontroleerd. Eén extra gemiste melding werd door de aangestuurde 30-secondencontrole verwerkt. De latere melding leverde geen duplicaat op. De DI-proef gaf ook met de oorspronkelijke upstream-singleton na een tweede NewGroup alleen de nieuwe groep terug. Geen meting van 50 echte serverherstarts.",
+    "e": "Met een inactieve decorator en een gast kreeg de totale connectorhealth down en verscheen één media.watchgroup.degraded. Een kinderprofiel zonder gast gaf eveneens down. De paginasimulator controleerde de rode melding en het SyncPlay-advies."
+  },
+  "gegevens": "UserDeleted ontkoppelde de eigenaar en de gastinstelling. De bytescan vond de binaire account-GUID en de twee geteste tekstvormen na verwijdering niet terug; de tabel bevatte nul rijen met het corresponderende eigenaarspseudoniem. SHA-256 vóór UserDeleted en na herhaalde purge was gelijk voor de twee synthetische databases met kijkgegevens en MediaGuard-voortgang.",
+  "metingen": {
+    "plugin_bouw": {
+      "commando": "dotnet build plugins/JellyLeon.Plugins.sln -c Release --no-restore -m:1",
+      "exitcode": 0,
+      "slotregel": "Time Elapsed 00:00:10.18",
+      "compiler": "0 waarschuwingen en 0 fouten"
+    },
+    "watch_together": {
+      "commando": "dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --filter 'FullyQualifiedName~WatchTogether' --verbosity minimal",
+      "exitcode": 0,
+      "slotregel": "Passed!  - Failed:     0, Passed:    14, Skipped:     0, Total:    14, Duration: 34 s - Jellyfin.Plugin.JellyLeon.Tests.dll (net10.0)"
+    },
+    "plugins_volledig": {
+      "commando": "dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal",
+      "exitcode": 0,
+      "slotregel": "Passed!  - Failed:     0, Passed:   477, Skipped:     0, Total:   477, Duration: 1 m 28 s - Jellyfin.Plugin.JellyLeon.Tests.dll (net10.0)"
+    },
+    "registratie_met_upstream_dll": {
+      "commando": "dotnet test plugins/JellyLeon.Plugins.sln -c Release -m:1 --no-restore -p:JellyLeonSyncPlayAssembly=\"$ASSEMBLY\" --filter FullyQualifiedName~WatchSamenstellingProef --verbosity minimal",
+      "exitcode": 0,
+      "slotregel": "Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 760 ms - Jellyfin.Plugin.JellyLeon.Tests.dll (net10.0)",
+      "assembly_sha256": "a77cf901288356da0c88dc032fa33dc302fbaceb674318faf27d361e084a7a23"
+    },
+    "openapi": {
+      "commando": "JL_SCHRIJF_OPENAPI=1 dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --filter FullyQualifiedName~OpenApiDriftTests --verbosity minimal",
+      "exitcode": 0,
+      "slotregel": "Passed!  - Failed:     0, Passed:     3, Skipped:     0, Total:     3, Duration: 55 ms - Jellyfin.Plugin.JellyLeon.Tests.dll (net10.0)"
+    },
+    "mutatieproef": {
+      "commando": "dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-restore -m:1 --filter FullyQualifiedName~TweedeNewGroupSessieEindeEnHerstartRuimenElkeGroepOp --verbosity minimal",
+      "exitcode": 1,
+      "slotregel": "Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 379 ms - Jellyfin.Plugin.JellyLeon.Tests.dll (net10.0)",
+      "ingreep": "Uitsluitend in de tijdelijke kopie ontbrak de aanroep die de groepsrij beëindigt. De gelijkheidscontrole op de verwachte actieve rij sloeg aan."
+    },
+    "analyzer": {
+      "commando": "python3 tools/jelly-leon/analyzer_proef.py --log \"$BOUWLOG\" --exitcode 1",
+      "exitcode": 0,
+      "slotregel": "analyzer_proef: in orde — 323 verboden aanroepen geven elk precies de verwachte bouwfout; de build faalt alleen daardoor",
+      "exitcode_proefbouw": 1
+    },
+    "python": {
+      "commando": "python -m pytest -q -p no:cacheprovider tools/jelly-leon/tests --ignore=tools/jelly-leon/tests/test_entrypoint_opslaggrens.py --ignore=tools/jelly-leon/tests/test_entrypoint_downgrade.py --ignore=tools/jelly-leon/tests/test_healthcheck_script.py",
+      "exitcode": 0,
+      "slotregel": "376 passed in 24.27s"
+    },
+    "unixrechten": {
+      "commando": "python -m pytest -q -p no:cacheprovider tools/jelly-leon/tests/test_entrypoint_opslaggrens.py tools/jelly-leon/tests/test_entrypoint_downgrade.py tools/jelly-leon/tests/test_healthcheck_script.py",
+      "exitcode": 0,
+      "slotregel": "110 passed in 3.49s"
+    },
+    "harnas_en_beheerpagina": {
+      "commando": "python -m pytest -q -p no:cacheprovider tools/jelly-leon/tests/test_watch_contract.py tools/jelly-leon/tests/test_config_pagina.py",
+      "exitcode": 0,
+      "slotregel": "6 passed in 0.36s"
+    },
+    "forkregels": {
+      "commando": "python3 tools/jelly-leon/check_fork_consistency.py",
+      "exitcode": 0,
+      "slotregel": "Forkconsistentie in orde: basis v12.4 (83d0d0e7f76e), forkversie 12.4.0-jl.1."
+    },
+    "patchregister": {
+      "commando": "python3 tools/jelly-leon/patch_register_check.py",
+      "exitcode": 0,
+      "slotregel": "Patchregister in orde."
+    },
+    "upstreamregister": {
+      "commando": "python3 tools/jelly-leon/upstream_gedrag_check.py --overzicht",
+      "exitcode": 0,
+      "slotregel": "Upstream-gedrag (serverdeel) in orde: 23 ankers gevonden, 17 runtime-tests gekoppeld, alle UG-verwijzingen bekend."
+    },
+    "contractkopie": {
+      "commando": "python3 tools/jelly-leon/contract_drift.py --bron-map <lokale-bron>",
+      "exitcode": 0,
+      "slotregel": "Contractkopieën in orde (tegen de lokale bron): 2 bestanden byte-gelijk aan leon/ai-server-manager@d392f5277; historie ongewijzigd: CONTRACT_1.2_CONFORMITEIT.md."
+    },
+    "ruff": {
+      "commando": "ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon",
+      "exitcode": 0,
+      "slotregel": "All checks passed!"
+    },
+    "workflows": {
+      "commando": "bash tools/jelly-leon/lint_forgejo.sh",
+      "exitcode": 0,
+      "slotregel": "Bronworkflows en Forgejo-workflows gecontroleerd."
+    }
+  },
+  "niet_gecontroleerd": [
+    "NIET GEDRAAID (geen testslot): T-JL-IMAGE, pluginproef op fork en stock, live controle UG-F1-1 en 50 serverherstarts.",
+    "S-P40-60-baseline NIET GEMETEN.",
+    "NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (hardware): echte apparaten in een groep (JLT-06)."
+  ],
+  "testslot": {
+    "slotregel": "3 van 3 testsloten bezet, eigen proef nog niet gestart.",
+    "exitcode_slotcontrole": 0,
+    "exitcode_wachter_na_onderbreking": 1,
+    "proef_gestart": false
+  }
+}
