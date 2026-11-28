@@ -130,9 +130,9 @@ public sealed class SimilarProviderTests
         try
         {
             var twee = Enumerable.Range(0, 2).Select(_ => provider.GetSimilarItemsAsync(Bron(), Vraag(), CancellationToken.None)).ToArray();
-            await begonnen.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await begonnen.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
             Assert.Empty(await provider.GetSimilarItemsAsync(Bron(), Vraag(), CancellationToken.None));
-            Assert.All(await Task.WhenAll(twee).WaitAsync(TimeSpan.FromSeconds(2)), antwoord => Assert.Empty(antwoord));
+            Assert.All(await Task.WhenAll(twee).WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken), antwoord => Assert.Empty(antwoord));
             Assert.Equal(2, lezingen);
         }
         finally

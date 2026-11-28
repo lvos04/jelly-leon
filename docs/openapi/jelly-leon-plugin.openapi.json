@@ -2564,6 +2564,7 @@
             "CustomAuthentication": []
           }
         ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie. De groepslijst volgt de SyncPlay-rechten. Diagnose vereist lidmaatschap of beheerrecht.",
         "parameters": [
           {
             "name": "view",

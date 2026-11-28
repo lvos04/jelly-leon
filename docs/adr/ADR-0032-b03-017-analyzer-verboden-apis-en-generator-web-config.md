@@ -168,6 +168,11 @@ elke regel in deze tabel staat):
 | `PlayerStateInfo` | `PlayMethod` | `Modules.Devices.DevicesListener` | Direct Play, Direct Stream of Transcode. |
 | `User` | `Id` | `Modules.Devices.DevicesListener` | Het ID van de kijker, voor de eigen tabel. |
 
+| `SimilarItemsQuery` | `User`, `Limit`, `DtoOptions`, `ExcludeItemIds` | `Modules.Recommendations.SimilarProvider` | Leest de gebruikersgebonden selectie van de host. |
+| `BaseItem` | `Genres`, `Id` | `Modules.Recommendations.SimilarProvider` | Leest genre en itemidentiteit voor de zoekvraag. |
+| `DtoOptions` | `new` | `Modules.Recommendations.SimilarProvider` | Tijdelijke opties voor één leesvraag. |
+| `InternalItemsQuery` | `new` met selectie, sortering en paginagrens | `Modules.Recommendations.SimilarProvider` | De provider vult uitsluitend een nieuw queryobject. |
+| `ILibraryManager` | `GetItemList` | `PluginServiceRegistrator` | Verbindt de leesdelegate van de lokale aanbevelingsprovider met de bibliotheek. |
 | `BaseExtensions` | `GetMD5` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
 | `ILibraryManager` | `GetCollectionFolders` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
 | `BaseItem` | `Id` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
@@ -216,6 +221,7 @@ Witte lijst van uitbreidingspunten (`Regels.UitbreidingWitteLijst`):
 | `BasePluginConfiguration` | `Jellyfin.Plugin.JellyLeon.Configuration` | `PluginConfiguration` (alleen schakelaars en instellingen, nooit een geheim). |
 | `IEventConsumer<UserDeletedEventArgs>` | `Jellyfin.Plugin.JellyLeon.Core.Privacy` | `UserDeletedConsumer` wist de eigen gegevens van een verwijderde gebruiker (c09698f09). Alleen dit typeargument; een consumer van een ander event is JL0001. Stond niet in het voorstel van herreview 6, maar de plugin gebruikt het al sinds golf 1. |
 
+| `ILocalSimilarItemsProvider<T>` | `Jellyfin.Plugin.JellyLeon.Modules.Recommendations` | Lokale aanbevelingen voor `Movie` en `Series`. |
 | `IMediaSegmentProvider` | `Jellyfin.Plugin.JellyLeon.Modules.Segments` | De extractietaak leest de vrijgegeven set (ADR-0037). |
 
 Microsoft-typen zijn geen server-ABI en vallen niet onder deze regel: `IHostedService` (`DevicesListener`, `MediaGuardPoller`,

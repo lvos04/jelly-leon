@@ -587,6 +587,15 @@ internal static class Regels
     /// eigen schakelaars; het pad ligt vast, zie <see cref="PluginConfigLeden"/>).
     /// </summary>
     public static readonly ImmutableArray<ServerWit> ServerAbiWitteLijst = ImmutableArray.Create(
+        new ServerWit("MediaBrowser.Controller.Library.SimilarItemsQuery", "User", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
+        new ServerWit("MediaBrowser.Controller.Library.SimilarItemsQuery", "Limit", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
+        new ServerWit("MediaBrowser.Controller.Library.SimilarItemsQuery", "DtoOptions", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
+        new ServerWit("MediaBrowser.Controller.Library.SimilarItemsQuery", "ExcludeItemIds", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "Genres", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "Id", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
+        new ServerWit("MediaBrowser.Controller.Dto.DtoOptions", ".ctor", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
+        new ServerWit("MediaBrowser.Controller.Entities.InternalItemsQuery", ".ctor", PluginNamespace + ".Modules.Recommendations.SimilarProvider", "IncludeItemTypes", "Genres", "ExcludeItemIds", "IsPlayed", "Limit", "DtoOptions", "OrderBy", "EnableTotalRecordCount"),
+        new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetItemList", PluginNamespace + ".PluginServiceRegistrator"),
         // F6-S1: alleen deze serverleden in hun benoemde adapter.
         new ServerWit("MediaBrowser.Common.Extensions.BaseExtensions", "GetMD5", PluginNamespace + ".Modules.Segments.SegmentProvider"),
         new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetCollectionFolders", PluginNamespace + ".Modules.Segments.SegmentProvider"),
@@ -717,6 +726,8 @@ internal static class Regels
     /// Microsoft-typen (IHostedService, IStartupFilter) zijn geen server-ABI en vallen niet onder deze regel.
     /// </summary>
     public static readonly ImmutableArray<UitbreidingWit> UitbreidingWitteLijst = ImmutableArray.Create(
+        new UitbreidingWit("MediaBrowser.Controller.Library.ILocalSimilarItemsProvider`1", PluginNamespace + ".Modules.Recommendations", "MediaBrowser.Controller.Entities.Movies.Movie"),
+        new UitbreidingWit("MediaBrowser.Controller.Library.ILocalSimilarItemsProvider`1", PluginNamespace + ".Modules.Recommendations", "MediaBrowser.Controller.Entities.TV.Series"),
         new UitbreidingWit("MediaBrowser.Controller.MediaSegments.IMediaSegmentProvider", PluginNamespace + ".Modules.Segments"),
         new UitbreidingWit("MediaBrowser.Controller.SyncPlay.ISyncPlayManager", PluginNamespace + ".Modules.WatchTogether"),
         new UitbreidingWit("MediaBrowser.Common.Plugins.BasePlugin`1", PluginNamespace),
