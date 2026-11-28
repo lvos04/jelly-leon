@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
+using Jellyfin.Plugin.JellyLeon.Core.Privacy;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Modules.Devices;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
@@ -70,6 +71,57 @@ public sealed class OpslagImportTests : IDisposable
         Assert.Equal(1, JlDatabase.Getal(backup, "SELECT COUNT(*) FROM playback_sessions"));
         Assert.Equal(kijkstand, Hash(server));
         Assert.Equal(voortgang, Hash(guard));
+    }
+
+    [Fact]
+    public async Task OudeBundelBrengtGegevensVanVerwijderdeKijkerNietTerug()
+    {
+        var devices = _h.Dienst<DevicesModule>();
+        _h.Schakelaars.Zet("devices", true);
+        var weg = Guid.NewGuid();
+        var ander = Guid.NewGuid();
+        devices.RegistreerStart([weg], "proef-tv", "eerste", "direct_play", false, _h.Klok.Nu);
+        devices.RegistreerStart([ander], "proef-tv", "tweede", "direct_play", false, _h.Klok.Nu);
+        var oud = devices.Exporteer();
+        Assert.Equal(200, (await _h.Roep("modules.import.preview", oud.ToJsonString(), pad: _devices)).Status);
+        Assert.Equal(200, (await PasToe((string)oud["preview_hash"]!)).Status);
+        var kopie = Assert.Single(Kopieen());
+        using (var v = Open(kopie))
+        {
+            Assert.Equal(2, JlDatabase.Getal(v, "SELECT COUNT(*) FROM playback_sessions"));
+        }
+
+        _h.Dienst<PrivacyService>().VerwijderGebruiker(weg);
+        using (var v = Open(kopie))
+        {
+            Assert.Equal(1, JlDatabase.Getal(v, "SELECT COUNT(*) FROM playback_sessions"));
+            Assert.Equal(ander.ToString("N"), JlDatabase.Scalar(v, "SELECT gebruiker FROM playback_sessions"));
+        }
+        Assert.DoesNotContain(weg.ToString("N"), System.Text.Encoding.Latin1.GetString(await File.ReadAllBytesAsync(kopie, TestContext.Current.CancellationToken)));
+        var nieuw = devices.Exporteer();
+        Assert.Equal(1, nieuw["sessies"]!.GetValue<long>());
+        Assert.DoesNotContain(weg.ToString("N"), nieuw.ToJsonString(), StringComparison.OrdinalIgnoreCase);
+        var voorbeeld = await _h.Roep("modules.import.preview", oud.ToJsonString(), pad: _devices);
+        Assert.Equal(200, voorbeeld.Status);
+        Assert.Equal(200, (await PasToe((string)voorbeeld.Json!["preview_hash"]!)).Status);
+        Assert.Equal(0, devices.TelGebruiker(weg));
+        Assert.Equal(1, devices.TelGebruiker(ander));
+    }
+
+    [Fact]
+    public async Task SymbolischeKoppelingAlsExportdoel_WordtGeweigerdEnBehoudtHetDoel()
+    {
+        _h.Schakelaars.Zet("devices", true);
+        Assert.Equal(200, (await _h.Roep("devices.export")).Status);
+        var doel = Path.Combine(_h.Dienst<JlPaths>().ModuleDir("devices"), "beheerexport.json");
+        var server = Path.Combine(_h.Map, "buiten-export.json");
+        await File.WriteAllTextAsync(server, "synthetische inhoud", TestContext.Current.CancellationToken);
+        var vooraf = Hash(server);
+        File.Delete(doel);
+        File.CreateSymbolicLink(doel, server);
+        Assert.Equal(503, (await _h.Roep("devices.export")).Status);
+        Assert.Equal(vooraf, Hash(server));
+        Assert.NotNull(new FileInfo(doel).LinkTarget);
     }
 
     [Fact]

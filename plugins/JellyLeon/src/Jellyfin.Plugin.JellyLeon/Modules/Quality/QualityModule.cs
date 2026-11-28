@@ -130,7 +130,7 @@ internal sealed class QualityModule : ModuleBasis
     }
 
     public override int VerwijderGebruiker(Guid gebruiker) =>
-        Db.VerwijderModuleGebruiker(Gegevensbeheer, gebruiker, "UPDATE suppressions SET gebruiker='verwijderd' WHERE gebruiker=$g");
+        Db.VerwijderModuleGebruiker(Gegevensbeheer, gebruiker, "suppressions", "UPDATE suppressions SET gebruiker='verwijderd' WHERE gebruiker=$g");
 
     public override int TelGebruiker(Guid gebruiker) =>
         (int)Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM suppressions WHERE gebruiker = $g", ("$g", gebruiker.ToString("N"))));

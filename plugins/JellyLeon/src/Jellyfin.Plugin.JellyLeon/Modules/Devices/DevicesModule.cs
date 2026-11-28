@@ -127,7 +127,7 @@ internal sealed class DevicesModule : ModuleBasis
     }
 
     public override int VerwijderGebruiker(Guid gebruiker) =>
-        Db.VerwijderModuleGebruiker(Gegevensbeheer, gebruiker, "DELETE FROM playback_sessions WHERE gebruiker=$g");
+        Db.VerwijderModuleGebruiker(Gegevensbeheer, gebruiker, "playback_sessions", "DELETE FROM playback_sessions WHERE gebruiker=$g");
 
     public void RuimVerlopenSessiesOp(DateTimeOffset nu)
     {

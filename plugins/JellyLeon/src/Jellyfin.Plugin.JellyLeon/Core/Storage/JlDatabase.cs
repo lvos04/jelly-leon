@@ -278,6 +278,39 @@ internal sealed partial class JlDatabase
         transactie.Commit();
     }
 
+    /// <summary>Voert dezelfde accountverwijdering uit op bestaande modulekopieën. Een kopie van vóór de tabel blijft intact.</summary>
+    internal void OntkoppelInKopieen(string tabel, string sql, string account)
+    {
+        foreach (var pad in Directory.EnumerateFiles(Path.GetDirectoryName(Pad)!, Path.GetFileName(Pad) + ".v*.bak"))
+        {
+            using var kopie = OpenBestaandeKopie(pad);
+            if (Getal(kopie, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name=$naam", ("$naam", tabel)) != 0)
+            {
+                Voer(kopie, "PRAGMA secure_delete=ON;");
+                Voer(kopie, sql, ("$g", account));
+                Voer(kopie, "PRAGMA wal_checkpoint(TRUNCATE);");
+            }
+        }
+    }
+
+    private SqliteConnection OpenBestaandeKopie(string pad)
+    {
+        EisVeiligBijStart(_paden, pad);
+        var kopie = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = pad, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString());
+        try
+        {
+            kopie.Open();
+            EisEigenPlek(_paden, kopie.DataSource);
+            SluitKoppelenUit(kopie);
+            return kopie;
+        }
+        catch
+        {
+            kopie.Dispose();
+            throw;
+        }
+    }
+
     private void MaakKopie(SqliteConnection verbinding, int versie)
     {
         var uitkomst = Convert.ToString(Scalar(verbinding, "PRAGMA integrity_check;"), CultureInfo.InvariantCulture);
@@ -296,11 +329,8 @@ internal sealed partial class JlDatabase
         }
 
         _bestanden.SchrijfEenmalig(kopie, []);
-        EisEigenPlek(_paden, kopie);
-        using (var doel = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = kopie, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString()))
+        using (var doel = OpenBestaandeKopie(kopie))
         {
-            doel.Open();
-            SluitKoppelenUit(doel);
             verbinding.BackupDatabase(doel);
             if (!string.Equals(Scalar(doel, "PRAGMA integrity_check;") as string, "ok", StringComparison.Ordinal) ||
                 Getal(doel, "PRAGMA user_version;") != versie)
@@ -314,20 +344,16 @@ internal sealed partial class JlDatabase
         var nu = DateTime.UtcNow;
         var kopieen = new DirectoryInfo(Path.GetDirectoryName(Pad)!)
             .GetFiles(Path.GetFileName(Pad) + ".v*.bak")
+            .Where(f => !string.Equals(f.FullName, kopie, StringComparison.Ordinal))
             .Select(f => (Bestand: f, Sleutel: Sorteersleutel(f.Name)))
             .OrderByDescending(k => k.Sleutel, StringComparer.Ordinal)
             .ToList();
         for (var i = 0; i < kopieen.Count; i++)
         {
             var (bestand, sleutel) = kopieen[i];
-            if (string.Equals(bestand.FullName, kopie, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
             var teOud = DateTime.TryParseExact(sleutel[..14], "yyyyMMddHHmmss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var gemaakt)
                 && nu - gemaakt > _bewaartermijn;
-            if (i >= MaxKopieen || teOud)
+            if (i >= MaxKopieen - 1 || teOud)
             {
                 _bestanden.Verwijder(bestand.FullName);
             }

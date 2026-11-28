@@ -76,6 +76,7 @@ internal abstract class ModuleBasis : ModuleOverdracht, IJellyLeonModule
         var velden = new BodyLezer(instellingen);
         var dagen = velden.Geheel("bewaar_dagen", true, 1, 365);
         velden.Klaar();
+        lezer.Klaar();
         var verwacht = Db.Bestaat ? LeesInstellingen().Etag : Etag(0);
         return new Herstelplan(new JsonObject { ["instellingen"] = 1 }, () => Db.MetImportkopie(
             v => ControleerVersie(v, verwacht),

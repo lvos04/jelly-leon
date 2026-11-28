@@ -58,8 +58,13 @@ internal sealed partial class SegmentsModule : ModuleBasis
     public override int VerwijderGebruiker(Guid gebruiker)
     {
         _schakelaars.VerwijderSegmentEditor(gebruiker);
-        return !Db.Bestaat ? 0 : Db.Met(v => JlDatabase.Voer(v, "UPDATE audit SET actor='verwijderd' WHERE actor=$a",
-            ("$a", "session:" + _geheimen.AccountPseudoniem(gebruiker))));
+        return !Db.Bestaat ? 0 : Db.Transactioneel(v =>
+        {
+            const string Sql = "UPDATE audit SET actor='verwijderd' WHERE actor=$g";
+            var actor = "session:" + _geheimen.AccountPseudoniem(gebruiker);
+            Db.OntkoppelInKopieen("audit", Sql, actor);
+            return JlDatabase.Voer(v, Sql, ("$g", actor));
+        });
     }
 
     public override int TelGebruiker(Guid gebruiker) => (_schakelaars.IsSegmentEditor(gebruiker) ? 1 : 0)

@@ -18,11 +18,12 @@ internal sealed partial class JlDatabase
 
     // De laatste beheerexport is een lokale kopie voor de wisbevestiging. Ook na het verlopen van de
     // bronrij kan die kopie het exportpseudoniem nog bevatten. Dezelfde schrijftransactie ordent export en wissen.
-    public int VerwijderModuleGebruiker(ModuleGegevensbeheer module, Guid gebruiker, string sql) => Transactioneel(v =>
+    public int VerwijderModuleGebruiker(ModuleGegevensbeheer module, Guid gebruiker, string tabel, string sql) => Transactioneel(v =>
     {
         var pad = ModuleExportPad(module);
         var account = gebruiker.ToString("N");
         var aantal = Voer(v, sql, ("$g", account));
+        OntkoppelInKopieen(tabel, sql, account);
         using var export = OpenExport(pad);
         if (export is not null && BevatExportPseudoniem(export, module.ExportGebruiker(account)))
         {

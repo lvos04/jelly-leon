@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Outbox;
 using Jellyfin.Plugin.JellyLeon.Core.Secrets;
@@ -55,6 +56,15 @@ internal sealed class WatchTogetherModule : ModuleOverdracht, IJellyLeonModule
         ];
 
     public IReadOnlyList<JsonObject> Items(string type, DateTimeOffset nu) => [];
+    protected override Herstelplan LeesHerstel(BodyLezer lezer) => new(new JsonObject(), () =>
+    {
+        if (_db.Bestaat)
+        {
+            // Ook bij een lege overdracht wordt de bestaande Watch-database vóór bevestiging veiliggesteld.
+            _db.MetImportkopie(_ => { }, _ => 0);
+        }
+    });
+
     public void ControleerOpslag() => _db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta"));
     public void WisSporen()
     {
@@ -135,8 +145,13 @@ internal sealed class WatchTogetherModule : ModuleOverdracht, IJellyLeonModule
     public int VerwijderGebruiker(Guid gebruiker)
     {
         _instellingen.VerwijderGast(gebruiker);
-        return !_db.Bestaat ? 0 : _db.Met(v => _geheimen.Lees(Zout) is null ? 0 :
-            JlDatabase.Voer(v, "UPDATE wt_group_meta SET owner=NULL WHERE owner=$e", ("$e", Pseudoniem(gebruiker))));
+        return !_db.Bestaat || _geheimen.Lees(Zout) is null ? 0 : _db.Transactioneel(v =>
+        {
+            const string Sql = "UPDATE wt_group_meta SET owner=NULL WHERE owner=$g";
+            var eigenaar = Pseudoniem(gebruiker);
+            _db.OntkoppelInKopieen("wt_group_meta", Sql, eigenaar);
+            return JlDatabase.Voer(v, Sql, ("$g", eigenaar));
+        });
     }
 
     public int TelGebruiker(Guid gebruiker) => !_db.Bestaat ? 0 : _db.Met(v =>
