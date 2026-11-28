@@ -23,7 +23,9 @@ dezelfde plugin-DLL, volgens ADR-0029.
 
 `tools/jelly-leon/e2e/similar_proef.py` maakt acht films en twee series en vult twee testprofielen op stock 12.x.
 De gewone plugin en de waarnemer starten na elkaar op kopieën van diezelfde configuratie. De proef vergelijkt het
-Similar-responsschema inclusief verwijzingen, de aanbevelingsverzameling en de kijkgegevens. De acht afhankelijkheden
+Similar-responsschema inclusief verwijzingen en de aanbevelingsverzameling. Voor vier films per profiel vergelijkt
+hij de kijkgegevens op stock, bij de pluginstart en na de leesproeven. Beide profielen hebben een ander hervatpunt
+op dezelfde film. De acht afhankelijkheden
 van upstream staan in `UPSTREAM_GEDRAG.md`, onder UG-F2-1 tot en met UG-F2-8.
 
 Onderstaande commando’s gaan uit van de gepinde stock-image, een eigen proefmap, de vastgezette Playwright-installatie

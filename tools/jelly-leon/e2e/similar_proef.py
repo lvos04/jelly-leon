@@ -30,6 +30,7 @@ FILMS = {
     "Bronduur": ("Proefduur", False), "Kernduur": ("Proefduur", False),
 }
 SERIES = ("Seriebron", "Seriegezelschap")
+HERVATPUNTEN = (4_000_000, 15_000_000)
 OPTIES = "/Library/VirtualFolders/LibraryOptions"
 
 
@@ -104,7 +105,10 @@ def zaai(server, wachtwoord):
     kijker.http.doe("POST", "/UserPlayedItems/" + ids["Alfa"], {"userId": kijker.id})
     api.doe("POST", "/UserPlayedItems/" + ids["Bron"], {"userId": beheer.id})
     api.doe("POST", "/UserFavoriteItems/" + ids["Bron"], {"userId": beheer.id})
-    return beheer, ids
+    for wie, positie in zip((beheer, kijker), HERVATPUNTEN, strict=True):
+        wie.http.doe("POST", "/UserItems/" + ids["Beta"] + "/UserData", {"userId": wie.id},
+                     {"PlaybackPositionTicks": positie, "Played": False})
+    return beheer, kijker, ids
 
 
 def similar(wie, bron):
@@ -168,6 +172,15 @@ def kenmerken(wie, ids):
             for naam in ("Bron", "Alfa", "Beta", "Zulu")}
 
 
+def kijkreferentie(beheer, kijker, ids):
+    gegevens = [kenmerken(wie, ids) for wie in (beheer, kijker)]
+    eis(gegevens[0]["Bron"]["Played"] and gegevens[0]["Bron"]["IsFavorite"] and gegevens[1]["Alfa"]["Played"],
+        "de gespeelde titels of de favoriet ontbreken op stock")
+    eis(tuple(r["Beta"]["PlaybackPositionTicks"] for r in gegevens) == HERVATPUNTEN,
+        "de twee afzonderlijke hervatpunten ontbreken op stock")
+    return gegevens
+
+
 def bibliotheekopties(wie, verwacht):
     for soort, typenaam in (("movies", "Movie"), ("tvshows", "Series")):
         opties = wie.http.doe("GET", "/Libraries/AvailableOptions", {"libraryContentType": soort})
@@ -197,18 +210,18 @@ def home(server, wachtwoord):
         eis(meting["layout"] == layout and meting["zichtbaar"] and meting["secties"] >= 1, f"startschermsecties ontbreken in {layout}")
 
 
-def voorraad(beheer, ids):
+def voorraad(beheer, kijker, ids):
     bibliotheekopties(beheer, False)
     verwachte = {naam: similar(beheer, ids[naam]) for naam in ("Bron", "Bronfout", "Bronduur", "Seriebron")}
     eis(verwachte["Bron"] == ids["Zulu"], "de voorraadprovider onderscheidt de sterkste metadataoverlap niet")
     eis(batch(beheer) == batch(beheer), "voorraad varieert op deze kleine vaste batchset")
-    return verwachte, batch(beheer), schema(beheer)
+    return verwachte, batch(beheer), schema(beheer), kijkreferentie(beheer, kijker, ids)
 
 
 def normale_proef(server, wachtwoord, ids, basis, meet):
     beheer, kijker = sessie(server, BEHEER, wachtwoord), sessie(server, KIJKER, wachtwoord)
-    voor = [kenmerken(w, ids) for w in (beheer, kijker)]
-    verwachte, groepen, contractschema = basis
+    verwachte, groepen, contractschema, voor = basis
+    eis(voor == [kenmerken(w, ids) for w in (beheer, kijker)], "kijkgegevens wijken bij de pluginstart af van stock")
     eigen = [p for p in beheer.http.doe("GET", "/Plugins") if p["Id"].replace("-", "") == PLUGIN_ID]
     eis(len(eigen) == 1 and eigen[0]["Status"] == "Active", "de plugin is niet precies één keer Active")
     bibliotheekopties(beheer, True)
@@ -244,7 +257,7 @@ def normale_proef(server, wachtwoord, ids, basis, meet):
     eis(similar(beheer, ids["Bron"]) == verwachte["Bron"], "Similar uit wijkt met expliciete volgorde af van stock")
     schakel(beheer, False)
     eis(voor == [kenmerken(w, ids) for w in (beheer, kijker)], "kijkgegevens verschillen na de leesproeven")
-    meet("kijkgegevens", "twee profielen, vier films per profiel gelijk voor en na")
+    meet("kijkgegevens", "acht kijkrecords en twee afzonderlijke hervatpunten gelijk voor installatie, bij start en na de proef")
     homevoorkeur(beheer)
     meet("similar_homevoorkeur", "bekende sectie bewaard, onbekende sectie terug naar de enumstandaard")
     home(server, wachtwoord)
@@ -308,8 +321,8 @@ def main(argv=None):
             maak_corpus(media, args.stock_image)
             wachtwoord = uuid.uuid4().hex
             with draai("stock", args.stock_image, werk / "stock", media) as stock:
-                beheer, ids = zaai(stock, wachtwoord)
-                basis = voorraad(beheer, ids)
+                beheer, kijker, ids = zaai(stock, wachtwoord)
+                basis = voorraad(beheer, kijker, ids)
             fase = "gewone plugin"
             for naam, image, plugin, test in [("normaal", args.image, args.plugin_map, normale_proef),
                                               ("waarnemer", args.stock_image, args.proef_plugin_map, waarnemersproef)]:

@@ -39,6 +39,20 @@ def test_similar_schema_volgt_ook_geneste_en_recursieve_verwijzingen():
     assert schema("string") != schema("number")
 
 
+def test_kijkreferentie_weigert_ontbrekende_of_verwisselde_hervatpunten(monkeypatch):
+    def kijkdata(positie):
+        return {"Bron": {"Played": True, "IsFavorite": True}, "Alfa": {"Played": True},
+                "Beta": {"PlaybackPositionTicks": positie}}
+
+    data = [kijkdata(p) for p in proef.HERVATPUNTEN]
+    monkeypatch.setattr(proef, "kenmerken", lambda profiel, _ids: data[profiel])
+    assert proef.kijkreferentie(0, 1, {}) == data
+    for posities in [(0, 0), tuple(reversed(proef.HERVATPUNTEN))]:
+        data[:] = [kijkdata(p) for p in posities]
+        with pytest.raises(ValueError, match="afzonderlijke hervatpunten"):
+            proef.kijkreferentie(0, 1, {})
+
+
 def test_alle_acht_runtimeproeven_staan_in_het_register_en_blokkeren_de_sync():
     repo = Path(__file__).resolve().parents[3]
     register = (repo / "docs/platform-v2/UPSTREAM_GEDRAG.md").read_text()
