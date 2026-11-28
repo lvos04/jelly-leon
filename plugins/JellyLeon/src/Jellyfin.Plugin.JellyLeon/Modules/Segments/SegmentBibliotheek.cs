@@ -67,7 +67,7 @@ internal sealed class SegmentBibliotheek(ILibraryManager bibliotheek, IUserManag
 
     public static MountCheck.Uitkomst Mount(IReadOnlyList<string> paden)
     {
-        var uitkomsten = paden.Select(p => MountCheck.Beoordeel(p)).ToArray();
+        var uitkomsten = paden.Select(MountCheck.BeoordeelBibliotheek).ToArray();
         return uitkomsten.Contains(MountCheck.Uitkomst.Schrijfbaar) ? MountCheck.Uitkomst.Schrijfbaar :
             uitkomsten.Length > 0 && uitkomsten.All(u => u == MountCheck.Uitkomst.AlleenLezen) ? MountCheck.Uitkomst.AlleenLezen : MountCheck.Uitkomst.Onbekend;
     }

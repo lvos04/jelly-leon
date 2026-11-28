@@ -67,8 +67,21 @@ bewaart het gevalideerde voorbeeld vijftien minuten voor deze beheerder. De behe
 `POST /media/v1/modules/{slug}/import/apply` met `preview_hash` en een `Idempotency-Key`. Een gewijzigde bundel,
 een verlopen voorbeeld of een andere beheerder krijgt 409. Gewijzigde doelinstellingen vragen een nieuw voorbeeld (412).
 Vóór de eerste schrijfhandeling wordt de eigen module-DB met de migratieprocedure gekopieerd en op integriteit getoetst.
+Bij accountverwijdering past de module dezelfde verwijdering of anonimisering toe in bestaande modulekopieën.
+Andere accounts en handmatige regels blijven in die kopieën beschikbaar.
 
 De bundel herstelt de bewaartermijn van modules met deze instelling. Tellingen van sessies en bevindingen beschrijven
 de bron. Afspeelgeschiedenis, groepsleden, auditregels en sleutels worden niet geïmporteerd. De bestaande persoonlijke
 beheerarchieven van Devices en Quality hebben een eigen SHA-256 voor het wisakkoord. Voor de segmentgegevens bestaat
 de getypeerde segmentbundel met haar eigen voorbeeld en toepassingsroute.
+
+De opstartdienst maakt het installatiezout eenmalig onder UID 568. Lezen, vervangen en verwijderen toetsen de map
+(0700), het geopende bestand (0600) en de eigenaar. Bij onveilige rechten meldt de check `secrets` de reden
+`geheim_niet_beschikbaar`. Bij een andere Custom User blijft de geheimenopslag gesloten. De MediaGuard-koppeling
+gebruikt de Hub. De pluginproef leest bestanden onder dezelfde UID als de testserver en zoekt de synthetische
+geheimwaarden ook in beide soorten export.
+
+Voor de batchplanner telt de hele gekozen bibliotheek mee, inclusief onderliggende koppelingen uit mountinfo.
+De connector volgt ADR-0031 en meldt `media_mount` als `degraded` bij een schrijfbare koppeling. Een onbepaalde
+of schrijfbare koppeling blokkeert de batch. De spoorsleutel gebruikt de containerindex van een ingebed spoor.
+Bij een extern spoor is het ondertitelpad zelf onderdeel van de sleutel (§10.12).

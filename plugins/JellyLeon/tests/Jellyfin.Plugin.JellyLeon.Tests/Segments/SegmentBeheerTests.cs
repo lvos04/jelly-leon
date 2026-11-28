@@ -158,6 +158,9 @@ public sealed class SegmentBeheerTests : IDisposable
         Assert.False(Module.Bevroren);
         Module.VerwerkWezen(new HashSet<Guid> { set[5].ItemId }, _h.Klok.Nu.AddMinutes(5));
         Assert.True(Module.Bevroren);
+        Assert.Equal("degraded", (string?)_h.Dienst<SegmentDienst>().Status()["health"]);
+        var incidenten = _h.Dienst<Jellyfin.Plugin.JellyLeon.Core.Outbox.Outbox>().Lees(0, 200).Events;
+        Assert.Single(incidenten, e => (string?)e["event_type"] == "media.segment_orphans.frozen");
         Assert.Equal(100, Module.Selectie().Count);
         var exp = Module.Exporteer(_bib, _h.Klok.Nu);
         var exportId = exp["export_id"]!.GetValue<Guid>();

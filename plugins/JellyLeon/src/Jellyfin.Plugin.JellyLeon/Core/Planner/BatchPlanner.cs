@@ -96,7 +96,7 @@ internal sealed class BatchPlanner : IHostedService, IDisposable
         // Stil is: de encoder is niet aantoonbaar bereikbaar, een lane staat op pauze of de kijkpauze van MediaGuard loopt.
         var gepauzeerd = mg.EncoderBereikbaar != true || mg.KijkpauzeActief == true || mg.Lanes.Any(l => l.Paused == true);
         var paden = _media.Paden();
-        var uitkomsten = paden.Select(p => MountCheck.Beoordeel(p)).ToList();
+        var uitkomsten = paden.Select(MountCheck.BeoordeelBibliotheek).ToList();
         var media = uitkomsten.Contains(MountCheck.Uitkomst.Schrijfbaar)
             ? MountCheck.Uitkomst.Schrijfbaar
             : uitkomsten.Count > 0 && uitkomsten.All(u => u == MountCheck.Uitkomst.AlleenLezen) ? MountCheck.Uitkomst.AlleenLezen : MountCheck.Uitkomst.Onbekend;

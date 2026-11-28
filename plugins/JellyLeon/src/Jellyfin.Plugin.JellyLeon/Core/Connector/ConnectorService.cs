@@ -233,7 +233,7 @@ internal sealed class ConnectorService
 
     private JsonObject MediaCheck(DateTimeOffset nu)
     {
-        var uitkomsten = _media.Paden().Select(p => MountCheck.Beoordeel(p)).ToList();
+        var uitkomsten = _media.Paden().Select(MountCheck.BeoordeelBibliotheek).ToList();
         var detail = new JsonObject
         {
             ["mappen"] = uitkomsten.Count,

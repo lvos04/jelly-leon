@@ -1,6 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
 using Jellyfin.Plugin.JellyLeon.Core.Media;
+using MediaBrowser.Model.Entities;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
@@ -71,5 +74,53 @@ public sealed class MediaTests
         Assert.NotEqual(extern1, StreamKey.Extern("/media/films/film.nl.srt", 1235, moment));
         Assert.NotEqual(extern1, StreamKey.Extern("/media/films/film.nl.srt", 1234, moment.AddSeconds(1)));
         Assert.NotEqual(extern1, StreamKey.Extern("/media/films/film.en.srt", 1234, moment));
+    }
+
+    [Fact]
+    public void BibliotheekMetSchrijfbareSubmountBlokkeertBatch()
+    {
+        Assert.Equal(MountCheck.Uitkomst.Schrijfbaar, MountCheck.Beoordeel("/media", _mountinfo, inclusiefKinderen: true));
+        Assert.Equal(MountCheck.Uitkomst.AlleenLezen, MountCheck.Beoordeel("/media/films", _mountinfo, inclusiefKinderen: true));
+        Assert.Equal(MountCheck.Uitkomst.Onbekend, MountCheck.Beoordeel("/media", ["31 1 0:1 / /media relatime - tmpfs tmpfs rw"]));
+    }
+
+    [Fact]
+    public void SpoorNaHerscanEnBestandsrename_HoudtZijnVasteJsonSleutel()
+    {
+        var map = Directory.CreateTempSubdirectory("jl-spoor-");
+        try
+        {
+            var pad = Path.Combine(map.FullName, "film.json");
+            File.WriteAllText(pad, """[{"index":0,"titel":"Hoofdspoor"},{"index":2,"titel":"Commentaar van de regisseur"}]""");
+            static StreamKey[] Herscan(string bestand, bool omgekeerd)
+            {
+                using var inzage = JsonDocument.Parse(File.ReadAllBytes(bestand));
+                var sporen = inzage.RootElement.EnumerateArray().ToArray();
+                return (omgekeerd ? sporen.Reverse() : sporen).Select(spoor => new MediaStream
+                    {
+                        Index = spoor.GetProperty("index").GetInt32(), Codec = "aac", Language = "nld",
+                        Channels = 6, Title = spoor.GetProperty("titel").GetString(), Path = bestand,
+                    }).Select(spoor => new StreamKey(StreamKey.Ingebed(spoor.Index, spoor.Codec, spoor.Language, spoor.Channels, spoor.Title))).ToArray();
+            }
+
+            var ondertitel = Path.Combine(map.FullName, "film.nl.srt");
+            File.WriteAllText(ondertitel, "synthetische ondertitel");
+            var externSpoor = new MediaStream { IsExternal = true, Path = ondertitel };
+            var externeSleutel = StreamKey.Extern(externSpoor.Path);
+            var voor = Herscan(pad, false);
+            var hernoemd = Path.Combine(map.FullName, "hernoemd.json");
+            File.Move(pad, hernoemd);
+            var na = Herscan(hernoemd, true);
+            Assert.Equal(voor[1], na[0]);
+            Assert.Equal(externeSleutel, StreamKey.Extern(externSpoor.Path));
+            Assert.Equal("""{"track_key":"emb:2:aac:nld:6:96eae1cf80e1"}""", JsonSerializer.Serialize(na[0]));
+        }
+        finally
+        {
+            map.Delete(true);
+        }
+
+        var tijd = new DateTime(2026, 11, 11, 10, 0, 0, DateTimeKind.Utc);
+        Assert.Equal("ext:3b16f86199b1fe024cfeffedca0c0bfe51ff34e286130bcec8553957d25482fa", StreamKey.Extern("/media/films/film.nl.srt", 1234, tijd));
     }
 }
