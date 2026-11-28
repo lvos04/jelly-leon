@@ -587,6 +587,13 @@ internal static class Regels
     /// eigen schakelaars; het pad ligt vast, zie <see cref="PluginConfigLeden"/>).
     /// </summary>
     public static readonly ImmutableArray<ServerWit> ServerAbiWitteLijst = ImmutableArray.Create(
+#if JL_SIMILAR_PROEF
+        // De lokale waarnemer leest alleen de synthetische selectie en de reden van een bewaargebeurtenis.
+        new ServerWit("MediaBrowser.Controller.Entities.InternalItemsQuery", "Genres", PluginNamespace + ".SimilarProefRegistrator"),
+        new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetItemList", PluginNamespace + ".SimilarProefRegistrator"),
+        new ServerWit("MediaBrowser.Controller.Library.IUserDataManager", "UserDataSaved", PluginNamespace + ".SimilarProefRegistrator"),
+        new ServerWit("MediaBrowser.Controller.Library.UserDataSaveEventArgs", "SaveReason", PluginNamespace + ".SimilarProefRegistrator"),
+#endif
         new ServerWit("MediaBrowser.Controller.Library.SimilarItemsQuery", "User", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
         new ServerWit("MediaBrowser.Controller.Library.SimilarItemsQuery", "Limit", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),
         new ServerWit("MediaBrowser.Controller.Library.SimilarItemsQuery", "DtoOptions", PluginNamespace + ".Modules.Recommendations.SimilarProvider"),

@@ -1,4 +1,7 @@
 <Project>
+  <PropertyGroup Condition="'$(Configuration)' == 'SimilarProef' and '$(MSBuildProjectName)' == 'Jellyfin.Plugin.JellyLeon.Analyzers'">
+    <DefineConstants>$(DefineConstants);JL_SIMILAR_PROEF</DefineConstants>
+  </PropertyGroup>
   <!-- Uitsluitend de expliciete proefbuild krijgt deze waarnemer in dezelfde DLL. -->
   <ItemGroup Condition="'$(Configuration)' == 'SimilarProef' and '$(MSBuildProjectName)' == 'Jellyfin.Plugin.JellyLeon'">
     <Compile Include="$(MSBuildThisFileDirectory)ProefRegistrator.cs" />

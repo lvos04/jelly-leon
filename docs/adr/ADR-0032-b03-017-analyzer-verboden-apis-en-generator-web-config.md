@@ -173,6 +173,10 @@ elke regel in deze tabel staat):
 | `DtoOptions` | `new` | `Modules.Recommendations.SimilarProvider` | Tijdelijke opties voor één leesvraag. |
 | `InternalItemsQuery` | `new` met selectie, sortering en paginagrens | `Modules.Recommendations.SimilarProvider` | De provider vult uitsluitend een nieuw queryobject. |
 | `ILibraryManager` | `GetItemList` | `PluginServiceRegistrator` | Verbindt de leesdelegate van de lokale aanbevelingsprovider met de bibliotheek. |
+| `InternalItemsQuery` | `Genres` | `SimilarProefRegistrator` | Uitsluitend in de bouwconfiguratie SimilarProef om het foutscenario van een synthetische bron te kiezen. |
+| `ILibraryManager` | `GetItemList` | `SimilarProefRegistrator` | In SimilarProef leest de waarnemer dezelfde selectie als de gewone plugin. |
+| `IUserDataManager` | `UserDataSaved` | `SimilarProefRegistrator` | In SimilarProef luistert de waarnemer naar bewaargebeurtenissen op de wegwerpserver. |
+| `UserDataSaveEventArgs` | `SaveReason` | `SimilarProefRegistrator` | In SimilarProef noteert de waarnemer uitsluitend de reden van de gebeurtenis. |
 | `BaseExtensions` | `GetMD5` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
 | `ILibraryManager` | `GetCollectionFolders` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
 | `BaseItem` | `Id` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |

@@ -637,6 +637,30 @@ public class ServerAbiWitteLijstTests
         Assert.Equal(Verwacht(bron), uitkomst.Select(b => (b.Regel, b.Id)).ToHashSet());
     }
 
+    [Fact]
+    public async Task GewoneBouwWeigertDeVierServerledenVanDeSimilarProef()
+    {
+        const string bron = """
+            using MediaBrowser.Controller.Entities;
+            using MediaBrowser.Controller.Library;
+            namespace Jellyfin.Plugin.JellyLeon;
+            public sealed class SimilarProefRegistrator
+            {
+                public void Lees(ILibraryManager bibliotheek, InternalItemsQuery vraag, IUserDataManager gegevens, UserDataSaveEventArgs gebeurtenis)
+                {
+                    _ = vraag.Genres; // JL0001
+                    _ = bibliotheek.GetItemList(vraag, false); // JL0001
+                    gegevens.UserDataSaved += Bewaard; // JL0001
+                    _ = gebeurtenis.SaveReason; // JL0001
+                }
+
+                private static void Bewaard(object? sender, UserDataSaveEventArgs args) { }
+            }
+            """;
+        var uitkomst = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        Assert.Equal(Verwacht(bron), uitkomst.Select(b => (b.Regel, b.Id)).ToHashSet());
+    }
+
     /// <summary>Verwachte (regel, code)-paren: elke JLxxxx na "//" op een regel.</summary>
     private static HashSet<(int Regel, string Id)> Verwacht(string bron) =>
         bron.Split('\n')

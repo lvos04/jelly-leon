@@ -42,7 +42,9 @@ python3 tools/jelly-leon/e2e/similar_proef.py --image "$FORK" --stock-image "$ST
 
 De proefbouw bevat een teller bij de metadatalezing, een lezer die kan falen of twee seconden kan blokkeren, en een
 waarnemer voor de reden van een bewaargebeurtenis. Alleen de expliciete bouwconfiguratie `SimilarProef` neemt deze
-bron op. De productie-image installeert de gewone Release-DLL. Bij upstream-sync herhaalt de CI de volledige
+bron op. De analyzer van de proefbouw staat vier serverleden toe in de waarnemer. De Release-analyzertest
+controleert dat de gewone bouw elk van deze vier toegangen weigert. De productie-image installeert de gewone
+Release-DLL. Bij upstream-sync herhaalt de CI de volledige
 voorraadvergelijking met de nieuwe runtime-digest.
 
 De kwaliteitsmeting en de klassieke aanbevelingsengine horen bij B03-032. Voor de eerdere prestatiebaseline

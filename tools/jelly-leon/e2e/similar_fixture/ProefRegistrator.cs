@@ -11,10 +11,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace JellyLeon.SimilarProef;
+namespace Jellyfin.Plugin.JellyLeon;
 
 /// <summary>Injecteert uitsluitend bij de proefbouw een fout of vertraging aan de bibliotheekgrens.</summary>
-public sealed class ProefRegistrator : IPluginServiceRegistrator
+public sealed class SimilarProefRegistrator : IPluginServiceRegistrator
 {
     /// <inheritdoc />
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
@@ -22,7 +22,7 @@ public sealed class ProefRegistrator : IPluginServiceRegistrator
         serviceCollection.Replace(ServiceDescriptor.Singleton<LeesSimilarMetadata>(sp =>
         {
             var bibliotheek = sp.GetRequiredService<ILibraryManager>();
-            var log = sp.GetRequiredService<ILogger<ProefRegistrator>>();
+            var log = sp.GetRequiredService<ILogger<SimilarProefRegistrator>>();
             return query =>
             {
                 log.LogInformation("F2-PROEF aanroep");
