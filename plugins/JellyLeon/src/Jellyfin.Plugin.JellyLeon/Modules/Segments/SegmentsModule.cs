@@ -31,13 +31,17 @@ internal sealed partial class SegmentsModule : ModuleBasis
     // De meetperiode van de wezenbreker loopt per scan of over het laatste uur.
     private const string Weesvenster = "CREATE TABLE weesmoment(item TEXT PRIMARY KEY, tijd INTEGER NOT NULL);";
     private readonly Core.Outbox.Outbox _outbox;
+    private readonly SecretStore _geheimen;
+    private readonly IModuleSwitches _schakelaars;
     private readonly JlPaths _paden;
     private readonly InternalWriteScope _bestanden;
 
-    public SegmentsModule(JlPaths paden, SecretStore geheimen, Core.Outbox.Outbox outbox)
+    public SegmentsModule(JlPaths paden, SecretStore geheimen, Core.Outbox.Outbox outbox, IModuleSwitches schakelaars)
         : base(paden, ModuleSlug, 365, [Schema, Weesvenster], geheimen, [])
     {
         _outbox = outbox;
+        _geheimen = geheimen;
+        _schakelaars = schakelaars;
         _paden = paden;
         _bestanden = new InternalWriteScope(paden);
     }
@@ -47,12 +51,20 @@ internal sealed partial class SegmentsModule : ModuleBasis
     public override IReadOnlyList<string> JobTypes => [];
     public override IReadOnlyList<string> EventTypes => ["media.segment_orphans.frozen"];
     public override IReadOnlyList<PersoonsgegevenRegel> Persoonsgegevens => [
-        new(ModuleSlug, "audit", "sessiepseudoniem van beheerder", "publicatie en wezenbeheer verantwoorden", "365 dagen")];
+        new(ModuleSlug, "audit", "sessiepseudoniem van beheerder", "publicatie en wezenbeheer verantwoorden", "365 dagen", "actor pseudonimiseren en de beheeractie behouden"),
+        new(ModuleSlug, "configuratie", "account-ID van segmentredacteur", "recht op segmentbewerking verlenen", "tot intrekking of accountverwijdering", "account uit de redacteurenlijst wissen")];
 
     public override IReadOnlyList<JsonObject> Items(string type, DateTimeOffset nu) => [];
-    // De audit gebruikt uitsluitend het bestaande sessiepseudoniem. Het formaat draagt geen account-ID.
-    public override int VerwijderGebruiker(Guid gebruiker) => 0;
-    public override int TelGebruiker(Guid gebruiker) => 0;
+    public override int VerwijderGebruiker(Guid gebruiker)
+    {
+        _schakelaars.VerwijderSegmentEditor(gebruiker);
+        return !Db.Bestaat ? 0 : Db.Met(v => JlDatabase.Voer(v, "UPDATE audit SET actor='verwijderd' WHERE actor=$a",
+            ("$a", "session:" + _geheimen.AccountPseudoniem(gebruiker))));
+    }
+
+    public override int TelGebruiker(Guid gebruiker) => (_schakelaars.IsSegmentEditor(gebruiker) ? 1 : 0)
+        + (!Db.Bestaat ? 0 : (int)Db.Met(v => JlDatabase.Getal(v, "SELECT count(*) FROM audit WHERE actor=$a",
+            ("$a", "session:" + _geheimen.AccountPseudoniem(gebruiker)))));
     public override JsonObject Status(DateTimeOffset nu) => new() { ["module"] = Slug, ["orphans"] = Wezen(null) };
 
     internal static string Id(Guid? id) => id?.ToString("N") ?? string.Empty;

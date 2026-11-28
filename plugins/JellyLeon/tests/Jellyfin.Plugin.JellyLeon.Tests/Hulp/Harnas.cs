@@ -54,6 +54,8 @@ internal sealed class NepSchakelaars : IModuleSwitches
 
     public void VerwijderGast(Guid gebruiker) => Gasten.Remove(gebruiker);
 
+    public void VerwijderSegmentEditor(Guid gebruiker) => Editors.Remove(gebruiker);
+
     public bool IsAan(string slug) => _stand.GetValueOrDefault(slug);
 
     public HashSet<Guid> Editors { get; } = [];

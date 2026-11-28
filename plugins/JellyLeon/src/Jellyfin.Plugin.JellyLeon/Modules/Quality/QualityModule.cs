@@ -50,7 +50,9 @@ internal sealed class QualityModule : ModuleBasis
 
     public override IReadOnlyList<PersoonsgegevenRegel> Persoonsgegevens { get; } =
     [
-        new(ModuleSlug, "suppressions", "account-ID van wie een bevinding heeft onderdrukt", "herleidbaarheid van onderdrukte bevindingen", "tot het account is verwijderd"),
+        new(ModuleSlug, "suppressions", "account-ID van wie een bevinding heeft onderdrukt", "handmatige onderdrukking toepassen en verantwoorden",
+            "regel blijft bewaard, auteur tot accountverwijdering",
+            "auteur pseudonimiseren, de onderdrukking behouden en een lokale beheerexport met diens pseudoniem intrekken"),
     ];
 
     /// <summary>De ondoorzichtige verwijzing naar een bibliotheekitem (niet terug te rekenen).</summary>
@@ -128,7 +130,7 @@ internal sealed class QualityModule : ModuleBasis
     }
 
     public override int VerwijderGebruiker(Guid gebruiker) =>
-        Db.Met(v => JlDatabase.Voer(v, "DELETE FROM suppressions WHERE gebruiker = $g", ("$g", gebruiker.ToString("N"))));
+        Db.VerwijderModuleGebruiker(Gegevensbeheer, gebruiker, "UPDATE suppressions SET gebruiker='verwijderd' WHERE gebruiker=$g");
 
     public override int TelGebruiker(Guid gebruiker) =>
         (int)Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM suppressions WHERE gebruiker = $g", ("$g", gebruiker.ToString("N"))));

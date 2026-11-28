@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 namespace Jellyfin.Plugin.JellyLeon.Core.Modules;
 
 /// <summary>Eén regel van het register van persoonsgegevens (plan §10.9).</summary>
-internal sealed record PersoonsgegevenRegel(string Module, string Tabel, string Gegeven, string Doel, string Bewaartermijn);
+internal sealed record PersoonsgegevenRegel(string Module, string Tabel, string Gegeven, string Doel, string Bewaartermijn, string BijVerwijderen);
 
 /// <summary>
 /// Een module van de ene plugin (ADR-0016): eigen schakelaar, eigen SQLite-bestand, eigen routes, itemtypes, events

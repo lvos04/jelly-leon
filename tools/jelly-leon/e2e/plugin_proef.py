@@ -1152,6 +1152,7 @@ def main(argv: list[str] | None = None) -> int:
         plugin.lichaamsgrens()
 
         data = b.config / "data" / "jelly-leon"
+        cache = b.map / "cache" / "jelly-leon"
         zout_pad = data / "secrets" / "opaque-id.salt"
         gemeten: dict[str, Any] = {}
 
@@ -1166,7 +1167,7 @@ def main(argv: list[str] | None = None) -> int:
             gemeten.update({"id": weg.id, "zout": zout, "naalden": {**pl.guid_vormen(weg.id), "pseudoniem": pseudoniem.encode()}})
             wt_zout = (data / "secrets" / "wt-hmac.key").read_bytes()
             gemeten["naalden"]["watch-eigenaar"] = hmac.new(wt_zout, uuid.UUID(weg.id).bytes_le, hashlib.sha256).hexdigest().encode()
-            voor = pl.ruwe_treffers(data, gemeten["naalden"])
+            voor = pl.gebruikerssporen(data, cache, gemeten["naalden"])
             v.test("JLT-65", "controle vooraf: account-ID en pseudoniem staan in de plugindata",
                    status == 200 and "N" in voor and "pseudoniem" in voor and "watch-eigenaar" in voor,
                    f"PUT → HTTP {status}; gevonden vormen: { {n: p for n, p in voor.items()} }")
@@ -1184,12 +1185,12 @@ def main(argv: list[str] | None = None) -> int:
         na: dict[str, list[str]] = {"nog": ["niet gemeten"]}
         einde = time.monotonic() + 20
         while time.monotonic() < einde and na:
-            na = pl.ruwe_treffers(data, gemeten.get("naalden", {})) if gemeten else na
+            na = pl.gebruikerssporen(data, cache, gemeten.get("naalden", {})) if gemeten else na
             if na:
                 time.sleep(0.5)
         v.test("JLT-65", "na UserDeleted 0 treffers op het account-ID (alle schrijfwijzen) en het pseudoniem", bool(gemeten) and not na,
-               f"{len(gemeten.get('naalden', {}))} schrijfwijzen in {len(pl.boom(data))} bestanden onder data/jelly-leon; treffers: {na}")
-        blijft = pl.ruwe_treffers(data, {"pseudoniem beheerder": ("o_" + hmac.new(
+               f"{len(gemeten.get('naalden', {}))} schrijfwijzen in plugindata en featurecache; treffers: {na}")
+        blijft = pl.gebruikerssporen(data, cache, {"pseudoniem beheerder": ("o_" + hmac.new(
             gemeten.get("zout", b""), b"user\n" + uuid.UUID(beheer.id).hex.encode(), hashlib.sha256).digest()[:16].hex()).encode()})
         v.test("JLT-65", "gegevens van de overige gebruikers blijven staan", "pseudoniem beheerder" in blijft, f"{blijft}")
         status, register, _ = plugin.sessie_vraag(beheer, "GET", "/media/v1/privacy/register")

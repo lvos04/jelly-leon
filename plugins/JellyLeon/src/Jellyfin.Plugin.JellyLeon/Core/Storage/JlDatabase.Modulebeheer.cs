@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
@@ -15,15 +16,54 @@ internal sealed partial class JlDatabase
 {
     private static readonly TimeSpan _maxExportleeftijd = TimeSpan.FromHours(24);
 
+    // De laatste beheerexport is een lokale kopie voor de wisbevestiging. Ook na het verlopen van de
+    // bronrij kan die kopie het exportpseudoniem nog bevatten. Dezelfde schrijftransactie ordent export en wissen.
+    public int VerwijderModuleGebruiker(ModuleGegevensbeheer module, Guid gebruiker, string sql) => Transactioneel(v =>
+    {
+        var pad = ModuleExportPad(module);
+        var account = gebruiker.ToString("N");
+        var aantal = Voer(v, sql, ("$g", account));
+        using var export = OpenExport(pad);
+        if (export is not null && BevatExportPseudoniem(export, module.ExportGebruiker(account)))
+        {
+            _bestanden.Verwijder(pad);
+        }
+
+        return aantal;
+    });
+
+    private static bool BevatExportPseudoniem(Stream export, string pseudoniem)
+    {
+        var naald = Encoding.ASCII.GetBytes(pseudoniem);
+        Span<byte> blok = stackalloc byte[8192];
+        var rest = 0;
+        int gelezen;
+        while ((gelezen = export.Read(blok[rest..])) > 0)
+        {
+            var inhoud = blok[..(rest + gelezen)];
+            if (inhoud.IndexOf(naald) >= 0)
+            {
+                return true;
+            }
+
+            rest = Math.Min(inhoud.Length, naald.Length - 1);
+            inhoud[^rest..].CopyTo(blok);
+        }
+
+        return false;
+    }
+
     public (Stream Inhoud, string Sha256) MaakModuleExport(ModuleGegevensbeheer module, TimeProvider klok) => Met(v =>
     {
         var exportPad = ModuleExportPad(module);
         using var transactie = v.BeginTransaction(deferred: false);
+        var nu = klok.GetUtcNow();
+        module.VoorExport?.Invoke(v, nu);
         using var verwacht = SHA256.Create();
         _bestanden.SchrijfAtomisch(exportPad, doel =>
         {
             using var inhoud = new CryptoStream(doel, verwacht, CryptoStreamMode.Write, leaveOpen: true);
-            SchrijfExport(module, v, inhoud, klok.GetUtcNow());
+            SchrijfExport(module, v, inhoud, nu);
         });
 
         var export = OpenExport(exportPad) ?? throw Fouten.OpslagOnbeschikbaar();

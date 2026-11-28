@@ -272,10 +272,10 @@ internal static partial class OpenApiBouwer
         "properties": { "enabled": { "type": "boolean" } }
       },
       "PrivacyRegel": {
-        "type": "object", "additionalProperties": false, "required": ["module", "tabel", "gegeven", "doel", "bewaartermijn"],
+        "type": "object", "additionalProperties": false, "required": ["module", "tabel", "gegeven", "doel", "bewaartermijn", "bij_verwijderen"],
         "properties": {
           "module": { "type": "string" }, "tabel": { "type": "string" }, "gegeven": { "type": "string" },
-          "doel": { "type": "string" }, "bewaartermijn": { "type": "string" }
+          "doel": { "type": "string" }, "bewaartermijn": { "type": "string" }, "bij_verwijderen": { "type": "string" }
         }
       },
       "PrivacyRegister": {

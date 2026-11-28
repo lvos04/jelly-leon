@@ -19,7 +19,7 @@ internal sealed class RecommendationsModule : ModuleOverdracht, IJellyLeonModule
     public IReadOnlyList<string> JobTypes => [];
 
     public IReadOnlyList<PersoonsgegevenRegel> Persoonsgegevens =>
-        [new(Slug, "werkgeheugen", "gebruikersgebonden bibliotheekselectie", "alleen zichtbare aanbevelingen zoeken", "gedurende de aanvraag")];
+        [new(Slug, "werkgeheugen", "gebruikersgebonden bibliotheekselectie", "alleen zichtbare aanbevelingen zoeken", "gedurende de aanvraag", "selectie vervalt aan het einde van de aanvraag")];
 
     public IReadOnlyList<JsonObject> Items(string type, DateTimeOffset nu) => [];
 

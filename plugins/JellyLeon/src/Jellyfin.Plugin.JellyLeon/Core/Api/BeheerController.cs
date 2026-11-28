@@ -196,6 +196,7 @@ public sealed class BeheerController : ControllerBase
             ["gegeven"] = r.Gegeven,
             ["doel"] = r.Doel,
             ["bewaartermijn"] = r.Bewaartermijn,
+            ["bij_verwijderen"] = r.BijVerwijderen,
         }).ToArray();
         return JlResult.Ok(new JsonObject { ["items"] = new JsonArray(regels) });
     }

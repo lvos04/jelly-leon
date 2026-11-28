@@ -20,12 +20,13 @@ internal abstract class ModuleBasis : ModuleOverdracht, IJellyLeonModule
     private const string InstellingenTabel =
         "CREATE TABLE instellingen(id INTEGER PRIMARY KEY CHECK(id = 1), bewaar_dagen INTEGER NOT NULL, versie INTEGER NOT NULL);";
 
-    protected ModuleBasis(JlPaths paden, string slug, int standaardBewaarDagen, IEnumerable<string> migraties, SecretStore geheimen, ModuleTabel[] tabellen)
+    protected ModuleBasis(JlPaths paden, string slug, int standaardBewaarDagen, IEnumerable<string> migraties, SecretStore geheimen,
+        ModuleTabel[] tabellen, Action<SqliteConnection, DateTimeOffset>? voorExport = null)
     {
         Slug = slug;
         StandaardBewaarDagen = standaardBewaarDagen;
         Db = new JlDatabase(paden, paden.ModuleDb(slug), [InstellingenTabel, .. migraties]);
-        Gegevensbeheer = new ModuleGegevensbeheer(Db, paden, slug, geheimen, tabellen);
+        Gegevensbeheer = new ModuleGegevensbeheer(Db, paden, slug, geheimen, tabellen, voorExport);
     }
 
     public override string Slug { get; }

@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Secrets;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
+using Microsoft.Data.Sqlite;
 
 namespace Jellyfin.Plugin.JellyLeon.Modules.Devices;
 
@@ -17,6 +18,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Devices;
 internal sealed class DevicesModule : ModuleBasis
 {
     public const string ModuleSlug = "devices";
+    private const int StandaardDagen = 30;
     private static readonly string[] _migraties =
     [
         "CREATE TABLE playback_sessions(sessie TEXT NOT NULL, gebruiker TEXT NOT NULL, apparaat TEXT NOT NULL, methode TEXT NOT NULL, "
@@ -28,8 +30,8 @@ internal sealed class DevicesModule : ModuleBasis
     private readonly Core.Outbox.Outbox _outbox;
 
     public DevicesModule(JlPaths paden, SecretStore geheimen, Core.Outbox.Outbox outbox)
-        : base(paden, ModuleSlug, 30, _migraties, geheimen,
-            [new("playback_sessions", "sessie", "gebruiker", "apparaat", "methode", "hardware", "gestart", "gestopt")])
+        : base(paden, ModuleSlug, StandaardDagen, _migraties, geheimen,
+            [new("playback_sessions", "sessie", "gebruiker", "apparaat", "methode", "hardware", "gestart", "gestopt")], RuimVerlopenSessiesOp)
     {
         _geheimen = geheimen;
         _outbox = outbox;
@@ -45,7 +47,9 @@ internal sealed class DevicesModule : ModuleBasis
 
     public override IReadOnlyList<PersoonsgegevenRegel> Persoonsgegevens { get; } =
     [
-        new(ModuleSlug, "playback_sessions", "account-ID, pseudoniem van apparaat en sessie, afspeelmethode, begin en eind", "afspeelstatistiek en diagnose per apparaat", "instelbaar, standaard 30 dagen"),
+        new(ModuleSlug, "playback_sessions", "account-ID, pseudoniem van apparaat en sessie, afspeelmethode, begin en eind",
+            "afspeelstatistiek en diagnose per apparaat", "instelbaar, standaard 30 dagen",
+            "afspeelrijen van het account wissen en een lokale beheerexport met diens pseudoniem intrekken"),
     ];
 
     /// <summary>Legt het begin van een afspeelsessie vast. Methode: direct_play, direct_stream of transcode.</summary>
@@ -53,10 +57,9 @@ internal sealed class DevicesModule : ModuleBasis
     {
         var sessie = "o_" + _geheimen.OpaakId("sessie", sessieId);
         var apparaat = "o_" + _geheimen.OpaakId("apparaat", apparaatId);
-        var grens = nu.ToUnixTimeSeconds() - (BewaarDagen() * 86400L);
         var nieuw = Db.Met(v =>
         {
-            JlDatabase.Voer(v, "DELETE FROM playback_sessions WHERE gestart < $g", ("$g", grens));
+            RuimVerlopenSessiesOp(v, nu);
             var rijen = 0;
             foreach (var gebruiker in gebruikers)
             {
@@ -124,7 +127,20 @@ internal sealed class DevicesModule : ModuleBasis
     }
 
     public override int VerwijderGebruiker(Guid gebruiker) =>
-        Db.Met(v => JlDatabase.Voer(v, "DELETE FROM playback_sessions WHERE gebruiker = $g", ("$g", gebruiker.ToString("N"))));
+        Db.VerwijderModuleGebruiker(Gegevensbeheer, gebruiker, "DELETE FROM playback_sessions WHERE gebruiker=$g");
+
+    public void RuimVerlopenSessiesOp(DateTimeOffset nu)
+    {
+        if (Db.Bestaat)
+        {
+            Db.Met(v => RuimVerlopenSessiesOp(v, nu));
+        }
+    }
+
+    private static void RuimVerlopenSessiesOp(SqliteConnection v, DateTimeOffset nu) => JlDatabase.Voer(v, """
+        DELETE FROM playback_sessions
+        WHERE gestart < $nu - 86400 * COALESCE((SELECT bewaar_dagen FROM instellingen WHERE id=1), $standaard)
+        """, ("$nu", nu.ToUnixTimeSeconds()), ("$standaard", StandaardDagen));
 
     public override int TelGebruiker(Guid gebruiker) =>
         (int)Db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM playback_sessions WHERE gebruiker = $g", ("$g", gebruiker.ToString("N"))));

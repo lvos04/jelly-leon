@@ -50,8 +50,8 @@ internal sealed class WatchTogetherModule : ModuleOverdracht, IJellyLeonModule
     public IReadOnlyList<string> JobTypes => [];
     public IReadOnlyList<PersoonsgegevenRegel> Persoonsgegevens =>
         [
-            new(Slug, "wt_group_meta", "HMAC van eigenaar-ID", "Eigenaarschap van een SyncPlay-groep", "Standaard 6 uur na einde, bij UserDeleted direct losgekoppeld"),
-            new(Slug, "configuratie", "GuestUserIds", "Gastinstelling voor de zelftest", "Tot verwijdering van instelling of account"),
+            new(Slug, "wt_group_meta", "HMAC van eigenaar-ID", "Eigenaarschap van een SyncPlay-groep", "Standaard 6 uur na einde", "verwijzing naar de eigenaar wissen"),
+            new(Slug, "configuratie", "GuestUserIds", "Gastinstelling voor de zelftest", "Tot verwijdering van instelling of account", "account uit de gastenlijst wissen"),
         ];
 
     public IReadOnlyList<JsonObject> Items(string type, DateTimeOffset nu) => [];

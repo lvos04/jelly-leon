@@ -32,20 +32,24 @@ internal sealed class PrivacyService
     {
         var regels = new List<PersoonsgegevenRegel>
         {
-            new("core", "idempotentie", "pseudoniem van het account (HMAC, niet terug te rekenen)", "herhaalde wijzigingen herkennen", "24 uur"),
-            new("core", "kinderprofielen", "accountpseudoniem en profielstatus", "kinderregels toepassen en de beheerkeuze bewaren", "tot het account wordt verwijderd"),
+            new("core", "idempotentie", "sessiepseudoniem", "herhaalde wijzigingen herkennen", "24 uur", "verzoeken van het account wissen"),
+            new("core", "kinderprofielen", "accountpseudoniem en profielstatus", "kinderregels toepassen en de beheerkeuze bewaren", "tot het account wordt verwijderd", "profielrij wissen"),
+            new("core", "outbox", "accountpseudoniem als actor van een gebeurtenis", "gebeurtenissen aan de Hub leveren", "30 dagen", "actor pseudonimiseren en de gebeurtenis behouden"),
+            new("core", "hub_jti", "verzoekkenmerk zonder account-ID", "herhaling van Hub-verzoeken weigeren", "tot het token verloopt plus 30 seconden klokmarge", "herhaalbeveiliging behouden tot de termijn verstrijkt"),
         };
         regels.AddRange(_modules.Alle.SelectMany(m => m.Persoonsgegevens));
         return regels;
     }
 
-    public string Pseudoniem(Guid gebruiker) => "o_" + _geheimen.OpaakId("user", gebruiker.ToString("N"));
+    public string Pseudoniem(Guid gebruiker) => _geheimen.AccountPseudoniem(gebruiker);
 
     public int VerwijderGebruiker(Guid gebruiker)
     {
         var pseudoniem = Pseudoniem(gebruiker);
         var verwijderd = _core.Kinderprofielen.Met(v => JlDatabase.Voer(v, "DELETE FROM kinderprofielen WHERE account=$p", ("$p", pseudoniem)));
-        verwijderd += _core.Db.Met(v => JlDatabase.Voer(v, "DELETE FROM idempotentie WHERE scope LIKE $p || '%'", ("$p", "session:" + pseudoniem)));
+        verwijderd += _core.Db.Transactioneel(v =>
+            JlDatabase.Voer(v, "DELETE FROM idempotentie WHERE instr(scope, $begin) = 1", ("$begin", "session:" + pseudoniem + "\n"))
+            + JlDatabase.Voer(v, "UPDATE outbox SET json=json_set(json, '$.actor.id', 'verwijderd') WHERE json_extract(json, '$.actor.id')=$p", ("$p", pseudoniem)));
         foreach (var module in _modules.Alle)
         {
             verwijderd += module.VerwijderGebruiker(gebruiker);
@@ -67,6 +71,10 @@ internal sealed class PrivacyService
     {
         var pseudoniem = Pseudoniem(gebruiker);
         return (int)_core.Kinderprofielen.Met(v => JlDatabase.Getal(v, "SELECT count(*) FROM kinderprofielen WHERE account=$p", ("$p", pseudoniem)))
+            + (int)_core.Db.Met(v => JlDatabase.Getal(v, """
+                SELECT (SELECT count(*) FROM idempotentie WHERE instr(scope, $begin) = 1)
+                     + (SELECT count(*) FROM outbox WHERE json_extract(json, '$.actor.id')=$p)
+                """, ("$begin", "session:" + pseudoniem + "\n"), ("$p", pseudoniem)))
             + _modules.Alle.Sum(m => m.TelGebruiker(gebruiker));
     }
 }

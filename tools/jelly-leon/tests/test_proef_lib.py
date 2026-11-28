@@ -148,6 +148,19 @@ def test_boom_en_ruwe_treffers(tmp_path: Path) -> None:
     assert pl.IPV4.search("adres 192.0.2.20 hier") and not pl.IPV4.search("2026-11-11T10:00:00.123Z 12.4.0-jl.0")
 
 
+def test_gebruikerssporen_vindt_dezelfde_guid_in_wal_en_featurecache(tmp_path: Path) -> None:
+    data, cache = tmp_path / "data", tmp_path / "cache"
+    data.mkdir()
+    (cache / "features").mkdir(parents=True)
+    vormen = pl.guid_vormen("abcdef01-abcd-4bcd-abcd-abcdef012345")
+    (data / "proef.db-wal").write_bytes(vormen["N-hoofdletters"])
+    (cache / "features" / "proef.db-shm").write_bytes(vormen["N-hoofdletters"] + vormen["bytes"])
+    assert pl.gebruikerssporen(data, cache, vormen) == {
+        "N-hoofdletters": ["data/proef.db-wal", "cache/features/proef.db-shm"],
+        "bytes": ["cache/features/proef.db-shm"],
+    }
+
+
 def test_log_handtekeningen() -> None:
     a = (
         '[08:09:35] [INF] [12] Emby.Server.Implementations.Session.SessionManager: Logging out access token "tok-a1"\n'

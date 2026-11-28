@@ -90,6 +90,8 @@ internal sealed class SecretStore
         return Convert.ToHexStringLower(mac.AsSpan(0, 16));
     }
 
+    public string AccountPseudoniem(Guid gebruiker) => "o_" + OpaakId("user", gebruiker.ToString("N"));
+
     private string Pad(string naam)
     {
         if (naam.Length == 0 || naam.AsSpan().IndexOfAny('/', '\\') >= 0 || naam.StartsWith('.'))

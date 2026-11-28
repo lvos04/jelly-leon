@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -14,6 +15,7 @@ using Jellyfin.Plugin.JellyLeon.Configuration;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Privacy;
+using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Modules.Devices;
 using Jellyfin.Plugin.JellyLeon.Modules.Quality;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
@@ -24,7 +26,7 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
 
 /// <summary>Eén IsKid, één UserDeleted-afhandeling voor alle modules, en geheimen die nergens meereizen.</summary>
-public sealed class PrivacyTests : IDisposable
+public sealed partial class PrivacyTests : IDisposable
 {
     private readonly Harnas _h = new();
 
@@ -126,7 +128,7 @@ public sealed class PrivacyTests : IDisposable
         Assert.Equal(200, gewijzigd.Status);
 
         var privacy = _h.Dienst<PrivacyService>();
-        Assert.Equal(4, privacy.TelGebruiker(weg.Id));
+        Assert.Equal(5, privacy.TelGebruiker(weg.Id));
         Assert.Contains("kinderprofielen.db:kinderprofielen", Vindplaatsen(weg.Id));
         Assert.NotEmpty(Vindplaatsen(weg.Id));
         Assert.NotEmpty(RuweVindplaatsen(weg.Id));
@@ -163,7 +165,41 @@ public sealed class PrivacyTests : IDisposable
         {
             Assert.False(string.IsNullOrWhiteSpace(r!["doel"]!.GetValue<string>()));
             Assert.False(string.IsNullOrWhiteSpace(r["bewaartermijn"]!.GetValue<string>()));
+            Assert.False(string.IsNullOrWhiteSpace(r["bij_verwijderen"]!.GetValue<string>()));
         });
+
+        var geregistreerd = regels.Select(r => ((string)r!["module"]!, (string)r["tabel"]!)).ToHashSet();
+        var kern = _h.Dienst<CoreDatabase>();
+        kern.Db.Met(v => JlDatabase.Getal(v, "SELECT 1"));
+        kern.Kinderprofielen.Met(v => JlDatabase.Getal(v, "SELECT 1"));
+        foreach (var module in _h.Dienst<ModuleRegistry>().Alle)
+        {
+            module.ControleerOpslag();
+        }
+
+        // Nieuwe tabellen vereisen een beoordeling, ook als het account in JSON of een samengestelde sleutel staat.
+        (string, string)[] zonderAccount = [
+            ("core", "jobs"),
+            ("devices", "instellingen"),
+            ("quality", "instellingen"), ("quality", "findings"), ("quality", "scans"),
+            ("segments", "instellingen"), ("segments", "items"), ("segments", "scope"), ("segments", "beheer"),
+            ("segments", "exports"), ("segments", "weesmoment")];
+        var data = _h.Dienst<JlPaths>().DataRoot;
+        foreach (var bestand in Directory.GetFiles(data, "*.db", SearchOption.AllDirectories))
+        {
+            var module = Directory.GetParent(bestand)!.Name;
+            using var v = OpenTestDb(bestand, SqliteOpenMode.ReadOnly);
+            foreach (var rij in JlDatabase.Rijen(v, "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT GLOB 'sqlite_*'"))
+            {
+                var tabel = (string)rij[0]!;
+                var kolommen = JlDatabase.Rijen(v, "SELECT lower(replace(name, '_', '')) FROM pragma_table_info($t)", ("$t", tabel));
+                var accountkolom = kolommen.Any(k => (string)k[0]! is "userid" or "accountid" or "gebruikerid" or "gebruiker" or "account" or "actor" or "owner");
+                if (accountkolom || !zonderAccount.Contains((module, tabel)))
+                {
+                    Assert.Contains((module, tabel), geregistreerd);
+                }
+            }
+        }
     }
 
     [Fact]
@@ -249,14 +285,28 @@ public sealed class PrivacyTests : IDisposable
         }
     }
 
-    /// <summary>Zoekt de account-ID (beide schrijfwijzen en het pseudoniem) in elke tabel van elke eigen database.</summary>
+    private static SqliteConnection OpenTestDb(string pad, SqliteOpenMode modus = SqliteOpenMode.ReadWriteCreate)
+    {
+        var verbinding = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = pad, Mode = modus, Pooling = false }.ToString());
+        verbinding.Open();
+        return verbinding;
+    }
+
+    /// <summary>Doorzoekt plugindata en -cache als bytes, met inbegrip van SQLite-zijbestanden.</summary>
     private List<string> RuweVindplaatsen(Guid gebruiker)
     {
-        var naalden = new[] { gebruiker.ToString("N"), gebruiker.ToString("D"), _h.Dienst<PrivacyService>().Pseudoniem(gebruiker) }
-            .Select(System.Text.Encoding.ASCII.GetBytes)
+        var vormen = new[] { gebruiker.ToString("N"), gebruiker.ToString("D") };
+        var naalden = vormen.Concat(vormen.Select(s => s.ToUpperInvariant()))
+            .Append(_h.Dienst<PrivacyService>().Pseudoniem(gebruiker))
+            .Append(_h.Dienst<DevicesModule>().Gegevensbeheer.ExportGebruiker(vormen[0]))
+            .Append(_h.Dienst<QualityModule>().Gegevensbeheer.ExportGebruiker(vormen[0]))
+            .Select(Encoding.ASCII.GetBytes)
+            .Append(gebruiker.ToByteArray()).Append(gebruiker.ToByteArray(bigEndian: true))
             .ToList();
+        var paden = _h.Dienst<JlPaths>();
+        var mappen = new[] { paden.DataRoot, paden.CacheRoot }.Where(Directory.Exists);
         var gevonden = new List<string>();
-        foreach (var bestand in Directory.GetFiles(Path.Combine(_h.Map, "data", "jelly-leon"), "*", SearchOption.AllDirectories))
+        foreach (var bestand in mappen.SelectMany(map => Directory.GetFiles(map, "*", SearchOption.AllDirectories)))
         {
             byte[] inhoud;
             using (var stroom = new FileStream(bestand, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))

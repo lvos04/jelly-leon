@@ -13,8 +13,8 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyLeon.Modules.Devices;
 
 /// <summary>
-/// Luistert naar de officiële sessiegebeurtenissen van de server (alleen lezen). Staat de module uit, dan gebeurt
-/// er niets. Een fout hier mag het afspelen nooit raken en wordt daarom alleen gelogd.
+/// Leest sessiegebeurtenissen bij een ingeschakelde module. Ook na uitschakeling verloopt de bewaartermijn van
+/// bestaande sessierijen. Een opslagfout bij het opruimen of registreren wordt gelogd.
 /// </summary>
 internal sealed class DevicesListener : IHostedService
 {
@@ -23,6 +23,7 @@ internal sealed class DevicesListener : IHostedService
     private readonly ModuleRegistry _modules;
     private readonly TimeProvider _klok;
     private readonly ILogger<DevicesListener> _log;
+    private ITimer? _opruimer;
 
     public DevicesListener(ISessionManager sessies, DevicesModule module, ModuleRegistry modules, TimeProvider klok, ILogger<DevicesListener> log)
     {
@@ -44,14 +45,31 @@ internal sealed class DevicesListener : IHostedService
     {
         _sessies.PlaybackStart += BijStart;
         _sessies.PlaybackStopped += BijStop;
+        _opruimer = _klok.CreateTimer(RuimOp, null, TimeSpan.Zero, TimeSpan.FromHours(1));
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         _sessies.PlaybackStart -= BijStart;
         _sessies.PlaybackStopped -= BijStop;
-        return Task.CompletedTask;
+        if (_opruimer is { } timer)
+        {
+            await timer.DisposeAsync().ConfigureAwait(false);
+            _opruimer = null;
+        }
+    }
+
+    private void RuimOp(object? state)
+    {
+        try
+        {
+            _module.RuimVerlopenSessiesOp(_klok.GetUtcNow());
+        }
+        catch (JlException fout)
+        {
+            _log.LogWarning("Jelly Leon Devices: verlopen sessies niet opgeruimd ({Code}).", fout.Code);
+        }
     }
 
     private void BijStart(object? sender, PlaybackProgressEventArgs e)

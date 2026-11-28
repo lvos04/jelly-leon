@@ -21,6 +21,8 @@ internal interface IModuleSwitches
 
     void VerwijderGast(Guid gebruiker);
 
+    void VerwijderSegmentEditor(Guid gebruiker);
+
     bool IsAan(string slug);
 
     bool IsSegmentEditor(Guid gebruiker) => false;
@@ -76,21 +78,27 @@ internal sealed class PluginModuleSwitches : IModuleSwitches
 
     public int GroepBewaarUren => Math.Clamp(Config?.WatchTogether?.GroupRetentionHours ?? 6, 1, 24 * 365);
 
-    public void VerwijderGast(Guid gebruiker)
+    public void VerwijderGast(Guid gebruiker) => VerwijderUitLijst(gebruiker,
+        c => c.WatchTogether?.GuestUserIds, (c, ids) => c.WatchTogether.GuestUserIds = ids);
+
+    public void VerwijderSegmentEditor(Guid gebruiker) => VerwijderUitLijst(gebruiker,
+        c => c.SegmentEditors, (c, ids) => c.SegmentEditors = ids);
+
+    private void VerwijderUitLijst(Guid gebruiker, Func<PluginConfiguration, Guid[]?> lees, Action<PluginConfiguration, Guid[]> zet)
     {
         lock (_configSlot)
         {
             var config = Config ?? throw Fouten.OpslagOnbeschikbaar();
-            if (Plugin.Instance is { } plugin && config.WatchTogether?.GuestUserIds is { } gasten && gasten.Contains(gebruiker))
+            if (Plugin.Instance is { } plugin && lees(config) is { } ids && ids.Contains(gebruiker))
             {
-                config.WatchTogether.GuestUserIds = Array.FindAll(gasten, g => g != gebruiker);
+                zet(config, Array.FindAll(ids, id => id != gebruiker));
                 try
                 {
                     SlaOp(plugin);
                 }
                 catch
                 {
-                    config.WatchTogether.GuestUserIds = gasten;
+                    zet(config, ids);
                     throw;
                 }
             }

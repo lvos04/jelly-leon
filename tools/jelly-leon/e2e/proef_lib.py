@@ -233,11 +233,20 @@ def ruwe_treffers(wortel: Path, naalden: dict[str, bytes], overslaan: tuple[str,
             continue
         try:
             inhoud = pad.read_bytes()
-        except OSError:
+        except FileNotFoundError:  # Een SQLite-zijbestand kan tussen de opsomming en het lezen verdwijnen.
             continue
         for naam, naald in naalden.items():
             if naald and naald in inhoud:
                 uit.setdefault(naam, []).append(relatief)
+    return uit
+
+
+def gebruikerssporen(data: Path, cache: Path, naalden: dict[str, bytes]) -> dict[str, list[str]]:
+    """Zoekt dezelfde accountverwijzingen in plugindata en featurecache, inclusief SQLite-zijbestanden."""
+    uit: dict[str, list[str]] = {}
+    for naam, map_ in (("data", data), ("cache", cache)):
+        for vorm, paden in ruwe_treffers(map_, naalden).items():
+            uit.setdefault(vorm, []).extend(f"{naam}/{pad}" for pad in paden)
     return uit
 
 

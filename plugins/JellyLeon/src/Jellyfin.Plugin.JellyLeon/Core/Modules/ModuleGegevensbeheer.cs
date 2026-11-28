@@ -6,6 +6,7 @@ using System.Threading;
 using Jellyfin.Plugin.JellyLeon.Core.Idempotency;
 using Jellyfin.Plugin.JellyLeon.Core.Secrets;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
+using Microsoft.Data.Sqlite;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Modules;
 
@@ -19,7 +20,8 @@ internal sealed class ModuleGegevensbeheer
     private readonly SecretStore _geheimen;
     private readonly Lazy<IdempotencyStore> _herhalingen;
 
-    public ModuleGegevensbeheer(JlDatabase db, JlPaths paden, string slug, SecretStore geheimen, ModuleTabel[] tabellen)
+    public ModuleGegevensbeheer(JlDatabase db, JlPaths paden, string slug, SecretStore geheimen, ModuleTabel[] tabellen,
+        Action<SqliteConnection, DateTimeOffset>? voorExport)
     {
         _db = db;
         Slug = slug;
@@ -28,11 +30,14 @@ internal sealed class ModuleGegevensbeheer
             () => new IdempotencyStore(new JlDatabase(paden, Path.Combine(paden.CacheRoot, slug, "beheerherhaling.db"), [CoreDatabase.IdempotentieTabel])),
             LazyThreadSafetyMode.PublicationOnly);
         Tabellen = [new("instellingen", "id", "bewaar_dagen", "versie"), .. tabellen];
+        VoorExport = voorExport;
     }
 
     public string Slug { get; }
 
     public IReadOnlyList<ModuleTabel> Tabellen { get; }
+
+    internal Action<SqliteConnection, DateTimeOffset>? VoorExport { get; }
 
     public string ExportGebruiker(string waarde) => _geheimen.OpaakId("export-" + Slug, waarde);
 
