@@ -13,8 +13,21 @@ public class ModuleSwitch
 /// <summary>De module staat standaard uit. Na inschakelen doet de lokale Similar-provider mee.</summary>
 public sealed class RecommendationsOptions : ModuleSwitch
 {
+    /// <summary>Gets or sets de herkenning van anime binnen de toegankelijke bibliotheken.</summary>
+    public AnimeOptions Anime { get; set; } = new();
+
     /// <summary>Gets or sets de afzonderlijke schakelaar voor Meer zoals dit.</summary>
     public ModuleSwitch Similar { get; set; } = new() { Enabled = true };
+}
+
+/// <summary>Herkenning van anime voor de klassieke aanbevelingen.</summary>
+public sealed class AnimeOptions
+{
+    /// <summary>Gets or sets de als anime gemarkeerde bibliotheken.</summary>
+    public System.Guid[] LibraryIds { get; set; } = [];
+
+    /// <summary>Gets or sets de genrenamen die anime aanduiden.</summary>
+    public string[] GenreNames { get; set; } = ["Anime"];
 }
 
 /// <summary>Instellingen voor Watch Together. Een ingestelde gast vereist de conservatieve zelftest.</summary>

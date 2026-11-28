@@ -48,6 +48,9 @@ def maak_corpus(media, stock):
         map_.mkdir(parents=True)
         os.link(video, map_ / (naam + ".mkv"))
         extra = "<tag>Kern</tag><studio>Kernstudio</studio><director>Kernregisseur</director>" if kern else ""
+        if naam in ("Bron", "Alfa", "Beta"):
+            # Stock weegt de gedeelde regisseur van Zulu. De klassieke engine herkent ook gedeelde schrijvers.
+            extra += "".join(f"<credits>Scenarist {n}</credits>" for n in range(6))
         if naam == "Beta":
             extra += "<tag>Afgeschermd</tag>"
         (map_ / "movie.nfo").write_text(f"<movie><title>{naam}</title><genre>{genre}</genre>{extra}</movie>", encoding="utf-8")
@@ -233,8 +236,18 @@ def normale_proef(server, wachtwoord, ids, basis, meet):
     eis(similar(beheer, ids["Bron"]) == verwachte["Bron"], "zonder volgorde wijkt Similar af van stock")
     for selectie in (True, False):
         stel_volgorde(beheer, ["Jelly Leon"], selectie=selectie)
-        eis(similar(beheer, ids["Bron"]) == ids["Alfa"], "de ingestelde providervolgorde levert niet de alfabetische genrekeuze")
+        eis(similar(beheer, ids["Bron"]) == ids["Alfa"], "de ingestelde provider herkent de gedeelde schrijvers niet")
     eis(similar(beheer, ids["Seriebron"]) == ids["Seriegezelschap"], "de serieprovider vindt geen soortgenoot")
+    volledig = 0
+    for naam, bron in ids.items():
+        soort = FILMS if naam in FILMS else SERIES
+        kandidaten = {ids[titel] for titel in soort if titel != naam}
+        lijst = beheer.http.doe("GET", "/Items/" + bron + "/Similar", {"limit": 10})["Items"]
+        gevonden = {r["Id"] for r in lijst}
+        eis(len(gevonden) == len(lijst) and gevonden <= kandidaten, "dubbele treffer, verkeerd type of bron in Meer zoals dit")
+        volledig += len(gevonden) == min(10, len(kandidaten))
+    eis(len(ids) == len(FILMS) + len(SERIES) and volledig / len(ids) >= 0.95, "M5-dekking onder 95 procent")
+    meet("similar_dekking", f"{volledig}/{len(ids)} bronnen met volledige rij na het zetten van de providervolgorde")
     meet("similar_volgorde", "Movie en Series zichtbaar; providers-lijst en expliciete volgorde uitgelezen via Similar")
     eis(similar(kijker, ids["Bron"]) == ids["Beta"] and similar(beheer, ids["Bron"]) == ids["Alfa"], "gebruikers overlappen")
     beleidpad = f"/Users/{kijker.id}/Policy"
@@ -242,7 +255,8 @@ def normale_proef(server, wachtwoord, ids, basis, meet):
     beheer.http.doe("POST", beleidpad, body={**beleid, "BlockedTags": ["Afgeschermd"]})
     try:
         code, _, _ = kijker.http.ruw("GET", "/Items/" + ids["Beta"] + "/Similar")
-        eis(code == 404 and similar(kijker, ids["Bron"]) == ids["Zulu"],
+        zichtbaar = kijker.http.doe("GET", "/Items/" + ids["Bron"] + "/Similar", {"limit": 10})["Items"]
+        eis(code == 404 and zichtbaar and ids["Beta"] not in {item["Id"] for item in zichtbaar},
             "een afgeschermde bron of genretreffer was zichtbaar voor het beperkte profiel")
     finally:
         beheer.http.doe("POST", beleidpad, body=beleid)

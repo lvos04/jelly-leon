@@ -67,11 +67,9 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<QualityModule>();
         serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<QualityModule>());
         serviceCollection.AddSingleton<IJellyLeonModule, RecommendationsModule>();
-        serviceCollection.TryAddSingleton<LeesSimilarMetadata>(sp =>
-        {
-            var bibliotheek = sp.GetRequiredService<ILibraryManager>();
-            return query => bibliotheek.GetItemList(query, false);
-        });
+        serviceCollection.AddSingleton<Func<Configuration.AnimeOptions>>(sp => sp.GetRequiredService<PluginModuleSwitches>().AnimeInstellingen);
+        serviceCollection.AddSingleton<AanbevelingsBibliotheek>();
+        serviceCollection.TryAddSingleton<LeesSimilarMetadata>(sp => sp.GetRequiredService<AanbevelingsBibliotheek>().Similar);
         serviceCollection.AddSingleton<SegmentsModule>();
         serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<SegmentsModule>());
         serviceCollection.AddSingleton<IMediaSegmentProvider, SegmentProvider>();

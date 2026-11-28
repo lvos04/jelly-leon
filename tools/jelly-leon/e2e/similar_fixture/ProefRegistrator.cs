@@ -21,24 +21,24 @@ public sealed class SimilarProefRegistrator : IPluginServiceRegistrator
     {
         serviceCollection.Replace(ServiceDescriptor.Singleton<LeesSimilarMetadata>(sp =>
         {
-            var bibliotheek = sp.GetRequiredService<ILibraryManager>();
+            var bibliotheek = sp.GetRequiredService<AanbevelingsBibliotheek>();
             var log = sp.GetRequiredService<ILogger<SimilarProefRegistrator>>();
-            return query =>
+            return (bron, query, stop) =>
             {
                 log.LogInformation("F2-PROEF aanroep");
-                if (query.Genres.Contains("Proeffout"))
+                if (bron.Genres.Contains("Proeffout"))
                 {
                     log.LogInformation("F2-PROEF uitzondering");
                     throw new InvalidOperationException();
                 }
 
-                if (query.Genres.Contains("Proefduur"))
+                if (bron.Genres.Contains("Proefduur"))
                 {
                     log.LogInformation("F2-PROEF vertraging");
                     Thread.Sleep(TimeSpan.FromSeconds(2));
                 }
 
-                return bibliotheek.GetItemList(query, false);
+                return bibliotheek.Similar(bron, query, stop);
             };
         }));
         serviceCollection.AddHostedService<OpslagWaarnemer>();

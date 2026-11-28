@@ -1,12 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Jellyfin.Data.Enums;
-using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
-using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
@@ -16,9 +12,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.JellyLeon.Modules.Recommendations;
 
-internal delegate IReadOnlyList<BaseItem> LeesSimilarMetadata(InternalItemsQuery query);
+internal delegate IReadOnlyList<BaseItem> LeesSimilarMetadata(BaseItem bron, SimilarItemsQuery vraag, CancellationToken stop);
 
-/// <summary>Lokale genreselectie voor Meer zoals dit. De host ontdekt deze publieke provider in de plugin-DLL.</summary>
+/// <summary>Klassieke aanbevelingen voor Meer zoals dit. De host ontdekt deze publieke provider in de plugin-DLL.</summary>
 public sealed class SimilarProvider : ILocalSimilarItemsProvider<Movie>, ILocalSimilarItemsProvider<Series>
 {
     internal static readonly TimeSpan Tijdslimiet = TimeSpan.FromMilliseconds(300);
@@ -58,16 +54,16 @@ public sealed class SimilarProvider : ILocalSimilarItemsProvider<Movie>, ILocalS
 
     /// <inheritdoc />
     public Task<IReadOnlyList<BaseItem>> GetSimilarItemsAsync(Movie item, SimilarItemsQuery query, CancellationToken cancellationToken) =>
-        Zoek(item, BaseItemKind.Movie, query, cancellationToken);
+        Zoek(item, query, cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<BaseItem>> GetSimilarItemsAsync(Series item, SimilarItemsQuery query, CancellationToken cancellationToken) =>
-        Zoek(item, BaseItemKind.Series, query, cancellationToken);
+        Zoek(item, query, cancellationToken);
 
-    private async Task<IReadOnlyList<BaseItem>> Zoek(BaseItem item, BaseItemKind soort, SimilarItemsQuery query, CancellationToken token)
+    private async Task<IReadOnlyList<BaseItem>> Zoek(BaseItem item, SimilarItemsQuery query, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (query.User is null || query.Limit is <= 0 || item.Genres.Length == 0)
+        if (query.User is null || query.Limit is <= 0 || item.Id == Guid.Empty)
         {
             return [];
         }
@@ -91,18 +87,7 @@ public sealed class SimilarProvider : ILocalSimilarItemsProvider<Movie>, ILocalS
                     return [];
                 }
 
-                var selectie = new InternalItemsQuery(query.User)
-                {
-                    IncludeItemTypes = [soort],
-                    Genres = item.Genres,
-                    ExcludeItemIds = [.. query.ExcludeItemIds.Append(item.Id).Distinct()],
-                    IsPlayed = false,
-                    Limit = query.Limit ?? 20,
-                    DtoOptions = query.DtoOptions ?? new DtoOptions(),
-                    OrderBy = [(ItemSortBy.SortName, SortOrder.Ascending)],
-                    EnableTotalRecordCount = false,
-                };
-                return stop.IsCancellationRequested ? [] : _lees(selectie);
+                return _lees(item, query, stop);
             }
             catch (Exception)
             {

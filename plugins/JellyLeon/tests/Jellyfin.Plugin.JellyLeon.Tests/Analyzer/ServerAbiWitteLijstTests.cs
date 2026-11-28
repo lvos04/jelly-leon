@@ -638,7 +638,7 @@ public class ServerAbiWitteLijstTests
     }
 
     [Fact]
-    public async Task GewoneBouwWeigertDeVierServerledenVanDeSimilarProef()
+    public async Task GewoneBouwWeigertDeServerledenVanDeSimilarProef()
     {
         const string bron = """
             using MediaBrowser.Controller.Entities;
@@ -646,8 +646,9 @@ public class ServerAbiWitteLijstTests
             namespace Jellyfin.Plugin.JellyLeon;
             public sealed class SimilarProefRegistrator
             {
-                public void Lees(ILibraryManager bibliotheek, InternalItemsQuery vraag, IUserDataManager gegevens, UserDataSaveEventArgs gebeurtenis)
+                public void Lees(BaseItem bron, ILibraryManager bibliotheek, InternalItemsQuery vraag, IUserDataManager gegevens, UserDataSaveEventArgs gebeurtenis)
                 {
+                    _ = bron.Genres; // JL0001
                     _ = vraag.Genres; // JL0001
                     _ = bibliotheek.GetItemList(vraag, false); // JL0001
                     gegevens.UserDataSaved += Bewaard; // JL0001
@@ -655,6 +656,29 @@ public class ServerAbiWitteLijstTests
                 }
 
                 private static void Bewaard(object? sender, UserDataSaveEventArgs args) { }
+            }
+            """;
+        var uitkomst = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        Assert.Equal(Verwacht(bron), uitkomst.Select(b => (b.Regel, b.Id)).ToHashSet());
+    }
+
+    [Fact]
+    public async Task AanbevelingsBibliotheekMagKijktoestandAlleenLezen()
+    {
+        const string bron = """
+            using MediaBrowser.Controller.Entities;
+            using MediaBrowser.Model.Querying;
+            namespace Jellyfin.Plugin.JellyLeon.Modules.Recommendations;
+            public sealed class AanbevelingsBibliotheek
+            {
+                public void Gebruik(UserItemData toestand, NextUpQuery vraag)
+                {
+                    _ = toestand.Played;
+                    toestand.Played = false; // JL0001
+                    toestand.IsFavorite = false; // JL0001
+                    toestand.PlaybackPositionTicks = 0; // JL0001
+                    vraag.User = null!; // JL0001
+                }
             }
             """;
         var uitkomst = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);

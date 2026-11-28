@@ -103,6 +103,8 @@ internal sealed class PluginModuleSwitches : IModuleSwitches
 
     public bool IsAan(string slug) => _opslag.Beschikbaar && Config is { } config && config.Schakelaars().Any(s => s.Slug == slug && s.Schakelaar.Enabled);
 
+    internal AnimeOptions AnimeInstellingen() => Config?.Recommendations?.Anime ?? new AnimeOptions();
+
     internal bool SimilarAan() => _opslag.Beschikbaar && Config?.Recommendations is { Enabled: true, Similar.Enabled: true };
 
     public void Zet(string slug, bool aan)

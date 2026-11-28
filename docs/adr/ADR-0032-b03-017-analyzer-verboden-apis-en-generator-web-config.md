@@ -168,13 +168,26 @@ elke regel in deze tabel staat):
 | `PlayerStateInfo` | `PlayMethod` | `Modules.Devices.DevicesListener` | Direct Play, Direct Stream of Transcode. |
 | `User` | `Id` | `Modules.Devices.DevicesListener` | Het ID van de kijker, voor de eigen tabel. |
 
-| `SimilarItemsQuery` | `User`, `Limit`, `DtoOptions`, `ExcludeItemIds` | `Modules.Recommendations.SimilarProvider` | Leest de gebruikersgebonden selectie van de host. |
-| `BaseItem` | `Genres`, `Id` | `Modules.Recommendations.SimilarProvider` | Leest genre en itemidentiteit voor de zoekvraag. |
-| `DtoOptions` | `new` | `Modules.Recommendations.SimilarProvider` | Tijdelijke opties voor één leesvraag. |
-| `InternalItemsQuery` | `new` met selectie, sortering en paginagrens | `Modules.Recommendations.SimilarProvider` | De provider vult uitsluitend een nieuw queryobject. |
-| `ILibraryManager` | `GetItemList` | `PluginServiceRegistrator` | Verbindt de leesdelegate van de lokale aanbevelingsprovider met de bibliotheek. |
-| `InternalItemsQuery` | `Genres` | `SimilarProefRegistrator` | Uitsluitend in de bouwconfiguratie SimilarProef om het foutscenario van een synthetische bron te kiezen. |
-| `ILibraryManager` | `GetItemList` | `SimilarProefRegistrator` | In SimilarProef leest de waarnemer dezelfde selectie als de gewone plugin. |
+| `SimilarItemsQuery` | `User`, `Limit` | `Modules.Recommendations.SimilarProvider` | Controleert de gebruikerscontext en de gevraagde limiet. |
+| `BaseItem` | `Id` | `Modules.Recommendations.SimilarProvider` | Controleert of de bron een bibliotheekitem is. |
+| `User` | `Id` | `Modules.Recommendations.AanbevelingsBibliotheek` | Identificeert uitsluitend de vrager voor de smaaktoestand en de vaste exploratieplek. |
+| `SimilarItemsQuery` | `User`, `Limit`, `ExcludeItemIds` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de vrager, paginagrens en uitsluitingen uit het hostverzoek. |
+| `ILibraryManager` | `GetVirtualFolders`, `GetItemById`, `GetItemList`, `GetPeople` | `Modules.Recommendations.AanbevelingsBibliotheek` | Selecteert film- en seriemappen, controleert de map met de vrager, leest zichtbare items en hun betrokken personen. |
+| `VirtualFolderInfo` | `CollectionType`, `ItemId` | `Modules.Recommendations.AanbevelingsBibliotheek` | Selecteert de twee toegestane bibliotheektypen en hun identiteit. |
+| `BaseItem` | `Id`, `Genres`, `Tags`, `Studios`, `OfficialRating`, `CommunityRating`, `ProductionLocations`, `ProductionYear`, `DateCreated`, `RunTimeTicks` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest kenmerken, identiteit, versheid en duur voor de fractie van het hervatpunt. |
+| `Movie` | `CollectionName` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de bestaande metadatanaam van een filmcollectie. |
+| `PersonInfo` | `IsType`, `Name`, `SortOrder` | `Modules.Recommendations.AanbevelingsBibliotheek` | Onderscheidt regisseurs, schrijvers en acteurs en bepaalt de eerste vijf acteurs. |
+| `ICollectionManager` | `GetCollectionsContainingItem` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de zichtbare handmatige collecties van een bestaand item. |
+| `IUserDataManager` | `GetUserDataBatch`, `GetUserDataDto` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de huidige toestand per item voor de vrager en de door Jellyfin berekende seriestatus. |
+| `UserItemData` | `Played`, `IsFavorite`, `Rating`, `Likes`, `PlaybackPositionTicks`, `LastPlayedDate` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest bestaande signalen en het tijdstip voor verval, zonder de toestand te bewaren. |
+| `UserItemDataDto` | `Played` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest of de vrager een serie volledig heeft bekeken. |
+| `ITVSeriesManager` | `GetNextUp` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest volgende afleveringen uit de expliciet toegankelijke seriemappen. |
+| `QueryResult` | `Items` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de door de host gevonden volgende afleveringen. |
+| `Episode` | `SeriesId` | `Modules.Recommendations.AanbevelingsBibliotheek` | Sluit de bijbehorende serie uit de aanbevelingen uit. |
+| `DtoOptions` | `new` met `EnableImages` | `Modules.Recommendations.AanbevelingsBibliotheek` | Vraagt metadata zonder afbeeldingen. Alleen de initialisatie van een nieuw queryobject is toegestaan. |
+| `InternalItemsQuery` | `new` met `ParentId`, `Recursive`, `IncludeItemTypes`, `EnableTotalRecordCount`, `DtoOptions` | `Modules.Recommendations.AanbevelingsBibliotheek` | Vraagt films en series binnen één geautoriseerde bibliotheek. Alleen de initialisatie van een nieuw queryobject is toegestaan. |
+| `NextUpQuery` | `new` met `User` | `Modules.Recommendations.AanbevelingsBibliotheek` | Bindt een nieuwe Next Up-leesvraag aan de vrager. Alleen de initialisatie van een nieuw queryobject is toegestaan. |
+| `BaseItem` | `Genres` | `SimilarProefRegistrator` | Alleen de proefbouw leest het bronkenmerk voor de synthetische foutinjectie. |
 | `IUserDataManager` | `UserDataSaved` | `SimilarProefRegistrator` | In SimilarProef luistert de waarnemer naar bewaargebeurtenissen op de wegwerpserver. |
 | `UserDataSaveEventArgs` | `SaveReason` | `SimilarProefRegistrator` | In SimilarProef noteert de waarnemer uitsluitend de reden van de gebeurtenis. |
 | `BaseExtensions` | `GetMD5` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
