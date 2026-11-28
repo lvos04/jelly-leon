@@ -164,3 +164,8 @@ Na afloop opgeruimd: containers, werkmappen en testsets (BG-38); de Emby-image e
 `proefrun.py --clientproef` bewaart de Jelly Leon-configuratie met de testmedia en per testgebruiker het item en
 het hervatpunt uit de eerste overzetting. Het clientharnas kan deze server opnieuw starten. De telefoonemulator en de
 officiële Android-app volgen in S-P40-70 in `jelly-leon-clients`. [Gebruik en bestandsformaat](../../tools/emby-overname/README.md#android-clientproef-na-de-overname-jlt-70)
+
+Op 28 november 2026 doorliepen alle 98 tests van `tools/emby-overname/tests` hun controles op bouwcommit
+`3920a53e50`. Daarvan toetsen er 21 de nieuwe overdracht. De CLI weigerde een uitvoermap in de Git-werkboom
+met exitcode 2. De containerproef met `--clientproef` had bij deze meting nog geen testslot gekregen.
+Het aanmaken en herstarten van het clientpakket moet nog worden aangetoond.
