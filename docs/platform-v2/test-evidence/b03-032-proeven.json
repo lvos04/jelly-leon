@@ -1,0 +1,110 @@
+{
+  "werkpakket": "B03-032",
+  "datum": "2026-11-28",
+  "status": "Bezig",
+  "gewichten": "b03-032-gewichten.json",
+  "seed": 20261109,
+  "forkbasisdigest": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "vergeleken_met": "b03-030-proeven.json",
+  "G-F2-2": "open",
+  "M1": "rangschikkingswinst niet aangetoond",
+  "M2": "geen geldige vergelijking met stock",
+  "stock_a_en_b": {
+    "S-REC": "niet gemeten",
+    "S-REC-best": "niet gemeten",
+    "S-SIM": "niet gemeten",
+    "S-LAT": "niet gemeten",
+    "S-RND": "niet gemeten",
+    "POP": "niet gepaard met stock",
+    "S-TMDB": "niet gemeten, externe dienst",
+    "S-BEST": "niet gemeten"
+  },
+  "controle_vooraf": {
+    "D-SYN": {
+      "dataset_sha256": "222be95ec0d81c842cf54cead3ace4887bccb7d423f6805cf9f4c565f0e2610c",
+      "catalogus": 260,
+      "n": 6,
+      "T": {
+        "fan": "2026-06-26T05:00:00Z",
+        "kind": "2026-07-01T15:00:00Z",
+        "ouder1": "2026-06-29T02:00:00Z",
+        "ouder2": "2026-06-24T21:00:00Z",
+        "partner1": "2026-06-26T06:00:00Z",
+        "partner2": "2026-06-24T20:00:00Z"
+      },
+      "commit": "73b71010a651ee7963474b56b18adc4b5d0a2e4b",
+      "status": "NIET GEMETEN",
+      "geldige_runs": 0,
+      "reden": "loadavg(1 min) 5.43 boven 4.0 / definitieve baseline van S-P40-50 ontbreekt (alleen afgewezen pogingen) / B03-030 heeft geen twee geldige stockruns met voormetingsinterval"
+    },
+    "D-ML": {
+      "dataset_sha256": "696d65a3dfceac7c45750ad32df2c259311949efec81f0f144fdfb91ebc9e436",
+      "catalogus": 8269,
+      "n": 29,
+      "T": "2016-12-11T16:36:27Z",
+      "commit": "f3a630d430d33d5fffb92c0ea74597f59bf4f7df",
+      "status": "NIET GEMETEN",
+      "geldige_runs": 0,
+      "reden": "loadavg(1 min) 6.69 boven 4.0 / definitieve baseline van S-P40-50 ontbreekt (alleen afgewezen pogingen) / D-ML: 29 van minstens 100 gebruikers / B03-030 heeft geen twee geldige stockruns met voormetingsinterval"
+    }
+  },
+  "offline": {
+    "D-SYN": {
+      "herhalingen": 0,
+      "geldige_meetruns": 0,
+      "status": "NIET GEDRAAID (geen testslot)"
+    },
+    "D-ML": {
+      "herhalingen": 0,
+      "geldige_meetruns": 0,
+      "status": "NIET GEDRAAID (geen testslot)"
+    }
+  },
+  "kleine_cli_proef": {
+    "profielen": 4,
+    "scenarios_per_profiel": 7,
+    "herhalingen": 2,
+    "items_per_rij": 10,
+    "determinisme": true,
+    "afgeschermde_titel_uitgesloten": true,
+    "uitleg_op_elke_titel": true,
+    "training_op_T_geweigerd": true
+  },
+  "bekende_lekbron": {
+    "D-SYN": {
+      "n": 6,
+      "positieve_controle_min_POP": {
+        "punt": 0.825263,
+        "onder": 0.69426,
+        "boven": 0.943793,
+        "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+      },
+      "loting_min_POP": {
+        "punt": -0.00303,
+        "onder": -0.116084,
+        "boven": 0.106993,
+        "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+      },
+      "controle_onderscheidt_lek": true,
+      "loting_significant_boven_POP": false
+    },
+    "D-ML": {
+      "n": 29,
+      "positieve_controle_min_POP": {
+        "punt": 0.873746,
+        "onder": 0.782013,
+        "boven": 0.95039,
+        "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+      },
+      "loting_min_POP": {
+        "punt": -0.030097,
+        "onder": -0.076693,
+        "boven": 0.003072,
+        "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+      },
+      "controle_onderscheidt_lek": true,
+      "loting_significant_boven_POP": false
+    }
+  },
+  "afbakening": "De korte CLI-proef gebruikt handgemaakte gegevens. De stockvergelijking wacht op een definitieve baseline en geldige voormetingsintervallen. De werkelijke drie herhalingen per dataset staan afzonderlijk onder offline. Series en anime zijn uitsluitend synthetisch."
+}

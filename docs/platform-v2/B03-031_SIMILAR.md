@@ -6,18 +6,17 @@ mediatype Jelly Leon bovenaan in de volgorde van Similar-providers om de selecti
 `Recommendations.Enabled` staat standaard uit. Binnen een actieve module kan `Recommendations.Similar.Enabled`
 de provider afzonderlijk uitschakelen. De plugin wijzigt zelf geen bibliotheekopties.
 
-F2-1 zoekt ongeziene films of series met een genre van het bronitem. Jellyfin beperkt de leesquery tot het profiel
-van het verzoek. De bron en de eerder gekozen item-ID's gaan mee als uitsluitingen. Binnen deze genreselectie bepaalt
-de sorteertitel de volgorde. Een ontbrekende gebruiker, een lege genrelijst of een limiet van nul geeft geen eigen
-treffers. De provider heeft geen eigen cache of database en schrijft geen kijkgegevens.
+Sinds B03-032 rangschikt de klassieke engine de films of series uit de toegankelijke bibliotheken van de vrager.
+De metadata van het bronitem bepalen de overeenkomst. De eigen kijkgeschiedenis personaliseert de volgorde.
+Al bekeken vergelijkbare titels krijgen een lagere score. De bron en eerder gekozen item-ID's vallen buiten
+de selectie. Een ontbrekende gebruiker, afgeschermde bron of limiet van nul geeft een lege lijst.
 
 De tijdslimiet is 300 ms. Bij een leesfout of een verstreken termijn krijgt de server een lege lijst en kan hij
 de volgende provider proberen. De synchrone bibliotheeklezing van 12.4 kan nog uitlopen. Per providerinstantie
 blijven hooguit twee lezingen tegelijk actief. Een derde verzoek valt meteen door naar de volgende provider.
 
 De provider implementeert de twee lokale interfaces voor Movie en Series. De kernprovider blijft verantwoordelijk
-voor `/Movies/Recommendations`. De namespace `Modules.Recommendations.Engine` is gereserveerd voor B03-032 binnen
-dezelfde plugin-DLL, volgens ADR-0029.
+voor `/Movies/Recommendations`. De klassieke engine staat volgens ADR-0029 in dezelfde plugin-DLL. [Werking en evaluatie](B03-032_AANBEVELINGEN.md)
 
 ## Proef op een wegwerpserver
 
@@ -42,10 +41,9 @@ python3 tools/jelly-leon/e2e/similar_proef.py --image "$FORK" --stock-image "$ST
 
 De proefbouw bevat een teller bij de metadatalezing, een lezer die kan falen of twee seconden kan blokkeren, en een
 waarnemer voor de reden van een bewaargebeurtenis. Alleen de expliciete bouwconfiguratie `SimilarProef` neemt deze
-bron op. De analyzer van de proefbouw staat vier serverleden toe in de waarnemer. De Release-analyzertest
-controleert dat de gewone bouw elk van deze vier toegangen weigert. De productie-image installeert de gewone
+bron op. De analyzer van de proefbouw staat drie serverleden toe in de waarnemer. De Release-analyzertest
+controleert dat de gewone bouw elk van deze toegangen weigert. De productie-image installeert de gewone
 Release-DLL. Bij upstream-sync herhaalt de CI de volledige
 voorraadvergelijking met de nieuwe runtime-digest.
 
-De kwaliteitsmeting en de klassieke aanbevelingsengine horen bij B03-032. Voor de eerdere prestatiebaseline
-gelden de beperkingen bij B03-030. NIET GEVALIDEERD (echte NAS): echte bibliotheek (JLT-15).
+Voor de eerdere prestatiebaseline gelden de beperkingen bij B03-030. NIET GEVALIDEERD (echte NAS): echte bibliotheek (JLT-15).
