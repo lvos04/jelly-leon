@@ -661,7 +661,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
     bewijs = Bewijs(args.modus, args.emby_image)
     run_id = uuid.uuid4().hex
     containers: list[str] = []
-    proxies: list[LoggendeProxy] = []
+    proxy_emby: LoggendeProxy | None = None
+    proxy_jl: LoggendeProxy | None = None
     mg: MediaGuardSim | None = None
     overdracht = None
     sleutels_waarden: dict[str, str] = {}
@@ -809,9 +810,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                      soorten["gezien"] > 0 and soorten["hervatpunt"] > 0 and soorten["favoriet"] > 0, dict(soorten))
 
         # Proxy's en MediaGuard-simulator.
-        proxy_emby = LoggendeProxy("127.0.0.1", p_emby, "emby", alleen_get=True)
+        proxy_emby = LoggendeProxy("localhost", p_emby, "emby", alleen_get=True)
         proxy_jl = LoggendeProxy("127.0.0.1", p_jl, "jelly-leon")
-        proxies += [proxy_emby, proxy_jl]
         mg = MediaGuardSim(emby_url, sleutels_waarden["mg_emby"], jl_url, sleutels_waarden["mg_jl"])
         mg.start()
         tool = Tool(uitvoer, proxy_emby.url, proxy_jl.url, sleutels)
@@ -1003,17 +1003,6 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         if args.browser != "geen":
             controleer_browser(bewijs, jl, jl_gebruikers, naar_jl, waarheid_kill, items_recept, paden_jl, args.browser)
 
-        # 12. Sleutels nergens (logs, rapporten, exports, proxylogs).
-        proxy_emby.schrijf(str(uitvoer / "proxy-emby.jsonl"))
-        proxy_jl.schrijf(str(uitvoer / "proxy-jelly-leon.jsonl"))
-        lekken = []
-        for pad in uitvoer.rglob("*"):
-            if pad.is_file() and "geheimen" not in pad.parts and "bib" not in pad.parts and "config" not in pad.name \
-                    and not any(d in pad.parts for d in ("emby-config", "jl-config", "jl-cache", "jl2-config", "jl2-cache")):
-                inhoud = pad.read_bytes()
-                lekken += [f"{pad.name}:{n}" for n, w in sleutels_waarden.items() if w.encode() in inhoud]
-        bewijs.check("JLT-73", "geen API-sleutel in logs, rapporten, exports of proxylogs", not lekken, lekken[:10])
-
         # 13. Herimport uit het archief op een lege Jellyfin (Emby gestopt) — controlelijst §10.9.2 stap 4.
         mg.stop()
         docker("stop", "-t", "20", naam_emby)
@@ -1068,13 +1057,22 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         if mg is not None:
             mg.stop()
             bewijs.data["mediaguard_sim"] = mg.samenvatting()
-        for proxy in proxies:
-            proxy.stop()
-        if proxies:
-            controleer_proxyverkeer(bewijs, proxy_emby, proxy_jl)
+        try:
+            for proxy in (proxy_emby, proxy_jl):
+                if proxy is not None:
+                    proxy.stop()
+            for proxy in (proxy_emby, proxy_jl):
+                if proxy is not None:
+                    proxy.schrijf(str(uitvoer / f"proxy-{proxy.naam}.jsonl"))
+            if proxy_emby is not None and proxy_jl is not None:
+                controleer_proxyverkeer(bewijs, proxy_emby, proxy_jl)
+                controleer_sleutels(bewijs, uitvoer, sleutels_waarden)
+        except OSError as fout:
+            bewijs.check("JLT-73", "alle proxylogs en uitvoerbestanden gecontroleerd", False, type(fout).__name__)
+        finally:
             if not all(c["ok"] for c in bewijs.data["controles"]):
                 code = 1
-        code = rond_proef_af(uitvoer, bewijs, containers, args.behoud, code, overdracht, sleutels_waarden)
+            code = rond_proef_af(uitvoer, bewijs, containers, args.behoud, code, overdracht, sleutels_waarden)
         log(f"klaar: {bewijs.data.get('samenvatting')} → {uitvoer / 'bewijs.json'}")
     return code
 
@@ -1107,6 +1105,19 @@ def rond_proef_af(uitvoer: Path, bewijs: Bewijs, containers: list[str], behoud: 
 
 
 # --- controles -----------------------------------------------------------------------------------------------------
+
+def controleer_sleutels(bewijs: Bewijs, uitvoer: Path, sleutels: dict[str, str]) -> None:
+    overslaan = {"geheimen", "bib", "emby-config", "jl-config", "jl-cache", "jl2-config", "jl2-cache", "client-config", "client-cache"}
+    lekken = []
+    for mapnaam, mappen, bestanden in os.walk(uitvoer):
+        mappen[:] = [m for m in mappen if m not in overslaan]
+        for naam in bestanden:
+            pad = Path(mapnaam) / naam
+            if pad.is_file():
+                inhoud = pad.read_bytes()
+                lekken.extend(f"{naam}:{n}" for n, waarde in sleutels.items() if waarde.encode() in inhoud)
+    bewijs.check("JLT-73", "geen API-sleutel in logs, rapporten, exports of proxylogs", not lekken, lekken[:10])
+
 
 def controleer_proxyverkeer(bewijs: Bewijs, bron: LoggendeProxy, doel: LoggendeProxy) -> None:
     from emby_overname.emby import WITTE_LIJST_GET  # noqa: PLC0415

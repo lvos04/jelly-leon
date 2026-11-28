@@ -2,6 +2,7 @@
 
 import http.client
 import json
+import secrets
 from contextlib import closing
 from subprocess import CompletedProcess
 from urllib.parse import urlsplit
@@ -29,6 +30,8 @@ def test_docker_en_bewijs_gebruiken_dezelfde_emby_image(tmp_path, monkeypatch, o
 
     def docker(*args, **kwargs):
         opdrachten.append(args)
+        if args == ("image", "inspect", verwacht):
+            return CompletedProcess(args, 1)
         if args[0] == "run":
             raise RuntimeError("test stopt vóór containerstart")
         return CompletedProcess(args, 0)
@@ -38,6 +41,7 @@ def test_docker_en_bewijs_gebruiken_dezelfde_emby_image(tmp_path, monkeypatch, o
     monkeypatch.setattr(proefrun.subprocess, "run", lambda *a, **k: None)
     assert proefrun.main(["--uitvoer", str(tmp_path), *optie]) == 1
     assert ("image", "inspect", verwacht) in opdrachten
+    assert ("pull", verwacht) in opdrachten
     assert next(args for args in opdrachten if args[0] == "run")[-1] == verwacht
     assert json.loads((tmp_path / "bewijs.json").read_text())["images"]["emby"] == verwacht
 
@@ -76,3 +80,15 @@ def test_bronproxy_weigert_schrijfpoging_en_keurt_proef_af(emby, jl, tmp_path, m
     finally:
         bron.stop()
         doel.stop()
+
+
+def test_eindscan_ziet_sleutel_in_herimportrapport_zonder_waarde_te_loggen(tmp_path):
+    waarde = secrets.token_hex(16)
+    rapportmap = tmp_path / "werkmap-herimport" / "runs"
+    rapportmap.mkdir(parents=True)
+    (rapportmap / "rapport.json").write_text(json.dumps({"tekst": waarde}))
+    bewijs = proefrun.Bewijs("synthetisch")
+    proefrun.controleer_sleutels(bewijs, tmp_path, {"jl": waarde})
+    assert bewijs.data["controles"][-1]["ok"] is False
+    assert bewijs.data["controles"][-1]["detail"] == ["rapport.json:jl"]
+    assert waarde not in json.dumps(bewijs.data)
