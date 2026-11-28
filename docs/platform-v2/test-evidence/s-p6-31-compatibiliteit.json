@@ -18,8 +18,8 @@
         "eind": "2026-11-28T00:34:20Z"
       },
       "p6": {
-        "begin": "2026-11-28T00:01:12Z",
-        "eind": "2026-11-28T00:32:38Z"
+        "begin": "2026-11-28T00:35:08Z",
+        "eind": "2026-11-28T00:35:58Z"
       }
     },
     "actieve_modules_per_proefserver": {
@@ -70,9 +70,9 @@
           "afspeelbesluit": "DirectPlay"
         },
         "p6": {
-          "speelt": null,
+          "speelt": false,
           "pogingen": 1,
-          "reden": "tijdlimiet van de browserproef bereikt"
+          "afspeelbesluit": "DirectPlay"
         }
       },
       {
@@ -300,7 +300,6 @@
     },
     "regressies": [],
     "onbeslist": [
-      "web-webkit",
       "telefoon",
       "tablet",
       "tv",

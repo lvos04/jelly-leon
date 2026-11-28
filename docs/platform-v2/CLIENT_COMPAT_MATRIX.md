@@ -131,7 +131,7 @@ Proef van 28 november 2026. De eindimage `jelly-leon:p6` bevat servercommit `5d8
 |---|---|---|
 | Chromium, echte headless browser | speelt (1) | speelt (1) |
 | Firefox, echte headless browser | speelt (1) | speelt (1) |
-| WebKit, echte headless Linux-browser | afspeelcriterium niet gehaald (1) | tijdlimiet van de browserproef bereikt (1) |
+| WebKit, echte headless Linux-browser | afspeelcriterium niet gehaald (1) | afspeelcriterium niet gehaald (1) |
 | webOS, nagebootst profiel in Chromium | speelt (1) | speelt (1) |
 | Tizen, nagebootst profiel in Chromium | speelt (1) | speelt (1) |
 | Stock-web uit de stock-image, echte Chromium-browser | speelt (1) | speelt (1) |
@@ -141,8 +141,10 @@ Proef van 28 november 2026. De eindimage `jelly-leon:p6` bevat servercommit `5d8
 | Officiële Android TV-app, emulator API 34 | KVM ontbreekt (0) | KVM ontbreekt (0) |
 | Officiële Android TV-app, emulator API 36 | KVM ontbreekt (0) | KVM ontbreekt (0) |
 
-Op 2026-11-28 (UTC) waren 0 regressies meetbaar en bleven 5 van de 11 rollen onbeslist. Op beide P6-proefservers stonden devices en quality aan.
+Op 2026-11-28 (UTC) waren 0 regressies meetbaar en bleven 4 van de 11 rollen onbeslist. Op beide P6-proefservers stonden devices en quality aan.
 In een kopie van het eindimagerapport werd voor web-chromium de gemeten afspeeluitkomst op onwaar gezet. De vergelijking wees die toegevoegde regressie aan met exitcode 1.
+De eerste stockrun begon vóór UTC-middernacht en is op de meetdag herhaald.
+Op P6 zijn de drie browserrollen tweemaal beproefd, telkens één poging per rol. De tabel geeft de gekozen tweede webmeting. In de eerste sessie speelden Chromium en Firefox en overschreed WebKit de tijdgrens. Beide sessies staan in het meetbestand.
 
 Bij de twee tv-profielen meet het harnas Chromium met een andere user-agent. De legacy-rij toetst zeven aanmeldvormen op drie routes. De afzonderlijke MediaGuard-proef met `TV_PROFILE` uit S-P6-33 staat open.
 
