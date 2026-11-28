@@ -6,14 +6,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 import time
 import traceback
 import uuid
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 from plugin_proef import BEHEER, KIJKER, PLUGIN_DLL, PLUGIN_ID, Server, Sessie, docker, eerste_beheerder, wacht_op_taken
@@ -22,7 +21,7 @@ from upstream_gedrag_runtime import maak_testfilm
 HARNAS = Path(__file__).resolve().parents[2] / "b03-harnas/playwright/harnas.mjs"
 CHECKS = {
     "similar_volgorde", "similar_exportvolgorde", "similar_zonder_cache", "similar_batch",
-    "similar_gebruiker", "similar_home", "similar_bewaarreden", "similar_homevoorkeur", "similar_dekking",
+    "similar_gebruiker", "similar_home", "similar_bewaarreden", "similar_homevoorkeur",
 }
 FILMS = {
     "Bron": ("Avontuur", True), "Alfa": ("Avontuur", False), "Beta": ("Avontuur", False), "Zulu": ("Avontuur", True),
@@ -63,13 +62,33 @@ def maak_corpus(media, stock):
 
 
 @contextmanager
-def draai(naam, image, werk, media, plugin=None):
-    server = Server(werk.parent.name + "-" + naam, image, werk, media)
+def appopslag(stock, werk, kopie=None, plugin=None):
+    """Laat de app-gebruiker de eigen besloten testmappen maken, kopiëren en opruimen."""
+    werk.mkdir()
+    # Alleen deze wegwerpmap wordt gemount. Haar bovenliggende tijdelijke map is van de proefdraaier en heeft modus 0700.
+    werk.chmod(0o1733)
+    basis = ("run", "--rm", "--network", "none", "--user", "568:568", "--cap-drop", "ALL",
+             "--security-opt", "no-new-privileges", "--entrypoint", "/bin/sh", "-v", f"{werk}:/doel")
+    mounts = []
+    stappen = ["umask 077", "mkdir /doel/config /doel/cache"]
+    if kopie is not None:
+        mounts.extend(["-v", f"{kopie}:/voorraad:ro"])
+        stappen.append("cp -R -p /voorraad/. /doel/config/")
+    if plugin is not None:
+        mounts.extend(["-v", f"{(plugin / PLUGIN_DLL).resolve()}:/pakket.dll:ro"])
+        stappen.extend(["mkdir -p /doel/config/plugins/JellyLeon_0.1.0.0",
+                        f"cp /pakket.dll /doel/config/plugins/JellyLeon_0.1.0.0/{PLUGIN_DLL}"])
     try:
-        if plugin:
-            doel = server.config / "plugins/JellyLeon_0.1.0.0"
-            doel.mkdir(parents=True)
-            shutil.copyfile(plugin / PLUGIN_DLL, doel / PLUGIN_DLL)
+        docker(*basis, *mounts, stock, "-ec", "\n".join(stappen))
+        yield
+    finally:
+        docker(*basis, stock, "-ec", "for map in /doel/config /doel/cache; do if test -d \"$map\"; then rm -r \"$map\"; fi; done")
+
+
+@contextmanager
+def draai(naam, image, werk, media):
+    server = Server(werk.parent.name + "-" + naam, image, werk, media, appgebruiker="568:568")
+    try:
         info = server.start()
         eis(info["Version"].startswith("12."), "de runtime is geen 12.x")
         yield server
@@ -330,11 +349,12 @@ def main(argv=None):
         print(f"{naam}: {detail}", flush=True)
 
     try:
-        with tempfile.TemporaryDirectory(prefix="jl-f2-", dir=args.werkmap) as tmp:
+        with tempfile.TemporaryDirectory(prefix="jl-f2-", dir=args.werkmap) as tmp, ExitStack() as opslag:
             werk = Path(tmp)
             media = werk / "media"
             maak_corpus(media, args.stock_image)
             wachtwoord = uuid.uuid4().hex
+            opslag.enter_context(appopslag(args.stock_image, werk / "stock"))
             with draai("stock", args.stock_image, werk / "stock", media) as stock:
                 beheer, kijker, ids = zaai(stock, wachtwoord)
                 basis = voorraad(beheer, kijker, ids)
@@ -344,12 +364,14 @@ def main(argv=None):
                 if naam == "waarnemer" and plugin is None:
                     continue
                 fase = naam
-                shutil.copytree(werk / "stock/config", werk / naam / "config")
-                with draai(naam, image, werk / naam, media, plugin) as server:
+                opslag.enter_context(appopslag(args.stock_image, werk / naam, werk / "stock/config", plugin))
+                with draai(naam, image, werk / naam, media) as server:
                     test(server, wachtwoord, ids, basis, meet)
-            vereist = CHECKS | {"kijkgegevens", "uitzondering", "vertraging"} if args.proef_plugin_map else (
-                CHECKS - {"similar_zonder_cache", "similar_exportvolgorde", "similar_bewaarreden"} | {"kijkgegevens"}
-            )
+            vereist = CHECKS | {"kijkgegevens", "similar_dekking"}
+            if args.proef_plugin_map:
+                vereist.update(("uitzondering", "vertraging"))
+            else:
+                vereist.difference_update(("similar_zonder_cache", "similar_exportvolgorde", "similar_bewaarreden"))
             eis(vereist <= uit.keys(), "een verplichte proef ontbreekt")
     except Exception as exc:
         # HTTP-fouten kunnen antwoorden met een sessiesleutel bevatten. Alleen eigen meldingen en het type tonen.

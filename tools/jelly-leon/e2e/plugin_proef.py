@@ -141,8 +141,9 @@ class Verslag:
 class Server:
     """Eén wegwerpcontainer op een eigen kopie van de datamap."""
 
-    def __init__(self, naam: str, image: str, map_: Path, media: Path, geheugen: str = "2g") -> None:
+    def __init__(self, naam: str, image: str, map_: Path, media: Path, geheugen: str = "2g", *, appgebruiker: str | None = None) -> None:
         self.naam, self.image, self.map, self.media, self.geheugen = naam, image, map_, media, geheugen
+        self.appgebruiker = appgebruiker or f"{os.getuid()}:{os.getgid()}"
         self.media_schrijfbaar = False
         self.container_id = ""
         self.url = ""
@@ -156,7 +157,7 @@ class Server:
         self.config.mkdir(mode=0o700, parents=True, exist_ok=True)
         (self.map / "cache").mkdir(mode=0o700, parents=True, exist_ok=True)
         self.container_id = docker(
-            "create", "--name", self.naam, "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
+            "create", "--name", self.naam, "--user", self.appgebruiker, "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges", "--memory", self.geheugen, "--cpus", "2", "-e", "TZ=UTC",
             "-p", f"{IPv4Address(INADDR_LOOPBACK)}::8096", "-v", f"{self.config}:/config", "-v", f"{self.map / 'cache'}:/cache",
             "-v", f"{self.media}:/media:{'rw' if self.media_schrijfbaar else 'ro'}", self.image).stdout.strip()

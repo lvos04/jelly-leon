@@ -23,6 +23,8 @@ voor `/Movies/Recommendations`. De klassieke engine staat volgens ADR-0029 in de
 ## Proef op een wegwerpserver
 
 `tools/jelly-leon/e2e/similar_proef.py` maakt acht films en twee series en vult twee testprofielen op stock 12.x.
+De proefdraaier laat app-gebruiker 568 de drie besloten datamappen in de tijdelijke proefmap aanmaken,
+kopiëren en opruimen. De serverprocessen gebruiken dezelfde identiteit.
 De gewone plugin en de waarnemer starten na elkaar op kopieën van diezelfde configuratie. De proef vergelijkt het
 Similar-responsschema inclusief verwijzingen en de aanbevelingsverzameling. Voor vier films per profiel vergelijkt
 hij de kijkgegevens op stock, bij de pluginstart en na de leesproeven. Beide profielen hebben een ander hervatpunt

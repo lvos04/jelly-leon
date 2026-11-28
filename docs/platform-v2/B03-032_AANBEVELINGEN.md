@@ -6,6 +6,10 @@ De bestaande Similar-provider gebruikt dezelfde C#-engine als `jl-rec-eval`. De 
 
 De adapter controleert de bibliotheekmap met de vrager en gebruikt dat profiel ook voor de itemselectie. Hij leest films en series, de voor de vrager zichtbare collecties, de actuele kijkgegevens en de volgende aflevering. Kijkgeschiedenis, hervatposities, favorieten en spoorvoorkeuren blijven bij Jellyfin. De engine heeft geen eigen database.
 
+Op de fork-image leverden alle acht testfilms en beide testseries een volledige Similar-rij na de bibliotheekkeuze.
+Het beperkte profiel kreeg HTTP 404 voor een afgeschermde bron. Beide profielen behielden hun eigen hervatpunt op
+dezelfde film. De meetwaarden en de vergelijking met stock staan in het [meetbewijs](test-evidence/b03-032-proeven.json).
+
 De engine maakt TF-IDF-vectoren uit onder meer genres, tags, studio’s, personen, collecties, type en leeftijdsklasse. Het smaakprofiel weegt de huidige kijktoestand met een halfwaardetijd van 365 dagen. De vijf recentste positieve titels leveren een tweede inhoudsscore. Een persoonlijke rij sluit bekeken titels, series met een volgende aflevering, afgeschermde items en uitgesloten items of collecties uit. Bij *Meer zoals dit* telt vooral de overeenkomst met de bron. Een eerder bekeken vergelijkbare titel krijgt een lagere score.
 
 MMR gebruikt λ = 0,7 en kiest hooguit twee items uit dezelfde serie of collectie. Het kijkverleden bepaalt de verdeling over film, serie en anime. Per tien persoonlijke resultaten is één plek bestemd voor exploratie. Bij een gelijkspel beslist de item-ID. De klok en het profiel bepalen de exploratiekeuze. Elke aanbeveling bevat uitleg uit eigen kijkgedrag of zichtbare metadata.

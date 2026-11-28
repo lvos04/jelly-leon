@@ -203,7 +203,7 @@
     "id": "B03-032",
     "status": "Bezig",
     "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
-    "bewijs": "Engine en CLI delen C#-broncode. 28 gerichte plugin- en analyzertests met de bibliotheekkeuze voor Similar, handberekende voorbeelden en een tweevoudige CLI-proef met vier fictieve profielen. Validatie vóór T op 12 profielen en 7.667 films leverde inhoud 0,60 en seed 0,20. B03-032_AANBEVELINGEN.md, test-evidence/b03-032-meetprotocol.json, test-evidence/b03-032-gewichten.json en test-evidence/b03-032-proeven.json.",
+    "bewijs": "Engine en CLI delen C#-broncode. 28 gerichte plugin- en analyzertests. Op de fork-image en stockwaarnemer gaven 10 van 10 bronnen volledige Similar-rijen. Acht kijkrecords en twee hervatpunten bleven gelijk. Handberekende voorbeelden en een tweevoudige CLI-proef met vier fictieve profielen. Validatie vóór T op 12 profielen en 7.667 films leverde inhoud 0,60 en seed 0,20. B03-032_AANBEVELINGEN.md, test-evidence/b03-032-meetprotocol.json, test-evidence/b03-032-gewichten.json en test-evidence/b03-032-proeven.json.",
     "blokkade": "NIET GEVALIDEERD (echte NAS): echte historie (JLT-15).",
     "opmerking": "M1-winst niet aangetoond. Er zijn nul geldige stockruns en geen voormetingsinterval. D-ML bevat 29 van de vereiste 100 testprofielen. G-F2-2 staat open. D-SYN: rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch).",
     "repo": "jelly-leon",

@@ -767,6 +767,27 @@
         "getest": 28,
         "mislukt": 0
       }
+    },
+    "forkimage_en_stockwaarnemer": {
+      "forkimage_commit": "b21002a7fb8b",
+      "commando": "similar_proef.py --image <fork> --stock-image <forkbasisdigest> --proef-plugin-map <waarnemer>",
+      "app_uid": 568,
+      "exitcode": 0,
+      "slotregel": "12 controles uitgevoerd",
+      "controles": {
+        "similar_dekking": "10/10 bronnen met volledige rij na het zetten van de providervolgorde",
+        "similar_volgorde": "Movie en Series zichtbaar; providers-lijst en expliciete volgorde uitgelezen via Similar",
+        "similar_gebruiker": "twee profielen apart; afgeschermde bron HTTP 404 en afgeschermde treffer uitgesloten",
+        "similar_batch": "4 categorieverwijzingen gelijk aan stock",
+        "kijkgegevens": "acht kijkrecords en twee afzonderlijke hervatpunten gelijk voor installatie, bij start en na de proef",
+        "similar_homevoorkeur": "bekende sectie bewaard, onbekende sectie terug naar de enumstandaard",
+        "similar_home": "startscherm met gevulde secties zichtbaar in modern en desktop-legacy",
+        "similar_exportvolgorde": "zonder providerkeuze dezelfde volle stockuitkomst en nul eigen metadatalezingen",
+        "similar_zonder_cache": "drie verzoeken aan dezelfde bron bereikten de lokale provider drie keer",
+        "uitzondering": "stocktreffer terug via HTTP in 43 ms",
+        "vertraging": "stocktreffer terug via HTTP in 328 ms",
+        "similar_bewaarreden": "twee afzonderlijke opslagacties, TogglePlayed en UpdateUserRating waargenomen"
+      }
     }
   }
 }
