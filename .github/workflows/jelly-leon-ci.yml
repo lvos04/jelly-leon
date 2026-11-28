@@ -339,7 +339,7 @@ jobs:
 
       - name: Pluginproef op de Jelly Leon-image (JLT-68, JLT-64, JLT-65; Hub-simulator)
         run: |
-          bash .github/scripts/pluginproef-appgebruiker.sh "$RUNNER_TEMP/pluginproef-jelly-leon.json" \
+          bash tools/jelly-leon/e2e/pluginproef-appgebruiker.sh "$RUNNER_TEMP/pluginproef-jelly-leon.json" \
             --image jelly-leon:ci --stock-image "$JL_RUNTIME_IMAGE"
 
       # B03-017, spike IStartupFilter (ADR-0033): twee containers van deze image, zonder en met
@@ -452,7 +452,7 @@ jobs:
 
       - name: Pluginproef op JL_RUNTIME_IMAGE (JLT-68, JLT-64, JLT-65; Hub-simulator; plugin verwijderd)
         run: >
-          bash .github/scripts/pluginproef-appgebruiker.sh "$RUNNER_TEMP/pluginproef-stock.json"
+          bash tools/jelly-leon/e2e/pluginproef-appgebruiker.sh "$RUNNER_TEMP/pluginproef-stock.json"
           --image "$JL_RUNTIME_IMAGE" --plugin-map "$RUNNER_TEMP/plugin"
 
       - name: Spike IStartupFilter op JL_RUNTIME_IMAGE (ADR-0033)
