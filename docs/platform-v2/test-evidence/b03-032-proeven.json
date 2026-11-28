@@ -50,7 +50,7 @@
   },
   "offline": {
     "D-SYN": {
-      "commit": "73b71010a651ee7963474b56b18adc4b5d0a2e4b",
+      "commit": "000b9f31e78ec316263fd9541664ea0d540d6b6e",
       "herhalingen": 3,
       "geldige_meetruns": 0,
       "status": "Sim-getest",
@@ -60,83 +60,83 @@
         {
           "systeem": "F2-offline",
           "run": 1,
-          "begin": "2026-11-28T02:15:52Z",
-          "eind": "2026-11-28T02:15:52Z",
+          "begin": "2026-11-28T02:22:44Z",
+          "eind": "2026-11-28T02:22:45Z",
           "loadavg_voor": [
-            4.53,
-            5.46,
-            5.81
+            5.91,
+            6.39,
+            6.16
           ],
           "loadavg_na": [
-            4.53,
-            5.46,
-            5.81
+            5.91,
+            6.39,
+            6.16
           ],
           "cpu": {
             "duur_s": 0.384,
-            "machine_kernen": 2.735,
-            "eigen_kernen": 0.964,
+            "machine_kernen": 3.204,
+            "eigen_kernen": 1.016,
             "container_kernen": 0.0,
-            "andere_kernen": 1.771
+            "andere_kernen": 2.188
           },
           "zware_sloten_voor": [],
           "zware_sloten_na": [],
           "geldig": false,
-          "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+          "reden": "loadavg(1 min) 5.91 > 4.0 vóór de run"
         },
         {
           "systeem": "F2-offline",
           "run": 2,
-          "begin": "2026-11-28T02:15:52Z",
-          "eind": "2026-11-28T02:15:53Z",
+          "begin": "2026-11-28T02:22:45Z",
+          "eind": "2026-11-28T02:22:45Z",
           "loadavg_voor": [
-            4.53,
-            5.46,
-            5.81
+            5.91,
+            6.39,
+            6.16
           ],
           "loadavg_na": [
-            4.53,
-            5.46,
-            5.81
+            5.91,
+            6.39,
+            6.16
           ],
           "cpu": {
-            "duur_s": 0.399,
-            "machine_kernen": 2.86,
-            "eigen_kernen": 1.054,
+            "duur_s": 0.353,
+            "machine_kernen": 3.172,
+            "eigen_kernen": 1.02,
             "container_kernen": 0.0,
-            "andere_kernen": 1.807
+            "andere_kernen": 2.152
           },
           "zware_sloten_voor": [],
           "zware_sloten_na": [],
           "geldig": false,
-          "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+          "reden": "loadavg(1 min) 5.91 > 4.0 vóór de run"
         },
         {
           "systeem": "F2-offline",
           "run": 3,
-          "begin": "2026-11-28T02:15:53Z",
-          "eind": "2026-11-28T02:15:53Z",
+          "begin": "2026-11-28T02:22:45Z",
+          "eind": "2026-11-28T02:22:45Z",
           "loadavg_voor": [
-            4.53,
-            5.46,
-            5.81
+            5.91,
+            6.39,
+            6.16
           ],
           "loadavg_na": [
-            4.53,
-            5.46,
-            5.81
+            5.91,
+            6.39,
+            6.16
           ],
           "cpu": {
-            "duur_s": 0.373,
-            "machine_kernen": 4.156,
-            "eigen_kernen": 1.019,
+            "duur_s": 0.406,
+            "machine_kernen": 4.166,
+            "eigen_kernen": 1.011,
             "container_kernen": 0.0,
-            "andere_kernen": 3.137
+            "andere_kernen": 3.155
           },
           "zware_sloten_voor": [],
           "zware_sloten_na": [],
           "geldig": false,
-          "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+          "reden": "loadavg(1 min) 5.91 > 4.0 vóór de run"
         }
       ],
       "functies": {
@@ -161,6 +161,7 @@
           },
           "coverage": 0.2076923076923077,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": 0.05450661108206661,
             "onder": -0.12247451857102805,
@@ -189,6 +190,7 @@
           },
           "coverage": 0.08846153846153847,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.0030301346953041305,
             "onder": -0.08272218738612665,
@@ -217,6 +219,7 @@
           },
           "coverage": 0.08846153846153847,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.0030301346953041305,
             "onder": -0.08272218738612665,
@@ -245,6 +248,7 @@
           },
           "coverage": 0.21153846153846154,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.07666191799551839,
             "onder": -0.18971531975339043,
@@ -273,6 +277,7 @@
           },
           "coverage": 0.21153846153846154,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.07666191799551839,
             "onder": -0.18971531975339043,
@@ -301,6 +306,7 @@
           },
           "coverage": 0.2076923076923077,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.07666191799551839,
             "onder": -0.18971531975339043,
@@ -329,6 +335,7 @@
           },
           "coverage": 0.2076923076923077,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.07666191799551839,
             "onder": -0.18971531975339043,
@@ -337,10 +344,35 @@
           }
         }
       },
-      "claim": "rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch)"
+      "claim": "rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch)",
+      "vorige_reeks": {
+        "commit": "73b71010a651ee7963474b56b18adc4b5d0a2e4b",
+        "herhalingen": 3,
+        "geldige_meetruns": 0,
+        "determinisme": true,
+        "lektest": true,
+        "metriekuitkomsten_gelijk": true,
+        "last": [
+          {
+            "run": 1,
+            "geldig": false,
+            "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+          },
+          {
+            "run": 2,
+            "geldig": false,
+            "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+          },
+          {
+            "run": 3,
+            "geldig": false,
+            "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+          }
+        ]
+      }
     },
     "D-ML": {
-      "commit": "73b71010a651ee7963474b56b18adc4b5d0a2e4b",
+      "commit": "000b9f31e78ec316263fd9541664ea0d540d6b6e",
       "herhalingen": 3,
       "geldige_meetruns": 0,
       "status": "Sim-getest",
@@ -350,83 +382,93 @@
         {
           "systeem": "F2-offline",
           "run": 1,
-          "begin": "2026-11-28T02:15:00Z",
-          "eind": "2026-11-28T02:15:17Z",
+          "begin": "2026-11-28T02:22:46Z",
+          "eind": "2026-11-28T02:23:04Z",
           "loadavg_voor": [
-            4.43,
-            5.62,
-            5.88
+            5.91,
+            6.39,
+            6.16
           ],
           "loadavg_na": [
-            4.65,
-            5.6,
-            5.87
+            6.29,
+            6.46,
+            6.19
           ],
           "cpu": {
-            "duur_s": 16.726,
-            "machine_kernen": 3.646,
-            "eigen_kernen": 2.082,
+            "duur_s": 18.562,
+            "machine_kernen": 4.914,
+            "eigen_kernen": 2.08,
             "container_kernen": 0.0,
-            "andere_kernen": 1.564
+            "andere_kernen": 2.834
           },
           "zware_sloten_voor": [],
-          "zware_sloten_na": [],
+          "zware_sloten_na": [
+            "docker-build.lock"
+          ],
           "geldig": false,
-          "reden": "loadavg(1 min) 4.43 > 4.0 vóór de run"
+          "reden": "loadavg(1 min) 5.91 > 4.0 vóór de run; ander zwaar slot actief: docker-build.lock"
         },
         {
           "systeem": "F2-offline",
           "run": 2,
-          "begin": "2026-11-28T02:15:17Z",
-          "eind": "2026-11-28T02:15:34Z",
+          "begin": "2026-11-28T02:23:04Z",
+          "eind": "2026-11-28T02:23:22Z",
           "loadavg_voor": [
-            4.65,
-            5.6,
-            5.87
+            6.29,
+            6.46,
+            6.19
           ],
           "loadavg_na": [
-            4.55,
-            5.52,
-            5.83
+            6.08,
+            6.41,
+            6.18
           ],
           "cpu": {
-            "duur_s": 16.887,
-            "machine_kernen": 4.28,
-            "eigen_kernen": 2.065,
+            "duur_s": 17.615,
+            "machine_kernen": 4.902,
+            "eigen_kernen": 2.091,
             "container_kernen": 0.0,
-            "andere_kernen": 2.215
+            "andere_kernen": 2.811
           },
-          "zware_sloten_voor": [],
-          "zware_sloten_na": [],
+          "zware_sloten_voor": [
+            "docker-build.lock"
+          ],
+          "zware_sloten_na": [
+            "docker-build.lock"
+          ],
           "geldig": false,
-          "reden": "loadavg(1 min) 4.65 > 4.0 vóór de run"
+          "reden": "loadavg(1 min) 6.29 > 4.0 vóór de run; ander zwaar slot actief: docker-build.lock"
         },
         {
           "systeem": "F2-offline",
           "run": 3,
-          "begin": "2026-11-28T02:15:34Z",
-          "eind": "2026-11-28T02:15:51Z",
+          "begin": "2026-11-28T02:23:22Z",
+          "eind": "2026-11-28T02:23:39Z",
           "loadavg_voor": [
-            4.55,
-            5.52,
-            5.83
+            6.08,
+            6.41,
+            6.18
           ],
           "loadavg_na": [
-            4.53,
-            5.46,
-            5.81
+            6.29,
+            6.44,
+            6.19
           ],
           "cpu": {
-            "duur_s": 17.05,
-            "machine_kernen": 2.558,
-            "eigen_kernen": 2.087,
+            "duur_s": 16.872,
+            "machine_kernen": 5.398,
+            "eigen_kernen": 2.082,
             "container_kernen": 0.0,
-            "andere_kernen": 0.471
+            "andere_kernen": 3.316
           },
-          "zware_sloten_voor": [],
-          "zware_sloten_na": [],
+          "zware_sloten_voor": [
+            "docker-build.lock"
+          ],
+          "zware_sloten_na": [
+            "docker-build.lock"
+          ],
           "geldig": false,
-          "reden": "loadavg(1 min) 4.55 > 4.0 vóór de run"
+          "reden": "loadavg(1 min) 6.08 > 4.0 vóór de run; ander zwaar slot actief: docker-build.lock"
         }
       ],
       "functies": {
@@ -451,6 +493,7 @@
           },
           "coverage": 0.020437779658967228,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.009550752745660442,
             "onder": -0.06087115602488484,
@@ -479,6 +522,7 @@
           },
           "coverage": 0.0035070746160357964,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.05559600202773059,
             "onder": -0.1317156944047808,
@@ -507,6 +551,7 @@
           },
           "coverage": 0.004595477083081389,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": 0.0033273078205035907,
             "onder": -0.02860320133101069,
@@ -535,6 +580,7 @@
           },
           "coverage": 0.0165679042205829,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.0373079034845999,
             "onder": -0.11676395912984104,
@@ -563,6 +609,7 @@
           },
           "coverage": 0.004595477083081389,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": 0.0033273078205035907,
             "onder": -0.02860320133101069,
@@ -591,6 +638,7 @@
           },
           "coverage": 0.02055871326641674,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": -0.04834275468705256,
             "onder": -0.12628085486838767,
@@ -619,6 +667,7 @@
           },
           "coverage": 0.004595477083081389,
           "min_aantal": 10,
+          "volledige_rijen": true,
           "geschud_min_POP": {
             "punt": 0.0033273078205035907,
             "onder": -0.02860320133101069,
@@ -627,7 +676,32 @@
           }
         }
       },
-      "claim": "niet aangetoond"
+      "claim": "niet aangetoond",
+      "vorige_reeks": {
+        "commit": "73b71010a651ee7963474b56b18adc4b5d0a2e4b",
+        "herhalingen": 3,
+        "geldige_meetruns": 0,
+        "determinisme": true,
+        "lektest": true,
+        "metriekuitkomsten_gelijk": true,
+        "last": [
+          {
+            "run": 1,
+            "geldig": false,
+            "reden": "loadavg(1 min) 4.43 > 4.0 vóór de run"
+          },
+          {
+            "run": 2,
+            "geldig": false,
+            "reden": "loadavg(1 min) 4.65 > 4.0 vóór de run"
+          },
+          {
+            "run": 3,
+            "geldig": false,
+            "reden": "loadavg(1 min) 4.55 > 4.0 vóór de run"
+          }
+        ]
+      }
     }
   },
   "kleine_cli_proef": {
