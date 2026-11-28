@@ -95,7 +95,12 @@
   "Prioriteit": "P1",
   "Afhankelijkheid": "Back-up basis; MediaGuard API; Jellyfin upstream; GPU capability tests; B03-070…B03-079; P4-0 12.x-upgrade met Δ-MG-AUTH als exitcriterium; gemeenschappelijke bouwstenen B03-014…B03-019 (synthese) (één plugin, connector, MediaGuard-viewerclient, globale batchplanner, audiopas)",
   "Bron": "https://github.com/jellyfin/jellyfin",
-  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md"
+  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
+  "status": "Bezig",
+  "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+  "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
+  "bewijs": "Aanvulling F6 begonnen: provider en publicatie (golf 2). De tests van Modules/Segments controleren schaduw, vrijgave, hoofdstukgrenzen en herstel van menselijke correcties. Zie ADR-0037.",
+  "opmerking": "Deze rij betreft de provider en publicatie. Andere F6-signalen en latere bouwfasen staan open."
  },
  {
   "ID": "B03-008",
@@ -1022,7 +1027,12 @@
   "Prioriteit": "P1",
   "Afhankelijkheid": "P4-0 12.x-upgrade; B03-070; gemeenschappelijke bouwstenen B03-014…B03-019 (synthese) (één plugin, connector/outbox, geheimenmap, UserDeleted-afhandeling, verboden-API-analyzer, mountcontrole); gemeenschappelijk: B03-017",
   "Bron": "https://github.com/jellyfin/jellyfin/blob/v12.4/MediaBrowser.Controller/MediaSegments/IMediaSegmentManager.cs",
-  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md"
+  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
+  "status": "Bezig",
+  "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+  "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
+  "bewijs": "SegmentProviderTests en SegmentBeheerTests oefenen de werkelijke module, SQLite-migratie, pipeline en een gesimuleerde segmentmanager. Een vreemde rij met gelijke tijdcodes blijft bestaan. Een mislukte migratie behoudt de oude versie, de integriteit en de correcties. De schrijfbare mediamount levert geen analyse op. ADR-0037 beschrijft de negen routes en BG-32, BG-33 en BG-36.",
+  "opmerking": "Controle met twee stockservers en de lokale productie-image nog open. De globale routegrens voor import is 1 MiB. Na wijziging blijven menselijke grenzen beschikbaar voor controle."
  },
  {
   "ID": "B03-072",
@@ -1918,7 +1928,12 @@
   "Prioriteit": "P1",
   "Afhankelijkheid": "Testrij (blad Testmatrix); startstatus Niet gestart; bewijs bij B03-071, B03-013, B03-007",
   "Bron": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
-  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md"
+  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
+  "status": "Bezig",
+  "validatie": "Unit-getest; NIET GEVALIDEERD (echte NAS)",
+  "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
+  "bewijs": "a: nieuwe mtime behoudt menselijke correctie in review. b/c: nieuwe item-ID en terugzetten bewaren de handgrenzen in de moduleproef. d: integriteitscontrole, back-up en rollback op een gevulde SQLite. e: export/import inclusief verouderde preview op de echte routes. f: schrijfbare testmap blokkeert analyse en de corpustest vergelijkt de inhoud. g: massale wezen bevriezen en een verouderde export geeft geen toestemming tot opruimen. i: een gesimuleerde manager behoudt de vreemde rij bij depubliceren. De Python-vergelijker verwerpt wijzigingen in vreemde rijen en in een gevuld hervatpunt.",
+  "opmerking": "De volledige differentiële containerproef, officiële Jellyfin-back-up/restore, verwijderen van de plugin en systeembreed tellen van schrijfpogingen zijn nog niet gemeten. Onderdeel h volgt in golf 4."
  },
  {
   "ID": "JLT-57",

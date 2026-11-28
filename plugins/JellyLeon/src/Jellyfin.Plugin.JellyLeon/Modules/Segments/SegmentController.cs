@@ -13,7 +13,6 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Segments;
 
 /// <summary>Segmenten lezen, publiceren, exporteren en beheren via de gemeenschappelijke verzoekfilters.</summary>
 [Route("media/v1/segments")]
-[RequestSizeLimit(Fouten.MaxBodyBytes)]
 public sealed class SegmentController(IServiceProvider diensten) : ControllerBase
 {
     private SegmentsModule Module => diensten.GetRequiredService<SegmentsModule>();

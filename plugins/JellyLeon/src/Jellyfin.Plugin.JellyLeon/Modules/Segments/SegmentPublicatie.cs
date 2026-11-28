@@ -21,7 +21,8 @@ internal sealed class SegmentPublicatie(IMediaSegmentManager manager)
     {
         SegmentItem.ControleerVakken(SegmentBibliotheek.DuurVanItem(item), gewenst);
         var providers = manager.GetSupportedProviders(item).ToArray();
-        if (providers.Count(p => p.Name == SegmentProvider.VasteNaam && p.Id == SegmentProvider.ProviderId) != 1)
+        var eigenProviders = providers.Where(p => p.Id == SegmentProvider.ProviderId).ToArray();
+        if (eigenProviders.Length != 1 || eigenProviders[0].Name != SegmentProvider.VasteNaam)
         {
             throw Fouten.Conflict("provider_unavailable");
         }

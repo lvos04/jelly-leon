@@ -57,6 +57,20 @@ public sealed class SegmentProviderTests
     }
 
     [Fact]
+    public async Task DubbelProviderIdStoptVoorDeEersteLezingOfWijziging()
+    {
+        var video = new Movie { Id = Guid.NewGuid(), RunTimeTicks = 100 };
+        var manager = new Mock<IMediaSegmentManager>(MockBehavior.Strict);
+        manager.Setup(m => m.GetSupportedProviders(video)).Returns([
+            (SegmentProvider.VasteNaam, SegmentProvider.ProviderId),
+            (SegmentProvider.VasteNaam.ToUpperInvariant(), SegmentProvider.ProviderId)]);
+        var fout = await Assert.ThrowsAsync<JlException>(() => new SegmentPublicatie(manager.Object).StemAf(video, []));
+        Assert.Equal("conflict", fout.Code);
+        manager.Verify(m => m.GetSupportedProviders(video), Times.Once);
+        manager.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public void HoofdstukkenZijnBegrensdGesorteerdEnOverlappenNiet()
     {
         var toeval = new Random(716);

@@ -18,7 +18,6 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.WatchTogether;
 /// <summary>Gebruikersroutes en de beheeractie van WT-1. Alle autorisatie loopt door de routepijplijn.</summary>
 [RequestSizeLimit(Fouten.MaxBodyBytes)]
 [Route("media/v1/watch")]
-[RequestSizeLimit(Fouten.MaxBodyBytes)]
 public sealed class WatchController(IServiceProvider services) : ControllerBase
 {
     private SessieIdentiteit Wie => JlContext.Van(HttpContext).Sessie!;

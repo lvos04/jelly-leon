@@ -19,3 +19,17 @@ De hoofdstuklezer gebruikt de bibliotheek- en hoofdstukdienst van de server. Hij
 Bewaar een export van de segmentroute naast de serverback-up. De gewone Jellyfin-back-up bevat alleen de publicatiekopie. Import toont eerst conflicten en bindt de bevestigingshash vijftien minuten aan de beheerder en de dataversie. Na een herstart vervalt het voorbeeld. Bestaande afwijkende items veroorzaken een conflict. Herstelde kandidaten komen in schaduw. De gemeenschappelijke grens van 1 MiB uit ADR-0030 geldt ook voor de verzoekbody van deze route. De export kan per bibliotheek worden opgevraagd.
 
 Handmatig opruimen vraagt een export van hoogstens 24 uur oud die nog overeenkomt met de geselecteerde items. De preview vermeldt hoeveel wezen worden verwijderd. Na ontdooien of wijzigen van de data is een nieuw voorbeeld nodig. Herstel een versie van `segments.db` met de bijbehorende pluginversie terwijl de testserver stilstaat. Het analysebestand per item hoort in `/cache/jelly-leon/segments/`; alleen dit afgeleide bestand wordt bij cacheverversing verwijderd.
+
+## Controle op een gevulde wegwerpserver
+
+De segmentproef start met twee gebruikers, een hervatpunt, afspeelvoorkeuren, hoofdstukken en een bestaande rij van een andere provider. Twee kopieën draaien op stock en een derde met de plugin. De proef legt de serverdatabase inclusief de WAL vast en verwijdert uit de meetkopie uitsluitend rijen met de vaste provider-ID. De uitslag vermeldt de namen van afwijkende of onvergelijkbare tabellen. Een onverklaard verschil onderbreekt de vergelijking. Een aparte synthetische MediaGuard-database bevat een vooraf bekende voortgangsrij.
+
+De film doorloopt een bestandsvervanging, een containerwissel en verwijderen en terugzetten. Afzonderlijke wegwerpkopieën testen een goede en een mislukte migratie en het terugzetten van een officiële Jellyfin-back-up. Een gewijzigde favoriet dient als bewijs dat het herstel daadwerkelijk is uitgevoerd. De tests tellen bestaande vreemde rijen, controleren de wezen bij een verdwenen bibliotheekdeel en vergelijken de bestandshashes en wijzigingstijden van het corpus. Schrijfpogingen die al bij het openen worden afgewezen zijn niet met een bestandshash te tellen.
+
+Voer de proef onder een gedeeld testslot uit, met een eigen werkmap en de vastgezette stockimage. Gebruik bij een stockimage met een los gebouwde plugin ook `--plugin-map` met de map van de release-DLL.
+
+```sh
+python3 tools/jelly-leon/e2e/plugin_proef.py --alleen-segmenten \
+  --image "$FORK_IMAGE" --stock-image "$STOCK_IMAGE" \
+  --werkmap "$PROEFMAP" --rapport "$PROEFMAP/jlt-56.json"
+```

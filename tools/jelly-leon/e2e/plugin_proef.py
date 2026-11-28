@@ -143,6 +143,7 @@ class Server:
 
     def __init__(self, naam: str, image: str, map_: Path, media: Path, geheugen: str = "2g") -> None:
         self.naam, self.image, self.map, self.media, self.geheugen = naam, image, map_, media, geheugen
+        self.media_schrijfbaar = False
         self.container_id = ""
         self.url = ""
         self.log = ""
@@ -158,7 +159,7 @@ class Server:
             "create", "--name", self.naam, "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges", "--memory", self.geheugen, "--cpus", "2", "-e", "TZ=UTC",
             "-p", f"{IPv4Address(INADDR_LOOPBACK)}::8096", "-v", f"{self.config}:/config", "-v", f"{self.map / 'cache'}:/cache",
-            "-v", f"{self.media}:/media:ro", self.image).stdout.strip()
+            "-v", f"{self.media}:/media:{'rw' if self.media_schrijfbaar else 'ro'}", self.image).stdout.strip()
         docker("start", self.container_id)
         adres = docker("port", self.container_id, "8096/tcp").stdout.strip()
         self.url = f"http://{adres}"
@@ -1002,12 +1003,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--werkmap", default=None, help="map met minstens 2 GiB vrij (geen tmpfs)")
     parser.add_argument("--rapport", type=Path)
     parser.add_argument("--alleen-hub", action="store_true", help="alleen JL4 op één lokale wegwerpserver, inclusief herstart en rotatie")
+    parser.add_argument("--alleen-segmenten", action="store_true", help="JLT-56 op twee stockkopieën en één kopie met de segmentprovider")
     args = parser.parse_args(argv)
     stock = args.stock_image or args.image
     if args.plugin_map is not None and not (args.plugin_map / PLUGIN_DLL).is_file():
         print(f"[FOUT] {args.plugin_map / PLUGIN_DLL} bestaat niet", file=sys.stderr)
         return 2
     openapi_bytes = args.openapi_bestand.read_bytes()
+    if args.alleen_segmenten:
+        from segmenten_proef import voer_uit
+
+        return voer_uit(args)
     if args.alleen_hub:
         return jl4_proef(args, openapi_bytes)
     doc = json.loads(openapi_bytes)

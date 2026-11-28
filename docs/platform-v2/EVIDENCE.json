@@ -468,5 +468,35 @@
     "opmerking": "NIET GEMETEN (machinelast). De definitieve baseline van S-P40-50 ontbreekt. Nul geldige vergelijkingsruns. De kandidaatlezer is met een vast voorbeeld getest. De livelezing volgt op S-G2-40, de winstmeting in S-G2-42, S-G2-44 en S-G4-48. P4-0 staat open.",
     "repo": "jelly-leon",
     "bijgewerkt": "2026-11-28"
+  },
+  {
+    "id": "B03-007",
+    "status": "Bezig",
+    "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+    "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
+    "bewijs": "Aanvulling F6 begonnen: provider en publicatie (golf 2). De tests van Modules/Segments controleren schaduw, vrijgave, hoofdstukgrenzen en herstel van menselijke correcties. Zie ADR-0037.",
+    "opmerking": "Deze rij betreft de provider en publicatie. Andere F6-signalen en latere bouwfasen staan open.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-28"
+  },
+  {
+    "id": "B03-071",
+    "status": "Bezig",
+    "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
+    "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
+    "bewijs": "SegmentProviderTests en SegmentBeheerTests oefenen de werkelijke module, SQLite-migratie, pipeline en een gesimuleerde segmentmanager. Een vreemde rij met gelijke tijdcodes blijft bestaan. Een mislukte migratie behoudt de oude versie, de integriteit en de correcties. De schrijfbare mediamount levert geen analyse op. ADR-0037 beschrijft de negen routes en BG-32, BG-33 en BG-36.",
+    "opmerking": "Controle met twee stockservers en de lokale productie-image nog open. De globale routegrens voor import is 1 MiB. Na wijziging blijven menselijke grenzen beschikbaar voor controle.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-28"
+  },
+  {
+    "id": "JLT-56",
+    "status": "Bezig",
+    "validatie": "Unit-getest; NIET GEVALIDEERD (echte NAS)",
+    "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
+    "bewijs": "a: nieuwe mtime behoudt menselijke correctie in review. b/c: nieuwe item-ID en terugzetten bewaren de handgrenzen in de moduleproef. d: integriteitscontrole, back-up en rollback op een gevulde SQLite. e: export/import inclusief verouderde preview op de echte routes. f: schrijfbare testmap blokkeert analyse en de corpustest vergelijkt de inhoud. g: massale wezen bevriezen en een verouderde export geeft geen toestemming tot opruimen. i: een gesimuleerde manager behoudt de vreemde rij bij depubliceren. De Python-vergelijker verwerpt wijzigingen in vreemde rijen en in een gevuld hervatpunt.",
+    "opmerking": "De volledige differentiële containerproef, officiële Jellyfin-back-up/restore, verwijderen van de plugin en systeembreed tellen van schrijfpogingen zijn nog niet gemeten. Onderdeel h volgt in golf 4.",
+    "repo": "jelly-leon",
+    "bijgewerkt": "2026-11-28"
   }
 ]
