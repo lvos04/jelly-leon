@@ -101,7 +101,7 @@
 |---|---|---|
 | C1.3-JL-05 | Overname uit Emby en vóór/na-rapport bij elke upgrade die `jellyfin.db` migreert | P4-0 (golf 0 gedaan, Sim-getest; echte NAS open) |
 | C1.3-JL-06 | Hub-koppeling via het dashboard met `service_id`, rotatie en bescherming tegen herhaling | P4 golf 1, Unit-getest en Sim-getest in het pluginharnas. Zie [ADR-0031](ADR-0031-b03-017-hub-koppeling-jl4-en-connectorgrenzen.md#verificatie) en [EVIDENCE](../platform-v2/EVIDENCE.json). |
-| C1.3-JL-07 | 1 MiB per route, foutcatalogus, health-regels en eventnamen nalopen | P4 |
+| C1.3-JL-07 | 1 MiB per route, foutcatalogus, health-regels en eventnamen | Bezig. Unit-getest en Sim-getest in het pluginharnas en via lokaal HTTP. Voor de imagemetingen, Hub en NAS zie [S-G1-14](../platform-v2/test-evidence/s-g1-14-contractproef.md). |
 | C1.3-JL-08 | MediaGuard-viewerclient; acties alleen als deeplink | P4 (na BG-04; acties na BG-05) |
 | C1.3-JL-09 | Geen torch, transformers of ctranslate2 in de image; vertaling via de app `mt` | P5 (na BG-06/BG-18) |
 | C1.3-ALG-05 | Peil-verbeterpunten alleen via Peil 1.1.1 | na Peil 1.1.1 (deze repo heeft geen statuspagina) |

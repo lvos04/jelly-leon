@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Spike IStartupFilter (B03-017, ADR-0033): werkt een laag vóór routing en authenticatie uit een plugin op 12.x?
 
-Drie wegwerpcontainers van dezelfde image op een lege datamap, zonder en met basis-URL en
-JELLYLEON_SPIKE_STARTUPFILTER=1. Beide krijgen dezelfde verzoeken zonder aanmelding. De spike slaagt als
+Drie wegwerpcontainers van dezelfde image krijgen elk een lege datamap en dezelfde verzoeken zonder aanmelding.
+Twee servers gebruiken het rootpad, eerst zonder en daarna met JELLYLEON_SPIKE_STARTUPFILTER=1. De derde gebruikt
+een ingestelde basis-URL en dezelfde schakelaar. De spike slaagt als
 
 - met de schakelaar een verzoek van meer dan 1 MiB aan een pluginroute 413 payload_too_large krijgt (dus vóór de 401),
 - zonder de schakelaar hetzelfde verzoek 401 krijgt (de bestaande volgorde, ADR-0030),
 - al het andere (pluginroutes tot en met 1 MiB, upstream-routes met een grote body, /System/Info/Public) in beide
   runs hetzelfde antwoord geeft, en
-- de server in beide runs zonder foutregel over de plugin start.
+- elk verzoek een volledig HTTP-antwoord krijgt, chunked en het basispad de authenticatie bereiken, en
+- alle drie de servers zonder foutregel over de plugin starten.
 
 Alleen stdlib; containers op 127.0.0.1 met --cap-drop ALL en zonder schrijfbare media. Dit is een simulatie op de
 ontwikkelmachine of in CI, geen meting op een echte NAS.

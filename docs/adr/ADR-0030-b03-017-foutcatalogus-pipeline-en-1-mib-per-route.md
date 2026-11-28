@@ -64,7 +64,7 @@ een Hub-simulator. Niet op de echte NAS gevalideerd.
 Bij onbekende lengte telt de route ook voor GET en voor acties zonder invoermodel. De lezer vraagt hoogstens één
 byte extra. Bij overschrijding door de server of door de lezer krijgt de client dezelfde 413 met `details.max_bytes`.
 Het HTTP/1.1-antwoord meldt `Connection: close`. Zo gebruikt de client de verbinding met een ongelezen body niet
-opnieuw terwijl de server haar sluit. De socketproef gebruikt GET en POST, beide met lengte en met chunked-overdracht.
+opnieuw terwijl de server haar sluit. De socketproef gebruikt GET, POST en PUT, met lengte en met chunked-overdracht.
 
 De herhaalcontrole gebruikt de methode en de vaste schrijfwijze van de geregistreerde route. Een afsluitende slash
 of andere hoofdletters in een vast deel geven dezelfde herhaling. Een padparameter houdt zijn eigen waarde.

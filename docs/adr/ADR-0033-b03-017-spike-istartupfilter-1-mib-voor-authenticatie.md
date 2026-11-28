@@ -54,7 +54,7 @@ De meting op de Jelly Leon-image draait in CI (job `image`); de uitkomst daarvan
 - **Alleen `Content-Length`.** Een verzoek zonder `Content-Length` (chunked) gaat door de laag heen; de pipeline telt
   dan bij het lezen en geeft 413 na de authenticatie. Vóór de authenticatie leest de plugin geen body.
 - **BaseUrl.** Heeft de server een basis-URL, dan begint het pad daar niet met `/media/v1` of `/connector/v1` en doet de
-  laag niets; de controle per route vangt het dan op. Niet gemeten met een basis-URL.
+  laag niets; de controle per route vangt het dan op. In de oorspronkelijke stockproef was geen basis-URL ingesteld.
 - **Geen meting met andere plugins** die zelf een `IStartupFilter` registreren, en geen meting op een echte NAS.
 - **Een fout in een `IStartupFilter` raakt de hele server.** Daarom is de middleware zo klein mogelijk, schrijft ze
   niets weg en raakt ze verzoeken buiten de twee voorvoegsels niet aan. JLT-64 (antwoorden van de server byte-gelijk)

@@ -1,9 +1,13 @@
-"""De beoordeling van de IStartupFilter-spike (ADR-0033): zuivere functies, zonder containers."""
+"""De beoordeling van de IStartupFilter-spike (ADR-0033): beoordeling en lokaal HTTP-vervoer."""
 
 from __future__ import annotations
 
+import json
 import sys
+import uuid
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from threading import Thread
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
 
@@ -34,7 +38,6 @@ def _run(te_groot: dict) -> dict:
 
 
 def test_vulling_is_geldige_json_van_precies_de_gevraagde_lengte() -> None:
-    import json
     for lengte in (64, spike.MIB, spike.MIB + 1):
         body = spike.vulling(lengte)
         assert len(body) == lengte
@@ -93,3 +96,46 @@ def test_verbroken_verbinding_telt_als_mislukte_meting(monkeypatch) -> None:
         run["antwoorden"]["upstream_klein"] = spike.vraag(spike.Http("http://localhost"), "POST", "/proef", b"{}")
     regels = spike.beoordeel(uit, aan, uit)
     assert any(not ok and "volledig HTTP-antwoord" in naam and "upstream_klein" in detail for naam, ok, detail in regels)
+
+
+def test_httpclient_stuurt_dezelfde_bytes_met_lengte_en_met_chunked() -> None:
+    body = spike.vulling(spike.MIB + 1)
+    ontvangen = []
+
+    class Ontvanger(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            lengte = self.headers.get("Content-Length")
+            overdracht = self.headers.get("Transfer-Encoding")
+            if overdracht == "chunked":
+                stukken = []
+                while aantal := int(self.rfile.readline(), 16):
+                    stukken.append(self.rfile.read(aantal))
+                    assert self.rfile.readline() == b"\r\n"
+                assert self.rfile.readline() == b"\r\n"
+                data = b"".join(stukken)
+            else:
+                data = self.rfile.read(int(lengte))
+            ontvangen.append((self.path, lengte, overdracht, data))
+            antwoord = json.dumps({"code": "payload_too_large", "message": "Te groot.",
+                                   "details": {"max_bytes": spike.MIB}, "trace_id": str(uuid.uuid4())}).encode()
+            self.send_response(413)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(antwoord)))
+            self.end_headers()
+            self.wfile.write(antwoord)
+
+        def log_message(self, *args) -> None:
+            pass
+
+    with HTTPServer(("localhost", 0), Ontvanger) as server:
+        draad = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.05})
+        draad.start()
+        try:
+            http = spike.Http(f"http://localhost:{server.server_port}/jl-proef")
+            for chunked in (False, True):
+                assert spike.vraag(http, "POST", "/proef", body, chunked)["grensantwoord"]
+        finally:
+            server.shutdown()
+            draad.join()
+    assert ontvangen == [("/jl-proef/proef", str(len(body)), None, body), ("/jl-proef/proef", None, "chunked", body)]

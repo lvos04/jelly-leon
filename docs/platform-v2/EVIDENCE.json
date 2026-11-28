@@ -381,13 +381,13 @@
   },
   {
     "id": "C1.3-JL-07",
-    "status": "Niet gestart",
-    "validatie": "Niet getest",
-    "bewijs": "—",
-    "blokkade": "",
-    "opmerking": "Moment P4 (B03-017): 1 MiB per route met IStartupFilter-spike, foutcatalogus met 423 item_in_playback, health/max_age, events in domein media; eventnamen van B03 §10.10 nalopen met ADR.",
+    "status": "Bezig",
+    "validatie": "Unit-getest; Sim-getest; NIET GEVALIDEERD (echte Hub); NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "S-G1-14. FoutcatalogusTests, ConnectorTests, ModuleTests, OutboxTests en OpenApiDriftTests. De lokale HTTP-client controleerde 30 antwoorden met GET, POST en PUT. Het routeharnas controleerde 41 routes met beide overdrachtswijzen en beide aanmeldtoestanden. De volledige lokale pluginsuite telde 471 tests zonder uitval. Meetgrenzen en bronnen staan in docs/platform-v2/test-evidence/s-g1-14-contractproef.md.",
+    "blokkade": "Herhaling op stock en de lokale image: NIET GEDRAAID (geen testslot). NIET GEVALIDEERD (echte Hub): de Hub-inbox heeft deze events nog niet ontvangen; NIET GEVALIDEERD (echte NAS).",
+    "opmerking": "De 413-grens geldt voor iedere pluginroute. Standaard komt authenticatie eerst. Met de proefschakelaar gaf alleen een te grote bekende lengte op het rootpad een 413 vóór authenticatie. De regisseur draagt de volgordevraag over aan de contracteigenaar. ADR-0031 legt de bewuste indeling van de eventnamen vast.",
     "repo": "jelly-leon",
-    "bijgewerkt": "2026-11-10"
+    "bijgewerkt": "2026-11-28"
   },
   {
     "id": "C1.3-JL-08",
@@ -423,9 +423,9 @@
     "id": "B03-017",
     "status": "Bezig",
     "validatie": "Unit-getest; Sim-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (echte Hub)",
-    "bewijs": "Broncommit 48293b48ac48644e0d4433cf3193a96fbf35eac4; lokale image jelly-leon:lokaal-48293b48a; image-ID sha256:09c2bb379cf09e0895a794dcf4979b3171d015d942dda67a67ad42231f43741b; revisionlabel gelijk aan de broncommit. De daaropvolgende vastlegging wijzigt uitsluitend bewijs en documentatie, geen imagebron. Lokale pluginsuite, negatieve analyzerbouw, T-JL-REGISTER en 424 forktooltests; alle imageproeven uit P-jelly-leon job image. Uitkomsten en grenzen: docs/platform-v2/test-evidence/s-g1-16-deel2-bewijs-image.md. Bestaande CI op de broncommit: Jelly Leon CI 44223144485; de CI-uitkomst van de nieuwe bewijscommit wordt afzonderlijk vastgelegd in het externe RAPPORT-A-BOUW-2b.md. BG-03 (3d82967a4d): het deel kinderprofielen is lokaal beproefd met KinderprofielPrivacyTests en PrivacyTests. Zie de bewijsrij B03-010. S-G1-12. De metingen aan de Hub-koppeling staan in C1.3-JL-06 en ADR-0031.",
+    "bewijs": "Broncommit 48293b48ac48644e0d4433cf3193a96fbf35eac4; lokale image jelly-leon:lokaal-48293b48a; image-ID sha256:09c2bb379cf09e0895a794dcf4979b3171d015d942dda67a67ad42231f43741b; revisionlabel gelijk aan de broncommit. De daaropvolgende vastlegging wijzigt uitsluitend bewijs en documentatie, geen imagebron. Lokale pluginsuite, negatieve analyzerbouw, T-JL-REGISTER en 424 forktooltests; alle imageproeven uit P-jelly-leon job image. Uitkomsten en grenzen: docs/platform-v2/test-evidence/s-g1-16-deel2-bewijs-image.md. Bestaande CI op de broncommit: Jelly Leon CI 44223144485; de CI-uitkomst van de nieuwe bewijscommit wordt afzonderlijk vastgelegd in het externe RAPPORT-A-BOUW-2b.md. BG-03 (3d82967a4d): het deel kinderprofielen is lokaal beproefd met KinderprofielPrivacyTests en PrivacyTests. Zie de bewijsrij B03-010. S-G1-12. De metingen aan de Hub-koppeling staan in C1.3-JL-06 en ADR-0031. S-G1-14. Foutcatalogus, lichaamsgrens, health en events zijn lokaal getoetst. Zie docs/platform-v2/test-evidence/s-g1-14-contractproef.md.",
     "blokkade": "NIET GEVALIDEERD (echte NAS): de plugin draait nog op geen echte NAS; gebruiker moet de NAS-metingen uitvoeren. NIET GEVALIDEERD (echte Hub): de koppeling is alleen tegen de Hub-simulator getest. Besluit B1 bij de gebruiker: de serverroute voor pluginconfiguratie en een harde koppeling op de database; tevens de lege gedeelde tmpfs als /cache en het opvolgen van Verplicht 3. Geen absolute garantie afgeleid uit de groene simulatieproeven.",
-    "opmerking": "Gebouwd: één pluginassembly met Core en de prototypes Devices en Quality, analyzer, opslag- en startgrens, web-configgenerator. De IStartupFilter-spike is lokaal beproefd; volledige acceptatie en doorvoering blijven vervolgwerk. Nog open: export/import per module met preview_hash, de webhaakmodule en de modules WatchTogether, Recommendations, Subtitles en Segments. JLT-64/65/68 en volledige acceptatiemeting worden in S-G1-10 geboekt; Hub-koppeling in S-G1-12, webhaakmodule in S-G1-60, foutcatalogus/idempotentie in S-G1-14, privacy in S-G1-18, mountstatus in S-G1-20 en MediaGuard-vervoer in S-G1-50. Restgrenzen van deel 1 blijven gelden (ADR-0032): vooraf gelegde harde databasekoppeling en wissel door dezelfde UID tussen controle en openen; serverroute voor pluginconfiguratie; lege gedeelde tmpfs. Op de NAS nog meten: leegte van /dev/shm bij start; modus, eigenaar en grootte van tmpfs-/cache; preset Apps, NFSv4-ACL’s en fs.protected_hardlinks. Deze stap wijzigt deel 1 niet.",
+    "opmerking": "Gebouwd: één pluginassembly met Core en de prototypes Devices en Quality, analyzer, opslag- en startgrens, web-configgenerator. De IStartupFilter-spike is lokaal beproefd; volledige acceptatie en doorvoering blijven vervolgwerk. Nog open: export/import per module met preview_hash, de webhaakmodule en de modules WatchTogether, Recommendations, Subtitles en Segments. JLT-64/65/68 en volledige acceptatiemeting worden in S-G1-10 geboekt; Hub-koppeling in S-G1-12, webhaakmodule in S-G1-60, foutcatalogus/idempotentie in S-G1-14, privacy in S-G1-18, mountstatus in S-G1-20 en MediaGuard-vervoer in S-G1-50. Restgrenzen van deel 1 blijven gelden (ADR-0032): vooraf gelegde harde databasekoppeling en wissel door dezelfde UID tussen controle en openen; serverroute voor pluginconfiguratie; lege gedeelde tmpfs. Op de NAS nog meten: leegte van /dev/shm bij start; modus, eigenaar en grootte van tmpfs-/cache; preset Apps, NFSv4-ACL’s en fs.protected_hardlinks. Deze stap wijzigt deel 1 niet. S-G1-14. Kestrel gaf standaard 401 zonder sessie. De ingeschakelde spike gaf op het rootpad 413 bij te grote bekende lengte en 401 bij chunked of onder een basis-URL. Deze meting betreft de lokale MVC-host. De herhaling in de beide serverimages: NIET GEDRAAID (geen testslot).",
     "repo": "jelly-leon",
     "bijgewerkt": "2026-11-28"
   },
@@ -443,9 +443,9 @@
     "id": "JLT-68",
     "status": "Bezig",
     "validatie": "Unit-getest; Sim-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte Hub)",
-    "bewijs": "S-G1-10. De lokale MVC-test in RoutetabelTests.cs telt acht connectorroutes met elk één HTTP-methode en pad. De pluginsuite omvat de weigeringen zonder pin, bij de kinderrol en bij herhaling van een mutatie. S-G1-12. De Hub-simulator in het pluginharnas toetst de pin, tokens, rolvoorrang, herhaling en de drie 501-actieroutes. Zie C1.3-JL-06.",
+    "bewijs": "S-G1-10. De lokale MVC-test in RoutetabelTests.cs telt acht connectorroutes met elk één HTTP-methode en pad. De pluginsuite omvat de weigeringen zonder pin, bij de kinderrol en bij herhaling van een mutatie. S-G1-12. De Hub-simulator in het pluginharnas toetst de pin, tokens, rolvoorrang, herhaling en de drie 501-actieroutes. Zie C1.3-JL-06. S-G1-14. Foutcatalogus, lichaamsgrens, health en events zijn lokaal getoetst. Zie docs/platform-v2/test-evidence/s-g1-14-contractproef.md.",
     "blokkade": "De volledige contractmeting op beide servers en het doorzoeken van hun log- en exportgegevens staan open. De onafhankelijke herreview van het herstel staat open.",
-    "opmerking": "De volledige proef op fork en stock is nog niet uitgevoerd. De proef vóór authenticatie volgt in S-G1-14. Voor de Hub-koppeling is alleen de simulator gebruikt.",
+    "opmerking": "De volledige proef op fork en stock is nog niet uitgevoerd. S-G1-14 mat de voorrang van authenticatie en de volledige HTTP-foutvorm op een lokale Kestrel-host. Voor de Hub-koppeling is alleen de simulator gebruikt.",
     "repo": "jelly-leon",
     "bijgewerkt": "2026-11-28"
   },
