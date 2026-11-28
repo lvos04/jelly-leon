@@ -1,0 +1,18 @@
+{
+  "chardet": "0BSD",
+  "charset-normalizer": "MIT",
+  "faust-cchardet": "MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later",
+  "ffmpeg-python": "Apache-2.0",
+  "ffsubsync": "MIT",
+  "future": "MIT",
+  "markdown-it-py": "MIT",
+  "mdurl": "MIT",
+  "numpy": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+  "pygments": "BSD-2-Clause",
+  "pysubs2": "MIT",
+  "rich": "MIT",
+  "srt": "MIT",
+  "tqdm": "MPL-2.0 AND MIT",
+  "typing-extensions": "PSF-2.0",
+  "webrtcvad-wheels": "MIT AND BSD-3-Clause"
+}

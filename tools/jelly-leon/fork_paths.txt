@@ -18,3 +18,4 @@ tools/jl-rec-eval/
 .github/workflows/jelly-leon-release.yml
 .github/workflows/upstream-sync.yml
 .forgejo/
+tools/analysewerker/
