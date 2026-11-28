@@ -788,7 +788,10 @@ jobs:
       - name: Clientmatrix-rooktest tegen stock 12.4 (hero.mp4 per client)
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: |
-          python -m b03h clientmatrix --onderdelen web,ua,legacy,webdir --uit "$RUNNER_TEMP/b03-clientmatrix.json"
+          # Exitcode 1 = een client Sim-mislukt (ook WebKit); het oordeel daarover valt hieronder. Elke andere code faalt.
+          rc=0
+          python -m b03h clientmatrix --onderdelen web,ua,legacy,webdir --uit "$RUNNER_TEMP/b03-clientmatrix.json" || rc=$?
+          test "$rc" -le 1
           python3 - "$RUNNER_TEMP/b03-clientmatrix.json" <<'PY'
           import json, sys
           d = json.load(open(sys.argv[1]))
