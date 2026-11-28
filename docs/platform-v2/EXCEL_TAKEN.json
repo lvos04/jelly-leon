@@ -99,7 +99,7 @@
   "status": "Bezig",
   "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
   "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
-  "bewijs": "Aanvulling F6 begonnen: provider en publicatie (golf 2). De tests van Modules/Segments controleren schaduw, vrijgave, hoofdstukgrenzen en herstel van menselijke correcties. Zie ADR-0037.",
+  "bewijs": "Aanvulling F6 begonnen: provider en publicatie (golf 2). De echte server publiceerde één eigen segment naast een bestaande vreemde rij. Bij depubliceren bleef de vreemde rij bewaard. Zie ADR-0037.",
   "opmerking": "Deze rij betreft de provider en publicatie. Andere F6-signalen en latere bouwfasen staan open."
  },
  {
@@ -1031,8 +1031,8 @@
   "status": "Bezig",
   "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
   "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
-  "bewijs": "SegmentProviderTests en SegmentBeheerTests oefenen de werkelijke module, SQLite-migratie, pipeline en een gesimuleerde segmentmanager. Een vreemde rij met gelijke tijdcodes blijft bestaan. Een mislukte migratie behoudt de oude versie, de integriteit en de correcties. De schrijfbare mediamount levert geen analyse op. ADR-0037 beschrijft de negen routes en BG-32, BG-33 en BG-36.",
-  "opmerking": "Controle met twee stockservers en de lokale productie-image nog open. De globale routegrens voor import is 1 MiB. Na wijziging blijven menselijke grenzen beschikbaar voor controle."
+  "bewijs": "SegmentProviderTests en SegmentBeheerTests toetsen de module, SQLite en routefilters. In de containerproef bleven bij publicatie en depublicatie alle vergelijkbare stocktabellen gelijk. Eén vreemde segmentrij bleef staan. Migratie van versie 2 naar 3 slaagde. Een opzettelijk mislukte migratie gaf HTTP 503, behield versie 2 en leverde een integere back-up met de oorspronkelijke correcties. Een officiële Jellyfin-back-up en een plugin-export herstelden de favoriet en de correcties op een afzonderlijke kopie.",
+  "opmerking": "De globale routegrens voor import is 1 MiB. Na een bronwijziging blijven menselijke grenzen beschikbaar voor controle. De volledige differentiële proef en de productie-image zijn nog niet afgevinkt."
  },
  {
   "ID": "B03-072",
@@ -1930,10 +1930,10 @@
   "Bron": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
   "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
   "status": "Bezig",
-  "validatie": "Unit-getest; NIET GEVALIDEERD (echte NAS)",
+  "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
   "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
-  "bewijs": "a: nieuwe mtime behoudt menselijke correctie in review. b/c: nieuwe item-ID en terugzetten bewaren de handgrenzen in de moduleproef. d: integriteitscontrole, back-up en rollback op een gevulde SQLite. e: export/import inclusief verouderde preview op de echte routes. f: schrijfbare testmap blokkeert analyse en de corpustest vergelijkt de inhoud. g: massale wezen bevriezen en een verouderde export geeft geen toestemming tot opruimen. i: een gesimuleerde manager behoudt de vreemde rij bij depubliceren. De Python-vergelijker verwerpt wijzigingen in vreemde rijen en in een gevuld hervatpunt.",
-  "opmerking": "De volledige differentiële containerproef, officiële Jellyfin-back-up/restore, verwijderen van de plugin en systeembreed tellen van schrijfpogingen zijn nog niet gemeten. Onderdeel h volgt in golf 4."
+  "bewijs": "Twee stockkopieën en één pluginserver, met gevuld hervatpunt en externe gesimuleerde voortgang. Publicatie en depublicatie gaven in de tabelvergelijking geen verschil buiten eigen providerrijen. d: succesvolle en opzettelijk mislukte migratie, oude versie en correcties intact. e: officiële back-up teruggezet, favoriet hersteld, export zonder account-ID’s en dezelfde itemset na import. a/b/c, f, g en i worden ook in de moduleproeven bewaakt. De vergelijkertest verwerpt een gewijzigde vreemde rij en een gewijzigd hervatpunt.",
+  "opmerking": "De eerste integratierun gaf 22/24 positieve controles. Bij de vervanging van de film kon BaseItems door onderling verschil van de stockkopieën niet worden beoordeeld. Er was geen aangetoonde afwijkende tabel. Onderdelen na dat meetpunt en tellen van geweigerde schrijfpogingen zijn nog open. Onderdeel h volgt in golf 4."
  },
  {
   "ID": "JLT-57",

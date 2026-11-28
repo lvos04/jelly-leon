@@ -52,7 +52,7 @@ public sealed class SegmentController(IServiceProvider diensten) : ControllerBas
             .Select(b => Module.Modus(b, SegmentBibliotheek.SerieVan(video))).FirstOrDefault(m => m != "disabled") ?? "disabled";
         var duur = SegmentBibliotheek.DuurVanItem(video);
         var actueel = item is not null && !item.Wees && !item.Heruitlijnen && Bron.Past(video, item);
-        var vakken = kandidaat && item is not null ? item.Kandidaten : actueel ? vrij : [];
+        var vakken = kandidaat && item is not null ? item.Kandidaten.Where(s => s.Einde <= duur).ToArray() : actueel ? vrij : [];
         var antwoord = new JsonObject
         {
             ["item_id"] = id, ["media_source_id"] = id, ["duration_s"] = (decimal)duur / TimeSpan.TicksPerSecond,
@@ -158,6 +158,7 @@ public sealed class SegmentController(IServiceProvider diensten) : ControllerBas
 
         lezer.Klaar();
         Module.Ontdooi(reden!, Context.Wie.Id, Nu);
+        Dienst.PlanControle();
         return JlResult.Ok(new JsonObject { ["frozen"] = false });
     }
 

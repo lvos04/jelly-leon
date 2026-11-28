@@ -58,7 +58,7 @@ internal sealed class SegmentBibliotheek(ILibraryManager bibliotheek, IUserManag
         }
 
         var oud = module.Vind(video.Id);
-        return oud is null || oud.Wees || oud.Mtime != video.DateModified.Ticks || (oud.Heruitlijnen && !oud.Bevestigd &&
+        return oud is null || oud.Wees || oud.Mtime != video.DateModified.Ticks || (!oud.Heruitlijnen && oud.Duur != DuurVanItem(video)) || (oud.Heruitlijnen && !oud.Bevestigd &&
             !oud.Kandidaten.Any(k => k.Bron is "manual" or "confirmed"));
     }
 

@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
 
-from segmenten_proef import PROVIDER, controleer_tabellen, opname  # noqa: E402
+from segmenten_proef import PROVIDER, controleer_tabellen, opname, waarneem_media  # noqa: E402
 
 
 @pytest.mark.parametrize(("ingreep", "afwijking"), [
@@ -40,3 +40,17 @@ def test_alleen_eigen_publicatie_is_toegestaan(tmp_path, ingreep, afwijking):
         assert opname(kopie, doel)[0] == 1
         assert controleer_tabellen(stock, stock, doel) == (afwijking, [])
         assert db.execute("SELECT COUNT(*) FROM MediaSegments WHERE SegmentProviderId=?", (PROVIDER,)).fetchone() == (1,)
+
+
+def test_meet_ook_schrijven_zonder_veranderde_inhoud(tmp_path):
+    map_ = tmp_path / "testfilm"
+    map_.mkdir()
+    film = map_ / "film.mkv"
+    film.write_bytes(b"test")
+    with waarneem_media(tmp_path) as tel:
+        assert film.read_bytes() == b"test"
+        assert tel() == 0
+        with film.open("ab"):
+            pass
+        assert tel() > 0
+        assert film.read_bytes() == b"test"

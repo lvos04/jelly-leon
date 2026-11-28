@@ -148,6 +148,10 @@ public sealed class BeheerController : ControllerBase
         else
         {
             Schakelaars.Zet(slug, aan!.Value);
+            if (slug == SegmentsModule.ModuleSlug)
+            {
+                _diensten.GetRequiredService<SegmentDienst>().PlanControle();
+            }
         }
         return JlResult.Ok(ModulesJson(), Schakelaars.Etag);
     }

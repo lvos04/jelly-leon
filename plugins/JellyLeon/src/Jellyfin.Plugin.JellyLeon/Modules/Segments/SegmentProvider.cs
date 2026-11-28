@@ -49,8 +49,7 @@ internal sealed class SegmentProvider(IServiceProvider diensten, IModuleSwitches
     {
         cancellationToken.ThrowIfCancellationRequested();
         // Ook een uitgeschakelde module bewaart menselijke correcties. Open geen nieuwe DB bij een stock-refresh.
-        if (diensten.GetRequiredService<Core.PluginOpslag>().Beschikbaar &&
-            diensten.GetRequiredService<SegmentsModule>().HeeftDatabase)
+        if (diensten.GetRequiredService<Core.PluginOpslag>().Beschikbaar)
         {
             diensten.GetRequiredService<SegmentsModule>().RuimCache(itemId);
         }

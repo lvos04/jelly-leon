@@ -113,14 +113,15 @@ internal sealed partial class SegmentsModule : ModuleBasis
                 return;
             }
 
-            if (oud is not null && (oud.Mtime != item.Mtime || oud.Heruitlijnen || oud.Wees) &&
+            var gewijzigd = oud is not null && (oud.Mtime != item.Mtime || oud.Duur != item.Duur || oud.Heruitlijnen || oud.Wees);
+            if (gewijzigd && oud is not null &&
                 (oud.Bevestigd || oud.Kandidaten.Any(s => s.Bron is "manual" or "confirmed")))
             {
                 // Bewaar ook correcties die door een kortere vervanging nu buiten de nieuwe duur vallen.
                 SchrijfItem(v, oud with { Heruitlijnen = true, Wees = false, Mtime = item.Mtime });
                 TrekIn(v, oud.ItemId);
             }
-            else if (oud != null && oud.Mtime == item.Mtime && !oud.Wees && !oud.Heruitlijnen)
+            else if (oud is not null && !gewijzigd)
             {
                 return;
             }
@@ -160,7 +161,6 @@ internal sealed partial class SegmentsModule : ModuleBasis
 
     internal void RuimCache(Guid id)
     {
-        Verouder(id);
         // Alleen het afgeleide cachebestand met een door de server geleverd item-ID.
         var cache = Path.Combine(_paden.CacheRoot, ModuleSlug, Id(id) + ".features");
         if (File.Exists(cache))

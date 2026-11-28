@@ -93,6 +93,8 @@ internal sealed class SegmentDienst(IServiceProvider diensten, SegmentsModule mo
         }
     }
 
+    internal void PlanControle() => _wakker.Writer.TryWrite(true);
+
     public async Task Uitzetten(CancellationToken stop)
     {
         await _slot.WaitAsync(stop).ConfigureAwait(false);

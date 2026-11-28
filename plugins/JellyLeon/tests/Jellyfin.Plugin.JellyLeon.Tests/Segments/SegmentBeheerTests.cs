@@ -9,6 +9,7 @@ using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Media;
+using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Modules.Segments;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
 using MediaBrowser.Controller.Entities;
@@ -170,6 +171,35 @@ public sealed class SegmentBeheerTests : IDisposable
         Module.RuimWezen(exportId, false, voorbeeld["preview_hash"]!.GetValue<string>(), "beheer", _h.Klok.Nu);
         Assert.Equal(94, Module.Selectie().Count);
         Assert.True(OrphanBreaker.MoetBevriezen(5000, 51));
+    }
+
+    [Fact]
+    public async Task CacheOpruimenBewijstBehoudVanCorrectieEnPublicatie()
+    {
+        Aan();
+        var item = Nieuw() with { Bevestigd = true };
+        Module.BewaarAnalyse(item);
+        Module.LegPublicatieVast(_bib, null, "published", Module.Versie, "Bevestigde proef", "beheer", _h.Klok.Nu);
+        var versie = Module.Versie;
+        var map = Path.Combine(_h.Dienst<JlPaths>().CacheRoot, "segments");
+        Directory.CreateDirectory(map);
+        var eigen = Path.Combine(map, item.ItemId.ToString("N") + ".features");
+        var ander = Path.Combine(map, Guid.NewGuid().ToString("N") + ".features");
+        await File.WriteAllTextAsync(eigen, "eigen cache", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(ander, "tweede cache", TestContext.Current.CancellationToken);
+
+        var provider = Assert.Single(_h.Dienst<IEnumerable<IMediaSegmentProvider>>().OfType<SegmentProvider>());
+        await provider.CleanupExtractedData(item.ItemId, TestContext.Current.CancellationToken);
+
+        Assert.False(File.Exists(eigen));
+        Assert.Equal("tweede cache", await File.ReadAllTextAsync(ander, TestContext.Current.CancellationToken));
+        Assert.Equal(versie, Module.Versie);
+        Assert.Equal(item.Kandidaten, Module.Gepubliceerd(item.ItemId));
+        Assert.False(Module.Vind(item.ItemId)!.Heruitlijnen);
+        Module.BewaarAnalyse(item with { Duur = 12, Kandidaten = [] });
+        Assert.True(Module.Vind(item.ItemId)!.Heruitlijnen);
+        Assert.Equal(item.Kandidaten, Module.Vind(item.ItemId)!.Kandidaten);
+        Assert.Empty(Module.Gepubliceerd(item.ItemId));
     }
 
     [Fact]

@@ -416,9 +416,6 @@ class Plugin:
         return status, _json(ruw), {k.lower(): w for k, w in headers.items()}
 
     # -- onderdelen
-    def module_slugs(self) -> set[str]:
-        return {"devices", "quality", "recommendations", "segments", "watch"}
-
     def geladen(self) -> None:
         lijst = self.beheer.http.doe("GET", "/Plugins")
         eigen = [p for p in lijst if p.get("Id", "").replace("-", "") == PLUGIN_ID]
@@ -1151,13 +1148,8 @@ def main(argv: list[str] | None = None) -> int:
         v.test("JLT-64", "Watch Together omhult de actieve serverdienst", actief is True)
         meet_watch("module aan, open groep", beheer, diagnose=True)
         plugin.foutcatalogus()
-        # Watch Together blijft aan tot na de controle op UserDeleted.
-        overige_modules = sorted(plugin.module_slugs() - {"devices", "quality", "watch"})
-        for slug in overige_modules:
-            plugin.schakel(slug, True)
+        # De grensproef herstelt de oorspronkelijke modulestanden, ook voor Watch Together.
         plugin.lichaamsgrens()
-        for slug in overige_modules:
-            plugin.schakel(slug, False)
 
         data = b.config / "data" / "jelly-leon"
         zout_pad = data / "secrets" / "opaque-id.salt"

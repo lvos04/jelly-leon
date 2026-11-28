@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import json
 import os
 import shutil
 import sqlite3
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import uuid
-from contextlib import closing
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 import plugin_proef as pp
@@ -40,8 +42,7 @@ def opname(pad: Path, doel: Path) -> tuple[int, int]:
     return eigen, vreemd
 
 
-def controleer_tabellen(a1: Path, a2: Path, b: Path) -> tuple[list[str], list[str]]:
-    oordeel = pl.vergelijk_db(a1, a2, b)
+def beoordeel_tabellen(oordeel: dict) -> tuple[list[str], list[str]]:
     afwijkend = [t for t, o in oordeel.items() if o["oordeel"] == "afwijking"]
     # Alleen variërende serverklokken uit twee onafhankelijke stockruns mogen worden gemaskeerd.
     klokken = {"DateCreated", "DateModified", "DateLastActivity", "LastActivityDate", "LastLoginDate", "RowVersion",
@@ -49,6 +50,10 @@ def controleer_tabellen(a1: Path, a2: Path, b: Path) -> tuple[list[str], list[st
     onbeslist = [t for t, o in oordeel.items() if o["oordeel"] == "ruis_onvergelijkbaar" or
                  (set(o["masker"]) - klokken) or (t in ("UserData", "MediaSegments") and o["masker"])]
     return afwijkend, onbeslist
+
+
+def controleer_tabellen(a1: Path, a2: Path, b: Path) -> tuple[list[str], list[str]]:
+    return beoordeel_tabellen(pl.vergelijk_db(a1, a2, b))
 
 
 def wacht(lezen, akkoord, naam: str, seconden: int = 65):
@@ -90,6 +95,41 @@ def kijkstand(http: pp.Http, item: str, gebruiker: str) -> tuple:
     return tuple(data.get(k) for k in ("PlaybackPositionTicks", "Played", "IsFavorite", "Rating", "Likes"))
 
 
+@contextmanager
+def waarneem_media(media: Path):
+    """Tel op Linux ook voor schrijven geopende en ongewijzigd gesloten bestanden op de eigen mediamount."""
+    libc = ctypes.CDLL(None, use_errno=True)
+    fd = libc.inotify_init1(os.O_NONBLOCK | os.O_CLOEXEC)
+    if fd < 0:
+        raise OSError(ctypes.get_errno(), "inotify voor het proefcorpus openen")
+    # modify, attrib, close_write, moved_from/to, create, delete, delete_self, move_self
+    schrijfmasker = 0x0002 | 0x0004 | 0x0008 | 0x0040 | 0x0080 | 0x0100 | 0x0200 | 0x0400 | 0x0800
+    kop = struct.Struct("iIII")
+
+    def tel():
+        aantal = 0
+        while True:
+            try:
+                blok = os.read(fd, 65536)
+            except BlockingIOError:
+                return aantal
+            pos = 0
+            while pos < len(blok):
+                _, masker, _, naamgrootte = kop.unpack_from(blok, pos)
+                if masker & 0x4000:  # IN_Q_OVERFLOW
+                    raise RuntimeError("De kernelwachtrij voor het proefcorpus is volgelopen")
+                aantal += bool(masker & schrijfmasker)
+                pos += kop.size + naamgrootte
+
+    try:
+        for map_ in [media, *(p for p in media.rglob("*") if p.is_dir())]:
+            if libc.inotify_add_watch(fd, os.fsencode(map_), schrijfmasker) < 0:
+                raise OSError(ctypes.get_errno(), "proefmap observeren")
+        yield tel
+    finally:
+        os.close(fd)
+
+
 def maak_corpus(werk: Path, stock: str) -> Path:
     media = werk / "bronmedia"
     media.mkdir()
@@ -103,6 +143,14 @@ def maak_corpus(werk: Path, stock: str) -> Path:
               stock, "-loglevel", "error", "-i", f"/in/{origineel.name}", "-map", "0", "-c", "copy", "-c:s", "mov_text",
               "-threads", "1", f"/out/{mp4.name}")
     mp4.with_suffix(".nfo").write_text('<movie><title>Proeffilm</title><uniqueid type="imdb" default="true">tt0000001</uniqueid></movie>')
+    vervanging = werk / "vervanging"
+    vervanging.mkdir()
+    pp.docker("run", "--rm", "--network", "none", "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",
+              "--entrypoint", "/usr/lib/jellyfin-ffmpeg/ffmpeg", "-v", f"{mp4.parent}:/in:ro", "-v", f"{vervanging}:/out",
+              stock, "-loglevel", "error", "-i", f"/in/{mp4.name}", "-map", "0", "-c", "copy",
+              "-metadata", "title=Vervangen proeffilm", f"/out/{mp4.name}")
+    if mp4.read_bytes() == (vervanging / mp4.name).read_bytes():
+        raise RuntimeError("Vervanger en origineel hebben dezelfde bytes")
     return media
 
 
@@ -224,10 +272,13 @@ def meet_run(naam: str, server: pp.Server, zaai: pp.Server, kop: dict, kijker: s
         doel = werk / "metingen" / moment / (naam + ".db")
         aantallen = opname(server.config / DB, doel)
         if fork and (doel.parent / "a1.db").is_file():
-            afwijkend, onbeslist = controleer_tabellen(doel.parent / "a1.db", doel.parent / "a2.db", doel)
-            if not v.test("JLT-56", f"Alle tabellen bij {moment}", not afwijkend and not onbeslist,
-                          f"afwijkend {afwijkend}, onvergelijkbaar {onbeslist}"):
-                raise RuntimeError("Stockvergelijking onderbroken bij " + moment)
+            oordeel = pl.vergelijk_db(doel.parent / "a1.db", doel.parent / "a2.db", doel)
+            afwijkend, onbeslist = beoordeel_tabellen(oordeel)
+            kolommen = {t: oordeel[t].get("afwijkende_kolommen", oordeel[t]["masker"]) for t in afwijkend + onbeslist}
+            v.test("JLT-56", f"Alle tabellen bij {moment}", not afwijkend and not onbeslist,
+                   f"afwijkend {afwijkend}, onvergelijkbaar {onbeslist}, kolommen {kolommen}")
+            if afwijkend:
+                raise RuntimeError("Afwijking buiten de eigen providerrijen bij " + moment)
         return aantallen
 
     media = server.media
@@ -257,6 +308,10 @@ def meet_run(naam: str, server: pp.Server, zaai: pp.Server, kop: dict, kijker: s
         v.test("JLT-56", "Schaduw bevat de menselijke correctie en publiceert niets",
                foto("schaduw")[0] == 0 and http.doe("GET", f"{BASIS}/{eerste}")["segments"] == [])
         stand(http, bib, "published", "Steekproef op de synthetische film bevestigd")
+    else:
+        # Ook stock doorloopt de herstart van de kopie waarmee de historische correctie werd ingevoerd.
+        server.stop()
+        http = begin()
     eigenaar, vreemd = foto("publicatie")
     v.test("JLT-56", f"{naam} eigendom en bestaande vreemde rij bij publicatie", eigenaar == int(fork) and vreemd == 1,
            f"eigen {eigenaar}, vreemd {vreemd}")
@@ -273,15 +328,15 @@ def meet_run(naam: str, server: pp.Server, zaai: pp.Server, kop: dict, kijker: s
         v.test("JLT-56e", "Export bevat geen account-ID’s of meldingen", bool(bundel["items"])
                and all(g["Id"].lower().replace("-", "") not in tekst for g in gebruikers) and "notification" not in tekst)
     manifest = http.doe("POST", "/Backup/Create", body={"Database": True})
+    server.stop()
     if fork:
-        server.stop()
         migratie_proef(server, kop, werk, v)
         herstel_proef(server, kop, manifest["Path"], bundel, eerste, kijker, voor, werk, v)
-        http = begin()
+    http = begin()
 
     # De schrijver is de proef zelf, vóór de scan. Alle drie de kopieën krijgen dezelfde bytes en mtime.
     vervanger = server.map / "vervanger.mp4"
-    shutil.copy2(mp4, vervanger)
+    shutil.copy2(werk / "vervanging" / mp4.name, vervanger)
     os.utime(vervanger, ns=(mp4.stat().st_atime_ns, mp4.stat().st_mtime_ns + 120_000_000_000))
     vervanger.replace(mp4)
     scan(http)
@@ -331,13 +386,16 @@ def meet_run(naam: str, server: pp.Server, zaai: pp.Server, kop: dict, kijker: s
     voor_items = items(http) if fork else []
     server.stop()
     server.media_schrijfbaar = True
-    http = begin()
-    if fork:
-        gezondheid = http.doe("GET", BASIS + "/status")
-        v.test("JLT-56f", "Schrijfbare mount blokkeert analyse en geeft rode status",
-               gezondheid["health"] == "down" and gezondheid["reason"] == "media_mount_writable" and items(http) == voor_items)
-    server.stop()
-    v.test("JLT-56f", f"{naam} corpus-SHA’s, omvang en mtimes gelijk op schrijfbare mount", pp.corpus(media) == voor_media)
+    with waarneem_media(media) as tel:
+        http = begin()
+        if fork:
+            gezondheid = http.doe("GET", BASIS + "/status")
+            v.test("JLT-56f", "Schrijfbare mount blokkeert analyse en geeft rode status",
+                   gezondheid["health"] == "down" and gezondheid["reason"] == "media_mount_writable" and items(http) == voor_items)
+        server.stop()
+        aantal = tel()
+    v.test("JLT-56f", f"{naam} schrijfbare mount behoudt het corpus zonder schrijfgebeurtenissen",
+           aantal == 0 and pp.corpus(media) == voor_media, f"{aantal} schrijfgebeurtenissen")
     server.media_schrijfbaar = False
     http = begin()
 
