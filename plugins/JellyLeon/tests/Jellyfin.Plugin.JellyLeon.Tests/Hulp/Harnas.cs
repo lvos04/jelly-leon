@@ -44,6 +44,8 @@ internal sealed class NepSchakelaars : IModuleSwitches
 
     public string Etag => "\"" + string.Join(';', _stand.OrderBy(s => s.Key, StringComparer.Ordinal).Select(s => s.Key + "=" + s.Value)) + "\"";
 
+    public bool HeeftGasten { get; set; }
+
     public bool IsAan(string slug) => _stand.GetValueOrDefault(slug);
 
     public void Zet(string slug, bool aan) => _stand[slug] = aan;
@@ -170,7 +172,7 @@ internal sealed class Harnas : IDisposable
         .Where(m => m.GetCustomAttribute<JlRouteAttribute>() is not null)
         .ToDictionary(m => m.GetCustomAttribute<JlRouteAttribute>()!.Id, StringComparer.Ordinal);
 
-    public Harnas(bool gebruikServerauth = false)
+    public Harnas(bool gebruikServerauth = false, Action<IServiceCollection>? extraDiensten = null)
     {
         Map = Directory.CreateTempSubdirectory("jl-test-").FullName;
         var paden = new Mock<IApplicationPaths>();
@@ -191,6 +193,7 @@ internal sealed class Harnas : IDisposable
             diensten.AddSingleton<ISessionAuthenticator>(Sessies);
         }
         diensten.AddSingleton<IMediaMappen>(Media);
+        extraDiensten?.Invoke(diensten);
         Diensten = diensten.BuildServiceProvider();
     }
 

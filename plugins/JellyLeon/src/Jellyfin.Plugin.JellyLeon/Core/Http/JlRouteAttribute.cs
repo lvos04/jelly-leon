@@ -43,7 +43,7 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter, IAsyncAlwa
                 if (route.Auth != JlAuth.Hub)
                 {
                     var wie = await http.RequestServices.GetRequiredService<ISessionAuthenticator>().AuthenticeerAsync(http.Request).ConfigureAwait(false);
-                    wie.EisBeheerder(route.Auth);
+                    wie.EisToegang(route.Auth);
                 }
 
                 throw opslag.Fout(route.Auth == JlAuth.Hub, http.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow());

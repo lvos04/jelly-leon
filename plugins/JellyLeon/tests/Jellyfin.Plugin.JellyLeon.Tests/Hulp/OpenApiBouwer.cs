@@ -91,6 +91,51 @@ internal static partial class OpenApiBouwer
           "trace_id": { "type": "string", "format": "uuid" }
         }
       },
+      "WatchCapabilities": {
+        "type": "object", "additionalProperties": false,
+        "required": ["schema_version", "plugin_version", "jellyfin_version", "decorator_active", "health", "observed_at", "features"],
+        "properties": {
+          "schema_version": {"type": "string", "enum": ["1.0"]},
+          "plugin_version": {"type": "string"},
+          "jellyfin_version": {"type": "string"},
+          "decorator_active": {"type": "boolean"},
+          "health": {"type": "string", "enum": ["healthy", "degraded", "down"]},
+          "observed_at": {"type": "string", "format": "date-time"},
+          "features": {"type": "object", "additionalProperties": false, "required": ["privacy", "invites", "laggard_policy", "follow_mode", "telemetry", "chat", "reactions", "external"], "properties": {"privacy": {"type": "boolean"}, "invites": {"type": "boolean"}, "laggard_policy": {"type": "string", "enum": ["uit"]}, "follow_mode": {"type": "boolean"}, "telemetry": {"type": "boolean"}, "chat": {"type": "boolean"}, "reactions": {"type": "boolean"}, "external": {"type": "string", "enum": ["uit"]}}}
+        }
+      },
+      "WatchGroepen": {
+        "type": "object", "additionalProperties": false,
+        "required": ["items", "next_cursor"],
+        "properties": {
+          "items": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["group_id", "name", "state", "visibility", "is_owner", "is_member", "invited", "participants_count", "followers_count", "sync_quality"], "properties": {"group_id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "state": {"type": "string"}, "visibility": {"type": "string", "enum": ["open"]}, "is_owner": {"type": "boolean"}, "is_member": {"type": "boolean"}, "invited": {"type": "boolean"}, "participants_count": {"type": "integer", "minimum": 0}, "followers_count": {"type": "integer", "minimum": 0}, "sync_quality": {"type": "object", "nullable": true}}}},
+          "next_cursor": {"type": "string", "format": "uuid", "nullable": true}
+        }
+      },
+      "WatchDiagnose": {
+        "type": "object", "additionalProperties": false,
+        "required": ["group_id", "observed_at", "participants"],
+        "properties": {
+          "group_id": {"type": "string", "format": "uuid"},
+          "observed_at": {"type": "string", "format": "date-time"},
+          "participants": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["display_name", "is_self", "network", "ping_ms", "drift_ms", "state", "play_method", "lane"], "properties": {"display_name": {"type": "string"}, "is_self": {"type": "boolean"}, "network": {"type": "string"}, "ping_ms": {"type": "integer", "minimum": 0, "nullable": true}, "drift_ms": {"type": "object", "nullable": true}, "state": {"type": "string"}, "play_method": {"type": "string"}, "lane": {"type": "string"}}}}
+        }
+      },
+      "WatchWisVerzoek": {
+        "type": "object", "additionalProperties": false,
+        "required": ["confirm"],
+        "properties": {
+          "confirm": {"type": "string", "enum": ["WISSEN"]}
+        }
+      },
+      "WatchGewist": {
+        "type": "object", "additionalProperties": false,
+        "required": ["deleted", "secret_removed"],
+        "properties": {
+          "deleted": {"type": "object", "additionalProperties": false, "required": ["wt_group_meta"], "properties": {"wt_group_meta": {"type": "integer", "minimum": 0}}},
+          "secret_removed": {"type": "boolean"}
+        }
+      },
       "Discover": {
         "type": "object", "additionalProperties": false,
         "required": ["app_id", "source_version", "schema_version", "capabilities", "permissions", "limits", "timestamp_utc"],
@@ -405,7 +450,7 @@ internal static partial class OpenApiBouwer
         }
         else
         {
-            codes.Add(200);
+            codes.Add(route.Id == "watch.purge" ? 202 : 200);
         }
 
         if (route.Module is not null || heeftPadParameter || route.Id == "privacy.kid.confirm")
@@ -423,7 +468,7 @@ internal static partial class OpenApiBouwer
             codes.UnionWith([400, 409, 422]);
         }
 
-        if (route.HeeftBody || route.Id is "connector.items" or "connector.events")
+        if (route.HeeftBody || route.Id is "connector.items" or "connector.events" or "watch.groups")
         {
             codes.Add(422);
         }
@@ -449,7 +494,7 @@ internal static partial class OpenApiBouwer
             parameters.Add(Parameter("type", "query", true, "string", "Een itemtype uit discover (permissions items:<type>:read)"));
         }
 
-        if (route.Id is "connector.items" or "connector.events")
+        if (route.Id is "connector.items" or "connector.events" or "watch.groups")
         {
             parameters.Add(Parameter("cursor", "query", false, "string", "De next_cursor van de vorige pagina"));
             parameters.Add(Parameter("limit", "query", false, "integer", "1 tot 200"));
@@ -475,10 +520,10 @@ internal static partial class OpenApiBouwer
         var antwoorden = new JsonObject();
         foreach (var status in Statussen(route))
         {
-            var schema = status == 200 ? route.AntwoordSchema : "Fout";
+            var schema = status < 300 ? route.AntwoordSchema : "Fout";
             antwoorden[status.ToString(System.Globalization.CultureInfo.InvariantCulture)] = new JsonObject
             {
-                ["description"] = status == 200 ? route.Samenvatting : _uitleg[status],
+                ["description"] = status < 300 ? route.Samenvatting : _uitleg[status],
                 ["content"] = new JsonObject
                 {
                     ["application/json"] = new JsonObject { ["schema"] = new JsonObject { ["$ref"] = "#/components/schemas/" + schema } },
@@ -511,6 +556,11 @@ internal static partial class OpenApiBouwer
             ["tags"] = new JsonArray(route.Module ?? (route.Auth == JlAuth.Hub ? "connector" : "beheer")),
             ["security"] = new JsonArray(new JsonObject { [route.Auth == JlAuth.Hub ? "HubJwt" : "CustomAuthentication"] = new JsonArray() }),
         };
+        if (route.Auth == JlAuth.GebruikersSessie)
+        {
+            operatie["description"] = "Vereist een persoonlijke Jellyfin-sessie. De groepslijst volgt de SyncPlay-rechten. Diagnose vereist lidmaatschap of beheerrecht.";
+        }
+
         if (route.Auth == JlAuth.PersoonlijkeBeheerder)
         {
             operatie["description"] = "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder.";

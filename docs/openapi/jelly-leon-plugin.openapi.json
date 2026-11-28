@@ -1634,6 +1634,405 @@
         }
       }
     },
+    "/media/v1/watch/capabilities": {
+      "get": {
+        "operationId": "JlWatchCapabilities",
+        "summary": "Beschikbare Watch Together-functies",
+        "tags": [
+          "watch"
+        ],
+        "security": [
+          {
+            "CustomAuthentication": []
+          }
+        ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie. De groepslijst volgt de SyncPlay-rechten. Diagnose vereist lidmaatschap of beheerrecht.",
+        "responses": {
+          "200": {
+            "description": "Beschikbare Watch Together-functies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchCapabilities"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Niet aangemeld, niet gekoppeld (not_linked) of een ongeldig token; zie details.reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/v1/watch/groups": {
+      "get": {
+        "operationId": "JlWatchGroups",
+        "summary": "Zichtbare SyncPlay-groepen",
+        "tags": [
+          "watch"
+        ],
+        "security": [
+          {
+            "CustomAuthentication": []
+          }
+        ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie. De groepslijst volgt de SyncPlay-rechten. Diagnose vereist lidmaatschap of beheerrecht.",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "De next_cursor van de vorige pagina"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "1 tot 200"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zichtbare SyncPlay-groepen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchGroepen"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Niet aangemeld, niet gekoppeld (not_linked) of een ongeldig token; zie details.reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ongeldige invoer (details.fouten) of een hergebruikte Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/v1/watch/groups/{id}/diagnostics": {
+      "get": {
+        "operationId": "JlWatchDiagnostics",
+        "summary": "Diagnose voor een groepslid of beheerder",
+        "tags": [
+          "watch"
+        ],
+        "security": [
+          {
+            "CustomAuthentication": []
+          }
+        ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie. De groepslijst volgt de SyncPlay-rechten. Diagnose vereist lidmaatschap of beheerrecht.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Diagnose voor een groepslid of beheerder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchDiagnose"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Niet aangemeld, niet gekoppeld (not_linked) of een ongeldig token; zie details.reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/v1/watch/admin/purge": {
+      "post": {
+        "operationId": "JlWatchPurge",
+        "summary": "Eigen Watch Together-gegevens en modulegeheim wissen",
+        "tags": [
+          "watch"
+        ],
+        "security": [
+          {
+            "CustomAuthentication": []
+          }
+        ],
+        "description": "Vereist een persoonlijke Jellyfin-sessie van een volwassen beheerder.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "UUID; dezelfde sleutel met hetzelfde verzoek geeft het oorspronkelijke antwoord met Idempotent-Replay: true"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchWisVerzoek"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Eigen Watch Together-gegevens en modulegeheim wissen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchGewist"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Idempotency-Key ontbreekt of is geen UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Niet aangemeld, niet gekoppeld (not_linked) of een ongeldig token; zie details.reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Een verzoek met dezelfde Idempotency-Key wordt nog verwerkt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ongeldige invoer (details.fouten) of een hergebruikte Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/media/v1/devices/export": {
       "get": {
         "operationId": "JlDevicesExport",
@@ -2815,6 +3214,273 @@
           "trace_id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "WatchCapabilities": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "plugin_version",
+          "jellyfin_version",
+          "decorator_active",
+          "health",
+          "observed_at",
+          "features"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "enum": [
+              "1.0"
+            ]
+          },
+          "plugin_version": {
+            "type": "string"
+          },
+          "jellyfin_version": {
+            "type": "string"
+          },
+          "decorator_active": {
+            "type": "boolean"
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "down"
+            ]
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "privacy",
+              "invites",
+              "laggard_policy",
+              "follow_mode",
+              "telemetry",
+              "chat",
+              "reactions",
+              "external"
+            ],
+            "properties": {
+              "privacy": {
+                "type": "boolean"
+              },
+              "invites": {
+                "type": "boolean"
+              },
+              "laggard_policy": {
+                "type": "string",
+                "enum": [
+                  "uit"
+                ]
+              },
+              "follow_mode": {
+                "type": "boolean"
+              },
+              "telemetry": {
+                "type": "boolean"
+              },
+              "chat": {
+                "type": "boolean"
+              },
+              "reactions": {
+                "type": "boolean"
+              },
+              "external": {
+                "type": "string",
+                "enum": [
+                  "uit"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "WatchGroepen": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "group_id",
+                "name",
+                "state",
+                "visibility",
+                "is_owner",
+                "is_member",
+                "invited",
+                "participants_count",
+                "followers_count",
+                "sync_quality"
+              ],
+              "properties": {
+                "group_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "open"
+                  ]
+                },
+                "is_owner": {
+                  "type": "boolean"
+                },
+                "is_member": {
+                  "type": "boolean"
+                },
+                "invited": {
+                  "type": "boolean"
+                },
+                "participants_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "followers_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "sync_quality": {
+                  "type": "object",
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "WatchDiagnose": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "group_id",
+          "observed_at",
+          "participants"
+        ],
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "display_name",
+                "is_self",
+                "network",
+                "ping_ms",
+                "drift_ms",
+                "state",
+                "play_method",
+                "lane"
+              ],
+              "properties": {
+                "display_name": {
+                  "type": "string"
+                },
+                "is_self": {
+                  "type": "boolean"
+                },
+                "network": {
+                  "type": "string"
+                },
+                "ping_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "nullable": true
+                },
+                "drift_ms": {
+                  "type": "object",
+                  "nullable": true
+                },
+                "state": {
+                  "type": "string"
+                },
+                "play_method": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "WatchWisVerzoek": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "confirm"
+        ],
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "enum": [
+              "WISSEN"
+            ]
+          }
+        }
+      },
+      "WatchGewist": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "deleted",
+          "secret_removed"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "wt_group_meta"
+            ],
+            "properties": {
+              "wt_group_meta": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "secret_removed": {
+            "type": "boolean"
           }
         }
       },

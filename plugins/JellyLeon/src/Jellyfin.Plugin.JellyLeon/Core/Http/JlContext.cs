@@ -21,6 +21,8 @@ internal sealed class JlContext
 
     public required JlPrincipal Wie { get; init; }
 
+    public SessieIdentiteit? Sessie { get; init; }
+
     public required RouteSpec Route { get; init; }
 
     public JsonObject? Body { get; init; }

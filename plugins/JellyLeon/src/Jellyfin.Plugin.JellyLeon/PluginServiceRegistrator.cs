@@ -1,4 +1,7 @@
 using System;
+using System.Linq;
+using Jellyfin.Plugin.JellyLeon.Modules.WatchTogether;
+using MediaBrowser.Controller.SyncPlay;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.JellyLeon.Core;
 using Jellyfin.Plugin.JellyLeon.Core.Budget;
@@ -65,6 +68,9 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IMediaSegmentProvider, SegmentProvider>();
         serviceCollection.AddSingleton<SegmentBibliotheek>();
         serviceCollection.AddSingleton<SegmentPublicatie>();
+        serviceCollection.AddSingleton<WatchTogetherModule>();
+        serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<WatchTogetherModule>());
+        RegistreerWatchTogether(serviceCollection);
         serviceCollection.AddSingleton<ModuleRegistry>();
 
         serviceCollection.AddSingleton<PrivacyService>();
@@ -101,5 +107,27 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         {
             serviceCollection.AddTransient<IStartupFilter, JlStartupFilterSpike>();
         }
+    }
+
+    private static void RegistreerWatchTogether(IServiceCollection diensten)
+    {
+        var registraties = diensten.Where(d => !d.IsKeyedService && d.ServiceType == typeof(ISyncPlayManager)).ToArray();
+        if (registraties is [var origineel] && origineel.Lifetime == ServiceLifetime.Singleton
+            && origineel.ImplementationType is { FullName: "Emby.Server.Implementations.SyncPlay.SyncPlayManager" } type)
+        {
+            // DI houdt de oorspronkelijke singleton en zijn Dispose in eigendom. Geen tweede SyncPlayManager.
+            diensten.Remove(origineel);
+            diensten.AddKeyedSingleton(typeof(ISyncPlayManager), typeof(WatchDecorator), type);
+            diensten.AddSingleton<Func<WatchTogetherModule>>(sp => sp.GetRequiredService<WatchTogetherModule>);
+            diensten.AddSingleton<ISyncPlayManager>(sp => new WatchDecorator(
+                sp.GetRequiredKeyedService<ISyncPlayManager>(typeof(WatchDecorator)),
+                sp.GetRequiredService<MediaBrowser.Controller.Session.ISessionManager>(), sp.GetRequiredService<IModuleSwitches>(),
+                sp.GetRequiredService<Func<WatchTogetherModule>>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ILogger<WatchDecorator>>()));
+        }
+
+        diensten.AddSingleton<Func<ISyncPlayManager?>>(sp => sp.GetService<ISyncPlayManager>);
+        diensten.AddSingleton<WatchBewaking>();
+        diensten.AddSingleton<IHealthBron>(sp => sp.GetRequiredService<WatchBewaking>());
+        diensten.AddHostedService<OpslagDienst<WatchBewaking>>();
     }
 }

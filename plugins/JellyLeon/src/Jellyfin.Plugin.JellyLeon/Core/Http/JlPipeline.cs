@@ -44,6 +44,7 @@ internal sealed class JlPipeline
         var sleutel = Kop(verzoek, "Idempotency-Key");
 
         JlPrincipal wie;
+        SessieIdentiteit? sessie = null;
         var alleenHerhalen = false;
         if (route.Auth == JlAuth.Hub)
         {
@@ -60,11 +61,11 @@ internal sealed class JlPipeline
         }
         else
         {
-            var sessie = await _diensten.GetRequiredService<ISessionAuthenticator>().AuthenticeerAsync(verzoek).ConfigureAwait(false);
-            sessie.EisBeheerder(route.Auth);
+            sessie = await _diensten.GetRequiredService<ISessionAuthenticator>().AuthenticeerAsync(verzoek).ConfigureAwait(false);
+            sessie.EisToegang(route.Auth);
 
             var id = sessie.GebruikerId is Guid gebruiker ? "session:" + _diensten.GetRequiredService<PrivacyService>().Pseudoniem(gebruiker) : "session:api-key";
-            wie = new JlPrincipal(id, false, false, ["admin"]);
+            wie = new JlPrincipal(id, false, false, sessie.IsBeheerder && !sessie.IsKid ? ["admin"] : ["user"]);
         }
 
         if (route.Module is not null && !_diensten.GetRequiredService<ModuleRegistry>().IsAan(route.Module))
@@ -135,6 +136,7 @@ internal sealed class JlPipeline
         {
             TraceId = traceId,
             Wie = wie,
+            Sessie = sessie,
             Route = route,
             Body = body,
             IfMatch = ifMatch,

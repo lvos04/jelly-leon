@@ -43,6 +43,8 @@ internal sealed partial class JlDatabase
 
     public string Pad { get; }
 
+    public bool Bestaat => File.Exists(Pad);
+
     /// <summary>Voert <paramref name="werk"/> uit op een open verbinding; opslagfouten worden 503 storage_unavailable.</summary>
     public T Met<T>(Func<SqliteConnection, T> werk)
     {

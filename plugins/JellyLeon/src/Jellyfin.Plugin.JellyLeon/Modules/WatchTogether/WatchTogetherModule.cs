@@ -1,0 +1,133 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Nodes;
+using Jellyfin.Plugin.JellyLeon.Core.Modules;
+using Jellyfin.Plugin.JellyLeon.Core.Outbox;
+using Jellyfin.Plugin.JellyLeon.Core.Secrets;
+using Jellyfin.Plugin.JellyLeon.Core.Storage;
+
+namespace Jellyfin.Plugin.JellyLeon.Modules.WatchTogether;
+
+/// <summary>WT-1 bewaart uitsluitend groepsmetadata. De server beheert de groepen en het afspelen.</summary>
+internal sealed class WatchTogetherModule : IJellyLeonModule
+{
+    public const string ModuleSlug = "watch";
+    private const string Zout = "wt-hmac.key";
+    private readonly JlDatabase _db;
+    private readonly SecretStore _geheimen;
+    private readonly Outbox _outbox;
+    private bool _gestart;
+
+    public WatchTogetherModule(JlPaths paden, SecretStore geheimen, Outbox outbox)
+    {
+        _geheimen = geheimen;
+        _outbox = outbox;
+        _db = new JlDatabase(paden, paden.ModuleDb(ModuleSlug),
+        [
+            """
+            CREATE TABLE wt_group_meta(
+                group_id TEXT PRIMARY KEY, owner TEXT, created_at INTEGER NOT NULL, ended_at INTEGER,
+                detected_by TEXT, event_id TEXT UNIQUE, reported INTEGER NOT NULL DEFAULT 0
+            );
+            """,
+        ]);
+    }
+
+    public string Slug => ModuleSlug;
+    public string Naam => "Watch Together";
+    public IReadOnlyList<string> ItemTypes => [];
+    public IReadOnlyList<string> EventTypes => ["media.watchgroup.ended", "media.watchgroup.degraded"];
+    public IReadOnlyList<string> JobTypes => [];
+    public IReadOnlyList<PersoonsgegevenRegel> Persoonsgegevens =>
+        [new(Slug, "wt_group_meta", "HMAC van eigenaar-ID", "Eigenaarschap van een SyncPlay-groep", "6 uur na einde, bij UserDeleted direct losgekoppeld")];
+
+    public IReadOnlyList<JsonObject> Items(string type, DateTimeOffset nu) => [];
+    public JsonObject Exporteer() => new() { ["module"] = Slug };
+    public void ControleerOpslag() => _db.Met(v => JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta"));
+    public void WisSporen()
+    {
+        if (_db.Bestaat)
+        {
+            _db.WisSporen();
+        }
+    }
+
+    // Dezelfde DB-vergrendeling ordent opstarten, gebruikersverwijdering, periodieke controles en purge.
+    public void Start(DateTimeOffset nu)
+    {
+        if (!_db.Bestaat)
+        {
+            return;
+        }
+
+        _db.Met(v =>
+        {
+            if (!_gestart)
+            {
+                JlDatabase.Voer(v, "UPDATE wt_group_meta SET ended_at=$t, detected_by='startup', event_id=lower(hex(randomblob(16))) WHERE ended_at IS NULL", ("$t", nu.ToUnixTimeSeconds()));
+                _gestart = true;
+            }
+        });
+        VerzendEnRuimOp(nu);
+    }
+
+    public void Noteer(Guid groep, Guid? eigenaar, DateTimeOffset nu) => _db.Met(v =>
+    {
+        JlDatabase.Voer(v, "INSERT OR IGNORE INTO wt_group_meta(group_id, owner, created_at) VALUES($id,$e,$t)",
+            ("$id", groep.ToString("N")), ("$e", eigenaar is Guid id ? Pseudoniem(id) : null), ("$t", nu.ToUnixTimeSeconds()));
+        _gestart = true;
+    });
+
+    public IReadOnlyList<Guid> Actief() => !_db.Bestaat ? [] : _db.Met(v =>
+        JlDatabase.Rijen(v, "SELECT group_id FROM wt_group_meta WHERE ended_at IS NULL").Select(r => Guid.Parse((string)r[0]!)).ToList());
+
+    public bool IsEigenaar(Guid groep, Guid gebruiker) => _db.Bestaat && _db.Met(v =>
+        JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta WHERE group_id=$id AND owner=$e AND ended_at IS NULL",
+            ("$id", groep.ToString("N")), ("$e", Pseudoniem(gebruiker))) != 0);
+
+    public void Beeindig(Guid groep, string reden, DateTimeOffset nu) => _db.Met(v =>
+        JlDatabase.Voer(v, "UPDATE wt_group_meta SET ended_at=$t, detected_by=$r, event_id=$event WHERE group_id=$id AND ended_at IS NULL",
+            ("$t", nu.ToUnixTimeSeconds()), ("$r", reden), ("$event", Guid.NewGuid().ToString("N")), ("$id", groep.ToString("N"))));
+
+    public void VerzendEnRuimOp(DateTimeOffset nu)
+    {
+        if (!_db.Bestaat)
+        {
+            return;
+        }
+
+        _db.Met(v =>
+        {
+            foreach (var rij in JlDatabase.Rijen(v, "SELECT group_id, ended_at-created_at, detected_by, event_id FROM wt_group_meta WHERE ended_at IS NOT NULL AND reported=0"))
+            {
+                var id = (string)rij[0]!;
+                _outbox.Meld(Slug, "media.watchgroup.ended", "watch_group", "o_" + _geheimen.OpaakId(Slug, id),
+                    new JsonObject { ["duration_s"] = Math.Max(0, (long)rij[1]!), ["detected_by"] = (string)rij[2]! },
+                    vasteEventId: Guid.Parse((string)rij[3]!));
+                JlDatabase.Voer(v, "UPDATE wt_group_meta SET reported=1 WHERE group_id=$id", ("$id", id));
+            }
+
+            JlDatabase.Voer(v, "DELETE FROM wt_group_meta WHERE reported=1 AND ended_at <= $grens", ("$grens", nu.AddHours(-6).ToUnixTimeSeconds()));
+        });
+    }
+
+    public int VerwijderGebruiker(Guid gebruiker) => !_db.Bestaat ? 0 : _db.Met(v =>
+        _geheimen.Lees(Zout) is null ? 0 : JlDatabase.Voer(v, "UPDATE wt_group_meta SET owner=NULL WHERE owner=$e", ("$e", Pseudoniem(gebruiker))));
+
+    public int TelGebruiker(Guid gebruiker) => !_db.Bestaat ? 0 : _db.Met(v =>
+        _geheimen.Lees(Zout) is null ? 0 : (int)JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta WHERE owner=$e", ("$e", Pseudoniem(gebruiker))));
+
+    public JsonObject Wis() => _db.Met(v =>
+    {
+        var aantal = JlDatabase.Voer(v, "DELETE FROM wt_group_meta");
+        _outbox.VerwijderModule(Slug);
+        _geheimen.Verwijder(Zout);
+        JlDatabase.Voer(v, "PRAGMA wal_checkpoint(TRUNCATE)");
+        return new JsonObject { ["deleted"] = new JsonObject { ["wt_group_meta"] = aantal }, ["secret_removed"] = true };
+    });
+
+    private string Pseudoniem(Guid id) => Convert.ToHexStringLower(HMACSHA256.HashData(_geheimen.LeesOfMaak(Zout, 32), id.ToByteArray()));
+}

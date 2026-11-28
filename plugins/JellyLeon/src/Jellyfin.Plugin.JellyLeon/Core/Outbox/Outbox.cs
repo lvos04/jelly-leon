@@ -85,17 +85,22 @@ internal sealed partial class Outbox
         };
     }
 
-    public string Meld(string module, string eventType, string entityType, string entityId, JsonObject payload, string actorType = "system", string actorId = "jelly-leon")
+    public string Meld(string module, string eventType, string entityType, string entityId, JsonObject payload, string actorType = "system", string actorId = "jelly-leon", Guid? vasteEventId = null)
     {
         var nu = _klok.GetUtcNow();
         var envelop = Envelop(eventType, entityType, entityId, payload, nu, actorType, actorId);
+        if (vasteEventId is Guid vast)
+        {
+            envelop["event_id"] = vast.ToString();
+        }
+
         var eventId = envelop["event_id"]!.GetValue<string>();
         _db.Met(v =>
         {
             JlDatabase.Voer(v, "DELETE FROM outbox WHERE gemaakt < $grens", ("$grens", nu.ToUnixTimeSeconds() - BewaarSeconden));
             JlDatabase.Voer(
                 v,
-                "INSERT INTO outbox(event_id, module, json, gemaakt) VALUES($id, $m, $j, $nu)",
+                "INSERT INTO outbox(event_id, module, json, gemaakt) VALUES($id, $m, $j, $nu) ON CONFLICT(event_id) DO NOTHING",
                 ("$id", eventId),
                 ("$m", module),
                 ("$j", envelop.ToJsonString()),

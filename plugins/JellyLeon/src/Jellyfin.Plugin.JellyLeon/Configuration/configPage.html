@@ -38,6 +38,10 @@
             <h3>Modules</h3>
             <p class="fieldDescription">Elke module staat standaard uit. Na het uitzetten kun je de gegevens van Devices en Quality nog exporteren en wissen via de beheer-API.</p>
             <div id="jlModules"></div>
+            <section id="jlWatch" hidden>
+                <h3>Watch Together</h3>
+                <p id="jlWatchStatus" role="status"></p>
+            </section>
         </div>
     </div>
     <script type="text/javascript">
@@ -89,10 +93,36 @@
                 pagina.querySelector('#jlHubVingerafdruk').textContent = j.fingerprint ? '(vingerafdruk ' + j.fingerprint + ')' : '';
             }
 
+            var watchMeting = 0;
+            function toonWatch(aan) {
+                var nummer = ++watchMeting;
+                var sectie = pagina.querySelector('#jlWatch');
+                var status = pagina.querySelector('#jlWatchStatus');
+                sectie.hidden = !aan;
+                if (!aan) { return; }
+                status.textContent = 'Status wordt opgehaald…';
+                status.style.color = '';
+                vraag('GET', 'media/v1/watch/capabilities').then(function (antwoord) {
+                    if (nummer !== watchMeting) { return; }
+                    var j = antwoord.json;
+                    if (j.decorator_active === true) {
+                        status.textContent = 'SyncPlay-decorator actief. Privégroepen en uitnodigingen zijn nog niet beschikbaar.';
+                    } else {
+                        status.style.color = j.health === 'down' ? '#ff6868' : '#f2c560';
+                        status.textContent = 'Privégroepen werken niet. Groepen en namen zijn zichtbaar voor gebruikers met SyncPlay-recht. Zet SyncPlay in het Jellyfin-dashboard uit voor gasten en kinderen (SyncPlayAccess = Geen).';
+                    }
+                }).catch(function () {
+                    if (nummer === watchMeting) {
+                        status.textContent = 'De status van de SyncPlay-decorator is onbekend.';
+                    }
+                });
+            }
+
             function toonModules(antwoord) {
                 etag = antwoord.etag;
                 var doel = pagina.querySelector('#jlModules');
                 doel.textContent = '';
+                toonWatch(antwoord.json.items.some(function (m) { return m.slug === 'watch' && m.enabled; }));
                 antwoord.json.items.forEach(function (m) {
                     var label = document.createElement('label');
                     label.className = 'checkboxContainer';

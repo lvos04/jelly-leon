@@ -185,10 +185,30 @@ elke regel in deze tabel staat):
 | `IChapterRepository` | `GetChapters` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
 | `ChapterInfo` | `StartPositionTicks`, `Name` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
 
+WT-1 voegt de volgende klassegebonden leden toe. De drie groepsmutaties en het afspeelverzoek geven de argumenten van upstream door. Alleen de server beheert de afspeelstatus.
+
+| Type | Leden | Klasse | Gebruik |
+|---|---|---|---|
+| `ISyncPlayManager` | `NewGroup`, `JoinGroup`, `LeaveGroup`, `GetGroup`, `ListGroups`, `HandleRequest`, `IsUserActive` | `Modules.WatchTogether.WatchDecorator` | Verwerkt uitsluitend het oorspronkelijke sessieverzoek. |
+| `ISessionManager` | `Sessions` | `Modules.WatchTogether.WatchDecorator` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `SessionInfo` | `Id`, `UserId`, `UserName` | `Modules.WatchTogether.WatchDecorator` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `GroupInfoDto` | `GroupId`, `Participants` | `Modules.WatchTogether.WatchDecorator` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `JoinGroupRequest` | `GroupId` | `Modules.WatchTogether.WatchDecorator` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `ISyncPlayManager` | `GetGroup`, `ListGroups`, `IsUserActive` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `ISessionManager` | `Sessions` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `SessionInfo` | `UserId`, `UserName` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `ListGroupsRequest` | `new` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `GroupInfoDto` | `GroupId`, `GroupName`, `Participants`, `State` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `IUserManager` | `GetUsers` | `Modules.WatchTogether.WatchBewaking` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `ISessionManager` | `SessionEnded` | `Modules.WatchTogether.WatchBewaking` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `SessionEventArgs` | `SessionInfo` | `Modules.WatchTogether.WatchBewaking` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `User` | `SyncPlayAccess` | `Core.Http.JellyfinSessionAuthenticator` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+
 Witte lijst van uitbreidingspunten (`Regels.UitbreidingWitteLijst`):
 
 | Servertype | Namespace (exact) | Motivatie |
 |---|---|---|
+| `ISyncPlayManager` | `Jellyfin.Plugin.JellyLeon.Modules.WatchTogether` | WT-1 omhult uitsluitend de bestaande SyncPlay-singleton. |
 | `BasePlugin<T>` | `Jellyfin.Plugin.JellyLeon` | De ene pluginklasse (`Plugin`, ADR-0016). |
 | `IHasWebPages` | `Jellyfin.Plugin.JellyLeon` | De configuratiepagina van `Plugin`. |
 | `IPluginServiceRegistrator` | `Jellyfin.Plugin.JellyLeon` | De registratie van Core en de modules. |

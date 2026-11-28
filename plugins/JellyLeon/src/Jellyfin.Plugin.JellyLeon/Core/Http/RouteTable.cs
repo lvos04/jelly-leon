@@ -10,6 +10,9 @@ internal enum JlAuth
     /// <summary>Alleen de Hub, met een gebruikers- of dienst-JWT (contract §4).</summary>
     Hub,
 
+    /// <summary>Een persoonlijke sessie, ook voor een gewone kijker.</summary>
+    GebruikersSessie,
+
     /// <summary>Een beheerder met een gewone serversessie (of een API-sleutel van de server).</summary>
     SessieBeheerder,
 
@@ -71,6 +74,10 @@ internal static class RouteTable
         new("privacy.kid.get", "GET", "/media/v1/privacy/kid-profiles/{id}", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Geen, "Voorstel en effectieve kinderstatus van het gekozen account", "Kinderprofiel"),
         new("privacy.kid.confirm", "POST", "/media/v1/privacy/kid-profiles/confirm", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Bevestig het gekozen account als kind of volwassene", "Kinderprofiel", "KinderprofielBevestiging", IfMatch: true),
         new("planner.status", "GET", "/media/v1/planner", JlAuth.SessieBeheerder, null, JlIdem.Geen, "Planner: mag er batchwerk draaien en waarom niet (aantallen en vaste woorden)", "Planner"),
+        new("watch.capabilities", "GET", "/media/v1/watch/capabilities", JlAuth.GebruikersSessie, "watch", JlIdem.Geen, "Beschikbare Watch Together-functies", "WatchCapabilities"),
+        new("watch.groups", "GET", "/media/v1/watch/groups", JlAuth.GebruikersSessie, "watch", JlIdem.Geen, "Zichtbare SyncPlay-groepen", "WatchGroepen"),
+        new("watch.diagnostics", "GET", "/media/v1/watch/groups/{id}/diagnostics", JlAuth.GebruikersSessie, "watch", JlIdem.Geen, "Diagnose voor een groepslid of beheerder", "WatchDiagnose"),
+        new("watch.purge", "POST", "/media/v1/watch/admin/purge", JlAuth.PersoonlijkeBeheerder, "watch", JlIdem.Verplicht, "Eigen Watch Together-gegevens en modulegeheim wissen", "WatchGewist", "WatchWisVerzoek"),
         new("devices.export", "GET", "/media/v1/devices/export", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Geen, "Devices exporteren en de opgeslagen JSON teruglezen", "ModuleExport"),
         new("devices.purge", "POST", "/media/v1/devices/data/purge", JlAuth.PersoonlijkeBeheerder, null, JlIdem.Verplicht, "Devices wissen na verificatie van de actuele export van hoogstens 24 uur oud", "ModuleWisResultaat", "ModuleWisVerzoek", WisModule: "devices"),
         new("devices.status", "GET", "/media/v1/devices/status", JlAuth.SessieBeheerder, "devices", JlIdem.Geen, "Devices: status (aantallen)", "ModuleStatus"),

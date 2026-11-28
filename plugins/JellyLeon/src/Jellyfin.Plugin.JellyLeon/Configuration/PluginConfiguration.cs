@@ -10,6 +10,13 @@ public class ModuleSwitch
     public bool Enabled { get; set; }
 }
 
+/// <summary>Instellingen voor Watch Together. Een ingestelde gast vereist de conservatieve zelftest.</summary>
+public class WatchTogetherOptions : ModuleSwitch
+{
+    /// <summary>Gets or sets de door de beheerder aangewezen gastaccounts.</summary>
+    public System.Guid[] GuestUserIds { get; set; } = [];
+}
+
 /// <summary>Instellingen van de MediaGuard-viewerclient (plan §10.5). Nooit een sleutel: die beheert de Hub (BG-04).</summary>
 public class MediaGuardOptions
 {
@@ -50,6 +57,8 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Gets or sets de aangewezen volwassen segmenteditors. Het kinderbeleid blijft leidend.</summary>
     public System.Guid[] SegmentEditors { get; set; } = [];
+    /// <summary>Gets or sets de Watch Together-schakelaar en gastinstelling.</summary>
+    public WatchTogetherOptions WatchTogether { get; set; } = new();
 
     /// <summary>Gets or sets de instellingen van de MediaGuard-viewerclient.</summary>
     public MediaGuardOptions MediaGuard { get; set; } = new();
@@ -64,5 +73,6 @@ public class PluginConfiguration : BasePluginConfiguration
         yield return ("devices", Devices ??= new ModuleSwitch());
         yield return ("quality", Quality ??= new ModuleSwitch());
         yield return ("segments", Segments ??= new ModuleSwitch());
+        yield return ("watch", WatchTogether ??= new WatchTogetherOptions());
     }
 }

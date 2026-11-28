@@ -15,6 +15,8 @@ internal interface IModuleSwitches
     /// <summary>Gets de ETag van de huidige stand van alle schakelaars.</summary>
     string Etag { get; }
 
+    bool HeeftGasten { get; }
+
     bool IsAan(string slug);
 
     void Zet(string slug, bool aan);
@@ -64,6 +66,8 @@ internal sealed class PluginModuleSwitches : IModuleSwitches
         var stand = string.Join(';', config.Schakelaars().Select(s => s.Slug + "=" + (s.Schakelaar.Enabled ? "1" : "0")));
         return "\"" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(stand)).AsSpan(0, 8)) + "\"";
     }
+
+    public bool HeeftGasten => (Config ?? throw Fouten.OpslagOnbeschikbaar()).WatchTogether?.GuestUserIds?.Length > 0;
 
     public bool IsAan(string slug) => _opslag.Beschikbaar && Config is { } config && config.Schakelaars().Any(s => s.Slug == slug && s.Schakelaar.Enabled);
 
