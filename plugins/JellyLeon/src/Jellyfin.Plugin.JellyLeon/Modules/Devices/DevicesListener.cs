@@ -16,7 +16,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Devices;
 /// Leest sessiegebeurtenissen bij een ingeschakelde module. Ook na uitschakeling verloopt de bewaartermijn van
 /// bestaande sessierijen. Een opslagfout bij het opruimen of registreren wordt gelogd.
 /// </summary>
-internal sealed class DevicesListener : IHostedService
+internal sealed class DevicesListener : IHostedService, IDisposable
 {
     private readonly ISessionManager _sessies;
     private readonly DevicesModule _module;
@@ -53,12 +53,13 @@ internal sealed class DevicesListener : IHostedService
     {
         _sessies.PlaybackStart -= BijStart;
         _sessies.PlaybackStopped -= BijStop;
-        if (_opruimer is { } timer)
+        if (Interlocked.Exchange(ref _opruimer, null) is { } timer)
         {
             await timer.DisposeAsync().ConfigureAwait(false);
-            _opruimer = null;
         }
     }
+
+    public void Dispose() => Interlocked.Exchange(ref _opruimer, null)?.Dispose();
 
     private void RuimOp(object? state)
     {

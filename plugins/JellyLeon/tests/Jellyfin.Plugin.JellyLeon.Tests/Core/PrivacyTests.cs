@@ -168,7 +168,7 @@ public sealed partial class PrivacyTests : IDisposable
             Assert.False(string.IsNullOrWhiteSpace(r["bij_verwijderen"]!.GetValue<string>()));
         });
 
-        var geregistreerd = regels.Select(r => ((string)r!["module"]!, (string)r["tabel"]!)).ToHashSet();
+        var geregistreerd = regels.Select(r => (r!["module"]!.GetValue<string>(), r["tabel"]!.GetValue<string>())).ToHashSet();
         var kern = _h.Dienst<CoreDatabase>();
         kern.Db.Met(v => JlDatabase.Getal(v, "SELECT 1"));
         kern.Kinderprofielen.Met(v => JlDatabase.Getal(v, "SELECT 1"));
