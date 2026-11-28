@@ -72,10 +72,40 @@
       "commando": "python -m pytest -p no:cacheprovider -q tools/jelly-leon/tests/test_evidence_contract.py tools/jelly-leon/tests/test_patch_register_and_consistency.py tools/jelly-leon/tests/test_config_pagina.py",
       "exitcode": 0,
       "slotregel": "57 passed in 1.68s"
+    },
+    {
+      "omgeving": "Forgejo 385, job 6909",
+      "commando": "dotnet build plugins/JellyLeon.Plugins.sln -c Release",
+      "exitcode": 0,
+      "slotregel": "Time Elapsed 00:00:33.59",
+      "waarschuwingen": 0,
+      "fouten": 0
+    },
+    {
+      "omgeving": "Forgejo 385, job 6909",
+      "commando": "dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal",
+      "exitcode": 0,
+      "slotregel": "Passed!  - Failed:     0, Passed:   418, Skipped:     0, Total:   418, Duration: 4 m 5 s - Jellyfin.Plugin.JellyLeon.Tests.dll (net10.0)",
+      "totaal": 418,
+      "doorlopen": 418,
+      "mislukt": 0,
+      "overgeslagen": 0
+    },
+    {
+      "omgeving": "Forgejo 385, job 6909",
+      "commando": "python3 tools/jelly-leon/analyzer_proef.py --bouw",
+      "exitcode": 0,
+      "slotregel": "analyzer_proef: in orde — 323 verboden aanroepen geven elk precies de verwachte bouwfout; de build faalt alleen daardoor"
+    },
+    {
+      "omgeving": "Forgejo 385, job 6905",
+      "commando": "bash tools/jelly-leon/test_forktools.sh",
+      "exitcode": 0,
+      "slotregel": "471 passed in 38.03s"
     }
   ],
   "niet_gecontroleerd": [
-    "NIET GEDRAAID (geen testslot): .NET-pluginbouw, ModuleGegevensbeheerTests, HTTP-proeven, volledige pluginsuite en analyzer. Ook de herhaling van de Python-opslaggrensproeven in een eigen containermap wacht op een slot.",
+    "NIET GEDRAAID (geen testslot): een afzonderlijke .NET-run en herhaling van de Python-opslaggrensproeven op de gedeelde werkmachine. De volledige plugin- en Python-suites zijn op Forgejo uitgevoerd.",
     "De integrale terugkeer naar de stock-image op dezelfde pluginvrije testkopie met aanmelden, afspelen, gebruikers- en mediahashes en de negatieve restantenproef.",
     "NIET GEVALIDEERD (echte NAS): echte bibliotheek en echte datamap (N-P6-09, N-P6-12)."
   ],
@@ -93,5 +123,18 @@
         "sha256": "7f770332906d6fa786d5b21a5d1b00f061df39c878ce4e86ef91af0703865966"
       }
     ]
+  },
+  "validatie_beheer": "Sim-getest op synthetische gegevens in de pluginjob van Forgejo.",
+  "forgejo": {
+    "commit": "c3cdaf28980fd98ca50d057a7d4ab902bf2df4ef",
+    "run": 385,
+    "workflow": "jelly-leon-ci.yml",
+    "runstatus": "cancelled",
+    "pluginjob": 6909,
+    "pluginstatus": "success",
+    "forktooljob": 6905,
+    "forktoolstatus": "success",
+    "testselectie": "Volledige pluginsuite zonder filter. De bron bevat 15 testgevallen voor modulebeheer en twee aanvragenreeksen via een lokale Kestrel-host, één voor Devices en één voor Quality.",
+    "bevinding": "De pluginproeven toetsen onder meer 403 voor een niet-beheerder, 409 bij een ontbrekende of achterhaalde export, bestands- en inhoudsverificatie, rollback en behoud van kijkgegevens, voortgang, overige module- en kerntabellen."
   }
 }
