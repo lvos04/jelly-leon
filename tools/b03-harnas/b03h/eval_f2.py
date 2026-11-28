@@ -29,11 +29,12 @@ def functie(cli, d, dsyn) -> dict:
         vorige = rijen
     functies = samenvatting(d, vorige)
     lekvrij = functies[WARM]["geschud_min_POP"]["onder"] <= 0
-    return {"status": "Sim-getest" if lekvrij else "Sim-mislukt", "herhalingen": len(lasten),
+    functioneel = lekvrij and all(c["volledige_rijen"] for c in functies.values())
+    return {"status": "Sim-getest" if functioneel else "Sim-mislukt", "herhalingen": len(lasten),
             "geldige_meetruns": sum(r["geldig"] for r in lasten), "last": lasten, "functies": functies,
             "determinisme": True, "lektest": lekvrij,
             "claim": "rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch)"
-            if d.naam == "D-SYN" and lekvrij else "niet aangetoond"}
+            if d.naam == "D-SYN" and functioneel else "niet aangetoond"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -73,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         with meetslot.exclusief_slot():
             doc.update(functie(a.cli, d, dsyn))
         slot = f"n={doc['n']}, herhalingen={doc['herhalingen']}, determinisme={doc['determinisme']}, lektest={doc['lektest']}"
-        code = 0 if doc["lektest"] else 1
+        code = 0 if doc["status"] == "Sim-getest" else 1
     else:
         doc["image"] = STOCK_IMAGE
 
@@ -99,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         if redenen:
             doc.update({"status": "NIET GEMETEN", "geldige_runs": 0, "reden": " / ".join(redenen)})
         slot = f"{doc['status']} — {doc.get('reden', 'drie gepaarde runs')} ({doc['geldige_runs']} geldige runs)"
-        code = 0 if doc.get("toets", {}).get("lektest") else (1 if doc["status"] in ("Sim-getest", "GESTOPT") else 3)
+        code = 0 if doc["status"] == "Sim-getest" else (1 if doc["status"] in ("Sim-mislukt", "GESTOPT") else 3)
     schrijf(uit, doc)
     print(slot)
     return code

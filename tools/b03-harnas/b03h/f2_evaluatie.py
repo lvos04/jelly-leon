@@ -114,6 +114,8 @@ def samenvatting(d: Dataset, antwoord: dict) -> dict:
         scores = cijfers(tops, d)
         geschudde_punten = [{u: metrieken(top[u], geschud[u], d.catalogus)["NDCG@10"] for u in tops} for top in (tops, pop)]
         resultaat[naam] = {m: asdict(bootstrap(list(s.values()), seed=SEED, trekkingen=1000)) for m, s in scores.items()}
+        volledig = all(len(tops[u]) == min(10, len(p.toegang - p.gezien)) for u, p in profielen.items())
         resultaat[naam].update({"coverage": coverage(tops.values(), d.catalogus), "min_aantal": min(map(len, tops.values())),
+                                "volledige_rijen": volledig,
                                 "geschud_min_POP": asdict(gepaard(*geschudde_punten, SEED))})
     return resultaat

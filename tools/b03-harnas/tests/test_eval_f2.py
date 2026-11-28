@@ -72,7 +72,7 @@ def test_herhaling_mist_interval_of_valt_erbuiten():
 
 def test_claim_vraagt_cohort_compleet_stock_meer_dan_pop_en_lekvrije_holdout():
     d = dataset()
-    functies = {s: {m: {"punt": 0.9} for m in METRIEKEN} | {"min_aantal": 10, "geschud_min_POP": {"onder": 0}} for s in SCENARIOS}
+    functies = {s: {m: {"punt": 0.9} for m in METRIEKEN} | {"volledige_rijen": True, "geschud_min_POP": {"onder": 0}} for s in SCENARIOS}
     scores = {s: {m: {k: {"punt": 0.1, "onder": 0.05, "baseline": 0.5}
                       for k in ("stock_a", "S-BEST", "S-REC", "S-LAT", "POP")} for m in METRIEKEN} for s in SCENARIOS}
     assert gate(d, functies, scores)["M1"] == "niet aangetoond"
@@ -82,8 +82,13 @@ def test_claim_vraagt_cohort_compleet_stock_meer_dan_pop_en_lekvrije_holdout():
     assert gate(d, functies, scores)["M1"] == "aantoonbaar beter"
     functies["warm"]["geschud_min_POP"]["onder"] = 0.001
     assert gate(d, functies, scores)["M1"] == "niet aangetoond"
+    assert all(v is None for v in gate(d, functies, scores)["M2"].values())
     functies["warm"]["geschud_min_POP"]["onder"] = 0
     scores["warm"]["Recall@10"]["POP"]["onder"] = 0
     assert gate(d, functies, scores)["M1"] == "niet aangetoond"
     scores["koud-0-opt-in"]["NDCG@10"]["POP"]["onder"] = -0.021
     assert not gate(d, functies, scores)["M2"]["koud-0-opt-in"]
+    synthetisch = replace(d, naam="D-SYN")
+    assert all(v is None for v in gate(synthetisch, functies, scores)["M2"].values())
+    functies["koud-2"]["volledige_rijen"] = False
+    assert gate(synthetisch, functies, scores)["M1"] == "niet aangetoond"

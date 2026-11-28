@@ -99,8 +99,11 @@ def gate(d, functies: dict, vergelijking: dict) -> dict:
                 return False
         return True
 
-    claim = "rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch)" if d.naam == "D-SYN" else "niet aangetoond"
-    if d.naam == "D-ML" and len(d.profielen) >= 100 and lekvrij:
+    functioneel = lekvrij and all(functies[s]["volledige_rijen"] for s in SCENARIOS)
+    claim = ("rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch)"
+             if d.naam == "D-SYN" and functioneel else "niet aangetoond")
+    rangschikking = d.naam == "D-ML" and len(d.profielen) >= 100 and functioneel
+    if rangschikking:
         if "S-TMDB" in warm["NDCG@10"] and boven("S-BEST"):
             claim = "aantoonbaar beter"
         elif boven("stock_a"):
@@ -109,8 +112,8 @@ def gate(d, functies: dict, vergelijking: dict) -> dict:
     for naam in SCENARIOS[1:]:
         scores = vergelijking[naam]["NDCG@10"]
         kwaliteit = scores["POP"]["onder"] >= -0.02 if naam == "koud-0-opt-in" else scores["stock_a"]["onder"] > 0
-        koud[naam] = kwaliteit and functies[naam]["min_aantal"] >= 10
-    return {"M1": claim, "M2": koud, "lektest": lekvrij,
+        koud[naam] = kwaliteit if rangschikking else None
+    return {"M1": claim, "M2": koud, "lektest": lekvrij, "functioneel": functioneel,
             "ILD_ten_minste_S_REC": warm["ILD"]["S-REC"]["punt"] >= 0}
 
 
@@ -154,6 +157,7 @@ def meetsessie(cli, dsyn, eerste):
                       for naam, groep in kijkers.items() for u, k in groep.items())
         functies = samenvatting(d, vorige)
         vergelijking = vergelijk(d, vorige, stockruns)
-        return {"status": "Sim-getest", "geldige_runs": len(stockruns), "last": lasten, "trainingsitems_herlezen": voor_na,
-                "functies": functies, "vergelijking": vergelijking, "toets": gate(d, functies, vergelijking)}
+        toets = gate(d, functies, vergelijking)
+        return {"status": "Sim-getest" if toets["functioneel"] else "Sim-mislukt", "geldige_runs": len(stockruns),
+                "last": lasten, "trainingsitems_herlezen": voor_na, "functies": functies, "vergelijking": vergelijking, "toets": toets}
     return meet
