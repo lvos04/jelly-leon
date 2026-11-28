@@ -146,6 +146,6 @@ In een kopie van het eindimagerapport werd voor web-chromium de gemeten afspeelu
 De eerste stockrun begon vóór UTC-middernacht en is op de meetdag herhaald.
 Op P6 zijn de drie browserrollen tweemaal beproefd, telkens één poging per rol. De tabel geeft de gekozen tweede webmeting. In de eerste sessie speelden Chromium en Firefox en overschreed WebKit de tijdgrens. Beide sessies staan in het meetbestand.
 
-Bij de twee tv-profielen meet het harnas Chromium met een andere user-agent. De legacy-rij toetst zeven aanmeldvormen op drie routes. De afzonderlijke MediaGuard-proef met `TV_PROFILE` uit S-P6-33 staat open.
+Bij de twee tv-profielen meet het harnas Chromium met een andere user-agent. De legacy-rij toetst zeven aanmeldvormen op drie routes. S-P6-33 mat het MediaGuard-tv-profiel op stock Jellyfin (A7, 4/4). De stockreferentierun stopte bij B7. Daardoor ontbreekt de A7-meting op de eindimage. Zie het contractrapport in media-guard-ultimate, revisie `9ec60573ba0b`.
 
 NIET GEVALIDEERD (hardware) voor echte tv’s, telefoons, tablets en streamingboxen (N-P6-09). NIET GEVALIDEERD (Mac/Xcode) voor Swiftfin en Safari. Desktop, SyncPlay, skipknoppen en downloaden hebben geen nieuwe eindimagemeting in deze rooktest. [Meetbestand van S-P6-31](test-evidence/s-p6-31-compatibiliteit.json)

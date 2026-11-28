@@ -311,6 +311,16 @@
         "web-chromium"
       ],
       "exitcode": 1
+    },
+    "MediaGuard_TV_PROFILE": {
+      "bron": "S-P6-33, media-guard-ultimate 9ec60573ba0b, tests/contract/mediaserver/RESULTS.md",
+      "stock_A7": {
+        "geslaagd": 4,
+        "totaal": 4
+      },
+      "p6_A7": null,
+      "reden": "De stockreferentierun stopte bij B7.",
+      "samenvatting": "S-P6-33 mat A7 met TV_PROFILE op stock Jellyfin (4/4). De stockreferentierun stopte bij B7, waardoor de P6-afspeelmeting ontbreekt."
     }
   },
   "JLT-64": {
