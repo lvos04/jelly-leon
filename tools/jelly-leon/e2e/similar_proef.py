@@ -22,7 +22,7 @@ from upstream_gedrag_runtime import maak_testfilm
 HARNAS = Path(__file__).resolve().parents[2] / "b03-harnas/playwright/harnas.mjs"
 CHECKS = {
     "similar_volgorde", "similar_exportvolgorde", "similar_zonder_cache", "similar_batch",
-    "similar_gebruiker", "similar_home", "similar_bewaarreden", "similar_homevoorkeur",
+    "similar_gebruiker", "similar_home", "similar_bewaarreden", "similar_homevoorkeur", "similar_dekking",
 }
 FILMS = {
     "Bron": ("Avontuur", True), "Alfa": ("Avontuur", False), "Beta": ("Avontuur", False), "Zulu": ("Avontuur", True),
@@ -354,7 +354,7 @@ def main(argv=None):
     except Exception as exc:
         # HTTP-fouten kunnen antwoorden met een sessiesleutel bevatten. Alleen eigen meldingen en het type tonen.
         fout = str(exc) if type(exc) is ValueError else type(exc).__name__
-        eigen = [regel for regel in traceback.extract_tb(exc.__traceback__) if regel.filename == __file__]
+        eigen = [regel for regel in traceback.extract_tb(exc.__traceback__) if regel.filename == __file__ and regel.name != "eis"]
         plek = f"{eigen[-1].name}/{eigen[-1].lineno}" if eigen else fase
         status = f" HTTP {exc.status}" if hasattr(exc, "status") else ""
         uit["fout"] = f"{fase} ({plek}): {fout}{status}"

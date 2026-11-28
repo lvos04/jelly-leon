@@ -751,5 +751,22 @@
     }
   },
   "afbakening": "De korte CLI-proef gebruikt handgemaakte gegevens. De stockvergelijking wacht op een definitieve baseline en geldige voormetingsintervallen. De werkelijke drie herhalingen per dataset staan afzonderlijk onder offline. Series en anime zijn uitsluitend synthetisch.",
-  "interpretatie": "Een herhaling boven de vastgelegde lastgrens telt uitsluitend voor de functionele controles. De puntschattingen en intervallen daarvan leveren geen officiële kwaliteitsvergelijking met stock."
+  "interpretatie": "Een herhaling boven de vastgelegde lastgrens telt uitsluitend voor de functionele controles. De puntschattingen en intervallen daarvan leveren geen officiële kwaliteitsvergelijking met stock.",
+  "similar_op_stock": {
+    "voor_herstel": {
+      "commit": "14bfcb78ddb4",
+      "commando": "similar_proef.py met de Release-plugin op het gepinde stockimage",
+      "exitcode": 1,
+      "slotregel": "normaal (eis/39): zonder volgorde wijkt Similar af van stock"
+    },
+    "herstel": {
+      "commit": "b21002a7fb8b",
+      "controle": "De bronbibliotheek en het mediatype bepalen vóór de metadatalezing of de beheerder de provider heeft gekozen.",
+      "gerichte_plugin_en_abi": {
+        "exitcode": 0,
+        "getest": 28,
+        "mislukt": 0
+      }
+    }
+  }
 }
