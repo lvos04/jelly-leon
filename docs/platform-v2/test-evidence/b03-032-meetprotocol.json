@@ -1,0 +1,17 @@
+{
+  "werkpakket": "B03-032",
+  "basis": "b03-030-preregistratie.json",
+  "dataset": "D-ML",
+  "dataset_sha256": "696d65a3dfceac7c45750ad32df2c259311949efec81f0f144fdfb91ebc9e436",
+  "T": "2016-12-11T16:36:27Z",
+  "V": "2015-11-03T17:56:47Z",
+  "validatie": "Sorteer alle tijdstippen strikt vóór het bevroren T. V is het element met nulgebaseerde index floor(0,9 × n). Bouw catalogus, tags, populariteit en toestanden uitsluitend vóór V. Alleen positieve ongeziene items vanaf V tot exclusief T vormen de validatieantwoorden.",
+  "validatiecohort": "Minstens vijf positieven vóór V en twee zichtbare, ongeziene positieven in de validatieperiode.",
+  "rooster_inhoud_seed": {"basis": [0.55, 0.25], "inhoud": [0.60, 0.20], "zaad": [0.50, 0.30]},
+  "keuze": "Hoogste gemiddelde warme NDCG@10 op validatie. Bij gelijkspel eerst basis, daarna inhoud, daarna zaad. Leg de winnende gewichten vast vóór de testmeting.",
+  "vaste_gewichten": {"kwaliteit": 0.10, "versheid": 0.05, "halfwaardetijd_dagen": 365, "mmr_lambda": 0.7},
+  "herhalingen": 3,
+  "bootstrap": {"eenheid": "gebruiker", "trekkingen": 1000, "seed": 20261109},
+  "stock": "Herhaal op de forkbasisdigest. Stop de vergelijking bij een herhaling buiten het voormetingsinterval. Een ontbrekend interval, een onvolledige stockbaseline, een te klein cohort of ongeldige runs leveren geen M1-winstbewijs.",
+  "scheiding": "De engine ontvangt alleen de catalogus, rechten en actuele trainingstoestand. De beoordelaar berekent de metrieken en de lektest met de verwisselde holdout."
+}
