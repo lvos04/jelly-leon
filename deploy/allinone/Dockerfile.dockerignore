@@ -9,6 +9,7 @@
 **/TestResults
 testresults
 tools/jelly-leon/.venv
+tools/jl-rec-eval
 docs/openapi
 # Bronnen van andere repos die CI-jobs naast de checkout ophalen (validator, web-fork) horen niet in de server-stage.
 _extern

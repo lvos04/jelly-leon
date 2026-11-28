@@ -241,6 +241,11 @@ jobs:
           cd "$RUNNER_TEMP/testbron"
           bash tools/jelly-leon/test_plugins.sh
 
+      - name: Controleer de handberekende aanbevelingsmetrieken met de evaluatie-CLI
+        run: |
+          cd "$RUNNER_TEMP/testbron"
+          dotnet run --project tools/jl-rec-eval -c Release -- handvoorbeelden < tools/b03-harnas/tests/voorbeelden/f2-metrieken.json
+
       # B03-017 / ADR-0032: de proefassembly bevat elke verboden aanroep en MOET de build laten falen, met precies de
       # gemarkeerde bouwfouten (JL0001–JL0004) en om geen andere reden. De gewone build hierboven bewijst het omgekeerde:
       # de plugin zelf bevat geen enkele verboden aanroep.

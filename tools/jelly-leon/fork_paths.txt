@@ -13,6 +13,7 @@ deploy/
 tools/jelly-leon/
 tools/emby-overname/
 tools/b03-harnas/
+tools/jl-rec-eval/
 .github/workflows/jelly-leon-ci.yml
 .github/workflows/jelly-leon-release.yml
 .github/workflows/upstream-sync.yml
