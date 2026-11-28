@@ -445,5 +445,36 @@
       "verloren_beschermde_rijen": 0,
       "gewijzigde_beschermde_rijen": 0
     }
+  },
+  "aanvullende_poort": {
+    "levenscyclus": "59/59",
+    "terugzetten": "10/10",
+    "upgrade_rapport_teruggelezen": "18/18",
+    "upstreamgedrag_p6_rapport_teruggelezen": "8/8",
+    "upstreamgedrag_stock": "8/8",
+    "healthcheck_stock": "9/9",
+    "startupfilter": "29/29",
+    "pluginproef": {
+      "exitcode": 1,
+      "per_test": {
+        "JLT-64": {
+          "geslaagd": 27,
+          "totaal": 27
+        },
+        "JLT-65": {
+          "geslaagd": 24,
+          "totaal": 24
+        },
+        "JLT-68": {
+          "geslaagd": 114,
+          "totaal": 134
+        }
+      },
+      "groepen_mislukte_controles_JLT_68": {
+        "moduleregistratie": 1,
+        "autorisatie": 2,
+        "aanvraaggrootte": 17
+      }
+    }
   }
 }
