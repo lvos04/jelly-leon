@@ -54,3 +54,19 @@ def test_weiger_dml_in_git_ook_via_symlink(tmp_path):
     with pytest.raises(ValueError, match="Git"):
         lokaal(p / "dataset")
     assert lokaal(tmp_path / "extern") == Path(tmp_path / "extern").resolve()
+
+
+def test_validatie_bevriest_catalogus_tags_en_ratings_voor_de_laatste_tien_procent(tmp_path):
+    pad = tmp_path / "validatie.zip"
+    # 20 tijdstippen vóór T, dus V is tijdstip 19. De twee validatiefilms bestaan al vóór V.
+    ratings = [("u", i, 5, i) for i in range(1, 17)] + [("v", 17, 1, 17), ("v", 18, 2, 18),
+                                                        ("u", 17, 5, 19), ("u", 18, 5, 20), ("u", 19, 5, 21)]
+    with zipfile.ZipFile(pad, "w") as z:
+        tabel(z, "movies", ["movieId", "title", "genres"], [(i, f"Film {i}", "Drama") for i in range(1, 20)])
+        tabel(z, "ratings", ["userId", "movieId", "rating", "timestamp"], ratings)
+        tabel(z, "tags", ["userId", "movieId", "tag", "timestamp"], [("v", 17, "vroeg", 18), ("v", 17, "laat", 19)])
+    with zipfile.ZipFile(pad) as z:
+        d = splits_dml(z, validatie_voor=21)
+    assert d.globaal_t == 19 and d.profielen["u"].holdout == {"17", "18"}
+    assert d.films["17"].tags == {"vroeg"} and (d.films["17"].aantal, d.films["17"].som) == (1, 1)
+    assert "19" not in d.catalogus and max(i.tijd for i in d.profielen["u"].training) < 19

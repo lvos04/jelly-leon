@@ -124,20 +124,28 @@ def splitmoment(positieven: Iterable[list[int]]) -> tuple[int, int]:
     return beste_t, hoogste
 
 
-def lees_dml(archief: Path) -> Dataset:
+def lees_dml(archief: Path, *, validatie_voor: int | None = None) -> Dataset:
     if manifest.sha256_bestand(lokaal(archief)) != ARCHIEF_SHA:
         raise ValueError("D-ML-archief wijkt af van de vastgelegde SHA-256")
     with zipfile.ZipFile(archief) as z:
-        return splits_dml(z)
+        return splits_dml(z, validatie_voor=validatie_voor)
 
 
-def splits_dml(z: zipfile.ZipFile) -> Dataset:
-    beoordelingen = [(r["userId"], r["movieId"], float(r["rating"]), int(r["timestamp"])) for r in _csv(z, "ratings")]
+def splits_dml(z: zipfile.ZipFile, *, validatie_voor: int | None = None) -> Dataset:
+    beoordelingen = [(r["userId"], r["movieId"], float(r["rating"]), int(r["timestamp"])) for r in _csv(z, "ratings")
+                     if validatie_voor is None or int(r["timestamp"]) < validatie_voor]
     positieven = defaultdict(list)
     for u, _, waarde, ts in beoordelingen:
         if waarde >= 4:
             positieven[u].append(ts)
-    t, bovengrens = splitmoment(positieven.values())
+    if validatie_voor is None:
+        t, bovengrens = splitmoment(positieven.values())
+    else:
+        # Alle gelijktijdige beoordelingen bij de grens zitten samen aan de validatiekant.
+        tijden = sorted(ts for _, _, _, ts in beoordelingen)
+        if not tijden:
+            raise ValueError("lege training vóór het vastgelegde T")
+        t, bovengrens = tijden[9 * len(tijden) // 10], None
     titels = {r["movieId"]: r for r in _csv(z, "movies")}
     films, trainingen, holdouts = {}, defaultdict(list), defaultdict(set)
     for u, item, waarde, ts in beoordelingen:
@@ -151,7 +159,7 @@ def splits_dml(z: zipfile.ZipFile) -> Dataset:
             f.aantal += 1
             f.som += waarde
             trainingen[u].append(Interactie(item, ts, waarde >= 4))
-        elif ts > t and waarde >= 4:
+        elif waarde >= 4 and (ts > t or validatie_voor is not None):
             holdouts[u].add(item)
     for r in _csv(z, "tags"):
         if int(r["timestamp"]) < t and r["movieId"] in films:
