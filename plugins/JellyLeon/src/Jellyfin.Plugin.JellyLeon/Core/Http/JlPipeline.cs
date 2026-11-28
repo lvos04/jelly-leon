@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Hub;
@@ -76,7 +77,11 @@ internal sealed class JlPipeline
             throw Fouten.TeGroot();
         }
 
-        var bytes = route.HeeftBody ? await LeesBodyAsync(verzoek.Body).ConfigureAwait(false) : [];
+        // Ook bij GET en bij acties zonder JSON-model telt de grens voor een body zonder opgegeven lengte.
+        var bewaar = route.HeeftBody || route.Idempotentie == JlIdem.Verplicht;
+        var bytes = verzoek.ContentLength == 0 || (!bewaar && verzoek.ContentLength.HasValue)
+            ? []
+            : await LeesBodyAsync(verzoek.Body, bewaar, http.RequestAborted).ConfigureAwait(false);
 
         if (route.Idempotentie == JlIdem.Verplicht)
         {
@@ -178,22 +183,41 @@ internal sealed class JlPipeline
         return string.IsNullOrWhiteSpace(waarde) ? null : waarde.Trim();
     }
 
-    private static async Task<byte[]> LeesBodyAsync(Stream stroom)
+    private static async Task<byte[]> LeesBodyAsync(Stream stroom, bool bewaar, CancellationToken stop)
     {
-        using var buffer = new MemoryStream();
-        var blok = new byte[16384];
-        int gelezen;
-        while ((gelezen = await stroom.ReadAsync(blok).ConfigureAwait(false)) > 0)
+        if (stroom == Stream.Null)
         {
-            if (buffer.Length + gelezen > Fouten.MaxBodyBytes)
-            {
-                throw Fouten.TeGroot();
-            }
-
-            await buffer.WriteAsync(blok.AsMemory(0, gelezen)).ConfigureAwait(false);
+            return [];
         }
 
-        return buffer.ToArray();
+        using var buffer = bewaar ? new MemoryStream() : null;
+        var blok = new byte[16384];
+        var totaal = 0;
+        try
+        {
+            while (totaal <= Fouten.MaxBodyBytes)
+            {
+                var ruimte = Math.Min(blok.Length, Fouten.MaxBodyBytes + 1 - totaal);
+                var gelezen = await stroom.ReadAsync(blok.AsMemory(0, ruimte), stop).ConfigureAwait(false);
+                if (gelezen == 0)
+                {
+                    return buffer?.ToArray() ?? [];
+                }
+
+                totaal += gelezen;
+                if (buffer is not null && totaal <= Fouten.MaxBodyBytes)
+                {
+                    await buffer.WriteAsync(blok.AsMemory(0, gelezen), stop).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (BadHttpRequestException fout) when (fout.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        {
+            // De host kan de routegrens al tijdens het lezen van een chunk afdwingen.
+            throw Fouten.TeGroot();
+        }
+
+        throw Fouten.TeGroot();
     }
 
     private static JsonObject LeesJson(byte[] bytes)

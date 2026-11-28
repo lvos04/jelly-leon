@@ -1,4 +1,5 @@
 using System;
+using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Jellyfin.Plugin.JellyLeon.Modules.Devices;
 
 /// <summary>Routes van module Devices. Export en opruimen blijven beschikbaar na het uitzetten.</summary>
+[RequestSizeLimit(Fouten.MaxBodyBytes)]
 [Route("media/v1/devices")]
 public sealed class DevicesController : ControllerBase
 {

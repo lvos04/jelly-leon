@@ -16,6 +16,7 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Api;
 /// Beheerroutes van Core voor een beheerder met een serversessie: de Hub-koppeling (JL4), de moduleschakelaars en het
 /// register van persoonsgegevens met de beoordeling van kinderprofielen.
 /// </summary>
+[RequestSizeLimit(Fouten.MaxBodyBytes)]
 [Route("media/v1")]
 public sealed class BeheerController : ControllerBase
 {

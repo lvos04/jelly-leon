@@ -75,6 +75,16 @@
               }
             }
           },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
             "content": {
@@ -123,6 +133,16 @@
           },
           "403": {
             "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
             "content": {
               "application/json": {
                 "schema": {
@@ -208,6 +228,16 @@
           },
           "403": {
             "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
             "content": {
               "application/json": {
                 "schema": {
@@ -302,6 +332,16 @@
               }
             }
           },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Ongeldige invoer (details.fouten) of een hergebruikte Idempotency-Key.",
             "content": {
@@ -370,6 +410,16 @@
           },
           "404": {
             "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
             "content": {
               "application/json": {
                 "schema": {
@@ -638,6 +688,16 @@
           },
           "403": {
             "description": "Niet toegestaan voor dit account (kinderprofiel, rol kind of geen beheerder).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1011,6 +1071,16 @@
               }
             }
           },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
             "content": {
@@ -1231,6 +1301,16 @@
               }
             }
           },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
             "content": {
@@ -1300,6 +1380,16 @@
           },
           "404": {
             "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1521,6 +1611,16 @@
               }
             }
           },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
             "content": {
@@ -1588,6 +1688,16 @@
           },
           "409": {
             "description": "Het opslagschema past niet bij deze moduleversie (export_schema_changed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1790,6 +1900,16 @@
               }
             }
           },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
             "content": {
@@ -1848,6 +1968,16 @@
           },
           "404": {
             "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2085,6 +2215,16 @@
               }
             }
           },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
             "content": {
@@ -2279,6 +2419,16 @@
               }
             }
           },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
             "content": {
@@ -2337,6 +2487,16 @@
           },
           "404": {
             "description": "Niet gevonden, of de module staat uit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Het verzoek is groter dan 1 MiB.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2625,11 +2785,14 @@
               "capability_unavailable",
               "conflict",
               "dependency_unavailable",
+              "engine_unavailable",
               "forbidden",
               "idempotency_in_progress",
               "idempotency_key_invalid",
               "idempotency_key_required",
               "idempotency_key_reused",
+              "item_in_playback",
+              "mediaguard_unavailable",
               "not_found",
               "payload_too_large",
               "precondition_failed",
@@ -2638,7 +2801,8 @@
               "replay_check_unavailable",
               "storage_unavailable",
               "unauthorized",
-              "validation_error"
+              "validation_error",
+              "worker_unavailable"
             ]
           },
           "message": {

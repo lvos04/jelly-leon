@@ -218,7 +218,7 @@ internal sealed class Harnas : IDisposable
     public void Koppel() => Dienst<HubPin>().Zet(Hub.Sleutels(), Hub.ServiceId, Klok.Nu);
 
     /// <summary>Roept een route uit de routetabel aan. Kopregels als "Naam: waarde".</summary>
-    public async Task<Antwoord> Roep(string routeId, string? body = null, string[]? kop = null, Dictionary<string, string>? pad = null, string? query = null, byte[]? ruw = null)
+    public async Task<Antwoord> Roep(string routeId, string? body = null, string[]? kop = null, Dictionary<string, string>? pad = null, string? query = null, byte[]? ruw = null, bool chunked = false)
     {
         var spec = RouteTable.Zoek(routeId);
         var actie = _acties[routeId];
@@ -236,7 +236,15 @@ internal sealed class Harnas : IDisposable
         if (bytes is not null)
         {
             http.Request.Body = new MemoryStream(bytes);
-            http.Request.ContentLength = bytes.Length;
+            if (chunked)
+            {
+                http.Request.Headers.TransferEncoding = "chunked";
+            }
+            else
+            {
+                http.Request.ContentLength = bytes.Length;
+            }
+
             http.Request.ContentType = "application/json";
         }
 

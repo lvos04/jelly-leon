@@ -26,11 +26,15 @@ internal static class Fouten
         ["payload_too_large"] = 413,
         ["validation_error"] = 422,
         ["idempotency_key_reused"] = 422,
+        ["item_in_playback"] = 423,
         ["precondition_required"] = 428,
         ["rate_limited"] = 429,
         ["capability_unavailable"] = 501,
         ["storage_unavailable"] = 503,
         ["replay_check_unavailable"] = 503,
+        ["worker_unavailable"] = 503,
+        ["mediaguard_unavailable"] = 503,
+        ["engine_unavailable"] = 503,
         ["dependency_unavailable"] = 503,
     };
 
@@ -60,6 +64,12 @@ internal static class Fouten
     public static JlException PreconditieMislukt(string huidigeEtag) =>
         new(412, "precondition_failed", "Het object is intussen gewijzigd; haal het opnieuw op.", new JsonObject { ["huidige_etag"] = huidigeEtag });
 
+    public static JlException ItemWordtAfgespeeld() =>
+        new(423, "item_in_playback", "Het item wordt afgespeeld. Probeer het na het afspelen opnieuw.");
+
+    public static JlException TeVeelVerzoeken(int wachtSeconden) =>
+        new(429, "rate_limited", "Er zijn te veel verzoeken. Probeer het later opnieuw.", null, wachtSeconden);
+
     public static JlException PreconditieVerplicht() =>
         new(428, "precondition_required", "Deze wijziging vraagt de header If-Match met de ETag van het object.");
 
@@ -87,7 +97,13 @@ internal static class Fouten
         new(503, "replay_check_unavailable", "De herhaalcontrole van tokens is tijdelijk niet beschikbaar.", null, 30);
 
     public static JlException AfhankelijkheidOnbeschikbaar(string wat) =>
-        new(503, "dependency_unavailable", $"'{wat}' is tijdelijk niet beschikbaar.", new JsonObject { ["dependency"] = wat }, 60);
+        new(503, wat switch
+        {
+            "worker" => "worker_unavailable",
+            "mediaguard" => "mediaguard_unavailable",
+            "engine" => "engine_unavailable",
+            _ => "dependency_unavailable",
+        }, $"'{wat}' is tijdelijk niet beschikbaar.", new JsonObject { ["dependency"] = wat }, 60);
 
     private static string MeldingVoor(string reason) => reason switch
     {

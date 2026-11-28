@@ -395,7 +395,7 @@ internal static partial class OpenApiBouwer
     /// <summary>De statuscodes die een route volgens de pipeline kan geven.</summary>
     public static IReadOnlyList<int> Statussen(RouteSpec route)
     {
-        var codes = new SortedSet<int> { 401, 403, 503 };
+        var codes = new SortedSet<int> { 401, 403, 413, 503 };
         var heeftPadParameter = route.Pad.Contains('{', StringComparison.Ordinal);
         if (route.AntwoordSchema == "Fout")
         {
@@ -409,11 +409,6 @@ internal static partial class OpenApiBouwer
         if (route.Module is not null || heeftPadParameter || route.Id == "privacy.kid.confirm")
         {
             codes.Add(404);
-        }
-
-        if (route.Methode != "GET")
-        {
-            codes.Add(413);
         }
 
         if (route.AntwoordSchema == "ModuleExport")

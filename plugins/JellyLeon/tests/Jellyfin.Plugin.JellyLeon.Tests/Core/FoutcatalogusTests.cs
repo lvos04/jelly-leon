@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
+using Microsoft.AspNetCore.Http.Metadata;
+using Microsoft.AspNetCore.Mvc;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
@@ -140,8 +143,9 @@ public sealed class FoutcatalogusTests : IDisposable
             ["idempotency_key_required"] = 400, ["idempotency_key_invalid"] = 400, ["unauthorized"] = 401, ["forbidden"] = 403,
             ["not_found"] = 404, ["idempotency_in_progress"] = 409, ["conflict"] = 409, ["precondition_failed"] = 412,
             ["payload_too_large"] = 413, ["validation_error"] = 422, ["idempotency_key_reused"] = 422,
-            ["precondition_required"] = 428, ["rate_limited"] = 429, ["capability_unavailable"] = 501,
+            ["item_in_playback"] = 423, ["precondition_required"] = 428, ["rate_limited"] = 429, ["capability_unavailable"] = 501,
             ["storage_unavailable"] = 503, ["replay_check_unavailable"] = 503, ["dependency_unavailable"] = 503,
+            ["worker_unavailable"] = 503, ["mediaguard_unavailable"] = 503, ["engine_unavailable"] = 503,
         };
         Assert.Equal(verwacht.OrderBy(p => p.Key, StringComparer.Ordinal), Fouten.Catalogus.OrderBy(p => p.Key, StringComparer.Ordinal));
 
@@ -149,13 +153,21 @@ public sealed class FoutcatalogusTests : IDisposable
         [
             Fouten.NietGeauthenticeerd("invalid_token"), Fouten.Verboden("role_kind"), Fouten.NietGevonden(), Fouten.SleutelVerplicht(),
             Fouten.SleutelOngeldig(), Fouten.SleutelBezig(), Fouten.SleutelHergebruikt(), Fouten.Conflict("x"), Fouten.PreconditieMislukt("\"e\""),
-            Fouten.PreconditieVerplicht(), Fouten.TeGroot(), Fouten.Validatie(("v", "c", "m")), Fouten.NietBeschikbaar("x"),
+            Fouten.PreconditieVerplicht(), Fouten.ItemWordtAfgespeeld(), Fouten.TeVeelVerzoeken(5), Fouten.TeGroot(), Fouten.Validatie(("v", "c", "m")), Fouten.NietBeschikbaar("x"),
             Fouten.OpslagOnbeschikbaar(), Fouten.ReplayControleOnbeschikbaar(), Fouten.AfhankelijkheidOnbeschikbaar("x"),
+            Fouten.AfhankelijkheidOnbeschikbaar("worker"), Fouten.AfhankelijkheidOnbeschikbaar("mediaguard"), Fouten.AfhankelijkheidOnbeschikbaar("engine"),
         ];
+        Assert.Equal(verwacht.Count, alle.Select(f => f.Code).Distinct(StringComparer.Ordinal).Count());
         foreach (var fout in alle)
         {
             Assert.Equal(Fouten.Catalogus[fout.Code], fout.Status);
-            var json = JsonNode.Parse(JlResult.Fout(fout, "0f8fad5b-d9cb-469f-a165-70867728950e").Body!)!.AsObject();
+            var antwoord = JlResult.Fout(fout, Guid.NewGuid().ToString());
+            if (fout.Status is 429 or 503)
+            {
+                Assert.True(int.Parse(antwoord.Headers["Retry-After"], System.Globalization.CultureInfo.InvariantCulture) > 0);
+            }
+
+            var json = JsonNode.Parse(antwoord.Body!)!.AsObject();
             Assert.Equal(["code", "message", "details", "trace_id"], json.Select(p => p.Key));
             Assert.IsType<JsonObject>(json["details"]);
             Assert.False(string.IsNullOrWhiteSpace(json["message"]!.GetValue<string>()));
@@ -163,13 +175,53 @@ public sealed class FoutcatalogusTests : IDisposable
     }
 
     [Fact]
-    public async Task Volgorde_AuthenticatieGaatVoorDeBodygrens()
+    public async Task ElkeRoute_WeigertEenByteTeVeelMetEnZonderLengte()
+    {
+        _h.Koppel();
+        _h.Schakelaars.Zet("devices", true);
+        _h.Schakelaars.Zet("quality", true);
+        var groot = new byte[Fouten.MaxBodyBytes + 1];
+        var acties = typeof(JlRouteAttribute).Assembly.GetTypes().Where(t => typeof(ControllerBase).IsAssignableFrom(t))
+            .SelectMany(t => t.GetMethods()).Where(m => m.GetCustomAttribute<JlRouteAttribute>() is not null)
+            .ToDictionary(m => m.GetCustomAttribute<JlRouteAttribute>()!.Id, StringComparer.Ordinal);
+        foreach (var route in RouteTable.Alle)
+        {
+            var actie = acties[route.Id];
+            var grens = actie.GetCustomAttribute<RequestSizeLimitAttribute>() ?? actie.DeclaringType!.GetCustomAttribute<RequestSizeLimitAttribute>();
+            Assert.Equal(Fouten.MaxBodyBytes, ((IRequestSizeLimitMetadata?)grens)?.MaxRequestBodySize);
+            foreach (var chunked in new[] { false, true })
+            {
+                string[] kop = ["Authorization: Bearer " + _h.Hub.Token(_h.Klok.Nu, "admin")];
+                var antwoord = await _h.Roep(route.Id, kop: kop, pad: new() { ["slug"] = "devices", ["id"] = "proef" }, ruw: groot, chunked: chunked);
+                Assert.Equal((route.Id, chunked, 413, "payload_too_large"), (route.Id, chunked, antwoord.Status, antwoord.Code));
+                Assert.Equal(Fouten.MaxBodyBytes, (int?)antwoord.Json!["details"]!["max_bytes"]);
+                Assert.True(Guid.TryParseExact((string?)antwoord.Json["trace_id"], "D", out _));
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PreciesEenMiB_MagDoorNaarDeRoute(bool chunked)
+    {
+        var bytes = new byte[Fouten.MaxBodyBytes];
+        var antwoord = await _h.Roep("modules.list", ruw: bytes, chunked: chunked);
+        Assert.Equal(200, antwoord.Status);
+        var ongeldigeJson = await _h.Roep("hublink.verify", ruw: bytes, chunked: chunked);
+        Assert.Equal((422, "validation_error"), (ongeldigeJson.Status, ongeldigeJson.Code));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Volgorde_AuthenticatieGaatVoorDeBodygrens(bool chunked)
     {
         var groot = new byte[Fouten.MaxBodyBytes + 1];
         _h.Koppel();
-        var zonder = await _h.Roep("connector.propose", ruw: groot);
+        var zonder = await _h.Roep("connector.propose", ruw: groot, chunked: chunked);
         Assert.Equal(401, zonder.Status);
-        var met = await _h.Roep("connector.propose", ruw: groot, kop: ["Authorization: Bearer " + _h.Hub.Token(_h.Klok.Nu, "admin")]);
+        var met = await _h.Roep("connector.propose", ruw: groot, chunked: chunked, kop: ["Authorization: Bearer " + _h.Hub.Token(_h.Klok.Nu, "admin")]);
         Assert.Equal((413, "payload_too_large"), (met.Status, met.Code));
     }
 }
