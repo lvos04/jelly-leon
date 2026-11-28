@@ -6,7 +6,6 @@ using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.JellyLeon.Configuration;
 using Jellyfin.Plugin.JellyLeon.Modules.Recommendations;
-using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
@@ -36,7 +35,6 @@ public sealed class AanbevelingsBibliotheekTests
             AudioStreamIndex = 2, SubtitleStreamIndex = 1, LastPlayedDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
         var bibliotheek = new Mock<ILibraryManager>(MockBehavior.Strict);
         var gegevens = new Mock<IUserDataManager>(MockBehavior.Strict);
-        var collecties = new Mock<ICollectionManager>(MockBehavior.Strict);
         var tv = new Mock<ITVSeriesManager>(MockBehavior.Strict);
         bibliotheek.Setup(b => b.GetVirtualFolders(false)).Returns([
             new() { ItemId = map.Id.ToString(), CollectionType = CollectionTypeOptions.movies },
@@ -48,15 +46,12 @@ public sealed class AanbevelingsBibliotheekTests
         bibliotheek.Setup(b => b.GetItemList(It.Is<InternalItemsQuery>(q => q.User == gebruiker && q.ParentId == map.Id
             && q.Recursive && q.IncludeItemTypes.Contains(BaseItemKind.Movie) && q.IncludeItemTypes.Contains(BaseItemKind.Series)), false))
             .Returns(toegestaan);
-        foreach (var item in toegestaan)
-        {
-            bibliotheek.Setup(b => b.GetPeople(item)).Returns([]);
-            collecties.Setup(c => c.GetCollectionsContainingItem(gebruiker, item.Id)).Returns([]);
-        }
+        bibliotheek.Setup(b => b.GetPeopleByItems(It.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(toegestaan.Select(i => i.Id)))))
+            .Returns(new Dictionary<Guid, IReadOnlyList<PersonInfo>>());
 
         gegevens.Setup(g => g.GetUserDataBatch(It.Is<IReadOnlyList<BaseItem>>(rij => rij.SequenceEqual(toegestaan)), gebruiker))
             .Returns(new Dictionary<Guid, UserItemData> { [bron.Id] = eigenData });
-        var adapter = new AanbevelingsBibliotheek(bibliotheek.Object, gegevens.Object, collecties.Object, tv.Object, TimeProvider.System,
+        var adapter = new AanbevelingsBibliotheek(bibliotheek.Object, gegevens.Object, tv.Object, TimeProvider.System,
             () => new AnimeOptions());
         var vraag = new SimilarItemsQuery { User = gebruiker, Limit = 8, ExcludeItemIds = [uitgesloten.Id] };
         Assert.Equal([keuze.Id], adapter.Similar(bron, vraag, CancellationToken.None).Select(t => t.Id));

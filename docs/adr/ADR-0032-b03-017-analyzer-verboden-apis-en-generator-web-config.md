@@ -172,12 +172,12 @@ elke regel in deze tabel staat):
 | `BaseItem` | `Id` | `Modules.Recommendations.SimilarProvider` | Controleert of de bron een bibliotheekitem is. |
 | `User` | `Id` | `Modules.Recommendations.AanbevelingsBibliotheek` | Identificeert uitsluitend de vrager voor de smaaktoestand en de vaste exploratieplek. |
 | `SimilarItemsQuery` | `User`, `Limit`, `ExcludeItemIds` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de vrager, paginagrens en uitsluitingen uit het hostverzoek. |
-| `ILibraryManager` | `GetVirtualFolders`, `GetItemById`, `GetItemList`, `GetPeople` | `Modules.Recommendations.AanbevelingsBibliotheek` | Selecteert film- en seriemappen, controleert de map met de vrager, leest zichtbare items en hun betrokken personen. |
-| `VirtualFolderInfo` | `CollectionType`, `ItemId` | `Modules.Recommendations.AanbevelingsBibliotheek` | Selecteert de twee toegestane bibliotheektypen en hun identiteit. |
+| `ILibraryManager` | `GetVirtualFolders`, `GetItemById`, `GetItemList`, `GetPeopleByItems` | `Modules.Recommendations.AanbevelingsBibliotheek` | Selecteert film- en seriemappen, controleert de map met de vrager, leest zichtbare items en hun betrokken personen. |
+| `VirtualFolderInfo` | `CollectionType`, `ItemId` | `Modules.Recommendations.AanbevelingsBibliotheek` | Selecteert film-, serie- en collectiemappen. |
 | `BaseItem` | `Id`, `Genres`, `Tags`, `Studios`, `OfficialRating`, `CommunityRating`, `ProductionLocations`, `ProductionYear`, `DateCreated`, `RunTimeTicks` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest kenmerken, identiteit, versheid en duur voor de fractie van het hervatpunt. |
 | `Movie` | `CollectionName` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de bestaande metadatanaam van een filmcollectie. |
 | `PersonInfo` | `IsType`, `Name`, `SortOrder` | `Modules.Recommendations.AanbevelingsBibliotheek` | Onderscheidt regisseurs, schrijvers en acteurs en bepaalt de eerste vijf acteurs. |
-| `ICollectionManager` | `GetCollectionsContainingItem` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de zichtbare handmatige collecties van een bestaand item. |
+| `Folder` | `GetLinkedChildren` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest per zichtbare collectie de voor de vrager toegankelijke leden. |
 | `IUserDataManager` | `GetUserDataBatch`, `GetUserDataDto` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest de huidige toestand per item voor de vrager en de door Jellyfin berekende seriestatus. |
 | `UserItemData` | `Played`, `IsFavorite`, `Rating`, `Likes`, `PlaybackPositionTicks`, `LastPlayedDate` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest bestaande signalen en het tijdstip voor verval, zonder de toestand te bewaren. |
 | `UserItemDataDto` | `Played` | `Modules.Recommendations.AanbevelingsBibliotheek` | Leest of de vrager een serie volledig heeft bekeken. |
