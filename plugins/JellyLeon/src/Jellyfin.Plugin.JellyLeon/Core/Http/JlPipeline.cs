@@ -40,7 +40,8 @@ internal sealed class JlPipeline
     {
         var verzoek = http.Request;
         var nu = _klok.GetUtcNow();
-        var pad = verzoek.Path.Value ?? string.Empty;
+        var oorspronkelijkPad = verzoek.Path.Value ?? string.Empty;
+        var pad = route.CanoniekPad(oorspronkelijkPad);
         var sleutel = Kop(verzoek, "Idempotency-Key");
 
         JlPrincipal wie;
@@ -51,7 +52,7 @@ internal sealed class JlPipeline
             var hub = HubTokenValidator.Valideer(Kop(verzoek, "Authorization"), _pin.Huidig, nu);
             // Alleen een route met antwoordopslag kan een exacte herhaling afhandelen.
             // Open opslagdiensten pas na de pin- en tokencontrole, ook bij een opslagfout na de start.
-            alleenHerhalen = ControleerJti(hub, verzoek.Method, pad, route.Idempotentie == JlIdem.Verplicht ? sleutel : null, nu);
+            alleenHerhalen = ControleerJti(hub, route, pad, route.Idempotentie == JlIdem.Verplicht ? sleutel : null, nu);
             if (hub.IsKind)
             {
                 throw Fouten.Verboden("role_kind");
@@ -114,13 +115,20 @@ internal sealed class JlPipeline
         JlResult? herhaling = null;
         if (route.Idempotentie == JlIdem.Verplicht)
         {
-            scope = wie.Id + "\n" + verzoek.Method + "\n" + pad;
+            var voorvoegsel = wie.Id + "\n" + route.Methode + "\n";
+            scope = voorvoegsel + pad;
+            string? oudeSleutel = null;
             var voorwaarden = "\n" + ifMatch;
             if (route.WisModule is string slug)
             {
                 var module = _diensten.GetRequiredService<ModuleRegistry>().Zoek(slug) as ModuleBasis ?? throw Fouten.NietGevonden();
                 var beheer = module.Gegevensbeheer;
                 moduleopslag = beheer.Herhalingen;
+                if (oorspronkelijkPad != pad)
+                {
+                    oudeSleutel = beheer.VerzoekSleutel(voorvoegsel + oorspronkelijkPad, sleutel!);
+                }
+
                 sleutel = beheer.VerzoekSleutel(scope, sleutel!);
                 scope = slug;
                 // Een voorbeeld en de uitvoering met dezelfde body zijn verschillende verzoeken.
@@ -129,7 +137,7 @@ internal sealed class JlPipeline
 
             var opslag = moduleopslag ?? _diensten.GetRequiredService<IdempotencyStore>();
             var hash = Convert.ToHexStringLower(SHA256.HashData([.. bytes, .. Encoding.UTF8.GetBytes(voorwaarden)]));
-            herhaling = opslag.Begin(scope, sleutel!, hash, nu, alleenHerhalen);
+            herhaling = opslag.Begin(scope, sleutel!, hash, nu, alleenHerhalen, moduleopslag is null ? route : null, oudeSleutel);
         }
 
         return new JlContext
@@ -147,11 +155,11 @@ internal sealed class JlPipeline
         };
     }
 
-    private bool ControleerJti(HubPrincipal hub, string methode, string pad, string? sleutel, DateTimeOffset nu)
+    private bool ControleerJti(HubPrincipal hub, RouteSpec route, string pad, string? sleutel, DateTimeOffset nu)
     {
         try
         {
-            return _diensten.GetRequiredService<JtiStore>().Controleer(hub, methode, pad, sleutel, nu);
+            return _diensten.GetRequiredService<JtiStore>().Controleer(hub, route.Methode, pad, sleutel, nu, route);
         }
         catch (Exception fout) when (fout is IOException or UnauthorizedAccessException or JlException { Code: "storage_unavailable" })
         {
@@ -161,7 +169,7 @@ internal sealed class JlPipeline
     }
 
     /// <summary>Legt het antwoord van een muterende route vast vóór het verzonden wordt; serverfouten geven de sleutel vrij.</summary>
-    public void Rond(JlContext context, JlResult antwoord)
+    public void Rond(JlContext context, JlResult? antwoord)
     {
         if (context.IdemScope is null || context.IdemSleutel is null || context.Herhaling is not null)
         {
@@ -169,7 +177,7 @@ internal sealed class JlPipeline
         }
 
         var opslag = context.ModuleIdempotentie ?? _diensten.GetRequiredService<IdempotencyStore>();
-        if (antwoord.Status >= 500)
+        if (antwoord is null || antwoord.Status >= 500)
         {
             opslag.Annuleer(context.IdemScope, context.IdemSleutel);
         }

@@ -62,7 +62,10 @@ public sealed class ConnectorTests : IDisposable
         Assert.Equal(["read"], beide.Json["capabilities"]!.AsArray().Select(c => c!.GetValue<string>()));
         Assert.Equal(200, beide.Json["limits"]!["max_page_size"]!.GetValue<int>());
         Assert.Equal(1048576, beide.Json["limits"]!["max_body_bytes"]!.GetValue<int>());
-        Assert.Equal(900, beide.Json["limits"]!["max_age_s"]!["health"]!.GetValue<int>());
+        var leeftijden = beide.Json["limits"]!["max_age_s"]!.AsObject();
+        var typen = _h.Dienst<ConnectorService>().ItemTypes().Append("health").OrderBy(naam => naam, StringComparer.Ordinal);
+        Assert.Equal(typen, leeftijden.Select(p => p.Key).OrderBy(naam => naam, StringComparer.Ordinal));
+        Assert.All(leeftijden, item => Assert.Equal(900, (int?)item.Value));
 
         _h.Schakelaars.Zet("quality", false);
         var zonder = await _h.RoepHub("connector.discover", Token);
@@ -150,7 +153,7 @@ public sealed class ConnectorTests : IDisposable
         Assert.Equal((string?)oud["observed_at"], (string?)Zoek(oud, "worker")["observed_at"]);
         Assert.Null(Zoek(oud, "worker")["detail"]!["pid"]);
 
-        var plat = Met(ConnectorService.Check("worker", "down", nu), ConnectorService.Check("quality_mediaguard", "unknown", nu)).Health(nu);
+        var plat = Met(ConnectorService.Check("worker", "down", nu), ConnectorService.Check("quality_mediaguard", "healthy", nu.AddSeconds(-901))).Health(nu);
         Assert.Equal("down", plat["status"]!.GetValue<string>());
         Assert.Equal("worker_down", plat["reason_code"]!.GetValue<string>());
         Assert.Empty(SchemaControle.Afwijkingen(_openapi, "Health", plat));

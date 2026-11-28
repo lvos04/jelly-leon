@@ -1,5 +1,6 @@
 using System;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
 
 namespace Jellyfin.Plugin.JellyLeon.Core.Hub;
@@ -19,7 +20,7 @@ internal sealed class JtiStore
     }
 
     /// <summary>Geeft alleen bij een exacte tweede mutatie true: de aanroeper mag dan uitsluitend een bewaard antwoord lezen.</summary>
-    public bool Controleer(HubPrincipal wie, string methode, string pad, string? idempotencyKey, DateTimeOffset nu)
+    public bool Controleer(HubPrincipal wie, string methode, string pad, string? idempotencyKey, DateTimeOffset nu, RouteSpec? route = null)
     {
         var mutatie = methode is not ("GET" or "HEAD");
         var seconden = nu.ToUnixTimeSeconds();
@@ -41,14 +42,13 @@ internal sealed class JtiStore
                     return false;
                 }
 
-                var zelfde = JlDatabase.Getal(
+                var eerder = JlDatabase.Scalar(
                     v,
-                    "SELECT COUNT(*) FROM hub_jti WHERE iss='hub' AND jti=$jti AND methode=$m AND pad=$p AND idem IS NOT NULL AND idem=$i",
+                    "SELECT pad FROM hub_jti WHERE iss='hub' AND jti=$jti AND methode=$m AND idem=$i",
                     ("$jti", wie.Jti),
                     ("$m", methode),
-                    ("$p", pad),
-                    ("$i", idempotencyKey));
-                if (zelfde == 0)
+                    ("$i", idempotencyKey)) as string;
+                if (eerder is null || !string.Equals(route?.CanoniekPad(eerder) ?? eerder, pad, StringComparison.Ordinal))
                 {
                     throw Fouten.NietGeauthenticeerd("token_replayed");
                 }

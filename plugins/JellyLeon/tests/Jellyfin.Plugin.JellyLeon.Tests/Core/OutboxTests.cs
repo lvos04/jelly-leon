@@ -94,6 +94,10 @@ public sealed class OutboxTests : IDisposable
         var envelop = JlOutbox.Envelop("media.quality_scan.completed", "quality_scan", "scan-1", groot, _h.Klok.Nu);
         Assert.Equal("{\"_ingekort\":true}", envelop["payload"]!.ToJsonString());
         Assert.True(System.Text.Encoding.UTF8.GetByteCount(envelop.ToJsonString()) < JlOutbox.MaxPayloadBytes);
+        groot["ernst"] = "hoog";
+        var ingekort = JlOutbox.Envelop("media.quality_scan.completed", "quality_scan", "scan-1", groot, _h.Klok.Nu);
+        Assert.True((bool?)ingekort["payload"]!["_ingekort"]);
+        Assert.Equal("hoog", (string?)ingekort["payload"]!["ernst"]);
     }
 
     [Fact]

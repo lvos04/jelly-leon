@@ -23,6 +23,7 @@ import re
 import shutil
 import sys
 import tempfile
+from http.client import HTTPException
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +51,11 @@ def vraag(http: Http, methode: str, pad: str, body: bytes | None, chunked: bool 
     kop = {"Accept": "application/json", **KOP}
     if body is not None:
         kop["Content-Type"] = "application/json"
-    status, data, koppen = meet_http_body(http.basis, methode, pad, body, kop, chunked)
+    try:
+        status, data, koppen = meet_http_body(http.basis, methode, pad, body, kop, chunked)
+    except (OSError, HTTPException) as fout:
+        return {"status": 0, "code": None, "reden": type(fout).__name__, "sleutels": None,
+                "content_type": None, "cache_control": None, "grensantwoord": False}
     uit: dict[str, Any] = {"status": status, "code": None, "reden": None, "sleutels": None,
                            "content_type": koppen.get("content-type"), "cache_control": koppen.get("cache-control"),
                            "grensantwoord": is_grensantwoord(status, data, koppen)}
@@ -145,6 +150,8 @@ def beoordeel(uit: dict[str, Any], aan: dict[str, Any], basis: dict[str, Any]) -
                        (antwoord["status"], antwoord["code"]) == (401, "unauthorized"), f"HTTP {antwoord['status']}"))
     regels.append(("publieke serverroute via de basis-URL bereikbaar", basis["antwoorden"]["upstream_publiek"]["status"] == 200, ""))
     for naam, run in (("zonder", uit), ("met", aan), ("met basis-URL en", basis)):
+        onvolledig = [id_ for id_, antwoord in run["antwoorden"].items() if antwoord["status"] == 0]
+        regels.append((f"{naam} schakelaar: elk verzoek kreeg een volledig HTTP-antwoord", not onvolledig, ", ".join(onvolledig)))
         regels.append((f"{naam} schakelaar: geen foutregel over de plugin of het filter in de log", not run["foutregels"],
                        "; ".join(run["foutregels"])[:400]))
     return regels

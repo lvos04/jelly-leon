@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -8,11 +9,13 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
+using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
@@ -143,6 +146,71 @@ public sealed class FoutcatalogusTests : IDisposable
         Assert.Equal(14, (await _h.Roep(module + ".settings.get")).Json!["bewaar_dagen"]!.GetValue<int>());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Herhaling_HerkentPadvariantenEnOudereRijenMaarHoudtSlugsApart(bool oudereRij)
+    {
+        var etag = (await _h.Roep("modules.list")).Kop["ETag"];
+        string[] kop = ["Idempotency-Key: " + Sleutel, "If-Match: " + etag];
+        Task<Antwoord> Zet(string slug, string pad) => _h.Roep("modules.put", "{\"enabled\":true}", kop, new() { ["slug"] = slug }, verzoekPad: pad);
+        var eerste = await Zet("devices", "/media/v1/modules/devices");
+        Assert.Equal(200, eerste.Status);
+        if (oudereRij)
+        {
+            _h.Dienst<CoreDatabase>().Db.Met(v => JlDatabase.Voer(v,
+                "UPDATE idempotentie SET scope=replace(scope, '/media/v1/modules/devices', '/MEDIA/v1/MODULES/devices/') WHERE sleutel=$k", ("$k", Sleutel)));
+        }
+
+        var opnieuw = await Zet("devices", "/Media/V1/Modules/devices/");
+        Assert.Equal("true", opnieuw.Kop["Idempotent-Replay"]);
+        Assert.Equal(eerste.Json!.ToJsonString(), opnieuw.Json!.ToJsonString());
+        Assert.False((await Zet("quality", "/MEDIA/v1/modules/quality/")).Kop.ContainsKey("Idempotent-Replay"));
+        Assert.False((await Zet("DEVICES", "/media/v1/modules/DEVICES")).Kop.ContainsKey("Idempotent-Replay"));
+    }
+
+    [Fact]
+    public async Task VastleggenNaOpslagfout_LaatHetVerzoekNaHerstelWeerToe()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        var route = RouteTable.Zoek("hublink.delete");
+        var pipeline = _h.Dienst<JlPipeline>();
+        Task<JlContext> Begin()
+        {
+            var http = new DefaultHttpContext();
+            http.Request.Method = route.Methode;
+            http.Request.Path = route.Pad;
+            http.Request.Headers["Idempotency-Key"] = Sleutel;
+            return pipeline.BereidVoorAsync(http, route, "proef");
+        }
+
+        var eerste = await Begin();
+        var map = Path.GetDirectoryName(_h.Dienst<JlPaths>().CoreDb)!;
+        var mode = File.GetUnixFileMode(map);
+        try
+        {
+            File.SetUnixFileMode(map, mode | UnixFileMode.GroupWrite);
+            var fout = Assert.Throws<JlException>(() => pipeline.Rond(eerste, JlResult.Ok(new JsonObject())));
+            Assert.Equal((503, "storage_unavailable"), (fout.Status, fout.Code));
+        }
+        finally
+        {
+            File.SetUnixFileMode(map, mode);
+        }
+
+        var tweede = await Begin();
+        Assert.Null(tweede.Herhaling);
+        pipeline.Rond(tweede, null);
+        var derde = await Begin();
+        Assert.Null(derde.Herhaling);
+        pipeline.Rond(derde, JlResult.Ok(new JsonObject()));
+        Assert.Equal("true", (await Begin()).Herhaling!.Headers["Idempotent-Replay"]);
+    }
+
     [Fact]
     public void Catalogus_BevatElkeContractcodeMetDeJuisteStatus()
     {
@@ -205,6 +273,12 @@ public sealed class FoutcatalogusTests : IDisposable
                 Assert.Equal((route.Id, chunked, 413, "payload_too_large"), (route.Id, chunked, antwoord.Status, antwoord.Code));
                 Assert.Equal(Fouten.MaxBodyBytes, (int?)antwoord.Json!["details"]!["max_bytes"]);
                 Assert.True(Guid.TryParseExact((string?)antwoord.Json["trace_id"], "D", out _));
+
+                var beheerder = _h.Sessies.Wie;
+                _h.Sessies.Wie = null;
+                var zonder = await _h.Roep(route.Id, pad: new() { ["slug"] = "devices", ["id"] = "proef" }, ruw: groot, chunked: chunked);
+                Assert.Equal((route.Id, chunked, 401, "unauthorized"), (route.Id, chunked, zonder.Status, zonder.Code));
+                _h.Sessies.Wie = beheerder;
             }
         }
     }
@@ -253,10 +327,16 @@ public sealed class FoutcatalogusTests : IDisposable
             var teGroot = new byte[Fouten.MaxBodyBytes + 1];
             foreach (var chunked in new[] { false, true })
             {
-                foreach (var (methode, pad) in new[] { (HttpMethod.Get, "/media/v1/modules"), (HttpMethod.Post, "/media/v1/hub-link/verify") })
+                foreach (var (methode, pad, type) in new[]
+                {
+                    (HttpMethod.Get, "/media/v1/modules", "application/json"),
+                    (HttpMethod.Post, "/media/v1/hub-link/verify", "application/json"),
+                    (HttpMethod.Put, "/media/v1/modules/devices", "application/x-www-form-urlencoded"),
+                })
                 {
                     TestContext.Current.TestOutputHelper?.WriteLine($"{methode} {pad}, chunked={chunked}");
                     using var vraag = new HttpRequestMessage(methode, basispad + pad) { Content = new ByteArrayContent(teGroot) };
+                    vraag.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(type);
                     vraag.Headers.TransferEncodingChunked = chunked;
                     using var antwoord = await client.SendAsync(vraag, stop);
                     var verwacht413 = aangemeld || (spike && basispad.Length == 0 && !chunked);

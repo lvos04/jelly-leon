@@ -193,6 +193,7 @@ internal sealed class Harnas : IDisposable
         diensten.AddSingleton(Authenticatie.Object);
         diensten.AddSingleton(Gebruikers.Object);
         new PluginServiceRegistrator().RegisterServices(diensten, Mock.Of<IServerApplicationHost>());
+
         diensten.AddSingleton<IModuleSwitches>(Schakelaars);
         if (!gebruikServerauth)
         {
@@ -227,7 +228,7 @@ internal sealed class Harnas : IDisposable
     public void Koppel() => Dienst<HubPin>().Zet(Hub.Sleutels(), Hub.ServiceId, Klok.Nu);
 
     /// <summary>Roept een route uit de routetabel aan. Kopregels als "Naam: waarde".</summary>
-    public async Task<Antwoord> Roep(string routeId, string? body = null, string[]? kop = null, Dictionary<string, string>? pad = null, string? query = null, byte[]? ruw = null, bool chunked = false)
+    public async Task<Antwoord> Roep(string routeId, string? body = null, string[]? kop = null, Dictionary<string, string>? pad = null, string? query = null, byte[]? ruw = null, bool chunked = false, string? verzoekPad = null)
     {
         var spec = RouteTable.Zoek(routeId);
         var actie = _acties[routeId];
@@ -239,7 +240,7 @@ internal sealed class Harnas : IDisposable
         }
 
         http.Request.Method = spec.Methode;
-        http.Request.Path = volledigPad;
+        http.Request.Path = verzoekPad ?? volledigPad;
         http.Request.QueryString = new QueryString(query is null ? string.Empty : "?" + query);
         var bytes = ruw ?? (body is null ? null : Encoding.UTF8.GetBytes(body));
         if (bytes is not null)

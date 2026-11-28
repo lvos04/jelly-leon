@@ -80,3 +80,16 @@ def test_basis_url_en_chunked_worden_afzonderlijk_getoetst() -> None:
     regels = spike.beoordeel(uit, aan, aan)
     assert any("connector_chunked_te_groot" in naam and not ok for naam, ok, _ in regels)
     assert any("met basis-URL en schakelaar: media_te_groot" in naam and not ok for naam, ok, _ in regels)
+
+
+def test_verbroken_verbinding_telt_als_mislukte_meting(monkeypatch) -> None:
+    def verbroken(*args, **kwargs):
+        raise ConnectionResetError
+
+    monkeypatch.setattr(spike, "meet_http_body", verbroken)
+    uit = _run(_antwoord(401, "unauthorized", "not_linked"))
+    aan = _run(_antwoord(413, "payload_too_large"))
+    for run in (uit, aan):
+        run["antwoorden"]["upstream_klein"] = spike.vraag(spike.Http("http://localhost"), "POST", "/proef", b"{}")
+    regels = spike.beoordeel(uit, aan, uit)
+    assert any(not ok and "volledig HTTP-antwoord" in naam and "upstream_klein" in detail for naam, ok, detail in regels)

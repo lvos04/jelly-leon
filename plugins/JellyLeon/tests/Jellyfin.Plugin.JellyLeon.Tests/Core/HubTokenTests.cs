@@ -210,11 +210,11 @@ public sealed class HubTokenTests : IDisposable
         var token = _h.Hub.Token(_h.Klok.Nu);
         var sleutel = Guid.NewGuid().ToString();
         var pipeline = _h.Dienst<JlPipeline>();
-        Task<JlContext> Begin()
+        Task<JlContext> Begin(string? pad = null)
         {
             var http = new DefaultHttpContext();
             http.Request.Method = route.Methode;
-            http.Request.Path = route.Pad;
+            http.Request.Path = pad ?? route.Pad;
             http.Request.Headers.Authorization = "Bearer " + token;
             http.Request.Headers["Idempotency-Key"] = sleutel;
             http.Request.Body = new System.IO.MemoryStream("{}"u8.ToArray());
@@ -231,11 +231,13 @@ public sealed class HubTokenTests : IDisposable
             Assert.NotNull(opnieuw);
             Assert.Equal(antwoord.Body, opnieuw.Body);
             Assert.Equal("true", opnieuw.Headers["Idempotent-Replay"]);
+            var variant = await Begin("/CONNECTOR/v1/Propose/");
+            Assert.Equal(antwoord.Body, variant.Herhaling!.Body);
         }
         else
         {
             pipeline.Rond(eerste, JlResult.Fout(Fouten.AfhankelijkheidOnbeschikbaar("proef"), "proef"));
-            var fout = await Assert.ThrowsAsync<JlException>(Begin);
+            var fout = await Assert.ThrowsAsync<JlException>(() => Begin());
             Assert.Equal((401, "token_replayed"), (fout.Status, (string?)fout.Details["reason"]));
         }
     }

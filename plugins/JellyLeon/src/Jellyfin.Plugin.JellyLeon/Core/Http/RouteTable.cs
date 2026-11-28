@@ -49,6 +49,40 @@ internal sealed record RouteSpec(
     string? WisModule = null)
 {
     public bool HeeftBody => VerzoekSchema is not null;
+
+    // MVC vergelijkt de vaste delen hoofdletterongevoelig. Parameterwaarden behouden hun eigen identiteit.
+    public string CanoniekPad(string pad)
+    {
+        var zonderSlash = pad.TrimEnd('/');
+        if (string.Equals(zonderSlash, Pad, StringComparison.OrdinalIgnoreCase))
+        {
+            return Pad;
+        }
+
+        var delen = zonderSlash.Split('/');
+        var sjabloon = Pad.Split('/');
+        if (delen.Length != sjabloon.Length)
+        {
+            return pad;
+        }
+
+        for (var i = 0; i < delen.Length; i++)
+        {
+            if (sjabloon[i].StartsWith('{'))
+            {
+                continue;
+            }
+
+            if (!string.Equals(delen[i], sjabloon[i], StringComparison.OrdinalIgnoreCase))
+            {
+                return pad;
+            }
+
+            delen[i] = sjabloon[i];
+        }
+
+        return string.Join('/', delen);
+    }
 }
 
 /// <summary>De routetabel van de ene plugin (ADR-0016): elke route precies één keer.</summary>

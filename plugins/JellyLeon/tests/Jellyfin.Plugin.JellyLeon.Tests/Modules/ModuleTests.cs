@@ -7,6 +7,8 @@ using Jellyfin.Plugin.JellyLeon.Modules.Devices;
 using Jellyfin.Plugin.JellyLeon.Modules.Quality;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
 using MediaBrowser.Model.Session;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Xunit;
 using JlOutbox = Jellyfin.Plugin.JellyLeon.Core.Outbox.Outbox;
 
@@ -176,7 +178,10 @@ public sealed class ModuleTests : IDisposable
     public void Register_WeigertOngeldigeModuleEventsBijDeStart(string naam)
     {
         var module = new Dubbel("voorbeeld", "voorbeeld", naam, "voorbeeld.job");
-        Assert.Throws<InvalidOperationException>(() => new ModuleRegistry([module], _h.Schakelaars));
+        using var proef = new Harnas(extraDiensten: diensten => diensten.AddSingleton<IJellyLeonModule>(module));
+        // De host maakt bij het starten alle geregistreerde achtergrondtaken aan, vóór de eerste route.
+        var fout = Assert.Throws<InvalidOperationException>(() => proef.Diensten.GetServices<IHostedService>());
+        Assert.Contains("drie segmenten", fout.Message, StringComparison.Ordinal);
     }
 
     private sealed class Dubbel(string slug, string itemType, string eventType, string jobType) : IJellyLeonModule

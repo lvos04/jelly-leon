@@ -64,6 +64,10 @@ internal sealed partial class Outbox
         if (Encoding.UTF8.GetByteCount(inhoud.ToJsonString()) > MaxPayloadBytes)
         {
             inhoud = new JsonObject { ["_ingekort"] = true };
+            if (payload["ernst"] is JsonNode bronErnst)
+            {
+                inhoud["ernst"] = bronErnst.DeepClone();
+            }
         }
 
         var eventId = Guid.NewGuid().ToString();

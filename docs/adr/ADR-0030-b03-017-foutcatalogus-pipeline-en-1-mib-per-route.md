@@ -65,3 +65,13 @@ Bij onbekende lengte telt de route ook voor GET en voor acties zonder invoermode
 byte extra. Bij overschrijding door de server of door de lezer krijgt de client dezelfde 413 met `details.max_bytes`.
 Het HTTP/1.1-antwoord meldt `Connection: close`. Zo gebruikt de client de verbinding met een ongelezen body niet
 opnieuw terwijl de server haar sluit. De socketproef gebruikt GET en POST, beide met lengte en met chunked-overdracht.
+
+De herhaalcontrole gebruikt de methode en de vaste schrijfwijze van de geregistreerde route. Een afsluitende slash
+of andere hoofdletters in een vast deel geven dezelfde herhaling. Een padparameter houdt zijn eigen waarde.
+De kerndatabase herkent ook oudere rijen met een afwijkende schrijfwijze. Voor een oudere, ondoorzichtige
+wisverzoeksleutel in de modulecache is de oorspronkelijke schrijfwijze nodig als die afweek van het canonieke pad.
+De controle op de inhoud van de beheerexport blijft bij iedere nieuwe wisactie van kracht.
+
+Als het bewaren van een antwoord mislukt, geeft de pipeline 503. Bij tijdelijk onbereikbare opslag onthoudt het
+lopende proces de vrijgave tot de eerstvolgende opslagbewerking voor idempotentie. Na een procesuitval kan de afloop
+van een onderbroken wijziging onbekend zijn. In dat geval beschermt de bestaande bewaartermijn van 24 uur de reservering.

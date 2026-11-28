@@ -109,16 +109,13 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter, IAsyncAlwa
             uitgevoerd.Result = JlResult.Fout(Fouten.AfhankelijkheidOnbeschikbaar("jelly-leon"), traceId);
         }
 
-        if (uitgevoerd.Result is JlResult antwoord)
+        try
         {
-            try
-            {
-                pipeline.Rond(jl, antwoord);
-            }
-            catch (JlException fout)
-            {
-                uitgevoerd.Result = JlResult.Fout(fout, traceId);
-            }
+            pipeline.Rond(jl, uitgevoerd.Result as JlResult);
+        }
+        catch (JlException fout)
+        {
+            uitgevoerd.Result = JlResult.Fout(fout, traceId);
         }
     }
 
