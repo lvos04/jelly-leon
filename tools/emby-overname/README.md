@@ -84,6 +84,15 @@ Jellyfin/Jelly Leon (bijv. Emby) of dezelfde server als de bron.
 
 ## Tests
 
+Met `--emby-image` kiest u de lokale Emby-testimage voor de proefrun. Een verwijzing bevat altijd
+`@sha256:` met 64 hextekens. Bij een numerieke versietag vergelijkt het harnas die met de versie van de
+draaiende container. Zonder deze optie gebruikt het de vastgezette 4.10.2.0.
+
+De overnametool gebruikt uitsluitend GET naar Emby. De bronproxy blokkeert andere methoden met HTTP 405 en
+telt elke poging als een fout in JLT-73. Het bestaande E2E-harnas richt de wegwerpbron via de Emby-API in
+en wijzigt testgegevens voor de delta- en sessieproeven. Een uitvoering die ook voor de testopzet alleen
+GET toestaat, heeft vooraf gevulde testgegevens nodig.
+
 ```text
 python -m pytest -q tools/emby-overname/tests                         # unit + simulators (geen netwerk, geen Docker)
 flock <WERKMAP>/.lokaal/stack.lock \

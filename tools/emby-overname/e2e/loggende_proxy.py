@@ -3,8 +3,8 @@ schrijfacties, tussen de tool en Jelly Leon).
 
 Logt per verzoek alleen tijd, methode, pad, de namen van de queryparameters, de status en de grootte — nooit headers
 (dus nooit een API-sleutel). Staat er toch een sleutel in de URL (`api_key`, `X-Emby-Token`, `ApiKey`), dan wordt dat als
-`sleutel_in_url: true` gemarkeerd en wordt de waarde niet gelogd. De proxy stuurt alles ongewijzigd door: het is een
-meetinstrument, geen filter (de weigering zit in de tool zelf).
+`sleutel_in_url: true` gemarkeerd en wordt de waarde niet gelogd. De bronproxy geeft uitsluitend GET door. Een geweigerde
+poging telt mee in de verkeersmeting van JLT-73. De doelproxy meet ook schrijfacties.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ DOORGEEF_HEADERS_WEG = {"connection", "keep-alive", "proxy-connection", "transfe
 
 
 class LoggendeProxy:
-    def __init__(self, doel_host: str, doel_poort: int, naam: str) -> None:
+    def __init__(self, doel_host: str, doel_poort: int, naam: str, *, alleen_get: bool = False) -> None:
         self.doel = (doel_host, doel_poort)
         self.naam = naam
         self.regels: list[dict[str, Any]] = []
@@ -38,22 +38,12 @@ class LoggendeProxy:
             def _stuur(self) -> None:
                 deel = urlsplit(self.path)
                 query_namen = sorted(parse_qs(deel.query, keep_blank_values=True))
-                lengte = int(self.headers.get("Content-Length") or 0)
-                body = self.rfile.read(lengte) if lengte else None
-                headers = {k: v for k, v in self.headers.items() if k.lower() not in DOORGEEF_HEADERS_WEG}
                 begin = time.monotonic()
-                status, inhoud, antwoord_headers = 502, b"", {}
-                try:
-                    verbinding = http.client.HTTPConnection(*eigenaar.doel, timeout=300)
-                    verbinding.request(self.command, self.path, body=body, headers=headers)
-                    antwoord = verbinding.getresponse()
-                    status = antwoord.status
-                    inhoud = antwoord.read()
-                    antwoord_headers = {k: v for k, v in antwoord.getheaders() if k.lower() not in DOORGEEF_HEADERS_WEG
-                                        and k.lower() != "content-length"}
-                    verbinding.close()
-                except OSError as fout:
-                    inhoud = json.dumps({"proxyfout": str(fout)}).encode()
+                if alleen_get and self.command != "GET":
+                    self.close_connection = True
+                    status, inhoud, antwoord_headers = 405, b"", {"Allow": "GET"}
+                else:
+                    status, inhoud, antwoord_headers = self._doorgeven()
                 with eigenaar._lock:
                     eigenaar.regels.append({
                         "tijd": time.time(), "proxy": eigenaar.naam, "methode": self.command, "pad": deel.path,
@@ -70,7 +60,29 @@ class LoggendeProxy:
                 self.end_headers()
                 self.wfile.write(inhoud)
 
+            def _doorgeven(self) -> tuple[int, bytes, dict[str, str]]:
+                lengte = int(self.headers.get("Content-Length") or 0)
+                body = self.rfile.read(lengte) if lengte else None
+                headers = {k: v for k, v in self.headers.items() if k.lower() not in DOORGEEF_HEADERS_WEG}
+                verbinding = http.client.HTTPConnection(*eigenaar.doel, timeout=300)
+                try:
+                    verbinding.request(self.command, self.path, body=body, headers=headers)
+                    antwoord = verbinding.getresponse()
+                    doorgeven = {k: v for k, v in antwoord.getheaders()
+                                 if k.lower() not in DOORGEEF_HEADERS_WEG and k.lower() != "content-length"}
+                    return antwoord.status, antwoord.read(), doorgeven
+                except OSError as fout:
+                    return 502, json.dumps({"proxyfout": str(fout)}).encode(), {}
+                finally:
+                    verbinding.close()
+
             do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = _stuur  # noqa: N815
+
+            def __getattr__(self, naam: str) -> Any:
+                # BaseHTTPRequestHandler zoekt per werkwoord do_<methode>, ook bij onbekende methoden.
+                if alleen_get and naam.startswith("do_"):
+                    return self._stuur
+                raise AttributeError(naam)
 
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.poort = self.httpd.server_address[1]

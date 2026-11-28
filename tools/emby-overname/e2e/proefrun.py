@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""E2E-proefrun B03-015 deel A (golf 0): echte Emby 4.10.2.0 + stock Jellyfin 12.4 in containers — JLT-70…73.
+"""E2E-proefrun B03-015 met een Emby-testimage op vaste digest en Jellyfin of Jelly Leon in containers (JLT-70…73).
 
 Wat er gebeurt (alles in wegwerpcontainers; media altijd alleen-lezen gekoppeld; daarna opgeruimd):
  1. testbibliotheek met opzettelijke gaten (`testbibliotheek.py`): corpus (harde links, lokaal) of synthetisch (CI);
@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import secrets
 import shutil
 import socket
@@ -60,6 +61,19 @@ EMBY_ROOT, JL_ROOT = "/mnt/emby/media", "/data/media"
 WACHTWOORD_BEHEER = "Proefrun-Beheer-2026!"
 EMBY_CLIENT = 'Emby Client="proefrun-harnas", Device="harnas", DeviceId="jl-b03015-harnas", Version="1.0"'
 JL_CLIENT = 'MediaBrowser Client="proefrun-harnas", Device="harnas", DeviceId="jl-b03015-harnas", Version="1.0"'
+
+
+def emby_image_op_digest(waarde: str) -> str:
+    naam = r"[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*"
+    if not re.fullmatch(rf"(?:{naam}(?::[0-9]+)?/)?(?:{naam}/)*{naam}(?::[\w][\w.-]{{0,127}})?@sha256:[0-9a-f]{{64}}", waarde, re.ASCII):
+        raise argparse.ArgumentTypeError("de Emby-image vereist een imagenaam met vaste digest @sha256: en 64 hextekens")
+    return waarde
+
+
+def emby_versie_klopt(image: str, versie: Any) -> bool:
+    """Een numerieke versietag moet overeenkomen met de draaiende Emby-testserver."""
+    tag = re.search(r":(\d+(?:\.\d+)+)@sha256:", image)
+    return isinstance(versie, str) and bool(re.fullmatch(r"\d+(?:\.\d+)+", versie)) and (tag is None or versie == tag[1])
 
 
 def nu() -> str:
@@ -165,10 +179,10 @@ def ticks(tekst: str) -> str:
 # --- bewijs -------------------------------------------------------------------------------------------------------
 
 class Bewijs:
-    def __init__(self, modus: str) -> None:
+    def __init__(self, modus: str, emby_image: str = EMBY_IMAGE) -> None:
         self.data: dict[str, Any] = {
             "schema": "jelly-leon/b03-015-proefrun-bewijs/1", "modus": modus, "begin": nu(),
-            "images": {"emby": EMBY_IMAGE, "jellyfin": DOEL_IMAGE},
+            "images": {"emby": emby_image, "jellyfin": DOEL_IMAGE},
             "validatie": "Sim (echte containers op de ontwikkelmachine; NIET GEVALIDEERD op de echte NAS)",
             "controles": [], "loadavg_begin": os.getloadavg(),
         }
@@ -629,6 +643,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                         "B03-016; vraagt `npm ci` in tools/b03-harnas/playwright en Chromium)")
     p.add_argument("--jellyfin-image", default=JL_IMAGE,
                    help="doelserver: stock 12.4 op digest (golf 0) of de lokaal gebouwde jelly-leon-image (P4-0)")
+    p.add_argument("--emby-image", type=emby_image_op_digest, default=EMBY_IMAGE,
+                   help="Emby-testimage met vaste sha256-digest, eventueel met de versietag uit D07")
     args = p.parse_args(argv)
     global DOEL_IMAGE  # noqa: PLW0603 - één doorlopend scenario; het bewijs noemt de gebruikte image
     DOEL_IMAGE = args.jellyfin_image
@@ -642,7 +658,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
     else:
         uitvoer.mkdir(parents=True, exist_ok=True)
     werk = uitvoer / "werk"
-    bewijs = Bewijs(args.modus)
+    bewijs = Bewijs(args.modus, args.emby_image)
     run_id = uuid.uuid4().hex
     containers: list[str] = []
     proxies: list[LoggendeProxy] = []
@@ -651,7 +667,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
     sleutels_waarden: dict[str, str] = {}
     code = 1
     try:
-        for image in (EMBY_IMAGE, JL_IMAGE, DOEL_IMAGE):
+        for image in (args.emby_image, JL_IMAGE, DOEL_IMAGE):
             if docker("image", "inspect", image, check=False).returncode != 0:
                 log(f"image ophalen: {image}")
                 docker("pull", image)
@@ -677,7 +693,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         naam_emby, naam_jl = f"jlb03015-emby-{run_id}", f"jlb03015-jl-{run_id}"
         docker("run", "-d", "--name", naam_emby, "-e", f"UID={os.getuid()}", "-e", f"GID={os.getgid()}",
                "-p", f"127.0.0.1:{p_emby}:8096", "-v", f"{werk / 'emby-config'}:/config",
-               "-v", f"{werk / 'bib' / 'emby'}:{EMBY_ROOT}:ro", "--memory", "1536m", "--cpus", "4", EMBY_IMAGE)
+               "-v", f"{werk / 'bib' / 'emby'}:{EMBY_ROOT}:ro", "--memory", "1536m", "--cpus", "4", args.emby_image)
         containers.append(naam_emby)
         docker("run", "-d", "--name", naam_jl, "--user", f"{os.getuid()}:{os.getgid()}", "-p", f"127.0.0.1:{p_jl}:8096",
                "-v", f"{werk / 'jl-config'}:/config", "-v", f"{werk / 'jl-cache'}:/cache",
@@ -693,8 +709,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         info_jl = jl.anoniem.doe("GET", "/System/Info/Public")
         bewijs.data["servers"] = {"emby": {"versie": info_emby.get("Version")}, "jellyfin": {"versie": info_jl.get("Version"),
                                                                                              "product": info_jl.get("ProductName")}}
-        bewijs.check("JLT-70", f"echte Emby 4.10.2.0 en {'stock Jellyfin 12.4' if DOEL_IMAGE == JL_IMAGE else 'Jelly Leon 12.x'} draaien",
-                     info_emby.get("Version") == "4.10.2.0" and str(info_jl.get("Version")).startswith("12.4"),
+        bewijs.check("JLT-70", "de gekozen Emby-testversie en de doelserver draaien",
+                     emby_versie_klopt(args.emby_image, info_emby.get("Version")) and str(info_jl.get("Version")).startswith("12.4"),
                      f"Emby {info_emby.get('Version')}, Jellyfin {info_jl.get('Version')}")
         sleutels_waarden = {"emby": emby.sleutel("jelly-leon-overname"), "jl": jl.sleutel("jelly-leon-overname"),
                             "mg_emby": emby.sleutel("mediaguard-sim"), "mg_jl": jl.sleutel("mediaguard-sim")}
@@ -793,7 +809,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
                      soorten["gezien"] > 0 and soorten["hervatpunt"] > 0 and soorten["favoriet"] > 0, dict(soorten))
 
         # Proxy's en MediaGuard-simulator.
-        proxy_emby = LoggendeProxy("127.0.0.1", p_emby, "emby")
+        proxy_emby = LoggendeProxy("127.0.0.1", p_emby, "emby", alleen_get=True)
         proxy_jl = LoggendeProxy("127.0.0.1", p_jl, "jelly-leon")
         proxies += [proxy_emby, proxy_jl]
         mg = MediaGuardSim(emby_url, sleutels_waarden["mg_emby"], jl_url, sleutels_waarden["mg_jl"])
@@ -959,16 +975,6 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
         bewijs.check("JLT-73", "opzettelijke POST/DELETE vanuit de tool geweigerd vóór het netwerk",
                      code_haak == 0 and haak.get("netwerkverzoeken") == 0 and all(x["geweigerd"] for x in haak.get("pogingen", [])),
                      haak.get("pogingen"))
-        methodes = Counter(r["methode"] for r in proxy_emby.regels)
-        bewijs.check("JLT-73", "0 verzoeken anders dan GET naar Emby (loggende proxy, alle runs)",
-                     set(methodes) == {"GET"}, dict(methodes))
-        from emby_overname.emby import WITTE_LIJST_GET  # noqa: PLC0415
-
-        buiten = sorted({r["pad"] for r in proxy_emby.regels if not any(w.match(r["pad"]) for w in WITTE_LIJST_GET)})
-        bewijs.check("JLT-73", "alleen routes van de witte lijst", not buiten, buiten[:10])
-        bewijs.check("JLT-73", "geen sleutel in een URL", not any(r["sleutel_in_url"] for r in proxy_emby.regels + proxy_jl.regels))
-        bewijs.data["verkeer"] = {"emby": {"verzoeken": len(proxy_emby.regels), "methodes": dict(methodes)},
-                                  "jelly_leon": dict(Counter(r["methode"] for r in proxy_jl.regels))}
 
         # 8. Archief na, vergelijking, herimport-voorbereiding.
         archief_na = uitvoer / "archief" / "emby-kijkgegevens-na.json"
@@ -1064,6 +1070,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0915 - één d
             bewijs.data["mediaguard_sim"] = mg.samenvatting()
         for proxy in proxies:
             proxy.stop()
+        if proxies:
+            controleer_proxyverkeer(bewijs, proxy_emby, proxy_jl)
+            if not all(c["ok"] for c in bewijs.data["controles"]):
+                code = 1
         code = rond_proef_af(uitvoer, bewijs, containers, args.behoud, code, overdracht, sleutels_waarden)
         log(f"klaar: {bewijs.data.get('samenvatting')} → {uitvoer / 'bewijs.json'}")
     return code
@@ -1097,6 +1107,18 @@ def rond_proef_af(uitvoer: Path, bewijs: Bewijs, containers: list[str], behoud: 
 
 
 # --- controles -----------------------------------------------------------------------------------------------------
+
+def controleer_proxyverkeer(bewijs: Bewijs, bron: LoggendeProxy, doel: LoggendeProxy) -> None:
+    from emby_overname.emby import WITTE_LIJST_GET  # noqa: PLC0415
+
+    methodes = Counter(r["methode"] for r in bron.regels)
+    bewijs.check("JLT-73", "0 verzoeken anders dan GET naar Emby (loggende proxy, alle runs)", set(methodes) == {"GET"}, dict(methodes))
+    buiten = sorted({r["pad"] for r in bron.regels if not any(w.match(r["pad"]) for w in WITTE_LIJST_GET)})
+    bewijs.check("JLT-73", "alleen routes van de witte lijst", not buiten, buiten[:10])
+    bewijs.check("JLT-73", "geen sleutel in een URL", not any(r["sleutel_in_url"] for r in bron.regels + doel.regels))
+    bewijs.data["verkeer"] = {"emby": {"verzoeken": len(bron.regels), "methodes": dict(methodes)},
+                              "jelly_leon": dict(Counter(r["methode"] for r in doel.regels))}
+
 
 def controleer_overname(bewijs: Bewijs, test: str, items: list[Item], waarheid: dict[str, dict[str, dict[str, Any]]], jl: Jellyfin,
                         jl_gebruikers: dict[str, dict[str, Any]], naar_jl: dict[str, str], afhandel: dict[str, list[dict[str, Any]]],
