@@ -15,8 +15,11 @@ internal sealed class SegmentPublicatie(IMediaSegmentManager manager)
 {
     internal sealed record Verschil(IReadOnlyList<MediaSegmentDto> Verwijderen, IReadOnlyList<Tijdvak> Maken);
 
+    internal static Guid RijId(MediaSegmentDto rij) => rij.Id;
+
     public async Task<Verschil> Vergelijk(BaseItem item, IReadOnlyList<Tijdvak> gewenst)
     {
+        SegmentItem.ControleerVakken(SegmentBibliotheek.DuurVanItem(item), gewenst);
         var providers = manager.GetSupportedProviders(item).ToArray();
         if (providers.Count(p => p.Name == SegmentProvider.VasteNaam && p.Id == SegmentProvider.ProviderId) != 1)
         {

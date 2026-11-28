@@ -360,6 +360,177 @@ internal static partial class OpenApiBouwer
         "type": "object", "additionalProperties": { "type": "integer", "format": "int64", "minimum": 0 },
         "description": "Aantal rijen per eigen moduletabel, inclusief instellingen."
       },
+      "SegmentVak": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "type", "jellyfin_type", "start_ticks", "end_ticks", "start_s", "end_s", "source", "confidence", "status"],
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "type": {"type": "string", "enum": ["intro", "credits", "recap", "preview", "commercial"]},
+          "jellyfin_type": {"type": "string", "enum": ["Intro", "Outro", "Recap", "Preview", "Commercial"]},
+          "start_ticks": {"type": "integer"},
+          "end_ticks": {"type": "integer"},
+          "start_s": {"type": "number"},
+          "end_s": {"type": "number"},
+          "source": {"type": "string"},
+          "confidence": {"type": "number"},
+          "status": {"type": "string", "enum": ["published", "review", "shadow"]}
+        }
+      },
+      "SegmentView": {
+        "type": "object", "additionalProperties": false,
+        "required": ["item_id", "media_source_id", "duration_s", "view", "publication", "analysis_state", "segments", "protected", "etag"],
+        "properties": {
+          "item_id": {"type": "string", "format": "uuid"},
+          "media_source_id": {"type": "string", "format": "uuid"},
+          "duration_s": {"type": "number"},
+          "view": {"type": "string", "enum": ["candidate", "published"]},
+          "publication": {"type": "string", "enum": ["disabled", "shadow", "published"]},
+          "analysis_state": {"type": "string", "enum": ["ok", "pending", "realign_needed"]},
+          "segments": {"type": "array", "items": {"$ref": "#/components/schemas/SegmentVak"}},
+          "protected": {"type": "array", "items": {"type": "object"}},
+          "etag": {"type": "string"},
+          "recurring_unclassified": {"type": "array", "items": {"type": "object"}},
+          "evidence": {"type": "object"}
+        }
+      },
+      "SegmentPublicatieVerzoek": {
+        "type": "object", "additionalProperties": false,
+        "required": ["library_id", "mode", "dry_run"],
+        "properties": {
+          "library_id": {"type": "string", "format": "uuid"},
+          "series_id": {"type": "string", "format": "uuid", "nullable": true},
+          "mode": {"type": "string", "enum": ["disabled", "shadow", "published"]},
+          "override_reason": {"type": "string", "nullable": true, "maxLength": 500},
+          "dry_run": {"type": "boolean"},
+          "preview_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$", "nullable": true}
+        }
+      },
+      "SegmentPublicatie": {
+        "type": "object", "additionalProperties": false,
+        "required": ["mode"],
+        "properties": {
+          "mode": {"type": "string", "enum": ["disabled", "shadow", "published"]},
+          "qc": {"type": "object", "additionalProperties": false, "required": ["required", "confirmed"], "properties": {"required": {"type": "integer"}, "confirmed": {"type": "integer"}}},
+          "would_create": {"type": "integer"},
+          "would_delete": {"type": "integer"},
+          "preview_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "created": {"type": "integer"},
+          "deleted": {"type": "integer"}
+        }
+      },
+      "SegmentWezen": {
+        "type": "object", "additionalProperties": false,
+        "required": ["count", "by_reason", "frozen", "frozen_since"],
+        "properties": {
+          "count": {"type": "integer"},
+          "by_reason": {"type": "object", "additionalProperties": false, "required": ["missing_item"], "properties": {"missing_item": {"type": "integer"}}},
+          "frozen": {"type": "boolean"},
+          "frozen_since": {"type": "string", "nullable": true}
+        }
+      },
+      "SegmentStatus": {
+        "type": "object", "additionalProperties": false,
+        "required": ["provider", "libraries", "mount", "health", "reason", "orphans"],
+        "properties": {
+          "provider": {"type": "object", "additionalProperties": false, "required": ["name", "registered"], "properties": {"name": {"type": "string"}, "registered": {"type": "boolean"}}},
+          "libraries": {"type": "array", "items": {"type": "object"}},
+          "mount": {"type": "object", "additionalProperties": false, "required": ["read_only"], "properties": {"read_only": {"type": "boolean"}}},
+          "health": {"type": "string", "enum": ["healthy", "unknown", "degraded", "down"]},
+          "reason": {"type": "string"},
+          "orphans": {"$ref": "#/components/schemas/SegmentWezen"},
+          "budget": {"type": "object"},
+          "mediaguard": {"type": "object"},
+          "local_ai": {"type": "object"}
+        }
+      },
+      "SegmentExportVak": {
+        "type": "object", "additionalProperties": false,
+        "required": ["type", "start", "einde", "bron", "zekerheid"],
+        "properties": {
+          "type": {"type": "string", "enum": ["Intro", "Outro", "Recap", "Preview", "Commercial"]},
+          "start": {"type": "integer"},
+          "einde": {"type": "integer"},
+          "bron": {"type": "string"},
+          "zekerheid": {"type": "number"}
+        }
+      },
+      "SegmentExportItem": {
+        "type": "object", "additionalProperties": false,
+        "required": ["item_id", "bibliotheek", "duur", "mtime", "kandidaten"],
+        "properties": {
+          "item_id": {"type": "string", "format": "uuid"},
+          "bibliotheek": {"type": "string", "format": "uuid"},
+          "serie": {"type": "string", "format": "uuid", "nullable": true},
+          "seizoen": {"type": "integer", "nullable": true},
+          "aflevering": {"type": "integer", "nullable": true},
+          "duur": {"type": "integer"},
+          "mtime": {"type": "integer"},
+          "herkomst": {"type": "string", "pattern": "^[0-9a-f]{64}$", "nullable": true},
+          "kandidaten": {"type": "array", "items": {"$ref": "#/components/schemas/SegmentExportVak"}},
+          "bevestigd": {"type": "boolean"},
+          "wees": {"type": "boolean"},
+          "heruitlijnen": {"type": "boolean"}
+        }
+      },
+      "SegmentBundel": {
+        "type": "object", "additionalProperties": false,
+        "required": ["schema_version", "export_id", "items"],
+        "properties": {
+          "schema_version": {"type": "integer", "enum": [1]},
+          "export_id": {"type": "string", "format": "uuid"},
+          "items": {"type": "array", "items": {"$ref": "#/components/schemas/SegmentExportItem"}}
+        }
+      },
+      "SegmentImportVoorbeeld": {
+        "type": "object", "additionalProperties": false,
+        "required": ["preview_hash", "counts", "conflicts", "expires_at"],
+        "properties": {
+          "preview_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "counts": {"type": "object", "additionalProperties": false, "required": ["items"], "properties": {"items": {"type": "integer"}}},
+          "conflicts": {"type": "array", "items": {"type": "string", "format": "uuid"}},
+          "expires_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "SegmentHash": {
+        "type": "object", "additionalProperties": false,
+        "required": ["preview_hash"],
+        "properties": {
+          "preview_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      },
+      "SegmentImportResultaat": {
+        "type": "object", "additionalProperties": false,
+        "required": ["applied"],
+        "properties": {
+          "applied": {"type": "object", "additionalProperties": false, "required": ["items"], "properties": {"items": {"type": "integer"}}}
+        }
+      },
+      "SegmentOpruimVerzoek": {
+        "type": "object", "additionalProperties": false,
+        "required": ["export_id", "dry_run"],
+        "properties": {
+          "export_id": {"type": "string", "format": "uuid"},
+          "dry_run": {"type": "boolean"},
+          "preview_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$", "nullable": true}
+        }
+      },
+      "SegmentOpruiming": {
+        "type": "object", "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "would_delete": {"type": "integer"},
+          "preview_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "deleted": {"type": "integer"}
+        }
+      },
+      "SegmentReden": {
+        "type": "object", "additionalProperties": false,
+        "required": ["reason"],
+        "properties": {
+          "reason": {"type": "string", "maxLength": 500, "minLength": 1}
+        }
+      },
+      "SegmentOntdooid": {"type": "object", "additionalProperties": false, "required": ["frozen"], "properties": {"frozen": {"type": "boolean"}}},
       "ModuleExport": {
         "type": "object", "additionalProperties": false, "required": ["created_at", "module", "schema_version", "tables", "counts"],
         "properties": {
@@ -405,6 +576,7 @@ internal static partial class OpenApiBouwer
         [413] = "Het verzoek is groter dan 1 MiB.",
         [422] = "Ongeldige invoer (details.fouten) of een hergebruikte Idempotency-Key.",
         [428] = "If-Match ontbreekt.",
+        [429] = "Er zijn te veel openstaande importvoorbeelden.",
         [501] = "Niet beschikbaar in deze versie (capability_unavailable).",
         [503] = "Eigen opslag of herhaalcontrole tijdelijk niet beschikbaar; zie Retry-After.",
     };
@@ -468,7 +640,7 @@ internal static partial class OpenApiBouwer
             codes.UnionWith([400, 409, 422]);
         }
 
-        if (route.HeeftBody || route.Id is "connector.items" or "connector.events" or "watch.groups")
+        if (route.HeeftBody || route.Id is "connector.items" or "connector.events" or "watch.groups" or "segments.item" or "segments.orphans" or "segments.export")
         {
             codes.Add(422);
         }
@@ -476,6 +648,11 @@ internal static partial class OpenApiBouwer
         if (route.IfMatch)
         {
             codes.UnionWith([412, 428]);
+        }
+
+        if (route.Id == "segments.import.preview")
+        {
+            codes.Add(429);
         }
 
         return [.. codes];
@@ -487,6 +664,18 @@ internal static partial class OpenApiBouwer
         foreach (Match m in PadParameter().Matches(route.Pad))
         {
             parameters.Add(Parameter(m.Groups[1].Value, "path", true, "string", null));
+        }
+
+        if (route.Id == "segments.item")
+        {
+            var view = Parameter("view", "query", false, "string", "Kandidaatset voor beheerders en aangewezen volwassen editors.");
+            view["schema"]!["enum"] = new JsonArray("published", "candidate");
+            parameters.Add(view);
+        }
+
+        if (route.Id is "segments.export" or "segments.orphans")
+        {
+            parameters.Add(Parameter("library_id", "query", false, "string", "Beperk tot één bibliotheek-ID."));
         }
 
         if (route.Id == "connector.items")

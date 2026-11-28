@@ -28,12 +28,14 @@ internal sealed partial class SegmentsModule : ModuleBasis
         CREATE TABLE exports(id TEXT PRIMARY KEY, library TEXT, gemaakt INTEGER NOT NULL, inhoud_hash TEXT NOT NULL);
         CREATE TABLE audit(id INTEGER PRIMARY KEY, soort TEXT NOT NULL, actor TEXT NOT NULL, reden TEXT NOT NULL, gemaakt INTEGER NOT NULL);
         """;
+    // De meetperiode van de wezenbreker loopt per scan of over het laatste uur.
+    private const string Weesvenster = "CREATE TABLE weesmoment(item TEXT PRIMARY KEY, tijd INTEGER NOT NULL);";
     private readonly Core.Outbox.Outbox _outbox;
     private readonly JlPaths _paden;
     private readonly InternalWriteScope _bestanden;
 
     public SegmentsModule(JlPaths paden, SecretStore geheimen, Core.Outbox.Outbox outbox)
-        : base(paden, ModuleSlug, 365, [Schema], geheimen, [])
+        : base(paden, ModuleSlug, 365, [Schema, Weesvenster], geheimen, [])
     {
         _outbox = outbox;
         _paden = paden;
@@ -86,11 +88,36 @@ internal sealed partial class SegmentsModule : ModuleBasis
         Db.Transactioneel(v =>
         {
             var oud = Vind(v, item.ItemId);
-            if (oud is not null && (oud.Mtime != item.Mtime || oud.Heruitlijnen) &&
+            if (oud is null && item.Herkomst != null && (!item.Serie.HasValue || item.Aflevering.HasValue))
+            {
+                // Na een container- of padwissel kan het server-ID veranderen. Bij één passend extern aflevering-ID
+                // verhuist het mensenwerk naar review. Nieuwe publicatie vraagt heruitlijning of bevestiging.
+                var passend = Selectie(v, item.Bibliotheek, item.Serie).Where(i => i.Wees &&
+                    i.Serie == item.Serie && i.Seizoen == item.Seizoen && i.Aflevering == item.Aflevering && i.Herkomst == item.Herkomst &&
+                    Math.Abs((double)i.Duur - item.Duur) <= i.Duur * .01).Take(2).ToArray();
+                if (passend.Length > 0 && JlDatabase.Getal(v, "SELECT bevroren IS NOT NULL FROM beheer") != 0)
+                {
+                    return;
+                }
+
+                if (passend.Length == 1)
+                {
+                    oud = passend[0] with { ItemId = item.ItemId, Wees = false, Heruitlijnen = true };
+                    JlDatabase.Voer(v, "UPDATE items SET id=$nieuw WHERE id=$oud",
+                        ("$nieuw", Id(item.ItemId)), ("$oud", Id(passend[0].ItemId)));
+                }
+            }
+
+            if (oud is { Wees: true } && JlDatabase.Getal(v, "SELECT bevroren IS NOT NULL FROM beheer") != 0)
+            {
+                return;
+            }
+
+            if (oud is not null && (oud.Mtime != item.Mtime || oud.Heruitlijnen || oud.Wees) &&
                 (oud.Bevestigd || oud.Kandidaten.Any(s => s.Bron is "manual" or "confirmed")))
             {
                 // Bewaar ook correcties die door een kortere vervanging nu buiten de nieuwe duur vallen.
-                SchrijfItem(v, oud with { Heruitlijnen = true });
+                SchrijfItem(v, oud with { Heruitlijnen = true, Wees = false, Mtime = item.Mtime });
                 TrekIn(v, oud.ItemId);
             }
             else if (oud != null && oud.Mtime == item.Mtime && !oud.Wees && !oud.Heruitlijnen)
@@ -100,7 +127,12 @@ internal sealed partial class SegmentsModule : ModuleBasis
             else
             {
                 SchrijfItem(v, item);
-                TrekIn(v, item.ItemId);
+                var modus = Modus(v, item.Bibliotheek, item.Serie);
+                var steekproef = modus == "published" && (item.Bevestigd || (item.Serie.HasValue &&
+                    Steekproef(Selectie(v, item.Bibliotheek, item.Serie).Where(i => i.Seizoen == item.Seizoen)) >= 3));
+                var doel = steekproef ? Doel(item, modus) : [];
+                JlDatabase.Voer(v, "UPDATE items SET gepubliceerd=$set, afstemmen=1 WHERE id=$id",
+                    ("$set", Schrijf(doel)), ("$id", Id(item.ItemId)));
             }
 
             Verschuif(v);
@@ -153,11 +185,13 @@ internal sealed partial class SegmentsModule : ModuleBasis
 
             foreach (var item in nieuw)
             {
+                JlDatabase.Voer(v, "INSERT OR REPLACE INTO weesmoment VALUES($id,$nu)", ("$id", Id(item.ItemId)), ("$nu", nu.ToUnixTimeSeconds()));
                 SchrijfItem(v, item with { Wees = true });
                 TrekIn(v, item.ItemId);
             }
 
-            var bevries = OrphanBreaker.MoetBevriezen(items.Count, nieuw.Length + items.Count(i => i.Wees)) &&
+            JlDatabase.Voer(v, "DELETE FROM weesmoment WHERE tijd<$grens", ("$grens", nu.AddHours(-1).ToUnixTimeSeconds()));
+            var bevries = OrphanBreaker.MoetBevriezen(items.Count, checked((int)JlDatabase.Getal(v, "SELECT COUNT(*) FROM weesmoment"))) &&
                 JlDatabase.Voer(v, "UPDATE beheer SET bevroren=$nu WHERE bevroren IS NULL", ("$nu", nu.ToUnixTimeSeconds())) > 0;
             Verschuif(v);
             return bevries;

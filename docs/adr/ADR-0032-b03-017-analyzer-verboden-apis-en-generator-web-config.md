@@ -177,8 +177,9 @@ elke regel in deze tabel staat):
 | `LibraryOptions` | `new` | `Modules.Segments.SegmentPublicatie` | F6-S1, ADR-0037. |
 | `MediaSegmentDto` | `Type`, `StartTicks`, `EndTicks`, `Id` | `Modules.Segments.SegmentPublicatie` | F6-S1, ADR-0037. |
 | `BaseItem` | `Id` | `Modules.Segments.SegmentPublicatie` | F6-S1, ADR-0037. |
+| `IUserManager` | `GetUserById` | `Modules.Segments.SegmentBibliotheek` | Vereist het bestaande account voor de itemrechten. |
 | `Episode` | `SeriesId` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
-| `ILibraryManager` | `GetItemById`, `GetCollectionFolders`, `GetVirtualFolders`, `GetItemList` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
+| `ILibraryManager` | `GetItemById`, `GetCollectionFolders`, `GetVirtualFolders`, `GetItemList`, `ItemAdded`, `ItemUpdated`, `ItemRemoved` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
 | `BaseItem` | `Id`, `RunTimeTicks`, `ParentIndexNumber`, `IndexNumber`, `DateModified`, `ProviderIds` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
 | `VirtualFolderInfo` | `ItemId`, `Locations` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
 | `InternalItemsQuery` | `new` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |

@@ -1293,6 +1293,8 @@ public class VerbodenApiAnalyzerTests
     [InlineData("JL0001 " + Reset, "verwacht:")]
     [InlineData("JL0001 " + Reset + " " + SelectionGuard + " extra", "verwacht:")]
     [InlineData("JL0001 " + Reset + " " + SelectionGuard + "\nJL0001 " + Reset + " " + SelectionGuard, "dubbele regel")]
+    [InlineData("JL0001 MediaBrowser.Controller.MediaSegments.IMediaSegmentManager.RunSegmentPluginProviders Jellyfin.Plugin.JellyLeon.Modules.Segments.SegmentPublicatie", "alleen gerichte publicatie")]
+    [InlineData("JL0001 MediaBrowser.Controller.MediaSegments.IMediaSegmentManager.DeleteSegmentsAsync Jellyfin.Plugin.JellyLeon.Modules.Segments.SegmentPublicatie", "alleen gerichte publicatie")]
     public async Task OngeldigeUitzonderingsregel_IsEenBouwfoutEnStaatNietsToe(string witteLijst, string reden)
     {
         var bron = AnalyzerHarnas.Klasse(Modules + ".Quality", "X", "public void M() { }");

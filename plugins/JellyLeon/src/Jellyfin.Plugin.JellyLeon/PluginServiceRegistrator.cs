@@ -80,6 +80,10 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<WatchTogetherModule>();
         serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<WatchTogetherModule>());
         RegistreerWatchTogether(serviceCollection);
+
+        serviceCollection.AddSingleton<SegmentDienst>();
+        serviceCollection.AddSingleton<IHealthBron, SegmentHealthBron>();
+        serviceCollection.AddHostedService<OpslagDienst<SegmentDienst>>();
         serviceCollection.AddSingleton<ModuleRegistry>();
 
         serviceCollection.AddSingleton<PrivacyService>();

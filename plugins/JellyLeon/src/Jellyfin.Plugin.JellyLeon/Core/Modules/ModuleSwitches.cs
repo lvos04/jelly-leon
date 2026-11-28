@@ -23,6 +23,8 @@ internal interface IModuleSwitches
 
     bool IsAan(string slug);
 
+    bool IsSegmentEditor(Guid gebruiker) => false;
+
     void Zet(string slug, bool aan);
 }
 
@@ -96,6 +98,8 @@ internal sealed class PluginModuleSwitches : IModuleSwitches
     }
 
     public bool HeeftGasten => (Config ?? throw Fouten.OpslagOnbeschikbaar()).WatchTogether?.GuestUserIds?.Length > 0;
+
+    public bool IsSegmentEditor(Guid gebruiker) => Config?.SegmentEditors?.Contains(gebruiker) == true;
 
     public bool IsAan(string slug) => _opslag.Beschikbaar && Config is { } config && config.Schakelaars().Any(s => s.Slug == slug && s.Schakelaar.Enabled);
 

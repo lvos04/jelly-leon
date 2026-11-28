@@ -16,6 +16,8 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
+using MediaBrowser.Controller.MediaSegments;
+using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -53,6 +55,10 @@ internal sealed class NepSchakelaars : IModuleSwitches
     public void VerwijderGast(Guid gebruiker) => Gasten.Remove(gebruiker);
 
     public bool IsAan(string slug) => _stand.GetValueOrDefault(slug);
+
+    public HashSet<Guid> Editors { get; } = [];
+
+    public bool IsSegmentEditor(Guid gebruiker) => Editors.Contains(gebruiker);
 
     public void Zet(string slug, bool aan) => _stand[slug] = aan;
 }
@@ -189,7 +195,9 @@ internal sealed class Harnas : IDisposable
         diensten.AddSingleton<TimeProvider>(Klok);
         diensten.AddSingleton(paden.Object);
         diensten.AddSingleton(Mock.Of<ISessionManager>());
-        diensten.AddSingleton(Mock.Of<ILibraryManager>());
+        diensten.AddSingleton(Bibliotheek.Object);
+        diensten.AddSingleton(Mock.Of<IMediaSegmentManager>());
+        diensten.AddSingleton(Hoofdstukken.Object);
         diensten.AddSingleton(Authenticatie.Object);
         diensten.AddSingleton(Gebruikers.Object);
         new PluginServiceRegistrator().RegisterServices(diensten, Mock.Of<IServerApplicationHost>());
@@ -211,6 +219,9 @@ internal sealed class Harnas : IDisposable
     public NepSchakelaars Schakelaars { get; } = new();
 
     public NepSessies Sessies { get; } = new();
+
+    public Mock<ILibraryManager> Bibliotheek { get; } = new();
+    public Mock<IChapterRepository> Hoofdstukken { get; } = new();
 
     public Mock<IAuthService> Authenticatie { get; } = new();
 
@@ -270,19 +281,24 @@ internal sealed class Harnas : IDisposable
         var argumenten = actie.GetParameters().Select(p => (object?)(pad ?? [])[p.Name!]).ToArray();
         var voor = new ActionExecutingContext(actieContext, [], new Dictionary<string, object?>(), controller);
         ActionExecutedContext? na = null;
-        await actie.GetCustomAttribute<JlRouteAttribute>()!.OnActionExecutionAsync(voor, () =>
+        await actie.GetCustomAttribute<JlRouteAttribute>()!.OnActionExecutionAsync(voor, async () =>
         {
             na = new ActionExecutedContext(actieContext, [], controller);
             try
             {
-                na.Result = (IActionResult)actie.Invoke(controller, argumenten)!;
+                var uitkomst = actie.Invoke(controller, argumenten);
+                na.Result = uitkomst is Task<IActionResult> taak ? await taak : (IActionResult)uitkomst!;
             }
             catch (TargetInvocationException fout)
             {
                 na.Exception = fout.InnerException;
             }
+            catch (JlException fout)
+            {
+                na.Exception = fout;
+            }
 
-            return Task.FromResult(na);
+            return na;
         });
         var resultaat = (JlResult)(voor.Result ?? na!.Result)!;
         using var inhoud = new MemoryStream();

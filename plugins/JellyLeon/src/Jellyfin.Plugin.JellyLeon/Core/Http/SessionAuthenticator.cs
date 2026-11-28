@@ -17,7 +17,7 @@ internal sealed record SessieIdentiteit(Guid? GebruikerId, bool IsBeheerder, boo
     {
         if (auth == JlAuth.GebruikersSessie)
         {
-            if (GebruikerId is null)
+            if (GebruikerId is null || GebruikerId == Guid.Empty)
             {
                 throw Fouten.Verboden("user_required");
             }

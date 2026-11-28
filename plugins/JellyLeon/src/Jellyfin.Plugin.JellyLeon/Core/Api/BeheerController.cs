@@ -1,5 +1,8 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyLeon.Modules.Segments;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Nodes;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
@@ -122,7 +125,7 @@ public sealed class BeheerController : ControllerBase
     /// <returns>De lijst van modules na de wijziging.</returns>
     [HttpPut("modules/{slug}")]
     [JlRoute("modules.put")]
-    public IActionResult ModuleZet([FromRoute] string slug)
+    public async Task<IActionResult> ModuleZet([FromRoute] string slug)
     {
         var context = JlContext.Van(HttpContext);
         var lezer = new BodyLezer(context.Body);
@@ -138,7 +141,14 @@ public sealed class BeheerController : ControllerBase
             throw Fouten.PreconditieMislukt(Schakelaars.Etag);
         }
 
-        Schakelaars.Zet(slug, aan!.Value);
+        if (slug == SegmentsModule.ModuleSlug && aan == false)
+        {
+            await _diensten.GetRequiredService<SegmentDienst>().Uitzetten(HttpContext.RequestAborted).ConfigureAwait(false);
+        }
+        else
+        {
+            Schakelaars.Zet(slug, aan!.Value);
+        }
         return JlResult.Ok(ModulesJson(), Schakelaars.Etag);
     }
 

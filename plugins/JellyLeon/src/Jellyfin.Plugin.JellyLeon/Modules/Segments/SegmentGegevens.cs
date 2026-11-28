@@ -12,6 +12,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Segments;
 
 internal sealed record Tijdvak(MediaSegmentType Type, long Start, long Einde, string Bron, double Zekerheid)
 {
+    [JsonIgnore]
     public bool Publiceerbaar => Bron is "manual" or "confirmed" ||
         (Bron != "hint" && Zekerheid >= (Type == MediaSegmentType.Intro ? .80 : .85));
 }
@@ -29,8 +30,13 @@ internal sealed record SegmentItem(
             throw Fouten.Validatie(("item", "invalid_item", "Ongeldige itemgegevens."));
         }
 
+        ControleerVakken(Duur, Kandidaten);
+    }
+
+    internal static void ControleerVakken(long duur, IEnumerable<Tijdvak> vakken)
+    {
         long einde = 0;
-        foreach (var vak in Kandidaten)
+        foreach (var vak in vakken)
         {
             if (vak is null || vak.Type is not (MediaSegmentType.Intro or MediaSegmentType.Outro or
                 MediaSegmentType.Recap or MediaSegmentType.Preview or MediaSegmentType.Commercial))
@@ -38,7 +44,7 @@ internal sealed record SegmentItem(
                 throw Fouten.Validatie(("segments", "unknown_type", "Onbekend segmenttype."));
             }
 
-            if (vak.Start < einde || vak.Start >= vak.Einde || vak.Einde > Duur ||
+            if (vak.Start < einde || vak.Start >= vak.Einde || vak.Einde > duur ||
                 !double.IsFinite(vak.Zekerheid) || vak.Zekerheid is < 0 or > 1 ||
                 vak.Bron is not ("chapter" or "detected" or "manual" or "confirmed" or "hint" or "propagated"))
             {

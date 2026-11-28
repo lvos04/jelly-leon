@@ -415,6 +415,9 @@ class Plugin:
         return status, _json(ruw), {k.lower(): w for k, w in headers.items()}
 
     # -- onderdelen
+    def module_slugs(self) -> set[str]:
+        return {"devices", "quality", "recommendations", "segments", "watch"}
+
     def geladen(self) -> None:
         lijst = self.beheer.http.doe("GET", "/Plugins")
         eigen = [p for p in lijst if p.get("Id", "").replace("-", "") == PLUGIN_ID]
@@ -459,7 +462,7 @@ class Plugin:
         for methode, pad in sorted(pl.routes(self.doc, PREFIXEN)):
             if pad == "/media/v1/version":
                 continue
-            echt_pad = pad.replace("{id}", "x").replace("{slug}", "devices")
+            echt_pad = pad.replace("{id}", "x").replace("{slug}", "devices").replace("{itemId}", "proef")
             status, ruw, _ = Http(self.server.url).ruw(methode, echt_pad, body={} if methode in ("PUT", "POST") else None)
             inhoud = _json(ruw)
             if status != 401 or not isinstance(inhoud, dict) or inhoud.get("code") != "unauthorized":
@@ -1131,7 +1134,12 @@ def main(argv: list[str] | None = None) -> int:
         v.test("JLT-64", "Watch Together omhult de actieve serverdienst", actief is True)
         meet_watch("module aan, open groep", beheer)
         plugin.foutcatalogus()
+        overige_modules = sorted(plugin.module_slugs() - {"devices", "quality"})
+        for slug in overige_modules:
+            plugin.schakel(slug, True)
         plugin.lichaamsgrens()
+        for slug in overige_modules:
+            plugin.schakel(slug, False)
 
         data = b.config / "data" / "jelly-leon"
         zout_pad = data / "secrets" / "opaque-id.salt"

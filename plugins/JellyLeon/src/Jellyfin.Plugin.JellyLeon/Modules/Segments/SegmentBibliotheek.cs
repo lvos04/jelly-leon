@@ -12,16 +12,55 @@ using MediaBrowser.Controller.Persistence;
 namespace Jellyfin.Plugin.JellyLeon.Modules.Segments;
 
 /// <summary>Leest IDs, mediaduur en hoofdstukken via de publieke server-ABI. Opent geen mediabestand.</summary>
-internal sealed class SegmentBibliotheek(ILibraryManager bibliotheek, IChapterRepository hoofdstukken)
+internal sealed class SegmentBibliotheek(ILibraryManager bibliotheek, IUserManager gebruikers, IChapterRepository hoofdstukken)
 {
+    public void Volg(EventHandler<ItemChangeEventArgs> signaal)
+    {
+        bibliotheek.ItemAdded += signaal;
+        bibliotheek.ItemRemoved += signaal;
+        bibliotheek.ItemUpdated += signaal;
+    }
+
+    public void LaatLos(EventHandler<ItemChangeEventArgs> signaal)
+    {
+        bibliotheek.ItemAdded -= signaal;
+        bibliotheek.ItemRemoved -= signaal;
+        bibliotheek.ItemUpdated -= signaal;
+    }
+
     internal static Guid? SerieVan(BaseItem item) => item is Episode ep && ep.SeriesId != Guid.Empty ? ep.SeriesId : null;
+
+    internal static long DuurVanItem(BaseItem item) => item.RunTimeTicks ?? 0;
 
     public Video? Video(Guid id) => bibliotheek.GetItemById<Video>(id);
 
-    public Video Zichtbaar(Guid id, Guid gebruiker) => gebruiker == Guid.Empty
-        ? throw Fouten.NietGevonden() : bibliotheek.GetItemById<Video>(id, gebruiker) ?? throw Fouten.NietGevonden();
+    public Video Zichtbaar(Guid id, Guid gebruiker)
+    {
+        var account = gebruiker == Guid.Empty ? null : gebruikers.GetUserById(gebruiker);
+        if (account is null)
+        {
+            throw Fouten.NietGevonden();
+        }
+
+        return bibliotheek.GetItemById<Video>(id, account) ?? throw Fouten.NietGevonden();
+    }
 
     public IReadOnlyList<Guid> Bibliotheken(BaseItem item) => bibliotheek.GetCollectionFolders(item).Select(f => f.Id).ToList();
+
+    public bool Past(Video video, SegmentItem item) => Bibliotheken(video).Contains(item.Bibliotheek) &&
+        SerieVan(video) == item.Serie && video.RunTimeTicks == item.Duur && video.DateModified.Ticks == item.Mtime;
+
+    public static bool TeLezen(Video video, Guid bib, SegmentsModule module)
+    {
+        if (module.Modus(bib, SerieVan(video)) == "disabled")
+        {
+            return false;
+        }
+
+        var oud = module.Vind(video.Id);
+        return oud is null || oud.Wees || oud.Mtime != video.DateModified.Ticks || (oud.Heruitlijnen && !oud.Bevestigd &&
+            !oud.Kandidaten.Any(k => k.Bron is "manual" or "confirmed"));
+    }
 
     public string[] Mappen(Guid bib) => bibliotheek.GetVirtualFolders().Where(f => Guid.TryParse(f.ItemId, out var id) && id == bib)
         .SelectMany(f => f.Locations).Distinct(StringComparer.Ordinal).ToArray();

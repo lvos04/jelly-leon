@@ -66,6 +66,12 @@ internal sealed class Uitzonderingen
         {
             Fouten.Add((regel, "voor deze API bestaat geen uitzondering (nergens toegestaan): buiten Core.Storage en Core.Secrets alleen de witte lijst van de bestandsnamespaces en File, Directory, FileInfo/DirectoryInfo of IFileSystem per klasse"));
         }
+        else if (klasse.StartsWith(Regels.PluginNamespace + ".Modules.Segments.", StringComparison.Ordinal) &&
+            !(klasse == Regels.PluginNamespace + ".Modules.Segments.SegmentPublicatie" && regelId == Regels.ServerSchrijf &&
+              type == "MediaBrowser.Controller.MediaSegments.IMediaSegmentManager" && (lid == "CreateSegmentAsync" || lid == "DeleteSegmentAsync")))
+        {
+            Fouten.Add((regel, "Segments staat alleen gerichte publicatie in de eigen adapter toe"));
+        }
         else if (typeRegel is null || !typeRegel.IsVerboden(lid))
         {
             Fouten.Add((regel, "deze API wordt door deze regel niet bewaakt"));

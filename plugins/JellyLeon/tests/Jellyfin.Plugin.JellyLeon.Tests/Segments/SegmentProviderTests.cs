@@ -25,7 +25,7 @@ public sealed class SegmentProviderTests
     public async Task IdentiekeTijdcodesVanAndereProviderBlijvenBijPublicerenEnDepubliceren()
     {
         Assert.Equal("89c1fd4ffb135be83ede19aa4ba67b06", SegmentProvider.ProviderId);
-        var video = new Movie { Id = Guid.NewGuid() };
+        var video = new Movie { Id = Guid.NewGuid(), RunTimeTicks = 100 };
         Tijdvak vak = new(MediaSegmentType.Intro, 11, 32, "chapter", .9);
         var vreemd = SegmentProvider.MaakDto(video.Id, vak);
         var rijen = new Dictionary<Guid, (string Provider, MediaSegmentDto Rij)> { [vreemd.Id] = ("andere", vreemd) };
@@ -48,6 +48,7 @@ public sealed class SegmentProviderTests
         });
 
         var publicatie = new SegmentPublicatie(manager.Object);
+        await Assert.ThrowsAsync<JlException>(() => publicatie.StemAf(video, [vak with { Type = MediaSegmentType.Unknown }]));
         Assert.Equal((1, 0), await publicatie.StemAf(video, [vak]));
         Assert.Equal(2, rijen.Count);
         Assert.Equal((0, 0), await publicatie.StemAf(video, [vak]));
