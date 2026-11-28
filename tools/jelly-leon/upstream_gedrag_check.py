@@ -88,9 +88,10 @@ def parse_register(text: str) -> tuple[list[Entry], list[str]]:
 
 
 def runtime_checks() -> set[str]:
+    import similar_proef  # noqa: PLC0415 - alleen nodig voor de namen
     import upstream_gedrag_runtime  # noqa: PLC0415 - alleen nodig voor de namen
 
-    return set(upstream_gedrag_runtime.CHECKS)
+    return set(upstream_gedrag_runtime.CHECKS) | similar_proef.CHECKS
 
 
 def check_entries(repo: Path, entries: list[Entry], fork_paths: list[str], known_runtime: set[str]) -> list[str]:
@@ -107,7 +108,7 @@ def check_entries(repo: Path, entries: list[Entry], fork_paths: list[str], known
     for entry in entries:
         for test in entry.tests:
             if test.startswith("runtime:") and test.removeprefix("runtime:") not in known_runtime:
-                errors.append(f"{entry.entry_id}: onbekende runtime-test {test} (niet in upstream_gedrag_runtime.CHECKS)")
+                errors.append(f"{entry.entry_id}: onbekende runtime-test {test} (niet in de runtimerunners)")
         if is_fork_path(entry.path, fork_paths):
             errors.append(f"{entry.entry_id}: {entry.path} is een fork-eigen pad; het register gaat over upstream-gedrag")
             continue

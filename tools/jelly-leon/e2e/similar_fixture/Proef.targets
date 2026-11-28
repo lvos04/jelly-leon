@@ -1,0 +1,6 @@
+<Project>
+  <!-- Uitsluitend de expliciete proefbuild krijgt deze waarnemer in dezelfde DLL. -->
+  <ItemGroup Condition="'$(Configuration)' == 'SimilarProef' and '$(MSBuildProjectName)' == 'Jellyfin.Plugin.JellyLeon'">
+    <Compile Include="$(MSBuildThisFileDirectory)ProefRegistrator.cs" />
+  </ItemGroup>
+</Project>

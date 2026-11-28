@@ -13,7 +13,7 @@ import path from 'node:path';
 
 const BROWSERS = { chromium, firefox, webkit };
 const [, , opdracht, invoer] = process.argv;
-const cfg = JSON.parse(invoer && invoer.trim().startsWith('{') ? invoer : fs.readFileSync(invoer, 'utf8'));
+const cfg = JSON.parse(invoer && invoer.trim().startsWith('{') ? invoer : fs.readFileSync(invoer === '-' ? 0 : invoer, 'utf8'));
 const base = cfg.url.replace(/\/$/, '');
 
 const HAAK = `(() => {
@@ -279,6 +279,16 @@ async function main() {
     const page = await ctx.newPage();
     await login(page);
     uit.ua_effectief = await page.evaluate(() => navigator.userAgent);
+    if (opdracht === 'homescherm') {
+      const secties = page.locator('.homeSectionsContainer:visible .verticalSection');
+      await secties.first().waitFor({ state: 'attached' });
+      const layout = await page.evaluate(() => localStorage.getItem('layout'));
+      await page.locator('.homeSectionsContainer:visible .card').first().waitFor({ state: 'visible' });
+      const modern = (await page.locator('header.MuiAppBar-root').count()) > 0;
+      const zichtbaar = modern === (layout === 'modern');
+      process.stdout.write(JSON.stringify({ layout, secties: await secties.count(), zichtbaar }) + '\n');
+      return;
+    }
     const opts = { orakelMs: cfg.orakelMs ?? 10000, duurMs: opdracht === 'speel' ? (cfg.duurMs ?? 0) : 0,
       metProfiel: opdracht === 'profiel', schermMap: cfg.schermMap, apparaten: opdracht === 'apparaten' };
     for (const item of cfg.items) {

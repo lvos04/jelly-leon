@@ -282,7 +282,9 @@ jobs:
           persist-credentials: false
 
       - name: Web-bron controleren (commit, jellyfin-web-versie = server-basis, upstream-basis is voorouder)
-        run: python3 tools/jelly-leon/web_bron.py --controleer _extern/jelly-leon-web
+        run: |
+          python3 tools/jelly-leon/web_bron.py --controleer _extern/jelly-leon-web
+          python3 tools/jelly-leon/similar_webbron.py _extern/jelly-leon-web
 
       - name: Alleen de gecontroleerde webbron archiveren
         run: git -C _extern/jelly-leon-web archive -o "$RUNNER_TEMP/webbron.tar" HEAD
@@ -332,7 +334,7 @@ jobs:
             --build-arg BUILD_JOBS=2 --build-arg WEB_BUILD_JOBS=2 --load -t "$JL_CI_IMAGE" .
 
       - name: Proefcontainer met lokale dataset voor de database starten
-        run: bash .forgejo/proeven/proefomgeving.sh start basis
+        run: bash .forgejo/proeven/proefomgeving.sh start chromium dataset
 
       - name: Levenscyclustest (lege opslag, healthy, elk proces en healthcheck 568 zonder rechten, herkomst web, herstart, Custom User, weigeringen)
         env:
@@ -390,6 +392,12 @@ jobs:
       # Zaai- en controle-runs op stock 12.x, daarna dezelfde datamap op jelly-leon:ci: routetabel, Hub-simulator (pin,
       # weigeringen, herhaalde jti), foutcatalogus per module, connector tegen het schema, UserDeleted in de ruwe
       # bestanden, geheimen niet in XML/log, en elke tabel van de serverdatabase tegen de controle-run.
+      - name: Similar op de eigen image met synthetische films en series
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
+        run: >
+          python3 tools/jelly-leon/e2e/similar_proef.py --image "$JL_CI_IMAGE" --stock-image "$JL_RUNTIME_IMAGE"
+          --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/similar-image.json"
+
       - name: Pluginproef op de Jelly Leon-image (JLT-68, JLT-64, JLT-65; Hub-simulator)
         if: ${{ !cancelled() && env.JL_HARNAS_ACTIEF == '1' }}
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
@@ -425,6 +433,7 @@ jobs:
             ${{ runner.temp }}/proefrapporten/compat-api.json
             ${{ runner.temp }}/proefrapporten/upstream-gedrag-runtime-jelly-leon.json
             ${{ runner.temp }}/proefrapporten/pluginproef-jelly-leon.json
+            ${{ runner.temp }}/proefrapporten/similar-image.json
             ${{ runner.temp }}/proefrapporten/startupfilter-spike-jelly-leon.json
 
       - name: Geteste image naar het Forgejo-register publiceren
@@ -472,7 +481,7 @@ jobs:
         run: dotnet --version
 
       - name: Proefcontainer met uitvoerbare serveropslag starten
-        run: bash .forgejo/proeven/proefomgeving.sh start basis
+        run: bash .forgejo/proeven/proefomgeving.sh start chromium dataset
 
       - name: Server publiceren (self-contained, linux-x64)
         run: >
@@ -483,6 +492,9 @@ jobs:
         run: >
           dotnet build plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj -c Release
           -o "$RUNNER_TEMP/stockbouw/plugin"
+
+      - name: Waarnemer voor terugval en bewaargebeurtenissen bouwen
+        run: bash tools/jelly-leon/bouw_similar_proef.sh "$RUNNER_TEMP/stockbouw/plugin/waarnemer"
 
       - name: Gebouwde server en plugin naar het proefvolume kopiëren
         run: bash .forgejo/proeven/proefomgeving.sh voorraad
@@ -534,6 +546,13 @@ jobs:
 
       # B03-017 (gate golf 1): dezelfde pluginproef op stock 12.x met de los gebouwde plugin-DLL, plus de run waarin de
       # plugin weer is weggehaald (de server geeft dan dezelfde antwoorden als de controle-run; plugindata blijft staan).
+      - name: Similar op stock met synthetische films en series
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
+        run: >
+          python3 tools/jelly-leon/e2e/similar_proef.py --image "$JL_RUNTIME_IMAGE" --stock-image "$JL_RUNTIME_IMAGE"
+          --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/similar-stock.json"
+          --plugin-map "$JL_PROEFMAP/plugin" --proef-plugin-map "$JL_PROEFMAP/plugin/waarnemer"
+
       - name: Pluginproef op JL_RUNTIME_IMAGE (JLT-68, JLT-64, JLT-65; Hub-simulator; plugin verwijderd)
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: >
@@ -570,6 +589,7 @@ jobs:
             ${{ runner.temp }}/proefrapporten/stock-client-smoke.json
             ${{ runner.temp }}/proefrapporten/upstream-gedrag-runtime.json
             ${{ runner.temp }}/proefrapporten/pluginproef-stock.json
+            ${{ runner.temp }}/proefrapporten/similar-stock.json
             ${{ runner.temp }}/proefrapporten/startupfilter-spike-stock.json
             ${{ runner.temp }}/proefrapporten/healthcheck-proef.json
 

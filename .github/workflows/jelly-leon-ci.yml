@@ -273,7 +273,9 @@ jobs:
           persist-credentials: false
 
       - name: Web-bron controleren (commit, jellyfin-web-versie = server-basis, upstream-basis is voorouder)
-        run: python3 tools/jelly-leon/web_bron.py --controleer _extern/jelly-leon-web
+        run: |
+          python3 tools/jelly-leon/web_bron.py --controleer _extern/jelly-leon-web
+          python3 tools/jelly-leon/similar_webbron.py _extern/jelly-leon-web
 
       - name: Schone export van jelly-leon-web (git archive; geen .git of bouwresten in de build-context)
         run: |
@@ -340,6 +342,16 @@ jobs:
       # Zaai- en controle-runs op stock 12.x, daarna dezelfde datamap op jelly-leon:ci: routetabel, Hub-simulator (pin,
       # weigeringen, herhaalde jti), foutcatalogus per module, connector tegen het schema, UserDeleted in de ruwe
       # bestanden, geheimen niet in XML/log, en elke tabel van de serverdatabase tegen de controle-run.
+      - name: Chromium voor de startschermproef installeren
+        run: |
+          npm ci --prefix tools/b03-harnas/playwright --no-audit --no-fund
+          tools/b03-harnas/playwright/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Similar op de eigen image met synthetische films en series
+        run: >
+          python3 tools/jelly-leon/e2e/similar_proef.py --image "jelly-leon:ci" --stock-image "$JL_RUNTIME_IMAGE"
+          --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/similar-image.json"
+
       - name: Pluginproef op de Jelly Leon-image (JLT-68, JLT-64, JLT-65; Hub-simulator)
         run: |
           python3 tools/jelly-leon/e2e/plugin_proef.py --image jelly-leon:ci --stock-image "$JL_RUNTIME_IMAGE" \
@@ -367,6 +379,7 @@ jobs:
             ${{ runner.temp }}/compat-api.json
             ${{ runner.temp }}/upstream-gedrag-runtime-jelly-leon.json
             ${{ runner.temp }}/pluginproef-jelly-leon.json
+            ${{ runner.temp }}/similar-image.json
             ${{ runner.temp }}/startupfilter-spike-jelly-leon.json
 
   stock-client-e2e:
@@ -401,6 +414,9 @@ jobs:
         run: >
           dotnet build plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/Jellyfin.Plugin.JellyLeon.csproj -c Release
           -o "$RUNNER_TEMP/plugin"
+
+      - name: Waarnemer voor terugval en bewaargebeurtenissen bouwen
+        run: bash tools/jelly-leon/bouw_similar_proef.sh "$RUNNER_TEMP/plugin/waarnemer"
 
       - name: Server starten op de upstream-runtime (als 568, zonder capabilities)
         run: |
@@ -438,6 +454,17 @@ jobs:
 
       # B03-017 (gate golf 1): dezelfde pluginproef op stock 12.x met de los gebouwde plugin-DLL, plus de run waarin de
       # plugin weer is weggehaald (de server geeft dan dezelfde antwoorden als de controle-run; plugindata blijft staan).
+      - name: Chromium voor de startschermproef installeren
+        run: |
+          npm ci --prefix tools/b03-harnas/playwright --no-audit --no-fund
+          tools/b03-harnas/playwright/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Similar op stock met synthetische films en series
+        run: >
+          python3 tools/jelly-leon/e2e/similar_proef.py --image "$JL_RUNTIME_IMAGE" --stock-image "$JL_RUNTIME_IMAGE"
+          --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/similar-stock.json"
+          --plugin-map "$RUNNER_TEMP/plugin" --proef-plugin-map "$RUNNER_TEMP/plugin/waarnemer"
+
       - name: Pluginproef op JL_RUNTIME_IMAGE (JLT-68, JLT-64, JLT-65; Hub-simulator; plugin verwijderd)
         run: >
           python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$RUNNER_TEMP/plugin"
@@ -467,6 +494,7 @@ jobs:
             ${{ runner.temp }}/stock-client-smoke.json
             ${{ runner.temp }}/upstream-gedrag-runtime.json
             ${{ runner.temp }}/pluginproef-stock.json
+            ${{ runner.temp }}/similar-stock.json
             ${{ runner.temp }}/startupfilter-spike-stock.json
             ${{ runner.temp }}/healthcheck-proef.json
 

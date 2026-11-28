@@ -171,6 +171,7 @@ jobs:
             exit 1
           fi
           runtime="docker.io/jellyfin/jellyfin:$tag@$digest"
+          echo "NIEUWE_RUNTIME=$runtime" >> "$GITHUB_ENV"
           echo "- Nieuwe runtime voor UG-tests: \`$runtime\`" >> "$GITHUB_STEP_SUMMARY"
           python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$runtime" --werkmap "$RUNNER_TEMP" \
             --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
@@ -211,6 +212,23 @@ jobs:
             echo "::warning::Upstream-API is gewijzigd; beoordeel de compatibiliteit met clients vóór acceptatie."
             echo "- Upstream-API gewijzigd t.o.v. docs/openapi/jelly-leon.openapi.json (handmatig beoordelen)." >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Release en geïsoleerde proefvariant klaarzetten
+        run: |
+          mkdir -p "$RUNNER_TEMP/plugin"
+          cp plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/net*/Jellyfin.Plugin.JellyLeon.dll "$RUNNER_TEMP/plugin/"
+          bash tools/jelly-leon/bouw_similar_proef.sh "$RUNNER_TEMP/plugin/waarnemer"
+
+      - name: Chromium voor de startschermproef installeren
+        run: |
+          npm ci --prefix tools/b03-harnas/playwright --no-audit --no-fund
+          tools/b03-harnas/playwright/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Similar op de nieuwe digest met synthetische films en series
+        run: >
+          python3 tools/jelly-leon/e2e/similar_proef.py --image "$NIEUWE_RUNTIME" --stock-image "$NIEUWE_RUNTIME"
+          --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/similar-sync.json"
+          --plugin-map "$RUNNER_TEMP/plugin" --proef-plugin-map "$RUNNER_TEMP/plugin/waarnemer"
 
       - name: Stock-client-smoketest (simulator)
         run: |
@@ -261,6 +279,7 @@ jobs:
             ${{ runner.temp }}/stock-client-smoke.json
             ${{ runner.temp }}/sync-resultaat.json
             ${{ runner.temp }}/upstream-gedrag-runtime.json
+            ${{ runner.temp }}/similar-sync.json
 
       # Alleen bereikt als ALLE stappen hierboven slaagden: dit artefact is het enige dat de push-job gebruikt.
       - name: Geslaagde sync markeren voor de push-job

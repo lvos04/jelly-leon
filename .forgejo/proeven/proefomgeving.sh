@@ -10,7 +10,7 @@ case "$1" in
         mkdir "$staat"
         docker buildx build --load --iidfile "$staat/image" --target "$2" -f .forgejo/proeven/Dockerfile .
         volume="jl-proef-$(cat /proc/sys/kernel/random/uuid)"
-        if [[ $2 == basis ]]; then
+        if [[ $2 == basis || ${3:-} == dataset ]]; then
             # De standaardvolumes kunnen tmpfs en noexec zijn. Zowel de database als
             # de gepubliceerde server en healthcheck krijgen een eigen uitvoerbare dataset.
             echo "$volume" > "$staat/dataset"

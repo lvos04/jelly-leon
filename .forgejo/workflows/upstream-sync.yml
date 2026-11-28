@@ -156,7 +156,7 @@ jobs:
       # UPSTREAM_GEDRAG-runtimetests op de runtime van de NIEUWE tag (jellyfin/jellyfin:<versie>, op de gemeten digest):
       # bestaat die image nog niet, dan blokkeert de sync met een duidelijke melding (JL_RUNTIME_IMAGE volgt bij de release).
       - name: Proefcontainer met uitvoerbare serveropslag starten
-        run: bash .forgejo/proeven/proefomgeving.sh start basis
+        run: bash .forgejo/proeven/proefomgeving.sh start chromium dataset
 
       - name: Upstream-gedrag op de nieuwe runtime (UG-runtimetests)
         env:
@@ -230,7 +230,15 @@ jobs:
           mkdir -p "$RUNNER_TEMP/stockbouw/plugin"
           tfm=$(ls plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/)
           cp "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/$tfm/Jellyfin.Plugin.JellyLeon.dll" "$RUNNER_TEMP/stockbouw/plugin/"
+          bash tools/jelly-leon/bouw_similar_proef.sh "$RUNNER_TEMP/stockbouw/plugin/waarnemer"
           bash .forgejo/proeven/proefomgeving.sh voorraad
+
+      - name: Similar op de nieuwe digest met synthetische films en series
+        shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
+        run: >
+          python3 tools/jelly-leon/e2e/similar_proef.py --image "$NIEUWE_RUNTIME" --stock-image "$NIEUWE_RUNTIME"
+          --werkmap "$JL_PROEFMAP" --rapport "$RUNNER_TEMP/similar-sync.json"
+          --plugin-map "$JL_PROEFMAP/plugin" --proef-plugin-map "$JL_PROEFMAP/plugin/waarnemer"
 
       - name: Stock-client-smoketest (simulator)
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
@@ -290,6 +298,7 @@ jobs:
             ${{ runner.temp }}/proefrapporten/stock-client-smoke.json
             ${{ runner.temp }}/sync-resultaat.json
             ${{ runner.temp }}/proefrapporten/upstream-gedrag-runtime.json
+            ${{ runner.temp }}/proefrapporten/similar-sync.json
 
       # Alleen bereikt als ALLE stappen hierboven slaagden: dit artefact is het enige dat de push-job gebruikt.
       - name: Geslaagde sync markeren voor de push-job
