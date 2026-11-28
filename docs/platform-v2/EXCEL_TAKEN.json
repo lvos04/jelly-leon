@@ -490,7 +490,7 @@
   "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
   "bewijs": "Engine en CLI delen C#-broncode. 27 gerichte plugin- en analyzertests, handberekende voorbeelden en een tweevoudige CLI-proef met vier fictieve profielen. Validatie vóór T op 12 profielen en 7.667 films leverde inhoud 0,60 en seed 0,20. B03-032_AANBEVELINGEN.md, test-evidence/b03-032-meetprotocol.json, test-evidence/b03-032-gewichten.json en test-evidence/b03-032-proeven.json.",
   "blokkade": "NIET GEVALIDEERD (echte NAS): echte historie (JLT-15).",
-  "opmerking": "M1-winst niet aangetoond. Er zijn nul geldige stockruns en geen voormetingsinterval. D-ML bevat 29 van de vereiste 100 testprofielen. G-F2-2 staat open.",
+  "opmerking": "M1-winst niet aangetoond. Er zijn nul geldige stockruns en geen voormetingsinterval. D-ML bevat 29 van de vereiste 100 testprofielen. G-F2-2 staat open. D-SYN: rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch).",
   "repo": "jelly-leon",
   "bijgewerkt": "2026-11-28"
  },
@@ -1304,9 +1304,9 @@
   "id": "JLT-10",
   "status": "Bezig",
   "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
-  "bewijs": "Vier fictieve profielen gaven bij herhaling dezelfde tien toegankelijke titels met uitleg. De bekende lekbron is afzonderlijk getest. D-SYN: Volledige offline herhalingen NIET GEDRAAID (geen testslot). D-ML: Volledige offline herhalingen NIET GEDRAAID (geen testslot). B03-032_AANBEVELINGEN.md, test-evidence/b03-032-meetprotocol.json, test-evidence/b03-032-gewichten.json en test-evidence/b03-032-proeven.json.",
+  "bewijs": "Vier fictieve profielen gaven bij herhaling dezelfde tien toegankelijke titels met uitleg. De bekende lekbron is afzonderlijk getest. D-SYN: 3 offline herhalingen, waarvan 0 binnen de lastgrens. Identieke volledige rijen bij vaste klok: True. Geschudde lektest: True. D-ML: 3 offline herhalingen, waarvan 0 binnen de lastgrens. Identieke volledige rijen bij vaste klok: True. Geschudde lektest: True. B03-032_AANBEVELINGEN.md, test-evidence/b03-032-meetprotocol.json, test-evidence/b03-032-gewichten.json en test-evidence/b03-032-proeven.json.",
   "blokkade": "NIET GEVALIDEERD (echte NAS): echte historie (JLT-15).",
-  "opmerking": "De officiële vergelijking van NDCG@10, Recall@10 en ILD met stock ontbreekt. De thuisroute volgt in S-G2-28. Er zijn nul geldige stockruns en geen voormetingsinterval. D-ML bevat 29 van de vereiste 100 testprofielen. G-F2-2 staat open.",
+  "opmerking": "De officiële vergelijking van NDCG@10, Recall@10 en ILD met stock ontbreekt. De thuisroute volgt in S-G2-28. Er zijn nul geldige stockruns en geen voormetingsinterval. D-ML bevat 29 van de vereiste 100 testprofielen. G-F2-2 staat open. D-SYN: rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch).",
   "repo": "jelly-leon",
   "bijgewerkt": "2026-11-28"
  },
@@ -1326,9 +1326,9 @@
   "id": "JLT-11",
   "status": "Bezig",
   "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
-  "bewijs": "De CLI-proef doorliep alle zes koude scenario’s per fictief profiel. Tests dekken onboardinggenres en zichtbare onboardingtitels, de kindergrens, dezelfde huishouding, drie verschillende volwassen delers en hun toestemming. D-SYN: Volledige offline herhalingen NIET GEDRAAID (geen testslot). D-ML: Volledige offline herhalingen NIET GEDRAAID (geen testslot). B03-032_AANBEVELINGEN.md, test-evidence/b03-032-meetprotocol.json, test-evidence/b03-032-gewichten.json en test-evidence/b03-032-proeven.json.",
+  "bewijs": "De CLI-proef doorliep alle zes koude scenario’s per fictief profiel. Tests dekken onboardinggenres en zichtbare onboardingtitels, de kindergrens, dezelfde huishouding, drie verschillende volwassen delers en hun toestemming. D-SYN: 3 offline herhalingen, waarvan 0 binnen de lastgrens. Identieke volledige rijen bij vaste klok: True. Geschudde lektest: True. D-ML: 3 offline herhalingen, waarvan 0 binnen de lastgrens. Identieke volledige rijen bij vaste klok: True. Geschudde lektest: True. B03-032_AANBEVELINGEN.md, test-evidence/b03-032-meetprotocol.json, test-evidence/b03-032-gewichten.json en test-evidence/b03-032-proeven.json.",
   "blokkade": "NIET GEVALIDEERD (echte NAS): echte historie (JLT-15).",
-  "opmerking": "M2 tegen S-LAT, S-RND en POP is open. Het koude kwaliteitsdeel is hier onderzocht. De echte historie valt onder JLT-15. Er zijn nul geldige stockruns en geen voormetingsinterval. D-ML bevat 29 van de vereiste 100 testprofielen. G-F2-2 staat open.",
+  "opmerking": "M2 tegen S-LAT, S-RND en POP is open. Het koude kwaliteitsdeel is hier onderzocht. De echte historie valt onder JLT-15. Er zijn nul geldige stockruns en geen voormetingsinterval. D-ML bevat 29 van de vereiste 100 testprofielen. G-F2-2 staat open. D-SYN: rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch).",
   "repo": "jelly-leon",
   "bijgewerkt": "2026-11-28"
  },

@@ -50,14 +50,584 @@
   },
   "offline": {
     "D-SYN": {
-      "herhalingen": 0,
+      "commit": "73b71010a651ee7963474b56b18adc4b5d0a2e4b",
+      "herhalingen": 3,
       "geldige_meetruns": 0,
-      "status": "NIET GEDRAAID (geen testslot)"
+      "status": "Sim-getest",
+      "determinisme": true,
+      "lektest": true,
+      "last": [
+        {
+          "systeem": "F2-offline",
+          "run": 1,
+          "begin": "2026-11-28T02:15:52Z",
+          "eind": "2026-11-28T02:15:52Z",
+          "loadavg_voor": [
+            4.53,
+            5.46,
+            5.81
+          ],
+          "loadavg_na": [
+            4.53,
+            5.46,
+            5.81
+          ],
+          "cpu": {
+            "duur_s": 0.384,
+            "machine_kernen": 2.735,
+            "eigen_kernen": 0.964,
+            "container_kernen": 0.0,
+            "andere_kernen": 1.771
+          },
+          "zware_sloten_voor": [],
+          "zware_sloten_na": [],
+          "geldig": false,
+          "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+        },
+        {
+          "systeem": "F2-offline",
+          "run": 2,
+          "begin": "2026-11-28T02:15:52Z",
+          "eind": "2026-11-28T02:15:53Z",
+          "loadavg_voor": [
+            4.53,
+            5.46,
+            5.81
+          ],
+          "loadavg_na": [
+            4.53,
+            5.46,
+            5.81
+          ],
+          "cpu": {
+            "duur_s": 0.399,
+            "machine_kernen": 2.86,
+            "eigen_kernen": 1.054,
+            "container_kernen": 0.0,
+            "andere_kernen": 1.807
+          },
+          "zware_sloten_voor": [],
+          "zware_sloten_na": [],
+          "geldig": false,
+          "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+        },
+        {
+          "systeem": "F2-offline",
+          "run": 3,
+          "begin": "2026-11-28T02:15:53Z",
+          "eind": "2026-11-28T02:15:53Z",
+          "loadavg_voor": [
+            4.53,
+            5.46,
+            5.81
+          ],
+          "loadavg_na": [
+            4.53,
+            5.46,
+            5.81
+          ],
+          "cpu": {
+            "duur_s": 0.373,
+            "machine_kernen": 4.156,
+            "eigen_kernen": 1.019,
+            "container_kernen": 0.0,
+            "andere_kernen": 3.137
+          },
+          "zware_sloten_voor": [],
+          "zware_sloten_na": [],
+          "geldig": false,
+          "reden": "loadavg(1 min) 4.53 > 4.0 vóór de run"
+        }
+      ],
+      "functies": {
+        "warm": {
+          "NDCG@10": {
+            "punt": 0.09477704531523133,
+            "onder": 0.020135217116582366,
+            "boven": 0.2037902674793645,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.13333333333333333,
+            "onder": 0.03333333333333333,
+            "boven": 0.26666666666666666,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.8405555555555556,
+            "onder": 0.7756172839506174,
+            "boven": 0.9014814814814814,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.2076923076923077,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": 0.05450661108206661,
+            "onder": -0.12247451857102805,
+            "boven": 0.23888876775144785,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-0": {
+          "NDCG@10": {
+            "punt": 0.05349656618363189,
+            "onder": 0.0,
+            "boven": 0.12482532109514106,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.06666666666666667,
+            "onder": 0.0,
+            "boven": 0.13333333333333333,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.8863580246913579,
+            "onder": 0.8797530864197531,
+            "boven": 0.8946327160493827,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.08846153846153847,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.0030301346953041305,
+            "onder": -0.08272218738612665,
+            "boven": 0.07522588303998522,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-0-opt-in": {
+          "NDCG@10": {
+            "punt": 0.05349656618363189,
+            "onder": 0.0,
+            "boven": 0.12482532109514106,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.06666666666666667,
+            "onder": 0.0,
+            "boven": 0.13333333333333333,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.8863580246913579,
+            "onder": 0.8797530864197531,
+            "boven": 0.8946327160493827,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.08846153846153847,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.0030301346953041305,
+            "onder": -0.08272218738612665,
+            "boven": 0.07522588303998522,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-1": {
+          "NDCG@10": {
+            "punt": 0.0,
+            "onder": 0.0,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.0,
+            "onder": 0.0,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.7870987654320988,
+            "onder": 0.6406157407407408,
+            "boven": 0.9357407407407408,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.21153846153846154,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.07666191799551839,
+            "onder": -0.18971531975339043,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-1-opt-in": {
+          "NDCG@10": {
+            "punt": 0.0,
+            "onder": 0.0,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.0,
+            "onder": 0.0,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.7870987654320988,
+            "onder": 0.6406157407407408,
+            "boven": 0.9357407407407408,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.21153846153846154,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.07666191799551839,
+            "onder": -0.18971531975339043,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-2": {
+          "NDCG@10": {
+            "punt": 0.0,
+            "onder": 0.0,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.0,
+            "onder": 0.0,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.817716049382716,
+            "onder": 0.7001188271604938,
+            "boven": 0.9051280864197532,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.2076923076923077,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.07666191799551839,
+            "onder": -0.18971531975339043,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-2-opt-in": {
+          "NDCG@10": {
+            "punt": 0.0,
+            "onder": 0.0,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.0,
+            "onder": 0.0,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.817716049382716,
+            "onder": 0.7001188271604938,
+            "boven": 0.9051280864197532,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.2076923076923077,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.07666191799551839,
+            "onder": -0.18971531975339043,
+            "boven": 0.0,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        }
+      },
+      "claim": "rangschikkingswinst niet aangetoond; functioneel aangetoond (synthetisch)"
     },
     "D-ML": {
-      "herhalingen": 0,
+      "commit": "73b71010a651ee7963474b56b18adc4b5d0a2e4b",
+      "herhalingen": 3,
       "geldige_meetruns": 0,
-      "status": "NIET GEDRAAID (geen testslot)"
+      "status": "Sim-getest",
+      "determinisme": true,
+      "lektest": true,
+      "last": [
+        {
+          "systeem": "F2-offline",
+          "run": 1,
+          "begin": "2026-11-28T02:15:00Z",
+          "eind": "2026-11-28T02:15:17Z",
+          "loadavg_voor": [
+            4.43,
+            5.62,
+            5.88
+          ],
+          "loadavg_na": [
+            4.65,
+            5.6,
+            5.87
+          ],
+          "cpu": {
+            "duur_s": 16.726,
+            "machine_kernen": 3.646,
+            "eigen_kernen": 2.082,
+            "container_kernen": 0.0,
+            "andere_kernen": 1.564
+          },
+          "zware_sloten_voor": [],
+          "zware_sloten_na": [],
+          "geldig": false,
+          "reden": "loadavg(1 min) 4.43 > 4.0 vóór de run"
+        },
+        {
+          "systeem": "F2-offline",
+          "run": 2,
+          "begin": "2026-11-28T02:15:17Z",
+          "eind": "2026-11-28T02:15:34Z",
+          "loadavg_voor": [
+            4.65,
+            5.6,
+            5.87
+          ],
+          "loadavg_na": [
+            4.55,
+            5.52,
+            5.83
+          ],
+          "cpu": {
+            "duur_s": 16.887,
+            "machine_kernen": 4.28,
+            "eigen_kernen": 2.065,
+            "container_kernen": 0.0,
+            "andere_kernen": 2.215
+          },
+          "zware_sloten_voor": [],
+          "zware_sloten_na": [],
+          "geldig": false,
+          "reden": "loadavg(1 min) 4.65 > 4.0 vóór de run"
+        },
+        {
+          "systeem": "F2-offline",
+          "run": 3,
+          "begin": "2026-11-28T02:15:34Z",
+          "eind": "2026-11-28T02:15:51Z",
+          "loadavg_voor": [
+            4.55,
+            5.52,
+            5.83
+          ],
+          "loadavg_na": [
+            4.53,
+            5.46,
+            5.81
+          ],
+          "cpu": {
+            "duur_s": 17.05,
+            "machine_kernen": 2.558,
+            "eigen_kernen": 2.087,
+            "container_kernen": 0.0,
+            "andere_kernen": 0.471
+          },
+          "zware_sloten_voor": [],
+          "zware_sloten_na": [],
+          "geldig": false,
+          "reden": "loadavg(1 min) 4.55 > 4.0 vóór de run"
+        }
+      ],
+      "functies": {
+        "warm": {
+          "NDCG@10": {
+            "punt": 0.02145910656226626,
+            "onder": 0.005980264034077224,
+            "boven": 0.0399280811074939,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.010238205078461604,
+            "onder": 0.0017543517670220855,
+            "boven": 0.022757566376842796,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.7357881773399014,
+            "onder": 0.7115149835796387,
+            "boven": 0.759715882138296,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.020437779658967228,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.009550752745660442,
+            "onder": -0.06087115602488484,
+            "boven": 0.03148733610456241,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-0": {
+          "NDCG@10": {
+            "punt": 0.012578244945774798,
+            "onder": 0.0,
+            "boven": 0.025132140489948426,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.00925877913173739,
+            "onder": 0.0,
+            "boven": 0.023051882580013252,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.8961503375296478,
+            "onder": 0.8927650976099252,
+            "boven": 0.899485860244481,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.0035070746160357964,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.05559600202773059,
+            "onder": -0.1317156944047808,
+            "boven": 0.009001683473408075,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-0-opt-in": {
+          "NDCG@10": {
+            "punt": 0.06948133267953875,
+            "onder": 0.015519083322705808,
+            "boven": 0.1371584881668629,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.033578303967231285,
+            "onder": 0.003362104216097594,
+            "boven": 0.08077980163481321,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.9127780818585417,
+            "onder": 0.9086537964483367,
+            "boven": 0.9160217037645199,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.004595477083081389,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": 0.0033273078205035907,
+            "onder": -0.02860320133101069,
+            "boven": 0.035274903981712055,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-1": {
+          "NDCG@10": {
+            "punt": 0.03513002498855054,
+            "onder": 0.0136345627721636,
+            "boven": 0.061120725453081184,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.019205712150623895,
+            "onder": 0.005248933848573847,
+            "boven": 0.03721844965114069,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.8385577449370554,
+            "onder": 0.8180310542480083,
+            "boven": 0.8556644088669951,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.0165679042205829,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.0373079034845999,
+            "onder": -0.11676395912984104,
+            "boven": 0.02639981947938738,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-1-opt-in": {
+          "NDCG@10": {
+            "punt": 0.06948133267953875,
+            "onder": 0.015519083322705808,
+            "boven": 0.1371584881668629,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.033578303967231285,
+            "onder": 0.003362104216097594,
+            "boven": 0.08077980163481321,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.9122577996715928,
+            "onder": 0.9079068448579943,
+            "boven": 0.9157139360214073,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.004595477083081389,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": 0.0033273078205035907,
+            "onder": -0.02860320133101069,
+            "boven": 0.035274903981712055,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-2": {
+          "NDCG@10": {
+            "punt": 0.04990283694916679,
+            "onder": 0.02116438092049718,
+            "boven": 0.07920623521216842,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.027029907659548463,
+            "onder": 0.010421539112587324,
+            "boven": 0.048199948855532485,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.850303776683087,
+            "onder": 0.8397552149851,
+            "boven": 0.8616921790427537,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.02055871326641674,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": -0.04834275468705256,
+            "onder": -0.12628085486838767,
+            "boven": 0.019107929930919913,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        },
+        "koud-2-opt-in": {
+          "NDCG@10": {
+            "punt": 0.06948133267953875,
+            "onder": 0.015519083322705808,
+            "boven": 0.1371584881668629,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "Recall@10": {
+            "punt": 0.033578303967231285,
+            "onder": 0.003362104216097594,
+            "boven": 0.08077980163481321,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "ILD": {
+            "punt": 0.9115553731070973,
+            "onder": 0.9074938043544365,
+            "boven": 0.9146749148573862,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          },
+          "coverage": 0.004595477083081389,
+          "min_aantal": 10,
+          "geschud_min_POP": {
+            "punt": 0.0033273078205035907,
+            "onder": -0.02860320133101069,
+            "boven": 0.035274903981712055,
+            "methode": "bootstrap-95 (1000 trekkingen, seed 20261109)"
+          }
+        }
+      },
+      "claim": "niet aangetoond"
     }
   },
   "kleine_cli_proef": {
@@ -106,5 +676,6 @@
       "loting_significant_boven_POP": false
     }
   },
-  "afbakening": "De korte CLI-proef gebruikt handgemaakte gegevens. De stockvergelijking wacht op een definitieve baseline en geldige voormetingsintervallen. De werkelijke drie herhalingen per dataset staan afzonderlijk onder offline. Series en anime zijn uitsluitend synthetisch."
+  "afbakening": "De korte CLI-proef gebruikt handgemaakte gegevens. De stockvergelijking wacht op een definitieve baseline en geldige voormetingsintervallen. De werkelijke drie herhalingen per dataset staan afzonderlijk onder offline. Series en anime zijn uitsluitend synthetisch.",
+  "interpretatie": "Een herhaling boven de vastgelegde lastgrens telt uitsluitend voor de functionele controles. De puntschattingen en intervallen daarvan leveren geen officiële kwaliteitsvergelijking met stock."
 }
