@@ -77,7 +77,9 @@ jobs:
           python -m pytest -q tests
           python -m venv "$RUNNER_TEMP/werker-audit"
           "$RUNNER_TEMP/werker-audit/bin/python" -m pip install --no-deps --require-hashes --only-binary=:all: -r audit.lock
-          "$RUNNER_TEMP/werker-audit/bin/pip-audit" --require-hashes --disable-pip --strict --progress-spinner off -r requirements.lock -r bouw.lock
+          # Eigen privé cache (0700): platformdirs weigert terecht een gedeelde, door anderen beschrijfbare ~/.cache.
+          audit_cache=$(mktemp -d "$RUNNER_TEMP/pip-audit-cache.XXXXXXXX")
+          "$RUNNER_TEMP/werker-audit/bin/pip-audit" --cache-dir "$audit_cache" --require-hashes --disable-pip --strict --progress-spinner off -r requirements.lock -r bouw.lock
 
       - name: Lint forktools (ruff)
         run: ruff check --config tools/jelly-leon/ruff.toml tools/jelly-leon
