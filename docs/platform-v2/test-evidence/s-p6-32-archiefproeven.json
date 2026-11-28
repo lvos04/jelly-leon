@@ -72,6 +72,8 @@
         14,
         14
       ],
+      "laatste_wijziging_harnascode": "86597b137c8d73377228c13ab0b247526d4351f9",
+      "gitboom_harnascode": "d7daf112c08bfa0d0c6206798fd6eeefe99566b2",
       "chromium": {
         "controles": [
           {
@@ -513,6 +515,500 @@
         "fouten": [],
         "rapportbestand_sha256": "dc2fcdf5b7fb395f8885fd5baa0dec9419f12a437924abee6009125d0954e95f",
         "droog_rapport_sha256": "597e99ca97154fcea1823d1a1b51ffd5d111b237a30d9134479726796ede028d"
+      }
+    },
+    "corpus": {
+      "harnascommit": "cb377d1a07ec588cd655d46c6083a53e63ff18a0",
+      "mediabestanden": {
+        "emby": 24,
+        "jl": 24
+      },
+      "doel_items_gescand": 24,
+      "corpus_hashes": [
+        24,
+        24
+      ],
+      "emby_proxy": {
+        "GET": 16
+      },
+      "emby_http": {
+        "502": 1,
+        "503": 1,
+        "200": 8,
+        "401": 6
+      },
+      "emby_routes": {
+        "/System/Info/Public": 6,
+        "/System/Info": 2,
+        "/Users": 1,
+        "/Library/VirtualFolders/Query": 1,
+        "/Localization/ParentalRatings": 1,
+        "/Plugins": 1,
+        "/Sessions": 4
+      },
+      "ongevulde_bron": {
+        "inventaris_exit": 5,
+        "export_exit": 5
+      },
+      "mediaguard_polls": {
+        "emby": {
+          "ok": 0,
+          "fout": 4
+        },
+        "jelly_leon": {
+          "ok": 4,
+          "fout": 0
+        }
+      },
+      "verkeerd_doel": [
+        9,
+        9
+      ],
+      "vergelijk_export": {
+        "exit": 0,
+        "identiek": true
+      },
+      "zonder_akkoord": 3,
+      "onderbroken": {
+        "exit": 137,
+        "geschreven": 2,
+        "dubbel": 0
+      },
+      "cutover": {
+        "volledig": true,
+        "onvolledig_exit": 6
+      },
+      "oorspronkelijke_doelmap": [
+        "74ea0162d46f9b64dc65c1aae86ab4b1a7f1fb9cbfd0c8fbd83ae8d328665ce7",
+        "74ea0162d46f9b64dc65c1aae86ab4b1a7f1fb9cbfd0c8fbd83ae8d328665ce7"
+      ],
+      "controle_aantal": [
+        10,
+        10
+      ],
+      "laatste_wijziging_harnascode": "fd20e6ce50e84841de155bf16a2abc8a260a24b7",
+      "gitboom_harnascode": "2200cdcbdeb90b015b1f74ebb6b03019495b8886",
+      "slotregel": "Archiefproef corpus voltooid",
+      "fasen": {
+        "eerste": {
+          "geschreven": 43,
+          "droog_niet_get": 0,
+          "rapport_sha256": "21188e8792bb2bf8ec682d8c1cd82c1a523d19e14b08a8b26a79b5eb6676d6b0",
+          "vergelijking": {
+            "stats": {
+              "exact_overgezet": 31,
+              "afhandellijst": 5
+            },
+            "emby_items_met_kijkgegevens": 36,
+            "fouten": []
+          },
+          "rapportbestand_sha256": "85e0cd8ac15b797a20e443639f484dd3840191d0b809dc096964fc8eb9e2a4fe",
+          "droog_rapport_sha256": "7096eade443585bdb5a6a8253d00d8f6aca6ef5c4ab485e1e28a6fba9ee95d06",
+          "per_testrol": {
+            "volwassene 1": {
+              "bron": 6,
+              "verantwoord": 6,
+              "telling": {
+                "beoordelingen": {
+                  "afhandellijst": 0,
+                  "emby": 0,
+                  "gekoppeld": 0,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                },
+                "favorieten": {
+                  "afhandellijst": 0,
+                  "emby": 1,
+                  "gekoppeld": 1,
+                  "gelijk": 1,
+                  "jelly_leon_nieuwer": 0
+                },
+                "gezien": {
+                  "afhandellijst": 0,
+                  "emby": 4,
+                  "gekoppeld": 4,
+                  "gelijk": 4,
+                  "jelly_leon_nieuwer": 0
+                },
+                "hervatpunten": {
+                  "afhandellijst": 0,
+                  "emby": 2,
+                  "gekoppeld": 2,
+                  "gelijk": 2,
+                  "jelly_leon_nieuwer": 0
+                },
+                "spoorkeuzes": {
+                  "afhandellijst": 6,
+                  "emby": 6,
+                  "gekoppeld": 6,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                }
+              },
+              "redenen": {
+                "wachtwoord_niet_overgezet": 1,
+                "recht_zonder_tegenhanger": 1,
+                "ander_bestand": 6
+              }
+            },
+            "volwassene 2": {
+              "bron": 10,
+              "verantwoord": 10,
+              "telling": {
+                "beoordelingen": {
+                  "afhandellijst": 0,
+                  "emby": 0,
+                  "gekoppeld": 0,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                },
+                "favorieten": {
+                  "afhandellijst": 0,
+                  "emby": 2,
+                  "gekoppeld": 2,
+                  "gelijk": 2,
+                  "jelly_leon_nieuwer": 0
+                },
+                "gezien": {
+                  "afhandellijst": 0,
+                  "emby": 7,
+                  "gekoppeld": 7,
+                  "gelijk": 7,
+                  "jelly_leon_nieuwer": 0
+                },
+                "hervatpunten": {
+                  "afhandellijst": 0,
+                  "emby": 1,
+                  "gekoppeld": 1,
+                  "gelijk": 1,
+                  "jelly_leon_nieuwer": 0
+                },
+                "spoorkeuzes": {
+                  "afhandellijst": 8,
+                  "emby": 9,
+                  "gekoppeld": 9,
+                  "gelijk": 1,
+                  "jelly_leon_nieuwer": 0
+                }
+              },
+              "redenen": {
+                "wachtwoord_niet_overgezet": 1,
+                "recht_zonder_tegenhanger": 1,
+                "ander_bestand": 8
+              }
+            },
+            "gast": {
+              "bron": 2,
+              "verantwoord": 2,
+              "telling": {
+                "beoordelingen": {
+                  "afhandellijst": 0,
+                  "emby": 0,
+                  "gekoppeld": 0,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                },
+                "favorieten": {
+                  "afhandellijst": 0,
+                  "emby": 0,
+                  "gekoppeld": 0,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                },
+                "gezien": {
+                  "afhandellijst": 1,
+                  "emby": 1,
+                  "gekoppeld": 0,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                },
+                "hervatpunten": {
+                  "afhandellijst": 0,
+                  "emby": 1,
+                  "gekoppeld": 1,
+                  "gelijk": 1,
+                  "jelly_leon_nieuwer": 0
+                },
+                "spoorkeuzes": {
+                  "afhandellijst": 2,
+                  "emby": 2,
+                  "gekoppeld": 1,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                }
+              },
+              "redenen": {
+                "wachtwoord_niet_overgezet": 1,
+                "geen_id": 1,
+                "recht_zonder_tegenhanger": 1,
+                "ander_bestand": 1
+              }
+            },
+            "kind": {
+              "bron": 5,
+              "verantwoord": 5,
+              "telling": {
+                "beoordelingen": {
+                  "afhandellijst": 0,
+                  "emby": 0,
+                  "gekoppeld": 0,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                },
+                "favorieten": {
+                  "afhandellijst": 0,
+                  "emby": 1,
+                  "gekoppeld": 1,
+                  "gelijk": 1,
+                  "jelly_leon_nieuwer": 0
+                },
+                "gezien": {
+                  "afhandellijst": 0,
+                  "emby": 3,
+                  "gekoppeld": 3,
+                  "gelijk": 3,
+                  "jelly_leon_nieuwer": 0
+                },
+                "hervatpunten": {
+                  "afhandellijst": 0,
+                  "emby": 1,
+                  "gekoppeld": 1,
+                  "gelijk": 1,
+                  "jelly_leon_nieuwer": 0
+                },
+                "spoorkeuzes": {
+                  "afhandellijst": 4,
+                  "emby": 4,
+                  "gekoppeld": 4,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                }
+              },
+              "redenen": {
+                "wachtwoord_niet_overgezet": 1,
+                "recht_zonder_tegenhanger": 1,
+                "ander_bestand": 4
+              }
+            },
+            "beheerder": {
+              "bron": 13,
+              "verantwoord": 13,
+              "telling": {
+                "beoordelingen": {
+                  "afhandellijst": 0,
+                  "emby": 0,
+                  "gekoppeld": 0,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                },
+                "favorieten": {
+                  "afhandellijst": 1,
+                  "emby": 2,
+                  "gekoppeld": 1,
+                  "gelijk": 1,
+                  "jelly_leon_nieuwer": 0
+                },
+                "gezien": {
+                  "afhandellijst": 3,
+                  "emby": 10,
+                  "gekoppeld": 7,
+                  "gelijk": 7,
+                  "jelly_leon_nieuwer": 0
+                },
+                "hervatpunten": {
+                  "afhandellijst": 0,
+                  "emby": 2,
+                  "gekoppeld": 2,
+                  "gelijk": 2,
+                  "jelly_leon_nieuwer": 0
+                },
+                "spoorkeuzes": {
+                  "afhandellijst": 12,
+                  "emby": 12,
+                  "gekoppeld": 8,
+                  "gelijk": 0,
+                  "jelly_leon_nieuwer": 0
+                }
+              },
+              "redenen": {
+                "dubbel": 1,
+                "geen_id": 1,
+                "ontbreekt": 2,
+                "recht_handmatig": 2,
+                "recht_strenger": 2,
+                "recht_zonder_tegenhanger": 1,
+                "ander_bestand": 8
+              }
+            }
+          },
+          "afhandelredenen": {
+            "wachtwoord_niet_overgezet": 4,
+            "recht_zonder_tegenhanger": 5,
+            "ander_bestand": 27,
+            "geen_id": 2,
+            "dubbel": 1,
+            "ontbreekt": 2,
+            "recht_handmatig": 2,
+            "recht_strenger": 2
+          }
+        },
+        "herhaling": {
+          "geschreven": 0,
+          "droog_niet_get": 0,
+          "rapport_sha256": "21188e8792bb2bf8ec682d8c1cd82c1a523d19e14b08a8b26a79b5eb6676d6b0",
+          "vergelijking": {
+            "stats": {
+              "exact_overgezet": 31,
+              "afhandellijst": 5
+            },
+            "emby_items_met_kijkgegevens": 36,
+            "fouten": []
+          },
+          "rapportbestand_sha256": "39b51921419af720e031f25911c6f0ad33811068329775b9aa9caa52b18a69bd",
+          "droog_rapport_sha256": "da2c670710a1ce115e272a7b17920169bcac8e44181c315c3d61f6c5be28dc9d",
+          "per_testrol": {
+            "volwassene 1": {
+              "bron": 6,
+              "verantwoord": 6
+            },
+            "volwassene 2": {
+              "bron": 10,
+              "verantwoord": 10
+            },
+            "gast": {
+              "bron": 2,
+              "verantwoord": 2
+            },
+            "kind": {
+              "bron": 5,
+              "verantwoord": 5
+            },
+            "beheerder": {
+              "bron": 13,
+              "verantwoord": 13
+            }
+          },
+          "afhandelredenen": {
+            "wachtwoord_niet_overgezet": 4,
+            "recht_zonder_tegenhanger": 5,
+            "ander_bestand": 27,
+            "geen_id": 2,
+            "dubbel": 1,
+            "ontbreekt": 2,
+            "recht_handmatig": 2,
+            "recht_strenger": 2
+          }
+        },
+        "archiefdelta": {
+          "geschreven": 3,
+          "droog_niet_get": 0,
+          "rapport_sha256": "af93d5816c807601527ded3272c8098a73a51624e44042b698881ae5f5ccf6a8",
+          "vergelijking": {
+            "stats": {
+              "exact_overgezet": 31,
+              "afhandellijst": 5,
+              "uitzondering_jl_nieuwer": 1
+            },
+            "emby_items_met_kijkgegevens": 37,
+            "fouten": []
+          },
+          "rapportbestand_sha256": "c90e5d11b180dad2f3650446b6686a76cb1c1674ffadee2e7b07b158a960fa82",
+          "droog_rapport_sha256": "4116a43e43bbe764b2484452f86723764d583a14d00d52495d4c51a11d2ec66d",
+          "per_testrol": {
+            "volwassene 1": {
+              "bron": 7,
+              "verantwoord": 7
+            },
+            "volwassene 2": {
+              "bron": 10,
+              "verantwoord": 10
+            },
+            "gast": {
+              "bron": 2,
+              "verantwoord": 2
+            },
+            "kind": {
+              "bron": 5,
+              "verantwoord": 5
+            },
+            "beheerder": {
+              "bron": 13,
+              "verantwoord": 13
+            }
+          },
+          "afhandelredenen": {
+            "wachtwoord_niet_overgezet": 4,
+            "recht_zonder_tegenhanger": 5,
+            "ander_bestand": 28,
+            "favoriet_verwijderd_in_emby": 1,
+            "geen_id": 2,
+            "hervatpunt_jelly_leon_nieuwer": 1,
+            "dubbel": 1,
+            "ontbreekt": 2,
+            "recht_handmatig": 2,
+            "recht_strenger": 2
+          }
+        },
+        "hervat": {
+          "geschreven": 5,
+          "droog_niet_get": 0,
+          "rapport_sha256": "c48c8652a7027762b73907b3e6da8305e70c6a4d0d67a87fe7e0a643f15e6059",
+          "vergelijking": {
+            "stats": {
+              "exact_overgezet": 34,
+              "afhandellijst": 5,
+              "uitzondering_jl_nieuwer": 1
+            },
+            "emby_items_met_kijkgegevens": 40,
+            "fouten": []
+          },
+          "rapportbestand_sha256": "8ae2fcc47b3b74e5ba9d5d9069e93320c1036a78d28e5bd4bde1c28424403a02",
+          "droog_rapport_sha256": "c6bada0dd9fcfb1dbf065f6c9bef7cd86c8bcb0803ea5dce5346b0e916ce9190",
+          "per_testrol": {
+            "volwassene 1": {
+              "bron": 8,
+              "verantwoord": 8
+            },
+            "volwassene 2": {
+              "bron": 10,
+              "verantwoord": 10
+            },
+            "gast": {
+              "bron": 2,
+              "verantwoord": 2
+            },
+            "kind": {
+              "bron": 6,
+              "verantwoord": 6
+            },
+            "beheerder": {
+              "bron": 14,
+              "verantwoord": 14
+            }
+          },
+          "afhandelredenen": {
+            "wachtwoord_niet_overgezet": 4,
+            "recht_zonder_tegenhanger": 5,
+            "ander_bestand": 31,
+            "favoriet_verwijderd_in_emby": 1,
+            "geen_id": 2,
+            "hervatpunt_jelly_leon_nieuwer": 1,
+            "dubbel": 1,
+            "ontbreekt": 2,
+            "recht_handmatig": 2,
+            "recht_strenger": 2
+          }
+        }
+      },
+      "herimport_op_leeg_doel": {
+        "stats": {
+          "exact_overgezet": 35,
+          "afhandellijst": 5
+        },
+        "emby_items_met_kijkgegevens": 40,
+        "fouten": [],
+        "rapportbestand_sha256": "53c0bfda294c9ce8515a092ecd0cd1d8eee9218c63bc2a17212f18e598d64641",
+        "droog_rapport_sha256": "a2a7dc4534570b0b83cf93551496d7cf00c8aa3d59de5382462da5a51688a19e"
       }
     }
   },
