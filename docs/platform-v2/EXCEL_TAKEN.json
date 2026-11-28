@@ -452,7 +452,12 @@
   "Prioriteit": "P1",
   "Afhankelijkheid": "Gemeenschappelijk: 12.x-upgrade (P4-0, incl. JL_RUNTIME_IMAGE), één plugin met modules en gemeenschappelijke laag, register upstream-gedrag; B03-030; gemeenschappelijk: B03-014, B03-017, B03-019",
   "Bron": "https://github.com/jellyfin/jellyfin",
-  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md"
+  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
+  "status": "Bezig",
+  "validatie": "Unit-getest; NIET GEVALIDEERD (echte NAS)",
+  "bewijs": "B03-031_SIMILAR.md, UPSTREAM_GEDRAG.md (UG-F2-1 t/m UG-F2-8), tools/jelly-leon/e2e/similar_proef.py en plugins/JellyLeon/tests/Jellyfin.Plugin.JellyLeon.Tests/Recommendations.",
+  "blokkade": "NIET GEVALIDEERD (echte NAS): echte bibliotheek (JLT-15).",
+  "opmerking": "De register- en harnastests zijn lokaal uitgevoerd (11 Python-tests). De drie bronankers zijn gevonden op de vastgezette webcommit. De bibliotheekopties, volgorde, aanroepteller, terugval bij fout en time-out en gegevensvergelijking zijn op dit meetmoment NIET GEMETEN (geen testslot). G-F2-1 staat open. De engine-namespace zit volgens ADR-0029 in de bestaande DLL. B03-030 heeft nul geldige prestatiemetingen."
  },
  {
   "ID": "B03-032",
