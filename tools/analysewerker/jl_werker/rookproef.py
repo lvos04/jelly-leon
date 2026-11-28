@@ -1,24 +1,29 @@
 """Offline proef op de opgeleverde image, inclusief de JSON-procesgrens."""
 
 import json
+import os
 import sqlite3
 import ssl
 import stat
 import subprocess
 import sys
+from importlib.util import find_spec
+from itertools import chain
 
-from .inventaris import MAP, vergelijk_versies
+from .inventaris import MAP, VERBODEN, vergelijk_versies
 from .opdrachten import PYTHON
 
 
 def controleer_rechten() -> None:
-    for pad in (MAP, *MAP.rglob("*")):
+    for pad in chain((MAP,), MAP.rglob("*")):
         info = pad.lstat()
         if (info.st_uid, info.st_gid) != (0, 0):
             raise ValueError("de runtime bevat een bestand met een afwijkende eigenaar")
         if stat.S_ISLNK(info.st_mode):
             if not pad.resolve(strict=True).is_relative_to(MAP):
                 raise ValueError("koppeling verlaat de runtime")
+        elif not os.access(pad, os.R_OK | (os.X_OK if pad.is_dir() else 0)):
+            raise ValueError("de runtime is niet volledig leesbaar voor de werker")
         elif info.st_mode & 0o022:
             raise ValueError("de runtime bevat een beschrijfbaar bestand of een beschrijfbare map")
 
@@ -27,6 +32,8 @@ def rookproef(alleen_werker: bool) -> None:
     import webrtcvad  # Alleen de vastgezette runtime heeft deze extensie.
 
     controleer_rechten()
+    if any(find_spec(pakket) is not None for pakket in VERBODEN):
+        raise ValueError("de interpreter kan een verboden pakket laden")
     ssl.create_default_context()
     with sqlite3.connect(":memory:") as db:
         db.execute("SELECT 1").fetchone()

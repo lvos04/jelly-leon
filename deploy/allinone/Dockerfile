@@ -45,7 +45,7 @@ COPY tools/analysewerker/requirements.lock tools/analysewerker/licenties.json /o
 # Zelfde bovenlaag op de vaste of de kandidaat-upstream-runtime. Los bouwbaar voor upstream-sync.
 FROM ${RUNTIME_IMAGE} AS werkerproef
 COPY --from=analysepython /opt/jelly-leon /opt/jelly-leon
-RUN --network=none set -eu; chmod -R go-w /opt/jelly-leon; umask 022; \
+RUN --network=none set -eu; chmod -R a+rX,go-w /opt/jelly-leon; umask 022; \
     /opt/jelly-leon/python/bin/python3 -IB -m jl_werker.inventaris werker
 
 # ---------------------------------------------------------------- server + plugin (.NET)

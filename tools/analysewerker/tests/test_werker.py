@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import sqlite3
 import subprocess
 import sys
 import zipfile
@@ -117,3 +118,23 @@ def test_echte_pip_weigert_regel_zonder_hash(tmp_path):
 def test_groeigrens_is_inclusief():
     assert main(123, 123 + GRENS) == 0
     assert main(123, 124 + GRENS) == 1
+
+
+def test_kijkgeschiedenis_en_voortgang_blijven_leesbaar_na_geweigerde_uitvoer(tmp_path):
+    bestanden = [(tmp_path / "kijkgeschiedenis.db", 15_000_000), (tmp_path / "mediaguard-voortgang.db", 37)]
+    for pad, waarde in bestanden:
+        with sqlite3.connect(pad) as db:
+            db.execute("CREATE TABLE proef (positie INTEGER)")
+            db.execute("INSERT INTO proef VALUES (?)", (waarde,))
+        db.close()
+    voor = [pad.read_bytes() for pad, _ in bestanden]
+    for pad, _ in bestanden:
+        verzoek = json.dumps({"taak": "versies", "uitvoer": str(pad)}).encode()
+        assert antwoorden(verzoek + b'\n{"taak":"ping"}') == [{"fout": "ongeldig_verzoek"}, {"antwoord": "pong"}]
+        with pytest.raises(ValueError, match="geweigerd"):
+            bouw_opdracht("ffsubsync", "/bibliotheek/film", "-i", "/bibliotheek/in.srt", "-o", str(pad))
+    assert [pad.read_bytes() for pad, _ in bestanden] == voor
+    for pad, verwacht in bestanden:
+        with sqlite3.connect(f"{pad.as_uri()}?mode=ro", uri=True) as db:
+            assert db.execute("SELECT positie FROM proef").fetchone() == (verwacht,)
+        db.close()

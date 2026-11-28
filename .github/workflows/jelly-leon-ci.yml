@@ -72,9 +72,9 @@ jobs:
 
       - name: Analysewerker testen en vastgezette pakketten auditen
         run: |
+          ruff check --config tools/jelly-leon/ruff.toml tools/analysewerker
           cd tools/analysewerker
           python -m pytest -q tests
-          ruff check --config ../jelly-leon/ruff.toml .
           python -m venv "$RUNNER_TEMP/werker-audit"
           "$RUNNER_TEMP/werker-audit/bin/python" -m pip install --no-deps --require-hashes --only-binary=:all: -r audit.lock
           "$RUNNER_TEMP/werker-audit/bin/pip-audit" --require-hashes --disable-pip --strict --progress-spinner off -r requirements.lock -r bouw.lock

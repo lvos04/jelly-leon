@@ -270,7 +270,15 @@
   "Prioriteit": "P0",
   "Afhankelijkheid": "B03-014; B03-017; B03-009 (MediaGuard-viewerclient); B03-004 (plannerregels); D08; Δ-MG-AUTH; Δ-MG-4 (kijkpauze bij groepspauze, optioneel); B14-003 (P5, energie en resources)",
   "Bron": "https://jellyfin.org/docs/general/post-install/transcoding/hardware-acceleration/intel",
-  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md"
+  "Document": "02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md",
+  "id": "B03-018",
+  "status": "Bezig",
+  "validatie": "Unit-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (hardware)",
+  "bewijs": "S-G1-30, uitsluitend de runtime van deel (a). edeff037960c levert het JSON-proces en de opdrachtbouwer. 6de81e91af24 verpakt de gedeelde interpreter en voegt de software-inventaris, de offline rookproef en de groeipoort toe. 30 werkertests, inclusief weigering van schrijfopties, te grote berichten, een verboden pakket in een synthetische SBOM en een distributie zonder hash. Twee synthetische SQLite-bestanden bleven na geweigerde uitvoer bytegelijk en leesbaar op respectievelijk 15.000.000 ticks en 37. pip-audit vond geen bekende kwetsbaarheden in de 16 runtimepakketten en de bouwbackend. De nulmeting van S-G1-16 is 865.208.951 bytes. Het grensvoorstel is 201.326.592 bytes.",
+  "blokkade": "Lokale eindmeting en imagerookproef staan open. NIET GEVALIDEERD (echte NAS): de image is niet op TrueNAS gestart. NIET GEVALIDEERD (hardware): A310 en UHD 770.",
+  "opmerking": "De overname-assistent krijgt dezelfde interpreter in S-P40-82. De socket en bewaker vallen onder S-G1-32. De bestandspas en de overige onderdelen van B03-018 hebben eigen stappen. Gate P4-0 en de bevestiging van de groeigrens staan open.",
+  "repo": "jelly-leon",
+  "bijgewerkt": "2026-11-28"
  },
  {
   "ID": "B03-019",
