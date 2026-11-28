@@ -27,6 +27,7 @@ from .web import UA, WebFout, harnas
 
 REPO = Path(__file__).resolve().parents[3]
 HERO = "/media/movies/hero/hero.mp4"
+WEB_ROOKTEST_TIMEOUT = 300  # Eén aanmelding en één testfilm met een observatie van 15 seconden.
 ANDROID_GEBRUIKER, ANDROID_WACHTWOORD = "b03android", "B03Android2026"  # wegwerpaccount, alleen 127.0.0.1-server
 NIET_HIER = [
     {"client": "Swiftfin 1.6.1 (iOS/tvOS), Safari, Apple TV", "rol": "stock-native", "status": "NIET GEVALIDEERD (Mac/Xcode)",
@@ -50,7 +51,7 @@ def _web(server: StockServer, browser: str, label: str, ua: str | None = None, s
     if scherm:
         cfg["schermMap"] = str(scherm)
     try:
-        d = harnas("profiel" if ua else "speel", cfg)
+        d = harnas("profiel" if ua else "speel", cfg, timeout=WEB_ROOKTEST_TIMEOUT)
     except (WebFout, subprocess.TimeoutExpired) as fout:
         # Browseruitvoer kan een aanmeld-URL bevatten. Bewaar alleen de foutsoort.
         reden = "browserpagina gecrasht" if "Page crashed" in str(fout) else type(fout).__name__
@@ -66,6 +67,12 @@ def _web(server: StockServer, browser: str, label: str, ua: str | None = None, s
             "laatste_stand": item.get("laatste"), "orakel_reden": item.get("orakel_reden"),
             "fout": item.get("fout"), "profiel_directplay": [(p.get("Container"), p.get("VideoCodec"), p.get("AudioCodec"))
                                                              for p in profiel.get("DirectPlayProfiles", [])][:6] if ua else None}
+
+
+def webstatus(speelt: bool | None, bij_succes: str) -> str:
+    if speelt is None:
+        return "Geblokkeerd"
+    return bij_succes if speelt else "Sim-mislukt"
 
 
 def stockweb_uit_image(image: str, doel: Path) -> Path:
@@ -318,14 +325,14 @@ def main(argv: list[str] | None = None) -> int:
                 for b in ("chromium", "firefox", "webkit"):
                     r = _web(server, b, f"web-{b}", scherm=uitmap)
                     clients.append({"id": f"web-{b}", "client": r["browser"] + " (Playwright 1.63, headless)", "rol": webrol,
-                                    **r, "status": "Sim-getest (rooktest geslaagd)" if r["orakel_ok"] else "Sim-mislukt",
+                                    **r, "status": webstatus(r["orakel_ok"], "Sim-getest (rooktest geslaagd)"),
                                     "opmerking": "WebKit op Linux is geen Safari" if b == "webkit" else ""})
                     log(f"web {b}: {clients[-1]['status']}")
             if "ua" in delen:
                 for naam, ua in UA.items():
                     r = _web(server, "chromium", f"ua-{naam}", ua=ua, scherm=uitmap)
                     clients.append({"id": f"ua-{naam}", "client": f"{naam} via UA-simulatie (Chromium-engine)", "rol": "webclient (profielcode)",
-                                    **r, "status": "Sim-getest (UA-simulatie, geen echte decoder)" if r["orakel_ok"] else "Sim-mislukt",
+                                    **r, "status": webstatus(r["orakel_ok"], "Sim-getest (UA-simulatie, geen echte decoder)"),
                                     "opmerking": "alleen de takken in browserDeviceProfile.js; echte tv NIET GEVALIDEERD (hardware)"})
                     log(f"ua {naam}: {clients[-1]['status']}")
             if "legacy" in delen:
@@ -377,7 +384,7 @@ def main(argv: list[str] | None = None) -> int:
                 clients.append({"id": "webdir", "client": r["browser"] + (" tegen de Jelly Leon-server met de stock-web uit de stock-image"
                                                           if jelly_leon else " tegen een server met --webdir (stock-web uit de stock-image)"),
                                 "rol": "stock-web uit de stock-image" + (" (tegen Jelly Leon)" if jelly_leon else " via --webdir"), **r,
-                                "status": "Sim-getest (rooktest geslaagd)" if r["orakel_ok"] else "Sim-mislukt",
+                                "status": webstatus(r["orakel_ok"], "Sim-getest (rooktest geslaagd)"),
                                 "opmerking": "stock-web tegen de Jelly Leon-server (JLT-63)" if jelly_leon else
                                 "mechanisme voor 'stock-web tegen de Jelly Leon-server' (JLT-05/09); hier tegen stock"})
             finally:

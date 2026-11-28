@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import Mock
@@ -93,18 +94,26 @@ def test_volledige_matrix_vereist_een_gemeten_uitkomst_voor_elke_rol() -> None:
     assert code == 2 and rapport["onbeslist"] == ["tablet"] and rapport["regressies"] == []
 
 
-def test_browsercrash_bewaart_pogingen_en_overige_clients(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize(("fout", "pogingen"), [
+    (clientmatrix.WebFout("Page crashed"), 2), (subprocess.TimeoutExpired("node", 300), 1),
+])
+def test_browserfout_bewaart_pogingen_en_overige_clients(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fout: Exception, pogingen: int,
+) -> None:
     server = Mock()
     server.digest.return_value = "testimage"
     server.jf.items.return_value = [{"Id": "film", "Path": clientmatrix.HERO}]
     monkeypatch.setattr(clientmatrix, "StockServer", Mock(return_value=Mock(start=Mock(return_value=server))))
     monkeypatch.setattr(clientmatrix.meetslot, "exclusief_slot", lambda **_kwargs: nullcontext())
-    fout = clientmatrix.WebFout("Page crashed")
-    fout.pogingen = 2
+    if isinstance(fout, clientmatrix.WebFout):
+        fout.pogingen = pogingen
     antwoord = {"items": [{"orakel_ok": True}], "harnaspogingen": 1}
-    monkeypatch.setattr(clientmatrix, "harnas", Mock(side_effect=[fout, antwoord, antwoord]))
+    harnas = Mock(side_effect=[fout, antwoord, antwoord])
+    monkeypatch.setattr(clientmatrix, "harnas", harnas)
     pad = tmp_path / "matrix.json"
     assert clientmatrix.main(["--onderdelen", "web", "--uit", str(pad)]) == 1
     rijen = json.loads(pad.read_text())["clients"]
-    assert [rij["aantal_pogingen"] for rij in rijen] == [2, 1, 1]
+    assert [rij["aantal_pogingen"] for rij in rijen] == [pogingen, 1, 1]
     assert [rij["orakel_ok"] for rij in rijen] == [None, True, True]
+    assert rijen[0]["status"] == "Geblokkeerd"
+    assert all(aanroep.kwargs["timeout"] == 300 for aanroep in harnas.call_args_list)

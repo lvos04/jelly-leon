@@ -51,7 +51,9 @@ python -m b03h.matrixvergelijk "$WERK/stock.json" "$WERK/p6.json" --uit "$WERK/v
 Elke proefserver meldt welke modules aanstaan. Het harnas leest hun stand terug na de laatste client, ook op de
 server met de los gekoppelde stock-webclient. De vergelijking geeft exitcode 1 bij een gemeten regressie en 2
 bij ontbrekende metingen of een onbruikbaar rapport. Een browsercrash en een ontbrekende emulator blijven per
-client zichtbaar. Een volledige meting zonder regressies geeft exitcode 0.
+client zichtbaar. Voor één aanmelding en één testfilm geldt een bovengrens van vijf minuten per browserpoging.
+Bij een tijdsoverschrijding krijgt de client een onbesliste uitkomst en gaat de matrix verder met de volgende client.
+Een volledige meting zonder regressies geeft exitcode 0.
 
 ## JLT-40 — meetcommando winstmeting apparaatprofielen
 
