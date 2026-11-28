@@ -62,6 +62,7 @@ PREFIXEN = ("/connector/v1", "/media/v1")
 OPENAPI = REPO / "docs" / "openapi" / "jelly-leon-plugin.openapi.json"
 PLUGIN_ID = "6a0c5f2e3b9d4c719e0a4f1d2b8c7e51"
 PLUGIN_DLL = "Jellyfin.Plugin.JellyLeon.dll"
+VERWACHTE_MODULES = ("devices", "quality", "recommendations", "segments", "watch")
 MUZIEK = "/media/muziek"
 BEHEER, KIJKER, WEG = "jl-proef-beheer", "Kijker-Zeldzaam-7391", "Weg-Zeldzaam-5527"
 TOESTEL_BEHEER, TOESTEL_WEG = "Beheertoestel-Zeldzaam-4418", "Toestel-Zeldzaam-8846"
@@ -424,7 +425,7 @@ class Plugin:
         dll_hash = hashlib.sha256(dlls[0].read_bytes()).hexdigest() if namen == [PLUGIN_DLL] else ""
         modules = sorted(m["slug"] for m in self.beheer.http.doe("GET", "/media/v1/modules")["items"])
         self.v.test("JLT-68", "Alle geregistreerde modules uit één plugin-DLL",
-                    namen == [PLUGIN_DLL] and modules == ["devices", "quality", "recommendations", "segments", "watch"],
+                    namen == [PLUGIN_DLL] and modules == list(VERWACHTE_MODULES),
                     f"DLL's {namen}, SHA-256 {dll_hash}, modules {modules}")
 
     def routetabel(self, stock_openapi: dict[str, Any]) -> None:
@@ -479,7 +480,7 @@ class Plugin:
     def modules_uit(self, moment: str) -> None:
         status, inhoud, _ = self.sessie_vraag(self.beheer, "GET", "/media/v1/modules")
         standen = {m["slug"]: m["enabled"] for m in inhoud.get("items", [])} if status == 200 else {}
-        verwacht = dict.fromkeys(("devices", "quality", "recommendations", "segments", "watch"), False)
+        verwacht = dict.fromkeys(VERWACHTE_MODULES, False)
         self.v.test("JLT-64", f"modules staan uit ({moment})", standen == verwacht, f"{standen}")
         self._laatste = ("GET", "/media/v1/watch/capabilities")
         self.fout("JLT-64", f"Watch Together uit ({moment})", self.sessie_vraag(self.beheer, *self._laatste), 404, "not_found")

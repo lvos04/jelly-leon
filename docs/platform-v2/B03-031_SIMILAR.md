@@ -7,7 +7,7 @@ mediatype Jelly Leon bovenaan in de volgorde van Similar-providers om de selecti
 de provider afzonderlijk uitschakelen. De plugin wijzigt zelf geen bibliotheekopties.
 
 F2-1 zoekt ongeziene films of series met een genre van het bronitem. Jellyfin beperkt de leesquery tot het profiel
-van het verzoek. De bron en de eerder gekozen item-ID's gaan mee als uitsluitingen. Bij gelijke genreoverlap bepaalt
+van het verzoek. De bron en de eerder gekozen item-ID's gaan mee als uitsluitingen. Binnen deze genreselectie bepaalt
 de sorteertitel de volgorde. Een ontbrekende gebruiker, een lege genrelijst of een limiet van nul geeft geen eigen
 treffers. De provider heeft geen eigen cache of database en schrijft geen kijkgegevens.
 

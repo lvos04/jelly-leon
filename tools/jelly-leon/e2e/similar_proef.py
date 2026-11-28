@@ -319,7 +319,9 @@ def main(argv=None):
                 shutil.copytree(werk / "stock/config", werk / naam / "config")
                 with draai(naam, image, werk / naam, media, plugin) as server:
                     test(server, wachtwoord, ids, basis, meet)
-            vereist = CHECKS if args.proef_plugin_map else CHECKS - {"similar_zonder_cache", "similar_exportvolgorde", "similar_bewaarreden"}
+            vereist = CHECKS | {"kijkgegevens", "uitzondering", "vertraging"} if args.proef_plugin_map else (
+                CHECKS - {"similar_zonder_cache", "similar_exportvolgorde", "similar_bewaarreden"} | {"kijkgegevens"}
+            )
             eis(vereist <= uit.keys(), "een verplichte proef ontbreekt")
     except Exception as exc:
         # HTTP-fouten kunnen antwoorden met een sessiesleutel bevatten. Alleen eigen meldingen en het type tonen.

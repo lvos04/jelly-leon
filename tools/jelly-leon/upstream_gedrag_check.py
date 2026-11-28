@@ -6,8 +6,8 @@ Per regel `UG-<functie>-<n>` (functie: GEM of F1…F6):
   * het bestand ligt buiten de fork-eigen paden (het gaat om upstream-gedrag) en bestaat;
   * het anker (Python-regex, `re.MULTILINE`) staat in dat bestand van de huidige boom — anders is het gedrag bij een
     upstream-sync verhuisd of verdwenen en blokkeert de sync (EX48, JLT-67);
-  * de kolom Test noemt `anker` en/of `runtime:<naam>`; elke runtime-naam bestaat in
-    tools/jelly-leon/e2e/upstream_gedrag_runtime.py (CHECKS);
+  * de kolom Test noemt `anker` en/of `runtime:<naam>`; elke runtime-naam staat in CHECKS van
+    upstream_gedrag_runtime.py of similar_proef.py onder tools/jelly-leon/e2e;
   * elke verwijzing `UG-…` in eigen documentatie, code en workflows staat in het register ("een verwijzing UG-…
     zonder test laat de build falen", B03-019). Plankopieën uit ai-server-manager (02_BOUWPLANNEN/, EXCEL_TAKEN.json en
     de andere genummerde mappen) en het webregister (`UG-WEB-…`) tellen niet mee.
