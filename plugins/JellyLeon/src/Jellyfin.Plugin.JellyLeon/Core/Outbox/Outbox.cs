@@ -28,11 +28,13 @@ internal sealed partial class Outbox
 
     public static string Iso(DateTimeOffset moment) => moment.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
 
+    internal static bool IsMediaEvent(string naam) =>
+        naam.Length <= 128 && naam.StartsWith("media.", StringComparison.Ordinal) && EventType().IsMatch(naam);
+
     /// <summary>Bouwt en controleert de envelop; gooit <see cref="ArgumentException"/> bij een ongeldig event.</summary>
     public static JsonObject Envelop(string eventType, string entityType, string entityId, JsonObject payload, DateTimeOffset nu, string actorType = "system", string actorId = "jelly-leon", string? correlationId = null)
     {
-        if (eventType.Length > 128 || !EventType().IsMatch(eventType)
-            || !(eventType.StartsWith("media.", StringComparison.Ordinal) || eventType == "app.health.changed"))
+        if (!IsMediaEvent(eventType) && eventType != "app.health.changed")
         {
             throw new ArgumentException("event_type moet drie segmenten hebben in het domein media (of app.health.changed).", nameof(eventType));
         }
@@ -50,6 +52,12 @@ internal sealed partial class Outbox
         if (InhoudsBewaker.EersteOvertreding(payload) is { } pad)
         {
             throw new ArgumentException("payload bevat een verboden waarde op " + pad + " (alleen aantallen, codes en ondoorzichtige ID's).", nameof(payload));
+        }
+
+        if (payload.ContainsKey("severity") || (payload.TryGetPropertyValue("ernst", out var ernst)
+            && !(ernst is JsonValue v && v.TryGetValue<string>(out var woord) && woord is "kritiek" or "hoog" or "middel" or "laag" or "info")))
+        {
+            throw new ArgumentException("Gebruik payload.ernst met een van de vijf contractwaarden.", nameof(payload));
         }
 
         var inhoud = (JsonObject)payload.DeepClone();
@@ -116,7 +124,7 @@ internal sealed partial class Outbox
     public void VerwijderModule(string module) =>
         _db.Met(v => JlDatabase.Voer(v, "DELETE FROM outbox WHERE module=$m", ("$m", module)));
 
-    [GeneratedRegex(@"^[a-z0-9_]+\.[a-z0-9_]+\.[a-z0-9_]+$")]
+    [GeneratedRegex(@"\A[a-z0-9_]+\.[a-z0-9_]+\.[a-z0-9_]+\z")]
     private static partial Regex EventType();
 
     [GeneratedRegex(@"^[a-z0-9_.-]{1,64}$")]

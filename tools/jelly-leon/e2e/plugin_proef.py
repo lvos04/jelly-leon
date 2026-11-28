@@ -28,6 +28,7 @@ import argparse
 import base64
 import hashlib
 import hmac
+import http.client
 import json
 import os
 import shutil
@@ -44,6 +45,7 @@ from ipaddress import IPv4Address
 from pathlib import Path
 from socket import INADDR_LOOPBACK
 from typing import Any
+from urllib.parse import urlsplit
 
 E2E = Path(__file__).resolve().parent
 REPO = E2E.parents[2]
@@ -80,6 +82,29 @@ def vrije_poort() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return int(s.getsockname()[1])
+
+
+def meet_http_body(basis: str, methode: str, pad: str, body: bytes | None, kop: dict[str, str],
+                   chunked: bool = False) -> tuple[int, Any, dict[str, str]]:
+    """Meet de volledige HTTP/1.1-respons op de lokale proefserver, ook bij overdracht zonder Content-Length."""
+    adres = urlsplit(basis)
+    if adres.scheme != "http" or adres.hostname not in ("localhost", str(IPv4Address(INADDR_LOOPBACK))):
+        raise ValueError("De HTTP-proef vraagt een lokale testserver.")
+    verbinding = http.client.HTTPConnection(adres.hostname, adres.port, timeout=60)
+    try:
+        gegevens = (body[i:i + 16384] for i in range(0, len(body), 16384)) if chunked and body is not None else body
+        verbinding.request(methode, adres.path + pad, gegevens, kop, encode_chunked=chunked)
+        with verbinding.getresponse() as antwoord:
+            return antwoord.status, _json(antwoord.read()), {k.lower(): v for k, v in antwoord.getheaders()}
+    finally:
+        verbinding.close()
+
+
+def is_grensantwoord(status: int, inhoud: Any, koppen: dict[str, str]) -> bool:
+    return (status == 413 and isinstance(inhoud, dict) and set(inhoud) == {"code", "message", "details", "trace_id"}
+            and inhoud["code"] == "payload_too_large" and isinstance(inhoud["message"], str) and bool(inhoud["message"])
+            and inhoud["details"] == {"max_bytes": 1048576} and _is_uuid(inhoud["trace_id"])
+            and koppen.get("content-type") == "application/json; charset=utf-8" and koppen.get("cache-control") == "no-store")
 
 
 def client(toestel: str, toestel_id: str, token: str = "") -> dict[str, str]:
@@ -467,18 +492,25 @@ class Plugin:
         self.v.test("JLT-64", f"schakelaar {slug} naar {aan}", status == 200 and standen.get(slug) is aan, str(standen))
 
     def lichaamsgrens(self) -> None:
-        body = {"test": "x" * 1048576}
+        body = b"{" + b" " * (1048576 - 1) + b"}"
         for methode, pad in sorted(pl.routes(self.doc, PREFIXEN)):
             if pad == "/media/v1/version":  # Deze serverroute hoort niet bij de plugin.
                 continue
             route = pad.replace("{id}", "proef").replace("{slug}", "devices")
-            if pad.startswith("/connector/v1/"):
-                status, antwoord, _ = self.hub_vraag(methode, route, self.hub.token(), body=body)
-            else:
-                status, antwoord, _ = self.sessie_vraag(self.beheer, methode, route, body)
-            code = antwoord.get("code") if isinstance(antwoord, dict) else None
-            self.v.test("JLT-68", f"meer dan 1 MiB op {methode} {pad}", status == 413 and code == "payload_too_large",
-                        f"HTTP {status}, code {code}")
+            for chunked in (False, True):
+                vervoer = "chunked" if chunked else "Content-Length"
+                naam = f"1 MiB + 1 byte op {methode} {pad} ({vervoer})"
+                kop = {"Content-Type": "application/json", **self.beheer.http.headers}
+                if pad.startswith("/connector/v1/"):
+                    token = self.hub.token()
+                    self.tokens.append(token)
+                    kop["Authorization"] = "Bearer " + self.v.geheim(f"hubtoken:{len(self.tokens) - 1}", token)
+                try:
+                    status, inhoud, koppen = meet_http_body(self.server.url, methode, route, body, kop, chunked)
+                except (OSError, http.client.HTTPException) as fout:
+                    self.v.test("JLT-68", naam, False, f"Onvolledig HTTP-antwoord ({type(fout).__name__})")
+                    continue
+                self.v.test("JLT-68", naam, is_grensantwoord(status, inhoud, koppen), f"HTTP {status}")
 
     def pin(self) -> None:
         set_, afdruk = self.hub.sleutelset(), self.hub.vingerafdruk()

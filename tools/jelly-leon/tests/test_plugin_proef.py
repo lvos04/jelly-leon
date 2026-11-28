@@ -15,6 +15,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
 import plugin_proef as proef  # noqa: E402
 
 
+def test_grensantwoord_vraagt_de_hele_contractfout() -> None:
+    inhoud = {"code": "payload_too_large", "message": "Te groot", "details": {"max_bytes": 1048576}, "trace_id": str(uuid.uuid4())}
+    kop = {"content-type": "application/json; charset=utf-8", "cache-control": "no-store"}
+    assert proef.is_grensantwoord(413, inhoud, kop)
+    for fout in (None, {}, {**inhoud, "details": {}}, {**inhoud, "trace_id": None}, {**inhoud, "message": ""}):
+        assert not proef.is_grensantwoord(413, fout, kop)
+    assert not proef.is_grensantwoord(200, inhoud, kop)
+    assert not proef.is_grensantwoord(413, inhoud, {})
+
+
 def test_jl4_proef_meldt_een_opstartfout_zonder_verzoekgegevens(tmp_path: Path, monkeypatch) -> None:
     rapport = tmp_path / "jl4.json"
     opgeruimd = []

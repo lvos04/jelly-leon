@@ -95,6 +95,15 @@ internal sealed class JlResult : IActionResult
         }
 
         response.Headers["Cache-Control"] = "no-store";
+        var verzoek = context.HttpContext.Request;
+        var vroegGeweigerd = Status is 401 or 403 or 404 && (verzoek.ContentLength > Fouten.MaxBodyBytes || verzoek.Headers.TransferEncoding.Count > 0);
+        if ((Status == StatusCodes.Status413PayloadTooLarge || vroegGeweigerd) && HttpProtocol.IsHttp11(verzoek.Protocol))
+        {
+            // Kestrel kan een verbinding met een ongelezen te grote body sluiten na het antwoord.
+            // Een HTTP/1.1-client mag die verbinding dan niet voor zijn volgende verzoek hergebruiken.
+            response.Headers.Connection = "close";
+        }
+
         if (DownloadInhoud is { } bestand)
         {
             using (bestand)

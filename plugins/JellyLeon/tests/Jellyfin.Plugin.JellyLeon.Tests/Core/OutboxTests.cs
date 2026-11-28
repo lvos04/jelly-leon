@@ -33,6 +33,28 @@ public sealed class OutboxTests : IDisposable
     }
 
     [Theory]
+    [InlineData("kritiek")]
+    [InlineData("hoog")]
+    [InlineData("middel")]
+    [InlineData("laag")]
+    [InlineData("info")]
+    public void Envelop_BewaartDeBronwaardeVanErnst(string ernst)
+    {
+        var envelop = JlOutbox.Envelop("media.subtitle.rejected", "subtitle", Opaak, new JsonObject { ["ernst"] = ernst }, _h.Klok.Nu);
+        Assert.Equal(ernst, (string?)envelop["payload"]!["ernst"]);
+    }
+
+    [Theory]
+    [InlineData("{\"ernst\":null}")]
+    [InlineData("{\"ernst\":1}")]
+    [InlineData("{\"ernst\":\"waarschuwing\"}")]
+    [InlineData("{\"severity\":\"hoog\"}")]
+    public void Envelop_WeigertOngeldigeErnst(string json)
+    {
+        Assert.Throws<ArgumentException>(() => JlOutbox.Envelop("media.quality_finding.detected", "finding", Opaak, JsonNode.Parse(json)!.AsObject(), _h.Klok.Nu));
+    }
+
+    [Theory]
     [InlineData("media.transcode")]
     [InlineData("media.transcode.started.extra")]
     [InlineData("service.health.changed")]

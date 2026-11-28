@@ -20,7 +20,7 @@ De plugin registreert in `PluginServiceRegistrator` alleen met `JELLYLEON_SPIKE_
 is `Content-Length` groter dan 1 MiB en begint het pad met `/media/v1` of `/connector/v1`, dan volgt meteen
 `413 payload_too_large` in de vaste foutvorm; elk ander verzoek gaat ongewijzigd door.
 
-Het script stuurt dezelfde tien verzoeken zonder aanmelding naar een server zonder en een server met de schakelaar.
+De oorspronkelijke meting stuurde dezelfde tien verzoeken zonder aanmelding naar een server zonder en een server met de schakelaar.
 Gemeten op stock `jellyfin/jellyfin:12.4` (vaste digest, ontwikkelmachine, 2026-11-11): 21 van 21 uitspraken geslaagd.
 
 | Verzoek (zonder aanmelding) | Zonder schakelaar | Met schakelaar |
@@ -75,3 +75,11 @@ De meting op de Jelly Leon-image draait in CI (job `image`); de uitkomst daarvan
 - *Een forkpatch in `Startup.cs`:* afgewezen; werkt niet op stock 12.x en vergroot de patchlast (ADR-0002).
 - *`RequestSizeLimit` op de controllers:* is al de grens per route in de pipeline; verplaatst niets naar vóór de
   authenticatie.
+
+## Herhaalproef S-G1-14
+
+Het harnas stuurt ook een HTTP/1.1-verzoek van 1 MiB plus één byte zonder `Content-Length`. Een derde server start
+met `/jl-proef` als ingestelde basis-URL en met de schakelaar aan. De publieke serverroute onder dat voorvoegsel
+moet bereikbaar zijn. De verwachte uitkomst uit de grenzen hierboven is 401 voor chunked zonder aanmelding en
+401 voor pluginroutes onder de basis-URL. Het harnas toetst beide afzonderlijk. De oorspronkelijke 413-proeven
+controleren bovendien de foutdetails en de trace-ID. Eigen meetuitkomsten staan bij C1.3-JL-07 in EVIDENCE.

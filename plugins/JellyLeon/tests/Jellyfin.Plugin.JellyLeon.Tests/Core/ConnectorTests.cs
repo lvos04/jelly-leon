@@ -138,9 +138,17 @@ public sealed class ConnectorTests : IDisposable
         var vers = Met(ConnectorService.Check("worker", "healthy", nu.AddSeconds(-900))).Health(nu);
         Assert.Equal("healthy", Zoek(vers, "worker")["status"]!.GetValue<string>());
 
+        Assert.Equal(JlOutbox.Iso(nu.AddSeconds(-900)), (string?)vers["observed_at"]);
+
         var oud = Met(ConnectorService.Check("worker", "healthy", nu.AddSeconds(-901), new JsonObject { ["pid"] = 1 })).Health(nu);
         Assert.Equal("unknown", Zoek(oud, "worker")["status"]!.GetValue<string>());
         Assert.Equal("meting_verouderd", Zoek(oud, "worker")["detail"]!["reden"]!.GetValue<string>());
+
+        Assert.Equal("unknown", (string?)oud["status"]);
+        Assert.Equal("meting_verouderd", (string?)oud["reason_code"]);
+        Assert.Equal(JlOutbox.Iso(nu.AddSeconds(-901)), (string?)oud["observed_at"]);
+        Assert.Equal((string?)oud["observed_at"], (string?)Zoek(oud, "worker")["observed_at"]);
+        Assert.Null(Zoek(oud, "worker")["detail"]!["pid"]);
 
         var plat = Met(ConnectorService.Check("worker", "down", nu), ConnectorService.Check("quality_mediaguard", "unknown", nu)).Health(nu);
         Assert.Equal("down", plat["status"]!.GetValue<string>());
@@ -204,6 +212,10 @@ public sealed class ConnectorTests : IDisposable
         Assert.All(eerste.Json["items"]!.AsArray(), d => Assert.Matches("^o_[0-9a-f]{32}$", d!["id"]!.GetValue<string>()));
         var tweede = await _h.RoepHub("connector.items", Token, query: "type=device&limit=2&cursor=2");
         Assert.Single(tweede.Json!["items"]!.AsArray());
+        var voorbij = await _h.RoepHub("connector.items", Token, query: "type=device&cursor=4294967296");
+        Assert.Equal(200, voorbij.Status);
+        Assert.Empty(voorbij.Json!["items"]!.AsArray());
+        Assert.Null(voorbij.Json["next_cursor"]);
         Assert.Null(tweede.Json["next_cursor"]);
 
         foreach (var (query, veld, code) in new[]

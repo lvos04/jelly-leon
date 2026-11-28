@@ -3107,7 +3107,19 @@
             ]
           },
           "payload": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+              "ernst": {
+                "type": "string",
+                "enum": [
+                  "kritiek",
+                  "hoog",
+                  "middel",
+                  "laag",
+                  "info"
+                ]
+              }
+            }
           },
           "payload_ref": {
             "type": "string",

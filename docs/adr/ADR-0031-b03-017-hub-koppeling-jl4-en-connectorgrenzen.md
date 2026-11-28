@@ -76,3 +76,30 @@ wegwerpsessies en één lokale server. Zij herhaalt hetzelfde token na een proce
 plugin-XML, instellingen en de beheerexports van Devices en Quality. EVIDENCE onderscheidt de metingen in het
 pluginharnas van de uitvoering op een server.
 De echte Hub en de echte NAS zijn **NIET GEVALIDEERD**.
+
+## Eventnamen en versheid bij contract 1.3 (S-G1-14)
+
+Bij de start controleert het moduleregister alle gedeclareerde eventtypen, ook voor uitgeschakelde modules. De outbox
+controleert de naam opnieuw vóór opslag. Een module gebruikt drie segmenten in het domein `media`. Voor een opgegeven
+`payload.ernst` gelden `kritiek`, `hoog`, `middel`, `laag` en `info`. Zonder bronwaarde bepaalt de Hub de ernst.
+
+De namen van B03 §10.10 blijven behouden. Voor de afnemer geldt de indeling van contract §7.
+
+| Functie | Probleem | Herstel | Informatie |
+|---|---|---|---|
+| F1, kijkgroepen | `watchgroup.degraded`, `.blocked` | — | Start en einde van de groep |
+| F2, aanbevelingen | `recommender.degraded` | `recommender.recovered` | Herbouw, evaluatie en export |
+| F3, ondertitels | `subtitle.rejected` | — | De overige ondertitelevents, `subtitle_engine.changed` en `subtitle_store.frozen` |
+| F4, kwaliteit | `quality_repair.failed` | `quality_finding.resolved` | Alle overige F4-namen, ook `quality_finding.detected`, `quality_repair.verified` en `storage.read_failed` |
+| F5, afspelen en GPU | `playback_attempt.failed`, `gpu_lane.degraded`, `gpu_lane.saturated`, `gpu_budget.conflict` | `gpu_lane.recovered` | De transcode- en profielevents en `gpu_lane.configured` |
+| F6, segmenten | `segment_analysis.failed` | — | Voltooide analyse, correctie, beoordelingsverzoek en bevroren wezen |
+
+Elke naam in de tabel heeft het voorvoegsel `media.`. `subtitle.rejected` beschrijft één afwijzing. De reeksregel
+voor een melding hoort bij de Hub. `quality_finding.detected` registreert een bevinding als informatie.
+`.resolved` kan daardoor zonder eerder probleem binnenkomen. Detectie en afhandeling gebruiken hetzelfde stabiele
+onderwerp. `storage.read_failed` blijft informatie volgens de letterlijke werkwoordlijst. De eigenaar van Δ-HUB-2
+kan deze drie gevallen meenemen bij de inboxregels.
+
+Een health-antwoord geeft het oudste meettijdstip van de bijdragende checks door. Bij 900 seconden telt de bronstatus
+nog mee. Daarna krijgt de check `unknown` met reden `meting_verouderd`. Is veroudering bepalend voor het totaal, dan
+staat diezelfde reden ook in `reason_code`. Een verse `degraded` of `down` weegt zwaarder.

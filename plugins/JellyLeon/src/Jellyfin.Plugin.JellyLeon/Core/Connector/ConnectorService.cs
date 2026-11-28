@@ -112,12 +112,16 @@ internal sealed class ConnectorService
             checks.Add(Check("worker", nodig ? "unknown" : "healthy", nu, new JsonObject { ["nodig"] = nodig, ["reden"] = nodig ? "werker_niet_beschikbaar" : "geen_module_met_jobs" }));
         }
 
+        var oudste = nu;
+        var verouderd = false;
         foreach (var check in checks)
         {
             // §6.2: een meting ouder dan max_age telt als onbekend.
             var gemeten = DateTimeOffset.Parse(check["observed_at"]!.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+            oudste = gemeten < oudste ? gemeten : oudste;
             if ((nu - gemeten).TotalSeconds > MaxAgeSeconds)
             {
+                verouderd = true;
                 check["status"] = "unknown";
                 check["detail"] = new JsonObject { ["reden"] = "meting_verouderd" };
             }
@@ -128,8 +132,9 @@ internal sealed class ConnectorService
         return new JsonObject
         {
             ["status"] = slechtste,
-            ["observed_at"] = Outbox.Outbox.Iso(nu),
-            ["reason_code"] = oorzaak is null ? "ok" : oorzaak["name"]!.GetValue<string>() + "_" + slechtste,
+            ["observed_at"] = Outbox.Outbox.Iso(oudste),
+            ["reason_code"] = slechtste == "unknown" && verouderd ? "meting_verouderd"
+                : oorzaak is null ? "ok" : oorzaak["name"]!.GetValue<string>() + "_" + slechtste,
             ["checks"] = new JsonArray(checks.ToArray<JsonNode>()),
         };
     }
@@ -151,7 +156,7 @@ internal sealed class ConnectorService
             }
         }
 
-        var pagina = alle.Skip((int)start).Take(aantal).ToArray<JsonNode>();
+        var pagina = alle.Skip((int)Math.Min(start, alle.Count)).Take(aantal).ToArray<JsonNode>();
         return new JsonObject
         {
             ["type"] = type,

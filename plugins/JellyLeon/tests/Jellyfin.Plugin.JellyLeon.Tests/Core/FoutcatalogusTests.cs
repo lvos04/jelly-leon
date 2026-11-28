@@ -1,14 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyLeon.Tests.Core;
@@ -197,6 +205,79 @@ public sealed class FoutcatalogusTests : IDisposable
                 Assert.Equal(Fouten.MaxBodyBytes, (int?)antwoord.Json!["details"]!["max_bytes"]);
                 Assert.True(Guid.TryParseExact((string?)antwoord.Json["trace_id"], "D", out _));
             }
+        }
+    }
+
+    [Theory]
+    [InlineData(false, "", true)]
+    [InlineData(false, "", false)]
+    [InlineData(true, "", false)]
+    [InlineData(true, "/jl-proef", false)]
+    [InlineData(true, "/jl-proef", true)]
+    public async Task Kestrel_StuurtDeContractfoutMetEnZonderLengte(bool spike, string basispad, bool aangemeld)
+    {
+        if (!aangemeld)
+        {
+            _h.Sessies.Wie = null;
+        }
+
+        var stop = TestContext.Current.CancellationToken;
+        using var host = new HostBuilder().ConfigureWebHost(web => web
+            .UseKestrel(opties => opties.Listen(IPAddress.Loopback, 0))
+            .ConfigureServices(diensten =>
+            {
+                if (spike)
+                {
+                    diensten.AddTransient<IStartupFilter, JlStartupFilterSpike>();
+                }
+
+                diensten.AddSingleton(_h.Dienst<JlPipeline>());
+                diensten.AddControllers().AddApplicationPart(typeof(JlRouteAttribute).Assembly);
+            })
+            .Configure(app =>
+            {
+                if (basispad.Length > 0)
+                {
+                    app.UsePathBase(basispad);
+                }
+
+                app.UseRouting();
+                app.UseEndpoints(routes => routes.MapControllers());
+            })).Build();
+        await host.StartAsync(stop);
+        try
+        {
+            var adressen = host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
+            using var client = new HttpClient { BaseAddress = new Uri(adressen.Addresses.Single()) };
+            var teGroot = new byte[Fouten.MaxBodyBytes + 1];
+            foreach (var chunked in new[] { false, true })
+            {
+                foreach (var (methode, pad) in new[] { (HttpMethod.Get, "/media/v1/modules"), (HttpMethod.Post, "/media/v1/hub-link/verify") })
+                {
+                    TestContext.Current.TestOutputHelper?.WriteLine($"{methode} {pad}, chunked={chunked}");
+                    using var vraag = new HttpRequestMessage(methode, basispad + pad) { Content = new ByteArrayContent(teGroot) };
+                    vraag.Headers.TransferEncodingChunked = chunked;
+                    using var antwoord = await client.SendAsync(vraag, stop);
+                    var verwacht413 = aangemeld || (spike && basispad.Length == 0 && !chunked);
+                    Assert.Equal(verwacht413 ? HttpStatusCode.RequestEntityTooLarge : HttpStatusCode.Unauthorized, antwoord.StatusCode);
+                    Assert.Equal("application/json", antwoord.Content.Headers.ContentType?.MediaType);
+                    Assert.True(antwoord.Headers.CacheControl?.NoStore);
+                    Assert.True(antwoord.Headers.ConnectionClose);
+                    var fout = JsonNode.Parse(await antwoord.Content.ReadAsByteArrayAsync(stop))!.AsObject();
+                    Assert.Equal(["code", "message", "details", "trace_id"], fout.Select(e => e.Key));
+                    Assert.Equal(verwacht413 ? "payload_too_large" : "unauthorized", (string?)fout["code"]);
+                    if (verwacht413)
+                    {
+                        Assert.Equal(Fouten.MaxBodyBytes, (int?)fout["details"]!["max_bytes"]);
+                    }
+
+                    Assert.True(Guid.TryParseExact((string?)fout["trace_id"], "D", out _));
+                }
+            }
+        }
+        finally
+        {
+            await host.StopAsync(stop);
         }
     }
 

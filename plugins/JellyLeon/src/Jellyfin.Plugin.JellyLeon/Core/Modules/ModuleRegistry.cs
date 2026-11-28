@@ -15,7 +15,13 @@ internal sealed class ModuleRegistry
         _schakelaars = schakelaars;
         EisUniek(Alle.Select(m => m.Slug), "slug");
         EisUniek(Alle.SelectMany(m => m.ItemTypes), "itemtype");
-        EisUniek(Alle.SelectMany(m => m.EventTypes), "eventtype");
+        var events = Alle.SelectMany(m => m.EventTypes).ToArray();
+        if (events.Any(naam => !Outbox.Outbox.IsMediaEvent(naam)))
+        {
+            throw new InvalidOperationException("Een module-event moet drie segmenten in het domein media hebben.");
+        }
+
+        EisUniek(events, "eventtype");
         EisUniek(Alle.SelectMany(m => m.JobTypes), "jobtype");
     }
 

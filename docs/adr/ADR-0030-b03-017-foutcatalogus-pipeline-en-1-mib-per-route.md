@@ -24,7 +24,7 @@ plaatsen zonder een `IStartupFilter`; of dat op 12.x betrouwbaar werkt is een ap
    (rol `kind` → 403 `role_kind`). De beheerroutes onder `/media/v1/**` accepteren alleen een serversessie van een
    beheerder (kinderprofiel → 403 `kid_profile`, geen beheerder → 403 `admin_required`). Een Hub-token is geen
    beheerdersbewijs en omgekeerd.
-4. **1 MiB per route**: `Content-Length` boven 1 048 576 → 413 `payload_too_large` vóór het lezen; zonder
+4. **1 MiB per route**: Elke plugincontroller draagt `RequestSizeLimit(1048576)`. `Content-Length` boven 1 048 576 → 413 `payload_too_large` vóór het lezen; zonder
    `Content-Length` leest de pipeline hoogstens 1 MiB + 1 byte. Dit gebeurt ná de authenticatie — de afwijking die
    contract §2.3 regel 9 toestaat tot de `IStartupFilter`-spike slaagt. De limiet van de server zelf blijft daarvóór
    gelden.
@@ -60,3 +60,8 @@ plaatsen zonder een `IStartupFilter`; of dat op 12.x betrouwbaar werkt is een ap
 
 xunit-contracttests per route en per module (zelfde code voor zelfde situatie), JLT-68 tegen een draaiende server met
 een Hub-simulator. Niet op de echte NAS gevalideerd.
+
+Bij onbekende lengte telt de route ook voor GET en voor acties zonder invoermodel. De lezer vraagt hoogstens één
+byte extra. Bij overschrijding door de server of door de lezer krijgt de client dezelfde 413 met `details.max_bytes`.
+Het HTTP/1.1-antwoord meldt `Connection: close`. Zo gebruikt de client de verbinding met een ongelezen body niet
+opnieuw terwijl de server haar sluit. De socketproef gebruikt GET en POST, beide met lengte en met chunked-overdracht.

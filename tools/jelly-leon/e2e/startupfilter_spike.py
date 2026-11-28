@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Spike IStartupFilter (B03-017, ADR-0033): werkt een laag vóór routing en authenticatie uit een plugin op 12.x?
 
-Twee wegwerpcontainers van dezelfde image op een lege datamap: één zonder en één met
+Drie wegwerpcontainers van dezelfde image op een lege datamap, zonder en met basis-URL en
 JELLYLEON_SPIKE_STARTUPFILTER=1. Beide krijgen dezelfde verzoeken zonder aanmelding. De spike slaagt als
 
 - met de schakelaar een verzoek van meer dan 1 MiB aan een pluginroute 413 payload_too_large krijgt (dus vóór de 401),
@@ -32,7 +32,7 @@ sys.path.insert(0, str(REPO / "tools" / "b03-harnas"))
 sys.path.insert(0, str(E2E))
 
 from b03h.jfapi import Http, wacht_klaar  # noqa: E402
-from plugin_proef import PLUGIN_DLL, docker, vrije_poort  # noqa: E402
+from plugin_proef import PLUGIN_DLL, docker, is_grensantwoord, meet_http_body, vrije_poort  # noqa: E402
 
 SCHAKELAAR = "JELLYLEON_SPIKE_STARTUPFILTER"
 MIB = 1048576
@@ -46,24 +46,14 @@ def vulling(lengte: int) -> bytes:
     return kern + b" " * (lengte - len(kern) - 1) + b"}"
 
 
-def vraag(http: Http, methode: str, pad: str, body: bytes | None) -> dict[str, Any]:
-    import urllib.error
-    import urllib.request
+def vraag(http: Http, methode: str, pad: str, body: bytes | None, chunked: bool = False) -> dict[str, Any]:
     kop = {"Accept": "application/json", **KOP}
     if body is not None:
         kop["Content-Type"] = "application/json"
-    verzoek = urllib.request.Request(http.basis + pad, data=body, method=methode, headers=kop)  # noqa: S310 - lokaal testadres
-    try:
-        with urllib.request.urlopen(verzoek, timeout=60) as antwoord:  # noqa: S310
-            status, ruw, koppen = antwoord.status, antwoord.read(), dict(antwoord.headers)
-    except urllib.error.HTTPError as fout:
-        status, ruw, koppen = fout.code, fout.read(), dict(fout.headers or {})
-    try:
-        data = json.loads(ruw.decode("utf-8-sig")) if ruw else None
-    except ValueError:
-        data = None
+    status, data, koppen = meet_http_body(http.basis, methode, pad, body, kop, chunked)
     uit: dict[str, Any] = {"status": status, "code": None, "reden": None, "sleutels": None,
-                           "content_type": koppen.get("Content-Type"), "cache_control": koppen.get("Cache-Control")}
+                           "content_type": koppen.get("content-type"), "cache_control": koppen.get("cache-control"),
+                           "grensantwoord": is_grensantwoord(status, data, koppen)}
     if isinstance(data, dict):
         uit["sleutels"] = sorted(data)
         if isinstance(data.get("code"), str):
@@ -75,6 +65,7 @@ def vraag(http: Http, methode: str, pad: str, body: bytes | None) -> dict[str, A
 
 VERZOEKEN: tuple[tuple[str, str, str, int | None], ...] = (
     ("connector_te_groot", "POST", "/connector/v1/propose", MIB + 1),
+    ("connector_chunked_te_groot", "POST", "/connector/v1/propose", MIB + 1),
     ("connector_precies_1mib", "POST", "/connector/v1/propose", MIB),
     ("connector_klein", "POST", "/connector/v1/propose", 64),
     ("connector_zonder_body", "GET", "/connector/v1/health", None),
@@ -88,10 +79,14 @@ VERZOEKEN: tuple[tuple[str, str, str, int | None], ...] = (
 TE_GROOT_OP_PLUGIN = ("connector_te_groot", "media_te_groot", "media_hoofdletters_te_groot")
 
 
-def meet(naam: str, image: str, werk: Path, plugin_map: Path | None, aan: bool) -> dict[str, Any]:
+def meet(naam: str, image: str, werk: Path, plugin_map: Path | None, aan: bool, basispad: str = "") -> dict[str, Any]:
     map_ = werk / naam
     (map_ / "config").mkdir(parents=True)
     (map_ / "cache").mkdir()
+    if basispad:
+        netwerk = map_ / "config" / "config" / "network.xml"
+        netwerk.parent.mkdir()
+        netwerk.write_text(f"<NetworkConfiguration><BaseUrl>{basispad}</BaseUrl></NetworkConfiguration>", encoding="utf-8")
     if plugin_map is not None:
         doel = map_ / "config" / "plugins" / "JellyLeon_0.1.0.0"
         doel.mkdir(parents=True)
@@ -103,9 +98,9 @@ def meet(naam: str, image: str, werk: Path, plugin_map: Path | None, aan: bool) 
            "--security-opt", "no-new-privileges", "--memory", "2g", "-e", "TZ=UTC", *extra,
            "-p", f"127.0.0.1:{poort}:8096", "-v", f"{map_ / 'config'}:/config", "-v", f"{map_ / 'cache'}:/cache", image)
     try:
-        info = wacht_klaar(f"http://127.0.0.1:{poort}", timeout=300)
-        http = Http(f"http://127.0.0.1:{poort}")
-        antwoorden = {id_: vraag(http, methode, pad, None if lengte is None else vulling(lengte))
+        http = Http(f"http://localhost:{poort}{basispad}")
+        info = wacht_klaar(http.basis, timeout=300)
+        antwoorden = {id_: vraag(http, methode, pad, None if lengte is None else vulling(lengte), chunked=id_ == "connector_chunked_te_groot")
                       for id_, methode, pad, lengte in VERZOEKEN}
     finally:
         docker("stop", "-t", "60", container, check=False)
@@ -119,7 +114,7 @@ def meet(naam: str, image: str, werk: Path, plugin_map: Path | None, aan: bool) 
             "foutregels": sorted({r.strip()[:300] for r in log.splitlines() if FOUTREGEL.search(r)})}
 
 
-def beoordeel(uit: dict[str, Any], aan: dict[str, Any]) -> list[tuple[str, bool, str]]:
+def beoordeel(uit: dict[str, Any], aan: dict[str, Any], basis: dict[str, Any]) -> list[tuple[str, bool, str]]:
     """De uitspraken van de spike: (naam, geslaagd, detail)."""
     a_uit, a_aan = uit["antwoorden"], aan["antwoorden"]
     regels: list[tuple[str, bool, str]] = []
@@ -128,7 +123,7 @@ def beoordeel(uit: dict[str, Any], aan: dict[str, Any]) -> list[tuple[str, bool,
         regels.append((f"zonder schakelaar: {id_} → 401 unauthorized (volgorde ADR-0030)",
                        (u["status"], u["code"]) == (401, "unauthorized"), f"HTTP {u['status']} {u['code']} ({u['reden']})"))
         goed = (a["status"], a["code"]) == (413, "payload_too_large") and a["sleutels"] == ["code", "details", "message", "trace_id"]
-        goed = goed and a["content_type"] == "application/json; charset=utf-8" and a["cache_control"] == "no-store"
+        goed = goed and a["grensantwoord"] and a["content_type"] == "application/json; charset=utf-8" and a["cache_control"] == "no-store"
         regels.append((f"met schakelaar: {id_} → 413 payload_too_large vóór de authenticatie", goed,
                        f"HTTP {a['status']} {a['code']}, velden {a['sleutels']}, {a['content_type']}, {a['cache_control']}"))
     for id_, _methode, _pad, _lengte in VERZOEKEN:
@@ -136,7 +131,7 @@ def beoordeel(uit: dict[str, Any], aan: dict[str, Any]) -> list[tuple[str, bool,
             continue
         regels.append((f"{id_}: zelfde antwoord met en zonder schakelaar", a_uit[id_] == a_aan[id_],
                        f"uit {a_uit[id_]['status']} {a_uit[id_]['code']} / aan {a_aan[id_]['status']} {a_aan[id_]['code']}"))
-    for id_ in ("connector_precies_1mib", "connector_klein", "connector_zonder_body", "media_klein"):
+    for id_ in ("connector_precies_1mib", "connector_klein", "connector_zonder_body", "media_klein", "connector_chunked_te_groot"):
         a = a_aan[id_]
         regels.append((f"met schakelaar: {id_} → 401 unauthorized (de pluginroute zelf antwoordt)",
                        (a["status"], a["code"]) == (401, "unauthorized"), f"HTTP {a['status']} {a['code']} ({a['reden']})"))
@@ -144,14 +139,19 @@ def beoordeel(uit: dict[str, Any], aan: dict[str, Any]) -> list[tuple[str, bool,
                    and a_aan["upstream_publiek"]["status"] == 200, ""))
     regels.append(("upstream_te_groot krijgt geen 413 van de plugin", a_aan["upstream_te_groot"]["code"] != "payload_too_large",
                    f"HTTP {a_aan['upstream_te_groot']['status']}"))
-    for naam, run in (("zonder", uit), ("met", aan)):
+    for id_ in (*TE_GROOT_OP_PLUGIN, "connector_chunked_te_groot"):
+        antwoord = basis["antwoorden"][id_]
+        regels.append((f"met basis-URL en schakelaar: {id_} bereikt authenticatie",
+                       (antwoord["status"], antwoord["code"]) == (401, "unauthorized"), f"HTTP {antwoord['status']}"))
+    regels.append(("publieke serverroute via de basis-URL bereikbaar", basis["antwoorden"]["upstream_publiek"]["status"] == 200, ""))
+    for naam, run in (("zonder", uit), ("met", aan), ("met basis-URL en", basis)):
         regels.append((f"{naam} schakelaar: geen foutregel over de plugin of het filter in de log", not run["foutregels"],
                        "; ".join(run["foutregels"])[:400]))
     return regels
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Spike IStartupFilter (B03-017, ADR-0033) in twee wegwerpcontainers.")
+    parser = argparse.ArgumentParser(description="Spike IStartupFilter (B03-017, ADR-0033) op het rootpad en met basis-URL.")
     parser.add_argument("--image", required=True, help="stock 12.x met --plugin-map, of de jelly-leon-image")
     parser.add_argument("--plugin-map", type=Path, default=None, help="map met de gebouwde plugin-DLL; weglaten als de image hem meelevert")
     parser.add_argument("--werkmap", default=None)
@@ -164,15 +164,16 @@ def main(argv: list[str] | None = None) -> int:
     try:
         uit = meet("uit", args.image, werk, args.plugin_map, aan=False)
         aan = meet("aan", args.image, werk, args.plugin_map, aan=True)
+        basis = meet("basis", args.image, werk, args.plugin_map, aan=True, basispad="/jl-proef")
     finally:
         shutil.rmtree(werk, ignore_errors=True)
-    regels = beoordeel(uit, aan)
+    regels = beoordeel(uit, aan, basis)
     for naam, ok, detail in regels:
         print(f"[{'OK' if ok else 'FOUT'}] {naam}" + (f" — {detail}" if detail else ""), flush=True)
     geslaagd = all(ok for _naam, ok, _detail in regels)
     rapport = {"schema": "jelly-leon/startupfilter-spike/1", "image": args.image, "schakelaar": SCHAKELAAR,
                "soort": "Sim-getest (wegwerpcontainers op 127.0.0.1; geen echte NAS, Hub of clients)",
-               "uit": uit, "aan": aan, "uitspraken": [{"naam": n, "geslaagd": ok, "detail": d} for n, ok, d in regels],
+               "uit": uit, "aan": aan, "basis": basis, "uitspraken": [{"naam": n, "geslaagd": ok, "detail": d} for n, ok, d in regels],
                "spike_geslaagd": geslaagd}
     if args.rapport:
         args.rapport.write_text(json.dumps(rapport, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

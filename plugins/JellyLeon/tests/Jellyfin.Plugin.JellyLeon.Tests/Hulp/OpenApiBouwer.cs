@@ -164,7 +164,9 @@ internal static partial class OpenApiBouwer
             "properties": { "type": { "type": "string", "enum": ["system", "user", "ai", "flow"] }, "id": { "type": "string" } }
           },
           "classification": { "type": "string", "enum": ["internal"] },
-          "payload": { "type": "object" },
+          "payload": { "type": "object", "properties": {
+            "ernst": { "type": "string", "enum": ["kritiek", "hoog", "middel", "laag", "info"] }
+          } },
           "payload_ref": { "type": "string", "nullable": true }
         }
       },

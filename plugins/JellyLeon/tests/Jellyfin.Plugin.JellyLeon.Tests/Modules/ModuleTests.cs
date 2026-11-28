@@ -168,6 +168,17 @@ public sealed class ModuleTests : IDisposable
         });
     }
 
+    [Theory]
+    [InlineData("media.gestopt")]
+    [InlineData("media.transcode.stopped.extra")]
+    [InlineData("media.transcode.stopped\n")]
+    [InlineData("app.health.changed")]
+    public void Register_WeigertOngeldigeModuleEventsBijDeStart(string naam)
+    {
+        var module = new Dubbel("voorbeeld", "voorbeeld", naam, "voorbeeld.job");
+        Assert.Throws<InvalidOperationException>(() => new ModuleRegistry([module], _h.Schakelaars));
+    }
+
     private sealed class Dubbel(string slug, string itemType, string eventType, string jobType) : IJellyLeonModule
     {
         public string Slug => slug;

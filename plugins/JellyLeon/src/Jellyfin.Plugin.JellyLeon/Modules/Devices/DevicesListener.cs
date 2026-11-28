@@ -20,15 +20,15 @@ internal sealed class DevicesListener : IHostedService
 {
     private readonly ISessionManager _sessies;
     private readonly DevicesModule _module;
-    private readonly IModuleSwitches _schakelaars;
+    private readonly ModuleRegistry _modules;
     private readonly TimeProvider _klok;
     private readonly ILogger<DevicesListener> _log;
 
-    public DevicesListener(ISessionManager sessies, DevicesModule module, IModuleSwitches schakelaars, TimeProvider klok, ILogger<DevicesListener> log)
+    public DevicesListener(ISessionManager sessies, DevicesModule module, ModuleRegistry modules, TimeProvider klok, ILogger<DevicesListener> log)
     {
         _sessies = sessies;
         _module = module;
-        _schakelaars = schakelaars;
+        _modules = modules;
         _klok = klok;
         _log = log;
     }
@@ -56,7 +56,7 @@ internal sealed class DevicesListener : IHostedService
 
     private void BijStart(object? sender, PlaybackProgressEventArgs e)
     {
-        if (!_schakelaars.IsAan(DevicesModule.ModuleSlug) || e.Users is null || e.Users.Count == 0)
+        if (!_modules.IsAan(DevicesModule.ModuleSlug) || e.Users is null || e.Users.Count == 0)
         {
             return;
         }
@@ -76,7 +76,7 @@ internal sealed class DevicesListener : IHostedService
 
     private void BijStop(object? sender, PlaybackStopEventArgs e)
     {
-        if (!_schakelaars.IsAan(DevicesModule.ModuleSlug))
+        if (!_modules.IsAan(DevicesModule.ModuleSlug))
         {
             return;
         }

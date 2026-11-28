@@ -13,6 +13,7 @@ import startupfilter_spike as spike  # noqa: E402
 def _antwoord(status: int, code: str | None = None, reden: str | None = None) -> dict:
     fout = code is not None
     return {"status": status, "code": code, "reden": reden,
+            "grensantwoord": status == 413 and code == "payload_too_large",
             "sleutels": ["code", "details", "message", "trace_id"] if fout else None,
             "content_type": "application/json; charset=utf-8" if fout else None,
             "cache_control": "no-store" if fout else None}
@@ -43,12 +44,12 @@ def test_vulling_is_geldige_json_van_precies_de_gevraagde_lengte() -> None:
 def test_spike_slaagt_alleen_met_413_voor_401_en_verder_gelijke_antwoorden() -> None:
     uit = _run(_antwoord(401, "unauthorized", "not_linked"))
     aan = _run(_antwoord(413, "payload_too_large"))
-    assert all(ok for _naam, ok, _detail in spike.beoordeel(uit, aan))
+    assert all(ok for _naam, ok, _detail in spike.beoordeel(uit, aan, uit))
 
 
 def test_spike_mislukt_als_de_laag_niets_doet() -> None:
     uit = _run(_antwoord(401, "unauthorized", "not_linked"))
-    regels = spike.beoordeel(uit, _run(_antwoord(401, "unauthorized", "not_linked")))
+    regels = spike.beoordeel(uit, _run(_antwoord(401, "unauthorized", "not_linked")), uit)
     mislukt = [naam for naam, ok, _detail in regels if not ok]
     assert len(mislukt) == len(spike.TE_GROOT_OP_PLUGIN)
     assert all("413 payload_too_large" in naam for naam in mislukt)
@@ -59,7 +60,7 @@ def test_spike_mislukt_als_een_upstream_route_verandert_of_de_log_een_fout_toont
     aan = _run(_antwoord(413, "payload_too_large"))
     aan["antwoorden"]["upstream_te_groot"] = _antwoord(413, "payload_too_large")
     aan["foutregels"] = ["[ERR] JellyLeon: fout"]
-    mislukt = [naam for naam, ok, _detail in spike.beoordeel(uit, aan) if not ok]
+    mislukt = [naam for naam, ok, _detail in spike.beoordeel(uit, aan, uit) if not ok]
     assert any(naam.startswith("upstream_te_groot: zelfde antwoord") for naam in mislukt)
     assert any("krijgt geen 413 van de plugin" in naam for naam in mislukt)
     assert any(naam.startswith("met schakelaar: geen foutregel") for naam in mislukt)
@@ -70,3 +71,12 @@ def test_foutregel_herkent_alleen_fouten_over_de_plugin_of_het_filter() -> None:
     assert spike.FOUTREGEL.search("[10:00:00] [FTL] [1] Main: IStartupFilter gooide een fout")
     assert not spike.FOUTREGEL.search("[10:00:00] [INF] [1] Jellyfin.Plugin.JellyLeon: geladen")
     assert not spike.FOUTREGEL.search("[10:00:00] [ERR] [1] Emby.Server: iets anders")
+
+
+def test_basis_url_en_chunked_worden_afzonderlijk_getoetst() -> None:
+    uit = _run(_antwoord(401, "unauthorized", "not_linked"))
+    aan = _run(_antwoord(413, "payload_too_large"))
+    aan["antwoorden"]["connector_chunked_te_groot"] = _antwoord(404)
+    regels = spike.beoordeel(uit, aan, aan)
+    assert any("connector_chunked_te_groot" in naam and not ok for naam, ok, _ in regels)
+    assert any("met basis-URL en schakelaar: media_te_groot" in naam and not ok for naam, ok, _ in regels)
