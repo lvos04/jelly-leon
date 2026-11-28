@@ -9,6 +9,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
+using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Tests.Hulp;
 using Microsoft.AspNetCore.Builder;
@@ -16,6 +17,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
@@ -254,9 +256,11 @@ public sealed class FoutcatalogusTests : IDisposable
     public async Task ElkeRoute_WeigertEenByteTeVeelMetEnZonderLengte()
     {
         _h.Koppel();
-        _h.Schakelaars.Zet("devices", true);
-        _h.Schakelaars.Zet("quality", true);
-        _h.Schakelaars.Zet("watch", true);
+        foreach (var module in _h.Dienst<ModuleRegistry>().Alle)
+        {
+            _h.Schakelaars.Zet(module.Slug, true);
+        }
+
         var groot = new byte[Fouten.MaxBodyBytes + 1];
         var acties = typeof(JlRouteAttribute).Assembly.GetTypes().Where(t => typeof(ControllerBase).IsAssignableFrom(t))
             .SelectMany(t => t.GetMethods()).Where(m => m.GetCustomAttribute<JlRouteAttribute>() is not null)
@@ -264,19 +268,20 @@ public sealed class FoutcatalogusTests : IDisposable
         foreach (var route in RouteTable.Alle)
         {
             var actie = acties[route.Id];
-            var grens = actie.GetCustomAttribute<RequestSizeLimitAttribute>() ?? actie.DeclaringType!.GetCustomAttribute<RequestSizeLimitAttribute>();
+            var grens = actie.GetCustomAttribute<JlRouteAttribute>();
             Assert.Equal(Fouten.MaxBodyBytes, ((IRequestSizeLimitMetadata?)grens)?.MaxRequestBodySize);
+            var parameters = actie.GetParameters().ToDictionary(p => p.Name!, p => p.Name == "slug" ? "devices" : "proef");
             foreach (var chunked in new[] { false, true })
             {
                 string[] kop = ["Authorization: Bearer " + _h.Hub.Token(_h.Klok.Nu, "admin")];
-                var antwoord = await _h.Roep(route.Id, kop: kop, pad: new() { ["slug"] = "devices", ["id"] = "proef" }, ruw: groot, chunked: chunked);
+                var antwoord = await _h.Roep(route.Id, kop: kop, pad: parameters, ruw: groot, chunked: chunked);
                 Assert.Equal((route.Id, chunked, 413, "payload_too_large"), (route.Id, chunked, antwoord.Status, antwoord.Code));
                 Assert.Equal(Fouten.MaxBodyBytes, (int?)antwoord.Json!["details"]!["max_bytes"]);
                 Assert.True(Guid.TryParseExact((string?)antwoord.Json["trace_id"], "D", out _));
 
                 var beheerder = _h.Sessies.Wie;
                 _h.Sessies.Wie = null;
-                var zonder = await _h.Roep(route.Id, pad: new() { ["slug"] = "devices", ["id"] = "proef" }, ruw: groot, chunked: chunked);
+                var zonder = await _h.Roep(route.Id, pad: parameters, ruw: groot, chunked: chunked);
                 Assert.Equal((route.Id, chunked, 401, "unauthorized"), (route.Id, chunked, zonder.Status, zonder.Code));
                 _h.Sessies.Wie = beheerder;
             }
@@ -317,6 +322,11 @@ public sealed class FoutcatalogusTests : IDisposable
                 }
 
                 app.UseRouting();
+                app.Use((http, volgende) =>
+                {
+                    Assert.Equal(Fouten.MaxBodyBytes, http.Features.Get<IHttpMaxRequestBodySizeFeature>()?.MaxRequestBodySize);
+                    return volgende(http);
+                });
                 app.UseEndpoints(routes => routes.MapControllers());
             })).Build();
         await host.StartAsync(stop);

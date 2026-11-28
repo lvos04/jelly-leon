@@ -9,7 +9,6 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Connector;
 /// De ene connector van Jelly Leon voor de Hub (contract 1.3 §6). Alleen lezen; propose, apply en rollback geven 501.
 /// Authenticatie loopt via de gepinde sleutelset van de Hub, niet via een serversessie.
 /// </summary>
-[RequestSizeLimit(Fouten.MaxBodyBytes)]
 [Route("connector/v1")]
 public sealed class ConnectorController : ControllerBase
 {

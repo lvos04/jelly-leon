@@ -1,5 +1,4 @@
 using System;
-using Jellyfin.Plugin.JellyLeon.Core.Errors;
 using Jellyfin.Plugin.JellyLeon.Core.Http;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 namespace Jellyfin.Plugin.JellyLeon.Modules.Quality;
 
 /// <summary>Routes van module Quality. Export en opruimen blijven beschikbaar na het uitzetten.</summary>
-[RequestSizeLimit(Fouten.MaxBodyBytes)]
 [Route("media/v1/quality")]
 public sealed class QualityController : ControllerBase
 {

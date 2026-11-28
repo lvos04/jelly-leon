@@ -31,6 +31,7 @@ import hmac
 import http.client
 import json
 import os
+import re
 import shutil
 import sqlite3
 import stat
@@ -500,11 +501,26 @@ class Plugin:
         self.v.test("JLT-64", f"schakelaar {slug} naar {aan}", status == 200 and standen.get(slug) is aan, str(standen))
 
     def lichaamsgrens(self) -> None:
+        routes = sorted(pl.routes(self.doc, PREFIXEN))
+        status, inhoud, _ = self.sessie_vraag(self.beheer, "GET", "/media/v1/modules")
+        if not self.v.test("JLT-68", "modulelijst voor de lichaamsgrens", status == 200, f"HTTP {status}"):
+            return
+        tijdelijk = [m["slug"] for m in inhoud["items"] if not m["enabled"]
+                     and any(pad.startswith(f"/media/v1/{m['slug']}/") for _, pad in routes)]
+        try:
+            for slug in tijdelijk:
+                self.schakel(slug, True)
+            self._meet_lichaamsgrens(routes)
+        finally:
+            for slug in tijdelijk:
+                self.schakel(slug, False)
+
+    def _meet_lichaamsgrens(self, routes: list[tuple[str, str]]) -> None:
         body = b"{" + b" " * (1048576 - 1) + b"}"
-        for methode, pad in sorted(pl.routes(self.doc, PREFIXEN)):
+        for methode, pad in routes:
             if pad == "/media/v1/version":  # Deze serverroute hoort niet bij de plugin.
                 continue
-            route = pad.replace("{id}", "proef").replace("{slug}", "devices")
+            route = re.sub(r"\{[^}]+\}", lambda m: "devices" if m[0] == "{slug}" else "proef", pad)
             for chunked in (False, True):
                 vervoer = "chunked" if chunked else "Content-Length"
                 naam = f"1 MiB + 1 byte op {methode} {pad} ({vervoer})"

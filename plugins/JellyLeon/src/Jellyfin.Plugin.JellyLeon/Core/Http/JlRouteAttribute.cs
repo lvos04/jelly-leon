@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyLeon.Core.Errors;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +17,7 @@ namespace Jellyfin.Plugin.JellyLeon.Core.Http;
 /// resultaat ook, wordt bij het draaien de vaste fout 503 (R-HARDE-EIS-20).
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter, IAsyncAlwaysRunResultFilter
+public sealed class JlRouteAttribute : Attribute, IRequestSizeLimitMetadata, IAsyncActionFilter, IAsyncAlwaysRunResultFilter
 {
     /// <summary>Initializes a new instance of the <see cref="JlRouteAttribute"/> class.</summary>
     /// <param name="id">De ID van de route in de routetabel.</param>
@@ -27,6 +28,9 @@ public sealed class JlRouteAttribute : Attribute, IAsyncActionFilter, IAsyncAlwa
 
     /// <summary>Gets de ID van de route in de routetabel.</summary>
     public string Id { get; }
+
+    /// <inheritdoc />
+    long? IRequestSizeLimitMetadata.MaxRequestBodySize => Fouten.MaxBodyBytes;
 
     /// <inheritdoc />
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
