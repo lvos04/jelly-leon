@@ -17,6 +17,10 @@ internal interface IModuleSwitches
 
     bool HeeftGasten { get; }
 
+    int GroepBewaarUren { get; }
+
+    void VerwijderGast(Guid gebruiker);
+
     bool IsAan(string slug);
 
     void Zet(string slug, bool aan);
@@ -26,6 +30,7 @@ internal interface IModuleSwitches
 internal sealed class PluginModuleSwitches : IModuleSwitches
 {
     private readonly PluginOpslag _opslag;
+    private readonly System.Threading.Lock _configSlot = new();
 
     public PluginModuleSwitches(PluginOpslag opslag)
     {
@@ -67,6 +72,29 @@ internal sealed class PluginModuleSwitches : IModuleSwitches
         return "\"" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(stand)).AsSpan(0, 8)) + "\"";
     }
 
+    public int GroepBewaarUren => Math.Clamp(Config?.WatchTogether?.GroupRetentionHours ?? 6, 1, 24 * 365);
+
+    public void VerwijderGast(Guid gebruiker)
+    {
+        lock (_configSlot)
+        {
+            var config = Config ?? throw Fouten.OpslagOnbeschikbaar();
+            if (Plugin.Instance is { } plugin && config.WatchTogether?.GuestUserIds is { } gasten && gasten.Contains(gebruiker))
+            {
+                config.WatchTogether.GuestUserIds = Array.FindAll(gasten, g => g != gebruiker);
+                try
+                {
+                    SlaOp(plugin);
+                }
+                catch
+                {
+                    config.WatchTogether.GuestUserIds = gasten;
+                    throw;
+                }
+            }
+        }
+    }
+
     public bool HeeftGasten => (Config ?? throw Fouten.OpslagOnbeschikbaar()).WatchTogether?.GuestUserIds?.Length > 0;
 
     public bool IsAan(string slug) => _opslag.Beschikbaar && Config is { } config && config.Schakelaars().Any(s => s.Slug == slug && s.Schakelaar.Enabled);
@@ -75,10 +103,18 @@ internal sealed class PluginModuleSwitches : IModuleSwitches
 
     public void Zet(string slug, bool aan)
     {
-        _ = _opslag.Paden;
-        var plugin = Plugin.Instance ?? throw new InvalidOperationException("De plugin is nog niet geladen.");
-        var config = Config ?? throw Fouten.OpslagOnbeschikbaar();
-        config.Schakelaars().First(s => s.Slug == slug).Schakelaar.Enabled = aan;
+        lock (_configSlot)
+        {
+            _ = _opslag.Paden;
+            var plugin = Plugin.Instance ?? throw new InvalidOperationException("De plugin is nog niet geladen.");
+            var config = Config ?? throw Fouten.OpslagOnbeschikbaar();
+            config.Schakelaars().First(s => s.Slug == slug).Schakelaar.Enabled = aan;
+            SlaOp(plugin);
+        }
+    }
+
+    private void SlaOp(Plugin plugin)
+    {
         try
         {
             JlPaths.EisVeiligConfiguratiebestand(_opslag.ConfiguratieBestand);

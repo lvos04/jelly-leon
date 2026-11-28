@@ -10,16 +10,18 @@ using MediaBrowser.Controller.SyncPlay;
 using MediaBrowser.Controller.SyncPlay.Requests;
 using MediaBrowser.Model.SyncPlay;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.JellyLeon.Modules.WatchTogether;
 
 /// <summary>Gebruikersroutes en de beheeractie van WT-1. Alle autorisatie loopt door de routepijplijn.</summary>
+[RequestSizeLimit(Fouten.MaxBodyBytes)]
 [Route("media/v1/watch")]
 public sealed class WatchController(IServiceProvider services) : ControllerBase
 {
     private SessieIdentiteit Wie => JlContext.Van(HttpContext).Sessie!;
-    private ISyncPlayManager Manager => services.GetRequiredService<ISyncPlayManager>();
+    private ISyncPlayManager Manager => services.GetService<ISyncPlayManager>() ?? throw Fouten.AfhankelijkheidOnbeschikbaar("syncplay");
     private WatchTogetherModule Module => services.GetRequiredService<WatchTogetherModule>();
     private DateTimeOffset Nu => services.GetRequiredService<TimeProvider>().GetUtcNow();
 
@@ -69,7 +71,7 @@ public sealed class WatchController(IServiceProvider services) : ControllerBase
         }
 
         var sessie = EigenSessie(account);
-        var pagina = (sessie is null ? [] : Manager.ListGroups(sessie, new ListGroupsRequest()))
+        var pagina = Manager.ListGroups(sessie, new ListGroupsRequest())
             .Where(g => g.GroupId.CompareTo(na) > 0).OrderBy(g => g.GroupId).Take(limiet + 1).ToList();
         var items = new JsonArray();
         foreach (var groep in pagina.Take(limiet))
@@ -78,7 +80,7 @@ public sealed class WatchController(IServiceProvider services) : ControllerBase
             {
                 ["group_id"] = groep.GroupId.ToString(), ["name"] = groep.GroupName, ["state"] = groep.State.ToString(),
                 ["visibility"] = "open", ["is_owner"] = Module.IsEigenaar(groep.GroupId, account),
-                ["is_member"] = IsLid(groep, sessie!, account), ["invited"] = false, ["participants_count"] = groep.Participants.Count,
+                ["is_member"] = IsLid(groep, sessie, account), ["invited"] = false, ["participants_count"] = groep.Participants.Count,
                 ["followers_count"] = 0, ["sync_quality"] = null,
             });
         }
@@ -94,9 +96,16 @@ public sealed class WatchController(IServiceProvider services) : ControllerBase
     public IActionResult Diagnose(string id)
     {
         var account = Wie.GebruikerId!.Value;
+        var isBeheerder = Wie.IsBeheerder && !Wie.IsKid;
+        if (!Guid.TryParse(id, out var groepId)
+            || (!isBeheerder && (services.GetService<ISyncPlayManager>() is not WatchDecorator decorator || !decorator.IsLid(groepId, account))))
+        {
+            throw Fouten.NietGevonden();
+        }
+
         var sessie = EigenSessie(account);
-        if (!Guid.TryParse(id, out var groepId) || sessie is null || Manager.GetGroup(sessie, groepId) is not { } groep
-            || (!(Wie.IsBeheerder && !Wie.IsKid) && !IsLid(groep, sessie, account)))
+        if (Manager.GetGroup(sessie, groepId) is not { } groep
+            || (!isBeheerder && !IsLid(groep, sessie, account)))
         {
             throw Fouten.NietGevonden();
         }
@@ -131,7 +140,21 @@ public sealed class WatchController(IServiceProvider services) : ControllerBase
         return new JlResult(202, Module.Wis());
     }
 
-    private SessionInfo? EigenSessie(Guid account) => services.GetRequiredService<ISessionManager>().Sessions.FirstOrDefault(s => s.UserId == account);
+    private SessionInfo EigenSessie(Guid account)
+    {
+        var sessies = services.GetRequiredService<ISessionManager>();
+        var bestaande = sessies.Sessions.FirstOrDefault(s => s.UserId == account);
+        if (bestaande is not null)
+        {
+            return bestaande;
+        }
+
+        // Een geldig token kan de serverherstart overleven. GetGroup/ListGroups hebben alleen de geauthenticeerde
+        // identiteit nodig. Dit lokale object meldt zich niet aan als afspeelsessie en schrijft geen kijkgegevens.
+        var lezer = new SessionInfo(sessies, NullLogger.Instance) { UserId = account, UserName = Wie.Gebruikersnaam ?? string.Empty };
+        Response.RegisterForDisposeAsync(lezer);
+        return lezer;
+    }
 
     private bool IsLid(GroupInfoDto groep, SessionInfo sessie, Guid account) =>
         Manager is WatchDecorator decorator && decorator.IsLid(groep.GroupId, account) && groep.Participants.Contains(sessie.UserName, StringComparer.Ordinal);

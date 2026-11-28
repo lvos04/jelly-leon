@@ -602,6 +602,41 @@ public class ServerAbiWitteLijstTests
         }
     }
 
+    [Fact]
+    public async Task WatchTogetherGeeftAlleenHetBinnengekomenAfspeelverzoekDoor()
+    {
+        const string bron = """
+            using System;
+            using System.Collections.Generic;
+            using System.Threading;
+            using MediaBrowser.Controller.Session;
+            using MediaBrowser.Controller.SyncPlay;
+            using MediaBrowser.Controller.SyncPlay.Requests;
+            using MediaBrowser.Model.SyncPlay;
+            namespace Jellyfin.Plugin.JellyLeon.Modules.WatchTogether;
+            public abstract class WatchDecorator(ISyncPlayManager inner) : ISyncPlayManager
+            {
+                public abstract GroupInfoDto NewGroup(SessionInfo s, NewGroupRequest r, CancellationToken t);
+                public abstract void JoinGroup(SessionInfo s, JoinGroupRequest r, CancellationToken t);
+                public abstract void LeaveGroup(SessionInfo s, LeaveGroupRequest r, CancellationToken t);
+                public abstract GroupInfoDto GetGroup(SessionInfo s, Guid g);
+                public abstract List<GroupInfoDto> ListGroups(SessionInfo s, ListGroupsRequest r);
+                public abstract bool IsUserActive(Guid u);
+                public void HandleRequest(SessionInfo s, IGroupPlaybackRequest r, CancellationToken t)
+                {
+                    inner.HandleRequest(s, r, t);
+                    inner.HandleRequest(s, r, CancellationToken.None); // JL0001
+                }
+                public void AnderVerzoek(SessionInfo s, IGroupPlaybackRequest r, CancellationToken t)
+                {
+                    inner.HandleRequest(s, r, t); // JL0001
+                }
+            }
+            """;
+        var uitkomst = await AnalyzerHarnas.AnalyseerAsync(bron, null, TestContext.Current.CancellationToken);
+        Assert.Equal(Verwacht(bron), uitkomst.Select(b => (b.Regel, b.Id)).ToHashSet());
+    }
+
     /// <summary>Verwachte (regel, code)-paren: elke JLxxxx na "//" op een regel.</summary>
     private static HashSet<(int Regel, string Id)> Verwacht(string bron) =>
         bron.Split('\n')

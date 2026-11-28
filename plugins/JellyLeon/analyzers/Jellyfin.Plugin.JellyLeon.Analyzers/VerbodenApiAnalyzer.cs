@@ -898,7 +898,18 @@ public sealed class VerbodenApiAnalyzer : DiagnosticAnalyzer
             }
 
             var lidnaam = lid is INamedTypeSymbol ? ".ctor" : lid.Name;
-            if (!_serverWit.Any(w => w.Wit.Lid == lidnaam && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, w.Type)))
+            var toegelaten = _serverWit.Any(w => w.Wit.Lid == lidnaam && w.Wit.Klasse == klasse && SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, w.Type));
+            if (toegelaten && type.ToDisplayString() == "MediaBrowser.Controller.SyncPlay.ISyncPlayManager"
+                && lidnaam is "NewGroup" or "JoinGroup" or "LeaveGroup" or "HandleRequest")
+            {
+                // De vrijstelling geldt alleen voor het ongewijzigde verzoek op dezelfde interface-ingang.
+                toegelaten = operatie is IInvocationOperation oproep && context.ContainingSymbol is IMethodSymbol ingang
+                    && SymbolEqualityComparer.Default.Equals(ingang.ContainingType.FindImplementationForInterfaceMember(lid), ingang)
+                    && oproep.Arguments.All(a => a.Value is IParameterReferenceOperation bron && a.Parameter is { } doel
+                        && SymbolEqualityComparer.Default.Equals(bron.Parameter, ingang.Parameters[doel.Ordinal]));
+            }
+
+            if (!toegelaten)
             {
                 context.ReportDiagnostic(Diagnostic.Create(_serverAbi, operatie.Syntax.GetLocation(), naam));
             }

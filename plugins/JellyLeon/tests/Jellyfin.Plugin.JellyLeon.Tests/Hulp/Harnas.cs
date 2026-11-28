@@ -44,7 +44,13 @@ internal sealed class NepSchakelaars : IModuleSwitches
 
     public string Etag => "\"" + string.Join(';', _stand.OrderBy(s => s.Key, StringComparer.Ordinal).Select(s => s.Key + "=" + s.Value)) + "\"";
 
-    public bool HeeftGasten { get; set; }
+    public HashSet<Guid> Gasten { get; } = [];
+
+    public bool HeeftGasten => Gasten.Count > 0;
+
+    public int GroepBewaarUren { get; set; } = 6;
+
+    public void VerwijderGast(Guid gebruiker) => Gasten.Remove(gebruiker);
 
     public bool IsAan(string slug) => _stand.GetValueOrDefault(slug);
 

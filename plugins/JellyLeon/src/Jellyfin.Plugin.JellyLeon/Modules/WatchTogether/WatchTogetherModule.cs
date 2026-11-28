@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json.Nodes;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Outbox;
@@ -17,12 +16,14 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
     public const string ModuleSlug = "watch";
     private const string Zout = "wt-hmac.key";
     private readonly JlDatabase _db;
+    private readonly IModuleSwitches _instellingen;
     private readonly SecretStore _geheimen;
     private readonly Outbox _outbox;
     private bool _gestart;
 
-    public WatchTogetherModule(JlPaths paden, SecretStore geheimen, Outbox outbox)
+    public WatchTogetherModule(JlPaths paden, SecretStore geheimen, Outbox outbox, IModuleSwitches instellingen)
     {
+        _instellingen = instellingen;
         _geheimen = geheimen;
         _outbox = outbox;
         _db = new JlDatabase(paden, paden.ModuleDb(ModuleSlug),
@@ -33,6 +34,10 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
                 detected_by TEXT, event_id TEXT UNIQUE, reported INTEGER NOT NULL DEFAULT 0
             );
             """,
+            """
+            ALTER TABLE wt_group_meta ADD COLUMN visibility TEXT NOT NULL DEFAULT 'open';
+            ALTER TABLE wt_group_meta ADD COLUMN laggard_policy TEXT NOT NULL DEFAULT 'wachten';
+            """,
         ]);
     }
 
@@ -42,7 +47,10 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
     public IReadOnlyList<string> EventTypes => ["media.watchgroup.ended", "media.watchgroup.degraded"];
     public IReadOnlyList<string> JobTypes => [];
     public IReadOnlyList<PersoonsgegevenRegel> Persoonsgegevens =>
-        [new(Slug, "wt_group_meta", "HMAC van eigenaar-ID", "Eigenaarschap van een SyncPlay-groep", "6 uur na einde, bij UserDeleted direct losgekoppeld")];
+        [
+            new(Slug, "wt_group_meta", "HMAC van eigenaar-ID", "Eigenaarschap van een SyncPlay-groep", "Standaard 6 uur na einde, bij UserDeleted direct losgekoppeld"),
+            new(Slug, "configuratie", "GuestUserIds", "Gastinstelling voor de zelftest", "Tot verwijdering van instelling of account"),
+        ];
 
     public IReadOnlyList<JsonObject> Items(string type, DateTimeOffset nu) => [];
     public JsonObject Exporteer() => new() { ["module"] = Slug };
@@ -85,7 +93,7 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
         JlDatabase.Rijen(v, "SELECT group_id FROM wt_group_meta WHERE ended_at IS NULL").Select(r => Guid.Parse((string)r[0]!)).ToList());
 
     public bool IsEigenaar(Guid groep, Guid gebruiker) => _db.Bestaat && _db.Met(v =>
-        JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta WHERE group_id=$id AND owner=$e AND ended_at IS NULL",
+        _geheimen.Lees(Zout) is not null && JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta WHERE group_id=$id AND owner=$e AND ended_at IS NULL",
             ("$id", groep.ToString("N")), ("$e", Pseudoniem(gebruiker))) != 0);
 
     public void Beeindig(Guid groep, string reden, DateTimeOffset nu) => _db.Met(v =>
@@ -110,12 +118,16 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
                 JlDatabase.Voer(v, "UPDATE wt_group_meta SET reported=1 WHERE group_id=$id", ("$id", id));
             }
 
-            JlDatabase.Voer(v, "DELETE FROM wt_group_meta WHERE reported=1 AND ended_at <= $grens", ("$grens", nu.AddHours(-6).ToUnixTimeSeconds()));
+            JlDatabase.Voer(v, "DELETE FROM wt_group_meta WHERE reported=1 AND ended_at <= $grens", ("$grens", nu.AddHours(-_instellingen.GroepBewaarUren).ToUnixTimeSeconds()));
         });
     }
 
-    public int VerwijderGebruiker(Guid gebruiker) => !_db.Bestaat ? 0 : _db.Met(v =>
-        _geheimen.Lees(Zout) is null ? 0 : JlDatabase.Voer(v, "UPDATE wt_group_meta SET owner=NULL WHERE owner=$e", ("$e", Pseudoniem(gebruiker))));
+    public int VerwijderGebruiker(Guid gebruiker)
+    {
+        _instellingen.VerwijderGast(gebruiker);
+        return !_db.Bestaat ? 0 : _db.Met(v => _geheimen.Lees(Zout) is null ? 0 :
+            JlDatabase.Voer(v, "UPDATE wt_group_meta SET owner=NULL WHERE owner=$e", ("$e", Pseudoniem(gebruiker))));
+    }
 
     public int TelGebruiker(Guid gebruiker) => !_db.Bestaat ? 0 : _db.Met(v =>
         _geheimen.Lees(Zout) is null ? 0 : (int)JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta WHERE owner=$e", ("$e", Pseudoniem(gebruiker))));

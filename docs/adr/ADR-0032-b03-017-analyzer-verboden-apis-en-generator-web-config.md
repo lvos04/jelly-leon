@@ -196,13 +196,13 @@ WT-1 voegt de volgende klassegebonden leden toe. De drie groepsmutaties en het a
 | `JoinGroupRequest` | `GroupId` | `Modules.WatchTogether.WatchDecorator` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
 | `ISyncPlayManager` | `GetGroup`, `ListGroups`, `IsUserActive` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
 | `ISessionManager` | `Sessions` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
-| `SessionInfo` | `UserId`, `UserName` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `SessionInfo` | `new`, `UserId`, `UserName` | `Modules.WatchTogether.WatchController` | Geeft een leesvraag de geauthenticeerde identiteit, ook vóór de eerste afspeelsessie na een herstart. Alleen het eigen tijdelijke object krijgt deze velden bij de initialisatie. |
 | `ListGroupsRequest` | `new` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
 | `GroupInfoDto` | `GroupId`, `GroupName`, `Participants`, `State` | `Modules.WatchTogether.WatchController` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
 | `IUserManager` | `GetUsers` | `Modules.WatchTogether.WatchBewaking` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
 | `ISessionManager` | `SessionEnded` | `Modules.WatchTogether.WatchBewaking` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
 | `SessionEventArgs` | `SessionInfo` | `Modules.WatchTogether.WatchBewaking` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
-| `User` | `SyncPlayAccess` | `Core.Http.JellyfinSessionAuthenticator` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
+| `User` | `Username`, `SyncPlayAccess` | `Core.Http.JellyfinSessionAuthenticator` | Leest de servertoestand voor lidmaatschap, de zelftest of de gebruikersroute. |
 
 Witte lijst van uitbreidingspunten (`Regels.UitbreidingWitteLijst`):
 

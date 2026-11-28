@@ -107,12 +107,62 @@ public sealed class WatchTogetherTests : IDisposable
         ((WatchDecorator)Manager).ControleerSessies(_lid);
         Assert.Empty(Module.Actief());
         var laatste = Nieuw();
-        var herstart = new WatchTogetherModule(_h.Dienst<JlPaths>(), _h.Dienst<SecretStore>(), _h.Dienst<Outbox>());
+        var herstart = new WatchTogetherModule(_h.Dienst<JlPaths>(), _h.Dienst<SecretStore>(), _h.Dienst<Outbox>(), _h.Schakelaars);
         herstart.Start(_h.Klok.Nu);
         herstart.Start(_h.Klok.Nu);
         Assert.Empty(herstart.Actief());
         Assert.Equal(["reconcile", "session_ended", "startup"], Redenen);
         Assert.NotEqual(eerste.GroupId, laatste.GroupId);
+    }
+
+    [Fact]
+    public async Task VijftigGesimuleerdeGroepswisselsSessiesEnHerstartsHebbenGeenWeesmetadata()
+    {
+        var aangesloten = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<SessionEventArgs>? einde = null;
+        _sessies.SetupAdd(s => s.SessionEnded += It.IsAny<EventHandler<SessionEventArgs>>())
+            .Callback<EventHandler<SessionEventArgs>>(handler => { einde = handler; aangesloten.SetResult(); });
+        var bewaking = _h.Dienst<WatchBewaking>();
+        await bewaking.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await aangesloten.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            for (var i = 0; i < 50; i++)
+            {
+                Nieuw();
+                var tweede = Nieuw();
+                Assert.Equal([tweede.GroupId], Module.Actief());
+                _groepen.Remove(_lid.Id);
+                einde!(_sessies.Object, new SessionEventArgs { SessionInfo = _lid });
+                Assert.Empty(Module.Actief());
+                Nieuw();
+                _groepen.Clear();
+                var herstart = new WatchTogetherModule(_h.Dienst<JlPaths>(), _h.Dienst<SecretStore>(), _h.Dienst<Outbox>(), _h.Schakelaars);
+                herstart.Start(_h.Klok.Nu);
+                Assert.Empty(herstart.Actief());
+            }
+
+            Assert.Equal(Enumerable.Range(0, 50).SelectMany(_ => new[] { "reconcile", "session_ended", "startup" }), Redenen);
+        }
+        finally
+        {
+            await bewaking.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
+    public void GeweigerdeJoinVerleentGeenLidmaatschapEnEenGemisteSessieWordtHersteld()
+    {
+        var groep = Nieuw();
+        var join = new JoinGroupRequest(groep.GroupId);
+        _stock.Setup(m => m.JoinGroup(_kijker, join, CancellationToken.None));
+        Manager.JoinGroup(_kijker, join, CancellationToken.None);
+        Assert.False(((WatchDecorator)Manager).IsLid(groep.GroupId, _kijker.UserId));
+        Assert.Equal([groep.GroupId], Module.Actief());
+        _groepen.Remove(_lid.Id);
+        ((WatchDecorator)Manager).ControleerSessies(null);
+        Assert.Empty(Module.Actief());
+        Assert.Equal(["reconcile"], Redenen);
     }
 
     [Fact]
@@ -146,7 +196,10 @@ public sealed class WatchTogetherTests : IDisposable
     {
         using var h = new Harnas(extraDiensten: diensten => diensten.AddSingleton(_stock.Object));
         h.Schakelaars.Zet("watch", true);
-        h.Schakelaars.HeeftGasten = gast;
+        if (gast)
+        {
+            h.Schakelaars.Gasten.Add(_kijker.UserId);
+        }
         h.Gebruikers.Setup(g => g.GetUsers()).Returns([]);
         h.Koppel();
         var health = await h.RoepHub("connector.health", h.Hub.Token(h.Klok.Nu));
@@ -179,10 +232,12 @@ public sealed class WatchTogetherTests : IDisposable
 
         string[] Hashes() => paden.Select(p => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(p)))).ToArray();
         var vooraf = Hashes();
+        _h.Schakelaars.Gasten.Add(_lid.UserId);
         var groep = Nieuw();
         Assert.Equal(1, Module.TelGebruiker(_lid.UserId));
         await _h.Dienst<IEventConsumer<UserDeletedEventArgs>>().OnEvent(new UserDeletedEventArgs(new User("Lid", "proef", "proef") { Id = _lid.UserId }));
         Assert.Equal(0, Module.TelGebruiker(_lid.UserId));
+        Assert.Empty(_h.Schakelaars.Gasten);
         Assert.False(Module.IsEigenaar(groep.GroupId, _lid.UserId));
         var bytes = await File.ReadAllBytesAsync(_h.Dienst<JlPaths>().ModuleDb(Module.Slug), TestContext.Current.CancellationToken);
         Assert.False(bytes.AsSpan().IndexOf(_lid.UserId.ToByteArray()) >= 0);

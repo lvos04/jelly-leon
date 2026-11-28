@@ -44,8 +44,17 @@ internal sealed class WatchBewaking(Func<ISyncPlayManager?> manager, ISessionMan
 
                 if (_vorigeStatus != status)
                 {
-                    outbox.Meld(module.Slug, "media.watchgroup.degraded", "module", module.Slug,
-                        new JsonObject { ["reason"] = "decorator_inactive" });
+                    try
+                    {
+                        outbox.Meld(module.Slug, "media.watchgroup.degraded", "module", module.Slug,
+                            new JsonObject { ["reason"] = "decorator_inactive" });
+                    }
+                    catch (JlException)
+                    {
+                        // Blijf de uitval melden. De volgende peiling probeert het event opnieuw.
+                        log.LogWarning("Watch Together kan de waarschuwing nog niet in de outbox bewaren.");
+                        return (false, "down");
+                    }
                 }
             }
 

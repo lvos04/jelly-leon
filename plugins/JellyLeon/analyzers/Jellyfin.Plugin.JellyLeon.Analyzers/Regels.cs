@@ -636,6 +636,7 @@ internal static class Regels
         new ServerWit("MediaBrowser.Controller.SyncPlay.ISyncPlayManager", "ListGroups", PluginNamespace + ".Modules.WatchTogether.WatchController"),
         new ServerWit("MediaBrowser.Controller.SyncPlay.ISyncPlayManager", "IsUserActive", PluginNamespace + ".Modules.WatchTogether.WatchController"),
         new ServerWit("MediaBrowser.Controller.Session.ISessionManager", "Sessions", PluginNamespace + ".Modules.WatchTogether.WatchController"),
+        new ServerWit("MediaBrowser.Controller.Session.SessionInfo", ".ctor", PluginNamespace + ".Modules.WatchTogether.WatchController", "UserId", "UserName"),
         new ServerWit("MediaBrowser.Controller.Session.SessionInfo", "UserId", PluginNamespace + ".Modules.WatchTogether.WatchController"),
         new ServerWit("MediaBrowser.Controller.Session.SessionInfo", "UserName", PluginNamespace + ".Modules.WatchTogether.WatchController"),
         new ServerWit("MediaBrowser.Controller.SyncPlay.Requests.ListGroupsRequest", ".ctor", PluginNamespace + ".Modules.WatchTogether.WatchController"),
@@ -646,6 +647,7 @@ internal static class Regels
         new ServerWit("MediaBrowser.Controller.Library.IUserManager", "GetUsers", PluginNamespace + ".Modules.WatchTogether.WatchBewaking"),
         new ServerWit("MediaBrowser.Controller.Session.ISessionManager", "SessionEnded", PluginNamespace + ".Modules.WatchTogether.WatchBewaking"),
         new ServerWit("MediaBrowser.Controller.Session.SessionEventArgs", "SessionInfo", PluginNamespace + ".Modules.WatchTogether.WatchBewaking"),
+        new ServerWit("Jellyfin.Database.Implementations.Entities.User", "Username", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
         new ServerWit("Jellyfin.Database.Implementations.Entities.User", "SyncPlayAccess", PluginNamespace + ".Core.Http.JellyfinSessionAuthenticator"),
         // De pluginklasse: de basisconstructor en de configuratiepagina (een nieuw object, alleen in zijn initialisatie gevuld).
         new ServerWit("MediaBrowser.Common.Plugins.BasePlugin`1", ".ctor", PluginNamespace + ".Plugin"),

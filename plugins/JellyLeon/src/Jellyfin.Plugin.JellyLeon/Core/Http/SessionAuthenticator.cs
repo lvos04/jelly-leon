@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Http;
 namespace Jellyfin.Plugin.JellyLeon.Core.Http;
 
 /// <summary>Uitkomst van de sessiecontrole van de server.</summary>
-internal sealed record SessieIdentiteit(Guid? GebruikerId, bool IsBeheerder, bool IsKid, bool MagSyncPlay = false)
+internal sealed record SessieIdentiteit(Guid? GebruikerId, bool IsBeheerder, bool IsKid, bool MagSyncPlay = false, string? Gebruikersnaam = null)
 {
     public void EisToegang(JlAuth auth)
     {
@@ -80,6 +80,6 @@ internal sealed class JellyfinSessionAuthenticator : ISessionAuthenticator
         // Bij geweigerde opslag volgt altijd een fout in het routefilter. Lees daar geen profielopslag.
         var kind = _kindbeleid?.IsKid(info.User) ?? KidPolicy.Signalen(info.User).SteltKindVoor;
         return new SessieIdentiteit(info.User.Id, info.User.HasPermission(PermissionKind.IsAdministrator), kind,
-            info.User.SyncPlayAccess is SyncPlayUserAccessType.CreateAndJoinGroups or SyncPlayUserAccessType.JoinGroups);
+            info.User.SyncPlayAccess is SyncPlayUserAccessType.CreateAndJoinGroups or SyncPlayUserAccessType.JoinGroups, info.User.Username);
     }
 }

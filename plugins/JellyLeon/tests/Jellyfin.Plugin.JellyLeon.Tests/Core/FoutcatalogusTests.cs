@@ -188,6 +188,7 @@ public sealed class FoutcatalogusTests : IDisposable
         _h.Koppel();
         _h.Schakelaars.Zet("devices", true);
         _h.Schakelaars.Zet("quality", true);
+        _h.Schakelaars.Zet("watch", true);
         var groot = new byte[Fouten.MaxBodyBytes + 1];
         var acties = typeof(JlRouteAttribute).Assembly.GetTypes().Where(t => typeof(ControllerBase).IsAssignableFrom(t))
             .SelectMany(t => t.GetMethods()).Where(m => m.GetCustomAttribute<JlRouteAttribute>() is not null)

@@ -22,6 +22,9 @@ public class WatchTogetherOptions : ModuleSwitch
 {
     /// <summary>Gets or sets de door de beheerder aangewezen gastaccounts.</summary>
     public System.Guid[] GuestUserIds { get; set; } = [];
+
+    /// <summary>Gets or sets de bewaartermijn van beëindigde groepen in uren.</summary>
+    public int GroupRetentionHours { get; set; } = 6;
 }
 
 /// <summary>Instellingen van de MediaGuard-viewerclient (plan §10.5). Nooit een sleutel: die beheert de Hub (BG-04).</summary>
