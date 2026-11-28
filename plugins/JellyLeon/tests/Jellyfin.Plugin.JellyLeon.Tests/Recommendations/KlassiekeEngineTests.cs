@@ -46,6 +46,23 @@ public sealed class KlassiekeEngineTests
         Assert.Equal(-1, new Kijktoestand("a", T, Likes: false, Minder: true).Gewicht(T));
     }
 
+    [Fact]
+    public void Onboardingtitel_GebruiktAlleenZichtbareKenmerken()
+    {
+        var bron = Film("bron", "Avontuur") with { Tags = ["zee"] };
+        var passend = Film("passend", "Drama") with { Tags = ["zee"] };
+        var algemeen = Film("algemeen", "Komedie") with { Waardering = 10, Toegevoegd = T };
+        var afgeschermd = Film("verborgen", "Horror") with { Tags = ["zee"] };
+        Titel[] catalogus = [bron, passend, algemeen, afgeschermd];
+        var profiel = Profiel([bron, passend, algemeen]) with { OnboardingTitels = ["bron"], NietInteressant = ["bron"] };
+        var engine = new KlassiekeEngine(new Klok());
+        var gekozen = engine.Rangschik(catalogus, profiel, stop: TestContext.Current.CancellationToken)[0];
+        Assert.Equal(("passend", new Reden("onboarding_choice")), (gekozen.Item, gekozen.Redenen[0]));
+        var ander = engine.Rangschik(catalogus, profiel with { OnboardingTitels = ["verborgen"] }, stop: TestContext.Current.CancellationToken);
+        Assert.Equal("algemeen", ander[0].Item);
+        Assert.DoesNotContain(ander, r => r.Redenen.Any(reden => reden.Code == "onboarding_choice"));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

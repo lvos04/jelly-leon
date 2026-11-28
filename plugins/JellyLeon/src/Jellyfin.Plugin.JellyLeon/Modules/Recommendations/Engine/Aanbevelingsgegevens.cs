@@ -53,6 +53,7 @@ internal sealed record Kijkprofiel(string Id, HashSet<string> Toegang, Kijktoest
     public HashSet<string> NietInteressant { get; init; } = [];
     public HashSet<string> Volgende { get; init; } = [];
     public string[] OnboardingGenres { get; init; } = [];
+    public HashSet<string> OnboardingTitels { get; init; } = [];
     public bool Exploratie { get; init; } = true;
     public bool Volwassen { get; init; }
     public bool HuishoudenAan { get; init; }

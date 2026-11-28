@@ -48,11 +48,29 @@ internal sealed class KlassiekeEngine(TimeProvider klok, ScoreGewichten? gewicht
             foreach (var (k, v) in kenmerken.Vectoren[t.Item]) { smaak[k] = smaak.GetValueOrDefault(k) + gewicht * v; }
         }
 
+        var onboarding = profiel.OnboardingGenres.Select(g => "genre/" + Kenmerken.Genre(g)).ToHashSet(StringComparer.Ordinal);
+        foreach (var id in profiel.OnboardingTitels.Where(zichtbaar.ContainsKey).Order(StringComparer.Ordinal))
+        {
+            foreach (var (term, gewicht) in kenmerken.Vectoren[id])
+            {
+                smaak[term] = smaak.GetValueOrDefault(term) + gewicht;
+                if (term.Split('/')[0] is "genre" or "tag" or "studio" or "regisseur" or "schrijver" or "acteur" or "collectie")
+                {
+                    onboarding.Add(term);
+                }
+            }
+        }
+
+        foreach (var genre in profiel.OnboardingGenres.Select(Kenmerken.Genre).Distinct(StringComparer.Ordinal))
+        {
+            var term = "genre/" + genre;
+            smaak[term] = smaak.GetValueOrDefault(term) + 1;
+        }
+
         Kenmerken.Normaliseer(smaak);
         var zaden = positief.Take(5).ToArray();
         var voorkeur = smaak.Where(p => p.Value > 0).Select(p => p.Key).ToHashSet(StringComparer.Ordinal);
         if (bron is not null) { voorkeur.UnionWith(kenmerken.Vectoren[bron].Keys); }
-        var onboarding = profiel.OnboardingGenres.Select(Kenmerken.Genre).ToHashSet(StringComparer.Ordinal);
         var huishouden = profiel.Huishoudscores();
         var typen = positief.Select(t => zichtbaar[t.Item].QuotumType).CountBy(t => t).ToDictionary();
 
@@ -68,8 +86,10 @@ internal sealed class KlassiekeEngine(TimeProvider klok, ScoreGewichten? gewicht
         var algemeen = kandidaten.GroupBy(t => t.QuotumType).SelectMany(g => g
             .OrderByDescending(t => ScoreGewichten.Kwaliteit * Kwaliteit(t) + ScoreGewichten.Versheid * Versheid(t, nu))
             .ThenBy(t => t.Id, StringComparer.Ordinal).Take(Math.Max(50, 5 * limiet))).Select(t => t.Id).ToHashSet();
+        bool PastBijOnboarding(Titel t) => profiel.OnboardingTitels.Contains(t.Id)
+            || (onboarding.Count > 0 && kenmerken.Vectoren[t.Id].Keys.Any(onboarding.Contains));
         var selectie = kandidaten.Where(t => algemeen.Contains(t.Id) || kenmerken.HeeftZeldzaam(t.Id, voorkeur)
-            || t.Genres.Any(g => onboarding.Contains(Kenmerken.Genre(g))) || huishouden.ContainsKey(t.Id)).ToArray();
+            || PastBijOnboarding(t) || huishouden.ContainsKey(t.Id)).ToArray();
 
         Kandidaat Bereken(Titel titel)
         {
@@ -108,7 +128,7 @@ internal sealed class KlassiekeEngine(TimeProvider klok, ScoreGewichten? gewicht
             else if (positief.Length < 3)
             {
                 // Een passende onboardingkeuze gaat voor het geanonimiseerde huishoudsignaal en de globale selectie.
-                if (titel.Genres.Any(g => onboarding.Contains(Kenmerken.Genre(g))))
+                if (PastBijOnboarding(titel))
                 {
                     score = 0.8 + basis;
                     reden = new("onboarding_choice");
