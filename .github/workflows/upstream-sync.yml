@@ -196,10 +196,7 @@ jobs:
           dotnet test Jellyfin.sln -c Release --no-build --verbosity minimal
 
       - name: Plugins bouwen en testen tegen de nieuwe Jellyfin-versie (ABI-breuk = falen)
-        run: |
-          set -eu
-          dotnet build plugins/JellyLeon.Plugins.sln -c Release
-          dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+        run: bash tools/jelly-leon/test_plugins.sh
 
       - name: Runtimecontracten met de gebouwde plugin op de nieuwe digest
         run: |

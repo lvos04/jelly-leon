@@ -328,14 +328,27 @@ internal sealed partial class JlDatabase
             kopie = Pad + ".v" + versie.ToString(CultureInfo.InvariantCulture) + "." + Guid.NewGuid().ToString("N") + "." + stempel + ".bak";
         }
 
-        _bestanden.SchrijfEenmalig(kopie, []);
-        using (var doel = OpenBestaandeKopie(kopie))
+        var tijdelijk = kopie + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        _bestanden.SchrijfEenmalig(tijdelijk, []);
+        try
         {
-            verbinding.BackupDatabase(doel);
-            if (!string.Equals(Scalar(doel, "PRAGMA integrity_check;") as string, "ok", StringComparison.Ordinal) ||
-                Getal(doel, "PRAGMA user_version;") != versie)
+            using (var doel = OpenBestaandeKopie(tijdelijk))
             {
-                throw new IOException("De migratiekopie is niet integer.");
+                verbinding.BackupDatabase(doel);
+                if (!string.Equals(Scalar(doel, "PRAGMA integrity_check;") as string, "ok", StringComparison.Ordinal) ||
+                    Getal(doel, "PRAGMA user_version;") != versie)
+                {
+                    throw new IOException("De modulekopie is niet integer.");
+                }
+            }
+
+            _bestanden.Publiceer(tijdelijk, kopie, overschrijven: false);
+        }
+        finally
+        {
+            if (File.Exists(tijdelijk))
+            {
+                _bestanden.Verwijder(tijdelijk);
             }
         }
 

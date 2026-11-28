@@ -18,13 +18,16 @@ internal sealed class InternalWriteScope
 
     public void SchrijfAtomisch(string pad, Action<Stream> schrijf) => SchrijfAtomisch(pad, default, schrijf);
 
-    private void SchrijfAtomisch(string pad, ReadOnlySpan<byte> inhoud, Action<Stream>? schrijf)
+    public bool MaakGeheimEenmalig(string pad, ReadOnlySpan<byte> inhoud) => SchrijfAtomisch(pad, inhoud, null, overschrijven: false);
+
+    private bool SchrijfAtomisch(string pad, ReadOnlySpan<byte> inhoud, Action<Stream>? schrijf, bool overschrijven = true)
     {
         _paden.EisVeiligBestand(pad);
-        // Bestaande weigering van een onveilig oud tijdelijk pad behouden, ook al gebruiken we die naam niet meer.
+        // Een bestaand onveilig tijdelijk pad weigeren, ook bij een gewone vervanging.
         _paden.EisVeiligBestand(pad + ".tmp");
         MaakMap(Path.GetDirectoryName(Path.GetFullPath(pad))!);
-        var tijdelijk = pad + "." + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)) + ".tmp";
+        // Eén exclusieve naam ordent eerste starts, ook vanuit verschillende processen.
+        var tijdelijk = overschrijven ? pad + "." + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)) + ".tmp" : pad + ".tmp";
         var aangemaakt = false;
         try
         {
@@ -32,6 +35,11 @@ internal sealed class InternalWriteScope
             {
                 aangemaakt = true;
                 _paden.EisGeopendBestand(stroom, tijdelijk);
+                if (!overschrijven && File.Exists(pad))
+                {
+                    return false;
+                }
+
                 if (schrijf is null)
                 {
                     stroom.Write(inhoud);
@@ -45,10 +53,13 @@ internal sealed class InternalWriteScope
                 _paden.EisGeopendBestand(stroom, tijdelijk);
             }
 
-            _paden.EisVeiligBestand(tijdelijk);
-            _paden.EisVeiligBestand(pad);
-            File.Move(tijdelijk, pad, overwrite: true);
+            Publiceer(tijdelijk, pad, overschrijven);
             aangemaakt = false;
+            return true;
+        }
+        catch (IOException) when (!overschrijven && !aangemaakt && (File.Exists(tijdelijk) || File.Exists(pad)))
+        {
+            return false;
         }
         finally
         {
@@ -58,6 +69,13 @@ internal sealed class InternalWriteScope
                 Verwijder(tijdelijk);
             }
         }
+    }
+
+    public void Publiceer(string tijdelijk, string pad, bool overschrijven)
+    {
+        _paden.EisVeiligBestand(tijdelijk);
+        _paden.EisVeiligBestand(pad);
+        File.Move(tijdelijk, pad, overwrite: overschrijven);
     }
 
     public void SchrijfEenmalig(string pad, ReadOnlySpan<byte> inhoud)
@@ -71,11 +89,49 @@ internal sealed class InternalWriteScope
 
     public byte[]? LeesGeheim(string pad, int maxBytes)
     {
+        using var stroom = OpenGeheim(pad);
+        if (stroom is null)
+        {
+            return null;
+        }
+
+        var lengte = stroom.Length;
+        if (lengte > maxBytes)
+        {
+            throw new IOException("Het geheim overschrijdt de verwachte omvang.");
+        }
+
+        var inhoud = new byte[(int)lengte];
+        stroom.ReadExactly(inhoud);
+        if (stroom.ReadByte() != -1)
+        {
+            throw new IOException("Het geheim veranderde tijdens het lezen.");
+        }
+
+        return inhoud;
+    }
+
+    public void ControleerGeheim(string pad)
+    {
+        using var stroom = OpenGeheim(pad);
+    }
+
+    private FileStream? OpenGeheim(string pad)
+    {
         _paden.EisVeiligBestand(pad);
         EisBeslotenMap(Path.GetDirectoryName(pad)!);
+        FileStream stroom;
         try
         {
-            using var stroom = new FileStream(pad, FileMode.Open, FileAccess.Read, FileShare.Read);
+            stroom = new FileStream(pad, FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+        catch (IOException fout) when (fout is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return null;
+        }
+
+        try
+        {
             _paden.EisGeopendBestand(stroom, pad);
             const UnixFileMode EigenBestand = UnixFileMode.UserRead | UnixFileMode.UserWrite;
             if (!OperatingSystem.IsLinux() || File.GetUnixFileMode(stroom.SafeFileHandle) != EigenBestand)
@@ -83,41 +139,41 @@ internal sealed class InternalWriteScope
                 throw new UnauthorizedAccessException("Een geheim vereist bestandsmodus 0600.");
             }
 
-            // Dezelfde eigendomsproef als JlPaths, nu op het gecontroleerde open bestand.
+            // Het proces is UID 568 zonder capabilities. Dezelfde modus terugzetten bewijst het eigendom op de open handle.
             File.SetUnixFileMode(stroom.SafeFileHandle, EigenBestand);
-            var lengte = stroom.Length;
-            if (lengte > maxBytes)
-            {
-                throw new IOException("Het geheim overschrijdt de verwachte omvang.");
-            }
-
-            var inhoud = new byte[(int)lengte];
-            stroom.ReadExactly(inhoud);
-            if (stroom.ReadByte() != -1)
-            {
-                throw new IOException("Het geheim veranderde tijdens het lezen.");
-            }
-
-            return inhoud;
+            return stroom;
         }
-        catch (IOException fout) when (fout is FileNotFoundException or DirectoryNotFoundException)
+        catch
         {
-            return null;
+            stroom.Dispose();
+            throw;
         }
     }
 
     public void MaakGeheimenmap(string pad)
     {
+        EisBeslotenMap(pad);
         MaakMap(pad);
         EisBeslotenMap(pad);
+    }
+
+    public void ControleerGeheimenmap(string pad)
+    {
+        _paden.EisVeiligBestand(Path.Combine(pad, "x"));
+        EisBeslotenMap(pad);
+        foreach (var bestand in Directory.EnumerateFileSystemEntries(pad))
+        {
+            ControleerGeheim(bestand);
+        }
     }
 
     private static void EisBeslotenMap(string pad)
     {
         const UnixFileMode EigenMap = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
-        if (Directory.Exists(pad) && (!OperatingSystem.IsLinux() || File.GetUnixFileMode(pad) != EigenMap))
+        if (!OperatingSystem.IsLinux() || JlPaths.OpslagGebruiker() != "568" ||
+            (Directory.Exists(pad) && File.GetUnixFileMode(pad) != EigenMap))
         {
-            throw new UnauthorizedAccessException("De geheimenmap vereist mapmodus 0700.");
+            throw new UnauthorizedAccessException("De geheimenmap vereist eigenaar 568 en mapmodus 0700.");
         }
     }
 

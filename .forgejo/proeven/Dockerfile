@@ -4,7 +4,7 @@ FROM docker.io/library/node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8
 FROM docker.io/library/python:3.12.16-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS basis
 COPY --from=cli /usr/local/bin/docker /usr/bin/docker
 COPY --chmod=755 .forgejo/proeven/proefdocker.sh /usr/local/bin/docker
-RUN useradd --create-home --uid 1000 proef && install -d -m 700 -o proef -g proef /home/proef/runtime
+RUN groupadd --gid 568 proef && useradd --create-home --uid 568 --gid proef proef && install -d -m 700 -o proef -g proef /home/proef/runtime
 ENV HOME=/home/proef XDG_RUNTIME_DIR=/home/proef/runtime PYTHONDONTWRITEBYTECODE=1
 
 FROM basis AS playwright

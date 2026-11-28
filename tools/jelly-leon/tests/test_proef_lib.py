@@ -1,13 +1,16 @@
 """De zuivere hulpfuncties van de pluginproef: schemacontrole, ruismasker, tabel- en bestandsvergelijking."""
 from __future__ import annotations
 
+import base64
 import sqlite3
 import sys
 import uuid
 from pathlib import Path
+from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
 
+import plugin_proef as pp  # noqa: E402
 import proef_lib as pl  # noqa: E402
 
 DOC = {
@@ -179,3 +182,23 @@ def test_log_handtekeningen() -> None:
         ("wachtwoord", "?", "losse regel met wachtwoord <geheim>"),
     }
     assert not any("tok-" in deel or "ww-" in deel for sleutel in [*stock, *test] for deel in sleutel)
+
+def test_lekcontrole_herkent_de_waarde_in_log_xml_configuratie_en_export(tmp_path: Path, capsys) -> None:
+    verslag = pp.Verslag()
+    marker = verslag.geheim("proef:waarde", uuid.uuid4().hex)
+    zouten = {"kernzout": uuid.uuid4().bytes, "watchzout": uuid.uuid4().bytes}
+    map_ = tmp_path / "data" / "jelly-leon" / "secrets"
+    map_.mkdir(parents=True, mode=0o700)
+    xml = tmp_path / "plugins" / "configurations" / "Jellyfin.Plugin.JellyLeon.xml"
+    xml.parent.mkdir(parents=True)
+    xml.write_text(marker)
+    server = Mock(config=tmp_path)
+    server.logtekst.return_value = ("meetregel\n" * 21) + base64.b64encode(zouten["watchzout"]).decode()
+    exports = {"bundel-devices": zouten["kernzout"], "bundel-quality": b"{}", "archief-devices": b"{}", "archief-quality": b"{}"}
+    pp.geheimen_scan(verslag, server, Mock(tokens=[]), zouten, marker, exports, {})
+    mislukt = [r["test"] for r in verslag.regels if not r["geslaagd"]]
+    assert any(naam.startswith("logs:") for naam in mislukt)
+    assert any(naam.startswith("pluginconfiguratie") for naam in mislukt)
+    assert any(naam.startswith("modulebundels") for naam in mislukt)
+    assert marker not in capsys.readouterr().out
+    assert zouten["watchzout"].hex() not in str(verslag.regels)

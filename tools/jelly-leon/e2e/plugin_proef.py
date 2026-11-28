@@ -882,7 +882,7 @@ def vergelijk_bomen(v: Verslag, a1: Server, a2: Server, b: Server) -> None:
            f"(o.a. {sorted(p for p in vast if p.endswith('.xml'))[:6]}); gewijzigd in B: {gewijzigd[:8]}")
 
 
-def geheimen_scan(v: Verslag, b: Server, plugin: Plugin, zout: bytes, extra_tekst: str,
+def geheimen_scan(v: Verslag, b: Server, plugin: Plugin, zouten: dict[str, bytes], extra_tekst: str, exports: dict[str, bytes],
                   stock: dict[tuple[str, str, str], int]) -> dict[str, Any]:
     """Zoekt alle geheimen van de proef in de logs, de pluginconfiguratie en de plugindata van run B.
 
@@ -893,34 +893,39 @@ def geheimen_scan(v: Verslag, b: Server, plugin: Plugin, zout: bytes, extra_teks
     for i, token in enumerate(plugin.tokens):
         naalden[f"hubtoken:{i}"] = token
         naalden[f"hubhandtekening:{i}"] = token.rsplit(".", 1)[1]
-    if zout:
-        naalden.update({"zout:hex": zout.hex(), "zout:HEX": zout.hex().upper(), "zout:base64": base64.b64encode(zout).decode(),
-                        "zout:base64url": base64.urlsafe_b64encode(zout).rstrip(b"=").decode()})
+    for soort, zout in zouten.items():
+        for vorm, waarde in (("hex", zout.hex()), ("HEX", zout.hex().upper()), ("base64", base64.b64encode(zout).decode()),
+                             ("base64url", base64.urlsafe_b64encode(zout).rstrip(b"=").decode())):
+            naalden[f"{soort}:{vorm}"] = waarde
     tekst = b.logtekst()
     gevonden = pl.log_handtekeningen(tekst, naalden)
     upstream = {k: n for k, n in gevonden.items() if k in stock and k[0] in ("sessietoken", "wachtwoord") and "JellyLeon" not in k[1]}
     eigen = {k: n for k, n in gevonden.items() if k not in upstream}
-    ruw_zout = bool(zout) and zout in tekst.encode("utf-8", "surrogateescape")
+    ruw_zout = any(zout in tekst.encode("utf-8", "surrogateescape") for zout in zouten.values())
     plugin_regels = sum(1 for regel in tekst.splitlines() if "JellyLeon" in regel or "Jelly Leon" in regel)
     v.test("JLT-65", "logs: de plugin schrijft geen wachtwoorden, sessietokens, Hub-tokens of sleutelmateriaal",
            not eigen and not ruw_zout and len(tekst.splitlines()) > 20,
            f"{len(tekst.splitlines())} logregels ({plugin_regels} van de plugin) doorzocht op {len(naalden)} waarden; treffers van de plugin "
            f"of alleen in deze run: {sorted(eigen)}; regels die upstream zelf ook zonder plugin schrijft: {sorted(upstream)}")
     byte_naalden = {naam: waarde.encode() for naam, waarde in naalden.items()}
-    if zout:
-        byte_naalden["zout:ruw"] = zout
+    byte_naalden.update({soort + ":ruw": zout for soort, zout in zouten.items()})
     xml = b.config / "plugins" / "configurations" / "Jellyfin.Plugin.JellyLeon.xml"
     in_xml = sorted(naam for naam, naald in byte_naalden.items() if xml.exists() and naald in xml.read_bytes())
     in_api = sorted(naam for naam, naald in byte_naalden.items() if naald in extra_tekst.encode())
     v.test("JLT-65", "pluginconfiguratie (XML en GET /Plugins/{id}/Configuration) zonder geheimen",
            xml.exists() and not in_xml and not in_api,
            f"XML {xml.stat().st_size if xml.exists() else 0} bytes; in XML: {in_xml}; via de API: {in_api}")
+    treffers = {naam for naam, inhoud in exports.items() if any(waarde in inhoud for waarde in byte_naalden.values())}
+    v.test("JLT-65", "modulebundels en beheerarchieven zonder een van de testgeheimen",
+           len(exports) == 4 and set(zouten) == {"kernzout", "watchzout"} and not treffers,
+           f"{len(exports)} exports, {len(byte_naalden)} waardevormen, {len(treffers)} exports met een treffer")
     buiten = pl.ruwe_treffers(b.config / "data" / "jelly-leon", byte_naalden, overslaan=("secrets/",))
     v.test("JLT-65", "plugindata buiten de geheimenmap zonder geheimen", not buiten, f"treffers: {dict(list(buiten.items())[:4])}")
     map_ = b.config / "data" / "jelly-leon" / "secrets"
     modi = {p.name: stat.S_IMODE(p.stat().st_mode) for p in [map_, *sorted(map_.glob("*"))]} if map_.exists() else {}
     goed = bool(modi) and modi.get("secrets") == 0o700 and all(m == 0o600 for n, m in modi.items() if n != "secrets")
-    v.test("JLT-65", "geheimenmap 0700 en bestanden 0600", goed, f"{ {n: oct(m) for n, m in modi.items()} }")
+    eigenaar = bool(modi) and all(p.stat().st_uid == 568 for p in [map_, *map_.iterdir()])
+    v.test("JLT-65", "geheimenmap en bestanden van 568 met 0700 en 0600", goed and eigenaar, f"{ {n: oct(m) for n, m in modi.items()} }")
     return {"upstream_logt_zelf": [{"soort": k[0], "logcategorie": k[1], "sjabloon": k[2], "aantal": n} for k, n in sorted(upstream.items())]}
 
 
@@ -1143,6 +1148,11 @@ def main(argv: list[str] | None = None) -> int:
             vergelijk_opnames(v, f"alleen {slug} aan", opnames[f"a1-{slug}"], opnames[f"a2-{slug}"], opnames[f"b-{slug}"])
             plugin.schakel(slug, False)
         plugin.modules_aan()
+        # Een uniek leesbaar proefgeheim vangt ook een generieke dump van de geheimenmap.
+        proefgeheim = v.geheim("geheimenmap:proef", uuid.uuid4().hex)
+        marker = b.config / "data" / "jelly-leon" / "secrets" / "lekproef"
+        with os.fdopen(os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as bestand:
+            bestand.write(proefgeheim)
         plugin.schakel("watch", True)
         actief = beheer.http.doe("GET", "/media/v1/watch/capabilities").get("decorator_active")
         v.test("JLT-64", "Watch Together omhult de actieve serverdienst", actief is True)
@@ -1166,6 +1176,7 @@ def main(argv: list[str] | None = None) -> int:
             pseudoniem = "o_" + hmac.new(zout, b"user\n" + uuid.UUID(weg.id).hex.encode(), hashlib.sha256).digest()[:16].hex()
             gemeten.update({"id": weg.id, "zout": zout, "naalden": {**pl.guid_vormen(weg.id), "pseudoniem": pseudoniem.encode()}})
             wt_zout = (data / "secrets" / "wt-hmac.key").read_bytes()
+            gemeten["watchzout"] = wt_zout
             gemeten["naalden"]["watch-eigenaar"] = hmac.new(wt_zout, uuid.UUID(weg.id).bytes_le, hashlib.sha256).hexdigest().encode()
             voor = pl.gebruikerssporen(data, cache, gemeten["naalden"])
             v.test("JLT-65", "controle vooraf: account-ID en pseudoniem staan in de plugindata",
@@ -1201,6 +1212,26 @@ def main(argv: list[str] | None = None) -> int:
         config_tekst = ruw.decode("utf-8", "replace")
         v.test("JLT-65", "GET /Plugins/{id}/Configuration bevat alleen schakelaars", status == 200 and "Enabled" in config_tekst,
                f"HTTP {status}, {len(ruw)} bytes")
+        exports = {}
+        for slug in ("devices", "quality"):
+            basis = f"/media/v1/modules/{slug}"
+            for soort, pad in (("bundel", basis + "/export"), ("archief", f"/media/v1/{slug}/export")):
+                status, inhoud, _ = beheer.http.ruw("GET", pad)
+                geldig = status == 200 and isinstance(_json(inhoud), dict) and _json(inhoud).get("module") == slug
+                v.test("JLT-65", f"{soort} van {slug} na UserDeleted", geldig and
+                       not any(waarde in inhoud for waarde in gemeten["naalden"].values()), f"HTTP {status}, {len(inhoud)} bytes")
+                if geldig:
+                    exports[soort + "-" + slug] = inhoud
+            bundel = _json(exports.get("bundel-" + slug, b""))
+            if isinstance(bundel, dict):
+                status, voorbeeld, _ = plugin.sessie_vraag(beheer, "POST", basis + "/import/preview", bundel)
+                hash_ = bundel.get("preview_hash")
+                v.test("JLT-68", f"importvoorbeeld van {slug}", status == 200 and isinstance(hash_, str) and
+                       len(hash_) == 64 and voorbeeld.get("preview_hash") == hash_ and voorbeeld.get("counts") == {"instellingen": 1})
+                for verwacht, bevestigd in ((409, "0" * 64), (200, hash_)):
+                    status, _, _ = plugin.sessie_vraag(beheer, "POST", basis + "/import/apply", {"preview_hash": bevestigd},
+                                                        {"Idempotency-Key": str(uuid.uuid4())})
+                    v.test("JLT-68", f"bevestiging {slug} verwacht HTTP {verwacht}", status == verwacht, f"HTTP {status}")
         # Modules weer uit: de routes en het gedrag van die modules zijn weg, de rest is ongewijzigd.
         for slug in ("devices", "quality", "watch"):
             plugin.schakel(slug, False)
@@ -1218,7 +1249,8 @@ def main(argv: list[str] | None = None) -> int:
         b.stop()
         print("[INFO] run B klaar", flush=True)
 
-        log_rapport = geheimen_scan(v, b, plugin, gemeten.get("zout", b""), config_tekst, stock_log)
+        zouten = {naam: gemeten[veld] for naam, veld in (("kernzout", "zout"), ("watchzout", "watchzout")) if gemeten.get(veld)}
+        log_rapport = geheimen_scan(v, b, plugin, zouten, config_tekst, exports, stock_log)
         db_rapport = vergelijk_databases(v, werk, runs["a1"], runs["a2"], b)
         vergelijk_bomen(v, runs["a1"], runs["a2"], b)
         corpus_na = corpus(media)

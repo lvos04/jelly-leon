@@ -65,7 +65,8 @@ internal sealed class JlPipeline
             sessie = await _diensten.GetRequiredService<ISessionAuthenticator>().AuthenticeerAsync(verzoek).ConfigureAwait(false);
             sessie.EisToegang(route.Auth);
 
-            var id = sessie.GebruikerId is Guid gebruiker ? "session:" + _diensten.GetRequiredService<PrivacyService>().Pseudoniem(gebruiker) : "session:api-key";
+            // Deze persoonlijke leesroute moet ook bij een onleesbare geheimenmap de koppelstatus kunnen tonen.
+            var id = route.Id == "hublink.get" ? "session:beheer" : sessie.GebruikerId is Guid gebruiker ? "session:" + _diensten.GetRequiredService<PrivacyService>().Pseudoniem(gebruiker) : "session:api-key";
             wie = new JlPrincipal(id, false, false, sessie.IsBeheerder && !sessie.IsKid ? ["admin"] : ["user"]);
         }
 

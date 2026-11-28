@@ -53,6 +53,8 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton(sp => sp.GetRequiredService<PluginOpslag>().Paden);
         serviceCollection.AddSingleton<CoreDatabase>();
         serviceCollection.AddSingleton<SecretStore>();
+        serviceCollection.AddSingleton<IHealthBron>(sp => sp.GetRequiredService<SecretStore>());
+        serviceCollection.AddHostedService<OpslagDienst<SecretStore>>();
         serviceCollection.AddSingleton<InternalWriteScope>();
         serviceCollection.AddSingleton<HubPin>();
         serviceCollection.AddSingleton<JtiStore>();

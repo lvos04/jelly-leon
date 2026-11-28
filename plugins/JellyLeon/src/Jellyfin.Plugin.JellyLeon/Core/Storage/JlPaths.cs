@@ -190,6 +190,12 @@ internal sealed class JlPaths
             throw new PlatformNotSupportedException("Veilige opslag van Jelly Leon vereist de gecontroleerde Linux-omgeving.");
         }
 
+        _ = OpslagGebruiker();
+        ControleerMap(Path.GetFullPath(pad), maak, eigenTmpfs);
+    }
+
+    internal static string OpslagGebruiker()
+    {
         // Zonder CAP_FOWNER mag uitsluitend de eigenaar chmod uitvoeren. Dezelfde modus terugzetten is een
         // beheerde eigendomsproef; geen P/Invoke, geen rechtenreparatie. Zie ADR-0032, opslagdreigingen deel 1b.
         var status = File.ReadAllLines("/proc/self/status");
@@ -201,7 +207,7 @@ internal sealed class JlPaths
             throw new UnauthorizedAccessException("Jelly Leon-opslag vereist één niet-rootgebruiker zonder effectieve capabilities.");
         }
 
-        ControleerMap(Path.GetFullPath(pad), maak, eigenTmpfs);
+        return uid[1];
     }
 
     private static void ControleerMap(string pad, bool maak, string? eigenTmpfs)

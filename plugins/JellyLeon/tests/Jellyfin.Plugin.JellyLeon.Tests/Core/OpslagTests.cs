@@ -573,11 +573,11 @@ public sealed class OpslagTests : IDisposable
     {
         var geheimen = _h.Dienst<SecretStore>();
         var map = _h.Dienst<JlPaths>().SecretsDir;
-        geheimen.Schrijf("mediaguard.key", [1, 2, 3]);
-        Assert.Equal(new byte[] { 1, 2, 3 }, geheimen.Lees("mediaguard.key"));
-        geheimen.Schrijf("mediaguard.key", [4, 5]);
-        Assert.Equal(new byte[] { 4, 5 }, geheimen.Lees("mediaguard.key"));
-        Assert.False(File.Exists(Path.Combine(map, "mediaguard.key.tmp")));
+        geheimen.Schrijf("testkoppeling.bin", [1, 2, 3]);
+        Assert.Equal(new byte[] { 1, 2, 3 }, geheimen.Lees("testkoppeling.bin"));
+        geheimen.Schrijf("testkoppeling.bin", [4, 5]);
+        Assert.Equal(new byte[] { 4, 5 }, geheimen.Lees("testkoppeling.bin"));
+        Assert.False(File.Exists(Path.Combine(map, "testkoppeling.bin.tmp")));
 
         var zout = geheimen.LeesOfMaak("proef.salt", 32);
         Assert.Equal(32, zout.Length);
@@ -592,9 +592,9 @@ public sealed class OpslagTests : IDisposable
             }
         }
 
-        geheimen.Verwijder("mediaguard.key");
-        Assert.Null(geheimen.Lees("mediaguard.key"));
-        foreach (var naam in new[] { string.Empty, "../core/core.db", "a/b", "a\\b", ".verborgen" })
+        geheimen.Verwijder("testkoppeling.bin");
+        Assert.Null(geheimen.Lees("testkoppeling.bin"));
+        foreach (var naam in new[] { string.Empty, "../core/core.db", "mediaguard.key", "a/b", "a\\b", ".verborgen" })
         {
             Assert.Throws<ArgumentException>(() => geheimen.Lees(naam));
             Assert.Throws<ArgumentException>(() => geheimen.Schrijf(naam, [1]));

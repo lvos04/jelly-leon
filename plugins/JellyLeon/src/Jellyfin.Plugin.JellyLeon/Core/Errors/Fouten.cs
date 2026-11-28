@@ -93,6 +93,9 @@ internal static class Fouten
     public static JlException OpslagOnbeschikbaar() =>
         new(503, "storage_unavailable", "De eigen opslag van Jelly Leon is tijdelijk niet beschikbaar.", null, 30);
 
+    public static JlException GeheimOnbeschikbaar() =>
+        new(503, "storage_unavailable", "Het geheim is niet beschikbaar.", new JsonObject { ["reason"] = "geheim_niet_beschikbaar" }, 30);
+
     public static JlException ReplayControleOnbeschikbaar() =>
         new(503, "replay_check_unavailable", "De herhaalcontrole van tokens is tijdelijk niet beschikbaar.", null, 30);
 

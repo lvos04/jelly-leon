@@ -238,7 +238,12 @@ internal sealed class Harnas : IDisposable
     public T Dienst<T>()
         where T : notnull => Diensten.GetRequiredService<T>();
 
-    public void Koppel() => Dienst<HubPin>().Zet(Hub.Sleutels(), Hub.ServiceId, Klok.Nu);
+    public void Koppel()
+    {
+        // Het routeharnas heeft geen host die de opstartdiensten uitvoert.
+        Dienst<Jellyfin.Plugin.JellyLeon.Core.Secrets.SecretStore>().StartAsync(default).GetAwaiter().GetResult();
+        Dienst<HubPin>().Zet(Hub.Sleutels(), Hub.ServiceId, Klok.Nu);
+    }
 
     /// <summary>Roept een route uit de routetabel aan. Kopregels als "Naam: waarde".</summary>
     public async Task<Antwoord> Roep(string routeId, string? body = null, string[]? kop = null, Dictionary<string, string>? pad = null, string? query = null, byte[]? ruw = null, bool chunked = false, string? verzoekPad = null)

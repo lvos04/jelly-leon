@@ -207,23 +207,8 @@ jobs:
       - name: Gekozen SDK (via global.json/rollForward)
         run: dotnet --version
 
-      - name: Build plugins (tegen Jellyfin.Controller van de basisversie)
-        run: dotnet build plugins/JellyLeon.Plugins.sln -c Release
-
-      # Ook (deel 1e) een eigen, veilige datamap met daarin core/core.db (0644) van een andere UID.
-      - name: Tijdelijke opslag met een vreemde eigenaar (geen root of sudo in de tests)
-        run: |
-          fixture=$(mktemp -d)
-          mkdir -p "$fixture/kern/jelly-leon/core"
-          chmod 1777 "$fixture" "$fixture/kern/jelly-leon/core"
-          docker run --rm --network none --user 65534:65534 --entrypoint /bin/sh \
-            -v "$fixture:/fixture" "$JL_RUNTIME_IMAGE" -c 'umask 022; mkdir -m 0755 /fixture/vreemd && : > /fixture/kern/jelly-leon/core/core.db'
-          chmod 0755 "$fixture" "$fixture/kern" "$fixture/kern/jelly-leon"
-          chmod 0700 "$fixture/kern/jelly-leon/core"
-          printf 'JL_VREEMDE_OPSLAG=%s/vreemd\nJL_VREEMDE_KERN=%s/kern\n' "$fixture" "$fixture" >> "$GITHUB_ENV"
-
-      - name: Test plugins
-        run: dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+      - name: Plugins bouwen en testen als de appgebruiker met de eigenaarfixture
+        run: bash tools/jelly-leon/test_plugins.sh
 
       - name: Test de handberekende metrieken en het JSON-contract met de evaluatie-CLI
         run: |
@@ -231,13 +216,6 @@ jobs:
           cli="$RUNNER_TEMP/jl-rec-eval/jl-rec-eval"
           "$cli" handvoorbeelden < tools/b03-harnas/tests/voorbeelden/f2-metrieken.json
           PYTHONPATH=tools/b03-harnas python3 tools/b03-harnas/tests/cli_rookproef.py "$cli"
-
-      - name: Alleen de eigen tijdelijke eigenaarfixture opruimen
-        if: always() && env.JL_VREEMDE_OPSLAG != ''
-        run: |
-          rm -f -- "$JL_VREEMDE_KERN/jelly-leon/core/core.db"
-          rmdir -- "$JL_VREEMDE_KERN/jelly-leon/core" "$JL_VREEMDE_KERN/jelly-leon" "$JL_VREEMDE_KERN" \
-            "$JL_VREEMDE_OPSLAG" "$(dirname -- "$JL_VREEMDE_OPSLAG")"
 
       # B03-017 / ADR-0032: de proefassembly bevat elke verboden aanroep en MOET de build laten falen, met precies de
       # gemarkeerde bouwfouten (JL0001–JL0004) en om geen andere reden. De gewone build hierboven bewijst het omgekeerde:
@@ -361,8 +339,8 @@ jobs:
 
       - name: Pluginproef op de Jelly Leon-image (JLT-68, JLT-64, JLT-65; Hub-simulator)
         run: |
-          python3 tools/jelly-leon/e2e/plugin_proef.py --image jelly-leon:ci --stock-image "$JL_RUNTIME_IMAGE" \
-            --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/pluginproef-jelly-leon.json"
+          bash .github/scripts/pluginproef-appgebruiker.sh "$RUNNER_TEMP/pluginproef-jelly-leon.json" \
+            --image jelly-leon:ci --stock-image "$JL_RUNTIME_IMAGE"
 
       # B03-017, spike IStartupFilter (ADR-0033): twee containers van deze image, zonder en met
       # JELLYLEON_SPIKE_STARTUPFILTER=1. Meet of een laag uit de plugin vóór routing en authenticatie werkt (413 vóór 401
@@ -474,8 +452,8 @@ jobs:
 
       - name: Pluginproef op JL_RUNTIME_IMAGE (JLT-68, JLT-64, JLT-65; Hub-simulator; plugin verwijderd)
         run: >
-          python3 tools/jelly-leon/e2e/plugin_proef.py --image "$JL_RUNTIME_IMAGE" --plugin-map "$RUNNER_TEMP/plugin"
-          --werkmap "$RUNNER_TEMP" --rapport "$RUNNER_TEMP/pluginproef-stock.json"
+          bash .github/scripts/pluginproef-appgebruiker.sh "$RUNNER_TEMP/pluginproef-stock.json"
+          --image "$JL_RUNTIME_IMAGE" --plugin-map "$RUNNER_TEMP/plugin"
 
       - name: Spike IStartupFilter op JL_RUNTIME_IMAGE (ADR-0033)
         run: >

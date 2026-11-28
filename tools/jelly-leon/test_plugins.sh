@@ -1,29 +1,28 @@
 #!/usr/bin/env bash
-# De negatieve opslagtests gebruiken een datamap en een databasebestand van een andere UID.
+# De opslagproeven draaien als de app. Alleen de eigenaarfixture wordt vooraf met beheerdersrechten ingericht.
 set -euo pipefail
 umask 022
-fixture=$(mktemp -d "$RUNNER_TEMP/pluginproef.XXXXXXXX")
-trap 'rm -rf -- "$fixture"' EXIT
-mkdir -p "$fixture/kern/jelly-leon/core" "$fixture/vreemd" "$fixture/cli" "$fixture/tmp" "$fixture/vstest"
-touch "$fixture/kern/jelly-leon/core/core.db"
-gebruiker=$(id -u)
-groep=$(id -g)
-testcommando=()
+sdk=$(command -v dotnet)
+"$sdk" build plugins/JellyLeon.Plugins.sln -c Release
+
 beheer=()
-if [[ $gebruiker = 0 ]]; then
-    gebruiker=1000
-    groep=1000
-    testcommando=(setpriv --reuid "$gebruiker" --regid "$groep" --clear-groups --no-new-privs)
-    chown -R "$gebruiker:$groep" plugins "$fixture"
-else
-    beheer=(sudo -n)
+if [[ $(id -u) != 0 ]]; then beheer=(sudo -n); fi
+fixture=$(mktemp -d "${TMPDIR:-/tmp}/pluginproef.XXXXXXXX")
+trap '"${beheer[@]}" rm -rf -- "$fixture"' EXIT
+mkdir -p "$fixture"/{kern/jelly-leon/core,geheim/jelly-leon/secrets,vreemd,cli,tmp,vstest}
+touch "$fixture/kern/jelly-leon/core/core.db" "$fixture/geheim/jelly-leon/secrets/vreemd.salt"
+chmod 600 "$fixture/geheim/jelly-leon/secrets/vreemd.salt"
+chmod 700 "$fixture/kern/jelly-leon/core" "$fixture/geheim/jelly-leon/secrets" "$fixture/tmp"
+"${beheer[@]}" chown -R 568:568 "$fixture"
+"${beheer[@]}" chown 65534 "$fixture/vreemd" "$fixture/kern/jelly-leon/core/core.db" "$fixture/geheim/jelly-leon/secrets/vreemd.salt"
+
+app=()
+if [[ $(id -u) != 568 ]]; then
+    app=("${beheer[@]}" setpriv --reuid=568 --regid=568 --clear-groups --no-new-privs)
 fi
-vreemde_uid=65534
-if [[ $gebruiker = "$vreemde_uid" ]]; then vreemde_uid=65533; fi
-"${beheer[@]}" chown "$vreemde_uid" "$fixture/vreemd" "$fixture/kern/jelly-leon/core/core.db"
-chmod 700 "$fixture/kern/jelly-leon/core" "$fixture/tmp"
-export JL_VREEMDE_OPSLAG="$fixture/vreemd" JL_VREEMDE_KERN="$fixture/kern"
-export TMPDIR="$fixture/tmp" DOTNET_CLI_HOME="$fixture/cli" NUGET_PACKAGES="$fixture/cli/packages"
-export VSTEST_ARTIFACTS_DIRECTORY="$fixture/vstest" XDG_RUNTIME_DIR="$fixture/tmp"
-"${testcommando[@]}" dotnet build plugins/JellyLeon.Plugins.sln -c Release
-"${testcommando[@]}" dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+# De gebouwde testassembly bevat al haar afhankelijkheden. De testgebruiker hoeft niet te schrijven in de checkout.
+assemblies=(plugins/JellyLeon/tests/*/bin/Release/net*/Jellyfin.Plugin.JellyLeon.Tests.dll)
+"${app[@]}" env PATH="$PATH" DOTNET_ROOT="$(dirname "$(readlink -f "$sdk")")" HOME="$fixture/cli" DOTNET_CLI_HOME="$fixture/cli" \
+    TMPDIR="$fixture/tmp" XDG_RUNTIME_DIR="$fixture/tmp" \
+    VSTEST_ARTIFACTS_DIRECTORY="$fixture/vstest" JL_VREEMDE_OPSLAG="$fixture/vreemd" JL_VREEMDE_KERN="$fixture/kern" \
+    JL_VREEMD_GEHEIM="$fixture/geheim" "$sdk" test "${assemblies[@]}" --verbosity minimal

@@ -30,7 +30,7 @@ case "$1" in
             -e "B03_UITVOER=$pad/werk/b03-testsets" -e PYTHONPATH=tools/b03-harnas \
             -e DOTNET_PROCESSOR_COUNT -e JL_RUNTIME_IMAGE -e JL_CI_IMAGE -e STOCK_IMAGE "$(cat "$staat/image")" sleep infinity
         harnas=$(cat "$staat/container")
-        docker exec "$harnas" install -d -o 1000 -g 1000 "$pad/werk" "$pad/rapporten" \
+        docker exec "$harnas" install -d -o 568 -g 568 "$pad/werk" "$pad/rapporten" \
             "$pad/werk/"{sloten,b03-werk,b03-corpus,b03-testsets}
         docker exec "$harnas" stat -c %g /var/run/docker.sock > "$staat/socketgroep"
         git archive HEAD tools docs/openapi deploy/allinone/healthcheck.sh | docker cp - "$harnas:$pad/bron"
@@ -51,7 +51,7 @@ case "$1" in
         # De proefgebruiker maakt normale datasets met 0755 aan. Negatieve fixtures zetten
         # hun afwijkende rechten zelf. Docker exec kan een umask van 000 doorgeven.
         docker exec -i -e WEB_REF -e NIEUWE_RUNTIME "$(cat "$staat/container")" \
-            setpriv --reuid=1000 --regid=1000 --groups="$(cat "$staat/socketgroep")" --no-new-privs \
+            setpriv --reuid=568 --regid=568 --groups="$(cat "$staat/socketgroep")" --no-new-privs \
             bash -c 'umask 022; exec bash -e -o pipefail -s' < "$2"
         ;;
     rapporten)

@@ -208,6 +208,52 @@ public sealed class OpslagTerugvalTests : IDisposable
     }
 
     [Fact]
+    public async Task ModuleImport_HersteltDeGedownloadeBundelViaHttpNaHetVoorbeeld()
+    {
+        var stop = TestContext.Current.CancellationToken;
+        SessiesToegestaan();
+        var schakelaars = new NepSchakelaars();
+        using var host = Host(Maak(Path.Combine(_map, "data")), Maak(Path.Combine(_map, "cache")), schakelaars);
+        await host.StartAsync(stop);
+        try
+        {
+            const string Basis = "/media/v1/modules/devices";
+            var module = Assert.IsAssignableFrom<ModuleBasis>(host.Services.GetRequiredService<ModuleRegistry>().Zoek("devices"));
+            using var client = Client(host);
+            using var inactief = await client.GetAsync(Basis + "/export", stop);
+            Assert.Equal(HttpStatusCode.NotFound, inactief.StatusCode);
+            schakelaars.Zet("devices", true);
+            var bundel = (await client.GetFromJsonAsync<JsonObject>(Basis + "/export", stop))!;
+            var voor = module.LeesInstellingen();
+            module.SchrijfInstellingen(17, voor.Etag);
+            using var voorbeeld = await client.PostAsJsonAsync(Basis + "/import/preview", bundel, stop);
+            Assert.Equal(HttpStatusCode.OK, voorbeeld.StatusCode);
+            var inhoud = (await voorbeeld.Content.ReadFromJsonAsync<JsonObject>(stop))!;
+            var hash = (string)inhoud["preview_hash"]!;
+            Assert.Equal((string)bundel["preview_hash"]!, hash);
+            Assert.Equal(1, (int)inhoud["counts"]!["instellingen"]!);
+            async Task<HttpResponseMessage> Bevestig(string waarde)
+            {
+                using var verzoek = new HttpRequestMessage(HttpMethod.Post, Basis + "/import/apply");
+                verzoek.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+                verzoek.Content = JsonContent.Create(new { preview_hash = waarde });
+                return await client.SendAsync(verzoek, stop);
+            }
+
+            using var geweigerd = await Bevestig(new string('0', 64));
+            Assert.Equal(HttpStatusCode.Conflict, geweigerd.StatusCode);
+            Assert.Equal(17, (int)module.LeesInstellingen().Waarde["bewaar_dagen"]!);
+            using var toegepast = await Bevestig(hash);
+            Assert.Equal(HttpStatusCode.OK, toegepast.StatusCode);
+            Assert.True(JsonNode.DeepEquals(voor.Waarde, module.LeesInstellingen().Waarde));
+        }
+        finally
+        {
+            await host.StopAsync(stop);
+        }
+    }
+
+    [Fact]
     public async Task NaDeStart_OnveiligeOpslagGooitGeenRuweFoutNaarDeServer()
     {
         var stop = TestContext.Current.CancellationToken;
@@ -225,7 +271,10 @@ public sealed class OpslagTerugvalTests : IDisposable
             // Na de start worden een nog niet geopende moduledatabase, het zout van de pseudoniemen en de Hub-pin koppelingen.
             File.CreateSymbolicLink(Path.Combine(Maak(Path.Combine(eigen, "quality")), "quality.db"), kijk);
             var geheimen = Maak(Path.Combine(eigen, "secrets"));
-            File.CreateSymbolicLink(Path.Combine(geheimen, "opaque-id.salt"), kijk);
+            var zout = Path.Combine(geheimen, "opaque-id.salt");
+            Assert.True(File.Exists(zout));
+            File.Delete(zout);
+            File.CreateSymbolicLink(zout, kijk);
             File.CreateSymbolicLink(Path.Combine(geheimen, "hub-pin.json"), kijk);
 
             // Zoals EventManager.PublishInternal van de server: eerst alle afhandelaars aanmaken, buiten zijn foutafhandeling;
@@ -401,7 +450,7 @@ public sealed class OpslagTerugvalTests : IDisposable
         _auth.Wie = new SessieIdentiteit(Guid.NewGuid(), true, false);
     }
 
-    private IHost Host(string data, string cache) => new HostBuilder()
+    private IHost Host(string data, string cache, IModuleSwitches? proefSchakelaars = null) => new HostBuilder()
         .ConfigureLogging(l => l.AddProvider(_log))
         .ConfigureWebHost(web => web.UseKestrel(o => o.Listen(IPAddress.Loopback, 0))
             .ConfigureServices(diensten =>
@@ -414,6 +463,11 @@ public sealed class OpslagTerugvalTests : IDisposable
                 diensten.AddSingleton(Mock.Of<ILibraryManager>());
                 diensten.AddSingleton(Mock.Of<IAuthService>());
                 new PluginServiceRegistrator().RegisterServices(diensten, Mock.Of<IServerApplicationHost>());
+                if (proefSchakelaars is not null)
+                {
+                    diensten.AddSingleton(proefSchakelaars);
+                }
+
                 diensten.AddSingleton<ISessionAuthenticator>(_auth);
                 diensten.AddSingleton<IMediaMappen>(new NepMedia());
                 diensten.AddMvc().ConfigureApplicationPartManager(m =>
