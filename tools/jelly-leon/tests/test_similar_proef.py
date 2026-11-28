@@ -77,3 +77,16 @@ def test_webanker_weigert_gewijzigde_aanroep(tmp_path):
     assert similar_webbron.controleer(tmp_path) is None
     (tmp_path / next(iter(similar_webbron.ANKERS))).write_text("export function loadSections(elem)", encoding="utf-8")
     assert "webanker gewijzigd" in similar_webbron.controleer(tmp_path)
+
+
+def test_opwarmen_wacht_op_een_koude_terugval_maar_blijft_rood_zonder_eigen_antwoord(monkeypatch):
+    """Een koude eerste lezing mag terugvallen op stock (termijn 300 ms); blijft het eigen antwoord uit, dan rood."""
+    ids, gemeten = {"Bron": "bron", "Alfa": "alfa"}, {}
+    antwoorden = iter(["zulu", "zulu", "alfa"])
+    monkeypatch.setattr(proef.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(proef, "similar", lambda _wie, _bron: next(antwoorden))
+    proef.opwarmen(None, ids, gemeten.__setitem__, "normaal")
+    assert gemeten == {"similar_koude_start_normaal": "eigen antwoord binnen de termijn na 3 poging(en)"}
+    monkeypatch.setattr(proef, "similar", lambda _wie, _bron: "zulu")
+    with pytest.raises(ValueError, match="herkent de gedeelde schrijvers niet"):
+        proef.opwarmen(None, ids, gemeten.__setitem__, "waarnemer")

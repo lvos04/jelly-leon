@@ -139,6 +139,18 @@ def similar(wie, bron):
     return antwoord["Items"][0]["Id"]
 
 
+def opwarmen(wie, ids, meet, label):
+    """Een koude eerste lezing (JIT, bibliotheek) kan de termijn van 300 ms overschrijden; dan valt de provider bewust
+    terug op stock (B03-031_SIMILAR.md). Wacht hooguit vijf pogingen tot hij binnen de termijn antwoordt; de
+    rangschikkingseisen hierna gelden daarna ongewijzigd. Het aantal pogingen wordt gemeten."""
+    for poging in range(1, 6):
+        if similar(wie, ids["Bron"]) == ids["Alfa"]:
+            meet("similar_koude_start_" + label, f"eigen antwoord binnen de termijn na {poging} poging(en)")
+            return
+        time.sleep(1)
+    raise ValueError("de ingestelde provider antwoordt ook warm niet binnen de termijn of herkent de gedeelde schrijvers niet")
+
+
 def batch(wie):
     groepen = wie.http.doe("GET", "/Movies/Recommendations", {"categoryLimit": 20, "itemLimit": 20})
     resultaat = {(g["RecommendationType"], g.get("BaselineItemName"), i["Id"]) for g in groepen for i in g["Items"]}
@@ -255,6 +267,8 @@ def normale_proef(server, wachtwoord, ids, basis, meet):
     eis(similar(beheer, ids["Bron"]) == verwachte["Bron"], "zonder volgorde wijkt Similar af van stock")
     for selectie in (True, False):
         stel_volgorde(beheer, ["Jelly Leon"], selectie=selectie)
+        if selectie:
+            opwarmen(beheer, ids, meet, "normaal")
         eis(similar(beheer, ids["Bron"]) == ids["Alfa"], "de ingestelde provider herkent de gedeelde schrijvers niet")
     eis(similar(beheer, ids["Seriebron"]) == ids["Seriegezelschap"], "de serieprovider vindt geen soortgenoot")
     volledig = 0
@@ -310,6 +324,8 @@ def waarnemersproef(server, wachtwoord, ids, basis, meet):
     eis(similar(beheer, ids["Bron"]) == basis[0]["Bron"] and tel("aanroep") == voor,
         "zonder providerkeuze veranderde de volle stockuitkomst of werd eigen metadata gelezen")
     stel_volgorde(beheer, ["Jelly Leon"])
+    opwarmen(beheer, ids, meet, "waarnemer")
+    voor = tel("aanroep")
     for wie, naam in ((beheer, "Alfa"), (kijker, "Beta"), (beheer, "Alfa")):
         eis(similar(wie, ids["Bron"]) == ids[naam], "de provider zag het verkeerde profiel")
     eis(tel("aanroep") == voor + 3, "herhaalde lokale aanroepen bereikten de provider niet steeds opnieuw")
