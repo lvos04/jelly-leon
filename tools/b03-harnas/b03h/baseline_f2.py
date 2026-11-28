@@ -113,7 +113,7 @@ def twee_runs(beheer, dataset: Dataset, ids: dict[str, str], container_id: str) 
             "geverifieerde_trainingsitems": {"voor": vooraf, "na": achteraf}}
 
 
-def stockproef(dataset: Dataset, dsyn: Path, werk: Path) -> dict:
+def stockproef(dataset: Dataset, dsyn: Path, werk: Path, *, meetsessie=twee_runs) -> dict:
     werk = lokaal(werk)
     werk.mkdir(parents=True, exist_ok=True)
     # Alle serverdata en de eventuele D-ML-stubs behoren alleen toe aan deze opdracht.
@@ -142,8 +142,8 @@ def stockproef(dataset: Dataset, dsyn: Path, werk: Path) -> dict:
             instellingen = srv.jf.a.doe("GET", "/System/Configuration")
             spike = {"stubduur_s": duur, "MaxResumePct": instellingen["MaxResumePct"],
                      "MinResumeDurationSeconds": instellingen["MinResumeDurationSeconds"]}
-            meting = twee_runs(srv.jf, dataset, ids, srv.container_id)
-            if meting["status"] == "Sim-getest" and dataset.naam == "D-SYN":
+            meting = meetsessie(srv.jf, dataset, ids, srv.container_id)
+            if meetsessie is twee_runs and meting["status"] == "Sim-getest" and dataset.naam == "D-SYN":
                 with meetslot.run("stock-F2-functieproef", 1, [srv.container_id]) as last:
                     functie = functieproef(srv.jf, dataset, ids)
                 if last.geldig:

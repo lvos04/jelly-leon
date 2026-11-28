@@ -70,6 +70,7 @@ class Dataset:
     films: dict[str, Film] = field(default_factory=dict)
     globaal_t: int | None = None
     bovengrens_n: int | None = None
+    deler_training: dict[str, tuple[Interactie, ...]] = field(default_factory=dict)
 
     def pop(self, gebruiker: str) -> list[str]:
         if self.globaal_t is not None:
@@ -171,7 +172,9 @@ def splits_dml(z: zipfile.ZipFile, *, validatie_voor: int | None = None) -> Data
         holdout = (holdouts[u] & toegang) - {i.item for i in training}
         if sum(i.favoriet for i in training) >= 5 and len(holdout) >= 2:
             profielen[u] = Profiel(t, tuple(sorted(training, key=lambda i: (i.tijd, i.item))), frozenset(holdout), toegang)
-    return Dataset("D-ML", ARCHIEF_SHA, catalogus, profielen, films, t, bovengrens)
+    # Ook een deler zonder latere holdout telt mee. Selectie van delers op latere activiteit zou lekken.
+    return Dataset("D-ML", ARCHIEF_SHA, catalogus, profielen, films, t, bovengrens,
+                   {u: tuple(training) for u, training in trainingen.items()})
 
 
 def schrijf_dml_stubs(dataset: Dataset, stub: Path, doel: Path) -> None:

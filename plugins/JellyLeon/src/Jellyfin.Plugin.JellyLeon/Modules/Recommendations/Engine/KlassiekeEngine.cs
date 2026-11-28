@@ -7,7 +7,7 @@ namespace Jellyfin.Plugin.JellyLeon.Modules.Recommendations.Engine;
 
 internal sealed record ScoreGewichten(double Inhoud, double Seed)
 {
-    public static ScoreGewichten Vast { get; } = new(0.55, 0.25);
+    public static ScoreGewichten Vast { get; } = new(0.60, 0.20);
     public const double Kwaliteit = 0.10;
     public const double Versheid = 0.05;
 }

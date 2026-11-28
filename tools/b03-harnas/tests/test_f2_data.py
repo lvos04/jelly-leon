@@ -38,6 +38,7 @@ def test_dml_gebruikt_alleen_verleden_en_markeert_afgeleide_nfo(tmp_path):
     assert [(r.item, r.tijd) for r in d.profielen["a"].training] == [(str(i), i) for i in range(1, 6)]
     assert (d.films["6"].eerste, d.films["6"].aantal, d.films["6"].som) == (2, 1, 2.5)
     assert d.films["6"].tags == {"voor"}
+    assert "b" in d.deler_training and "b" not in d.profielen
     assert d.pop("a") == list("1234567")
     stub = tmp_path / "stub"
     stub.write_bytes(b"synthetisch")
