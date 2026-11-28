@@ -45,6 +45,12 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets de schakelaar van module Quality.</summary>
     public ModuleSwitch Quality { get; set; } = new();
 
+    /// <summary>Gets or sets de schakelaar voor segmenten.</summary>
+    public ModuleSwitch Segments { get; set; } = new();
+
+    /// <summary>Gets or sets de aangewezen volwassen segmenteditors. Het kinderbeleid blijft leidend.</summary>
+    public System.Guid[] SegmentEditors { get; set; } = [];
+
     /// <summary>Gets or sets de instellingen van de MediaGuard-viewerclient.</summary>
     public MediaGuardOptions MediaGuard { get; set; } = new();
 
@@ -57,5 +63,6 @@ public class PluginConfiguration : BasePluginConfiguration
     {
         yield return ("devices", Devices ??= new ModuleSwitch());
         yield return ("quality", Quality ??= new ModuleSwitch());
+        yield return ("segments", Segments ??= new ModuleSwitch());
     }
 }

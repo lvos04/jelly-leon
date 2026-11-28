@@ -587,6 +587,37 @@ internal static class Regels
     /// eigen schakelaars; het pad ligt vast, zie <see cref="PluginConfigLeden"/>).
     /// </summary>
     public static readonly ImmutableArray<ServerWit> ServerAbiWitteLijst = ImmutableArray.Create(
+        // F6-S1: alleen deze serverleden in hun benoemde adapter.
+        new ServerWit("MediaBrowser.Common.Extensions.BaseExtensions", "GetMD5", PluginNamespace + ".Modules.Segments.SegmentProvider"),
+        new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetCollectionFolders", PluginNamespace + ".Modules.Segments.SegmentProvider"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "Id", PluginNamespace + ".Modules.Segments.SegmentProvider"),
+        new ServerWit("MediaBrowser.Model.MediaSegmentGenerationRequest", "ItemId", PluginNamespace + ".Modules.Segments.SegmentProvider"),
+        new ServerWit("MediaBrowser.Model.MediaSegments.MediaSegmentDto", ".ctor", PluginNamespace + ".Modules.Segments.SegmentProvider", "Id", "ItemId", "Type", "StartTicks", "EndTicks"),
+        new ServerWit("MediaBrowser.Controller.MediaSegments.IMediaSegmentManager", "GetSupportedProviders", PluginNamespace + ".Modules.Segments.SegmentPublicatie"),
+        new ServerWit("MediaBrowser.Controller.MediaSegments.IMediaSegmentManager", "GetSegmentsAsync", PluginNamespace + ".Modules.Segments.SegmentPublicatie"),
+        new ServerWit("MediaBrowser.Model.Configuration.LibraryOptions", ".ctor", PluginNamespace + ".Modules.Segments.SegmentPublicatie", "DisabledMediaSegmentProviders"),
+        new ServerWit("MediaBrowser.Model.MediaSegments.MediaSegmentDto", "Type", PluginNamespace + ".Modules.Segments.SegmentPublicatie"),
+        new ServerWit("MediaBrowser.Model.MediaSegments.MediaSegmentDto", "StartTicks", PluginNamespace + ".Modules.Segments.SegmentPublicatie"),
+        new ServerWit("MediaBrowser.Model.MediaSegments.MediaSegmentDto", "EndTicks", PluginNamespace + ".Modules.Segments.SegmentPublicatie"),
+        new ServerWit("MediaBrowser.Model.MediaSegments.MediaSegmentDto", "Id", PluginNamespace + ".Modules.Segments.SegmentPublicatie"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "Id", PluginNamespace + ".Modules.Segments.SegmentPublicatie"),
+        new ServerWit("MediaBrowser.Controller.Entities.TV.Episode", "SeriesId", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetItemById", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetCollectionFolders", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetVirtualFolders", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Library.ILibraryManager", "GetItemList", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "Id", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "RunTimeTicks", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "ParentIndexNumber", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "IndexNumber", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "DateModified", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Entities.BaseItem", "ProviderIds", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Model.Entities.VirtualFolderInfo", "ItemId", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Model.Entities.VirtualFolderInfo", "Locations", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Controller.Entities.InternalItemsQuery", ".ctor", PluginNamespace + ".Modules.Segments.SegmentBibliotheek", "ParentId", "Recursive", "MediaTypes", "StartIndex", "Limit"),
+        new ServerWit("MediaBrowser.Controller.Persistence.IChapterRepository", "GetChapters", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Model.Entities.ChapterInfo", "StartPositionTicks", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
+        new ServerWit("MediaBrowser.Model.Entities.ChapterInfo", "Name", PluginNamespace + ".Modules.Segments.SegmentBibliotheek"),
         // De pluginklasse: de basisconstructor en de configuratiepagina (een nieuw object, alleen in zijn initialisatie gevuld).
         new ServerWit("MediaBrowser.Common.Plugins.BasePlugin`1", ".ctor", PluginNamespace + ".Plugin"),
         new ServerWit("MediaBrowser.Model.Plugins.PluginPageInfo", ".ctor", PluginNamespace + ".Plugin", "Name", "DisplayName", "EmbeddedResourcePath"),
@@ -651,6 +682,7 @@ internal static class Regels
     /// Microsoft-typen (IHostedService, IStartupFilter) zijn geen server-ABI en vallen niet onder deze regel.
     /// </summary>
     public static readonly ImmutableArray<UitbreidingWit> UitbreidingWitteLijst = ImmutableArray.Create(
+        new UitbreidingWit("MediaBrowser.Controller.MediaSegments.IMediaSegmentProvider", PluginNamespace + ".Modules.Segments"),
         new UitbreidingWit("MediaBrowser.Common.Plugins.BasePlugin`1", PluginNamespace),
         new UitbreidingWit("MediaBrowser.Model.Plugins.IHasWebPages", PluginNamespace),
         new UitbreidingWit("MediaBrowser.Controller.Plugins.IPluginServiceRegistrator", PluginNamespace),

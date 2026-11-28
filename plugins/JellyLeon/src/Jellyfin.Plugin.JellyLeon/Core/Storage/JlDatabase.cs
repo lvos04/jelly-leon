@@ -80,6 +80,20 @@ internal sealed partial class JlDatabase
         return 0;
     });
 
+    public T Transactioneel<T>(Func<SqliteConnection, T> werk) => Met(v =>
+    {
+        using var transactie = v.BeginTransaction();
+        var resultaat = werk(v);
+        transactie.Commit();
+        return resultaat;
+    });
+
+    public void Transactioneel(Action<SqliteConnection> werk) => Transactioneel(v =>
+    {
+        werk(v);
+        return 0;
+    });
+
     public static int Voer(SqliteConnection verbinding, string sql, params (string Naam, object? Waarde)[] parameters)
     {
         using var opdracht = Opdracht(verbinding, sql, parameters);
@@ -235,13 +249,14 @@ internal sealed partial class JlDatabase
             MaakKopie(verbinding, versie);
         }
 
+        using var transactie = verbinding.BeginTransaction();
         for (var i = versie; i < _migraties.Count; i++)
         {
-            using var transactie = verbinding.BeginTransaction();
             Voer(verbinding, _migraties[i]);
             Voer(verbinding, "PRAGMA user_version=" + (i + 1).ToString(CultureInfo.InvariantCulture) + ";");
-            transactie.Commit();
         }
+
+        transactie.Commit();
     }
 
     private void MaakKopie(SqliteConnection verbinding, int versie)
@@ -252,10 +267,28 @@ internal sealed partial class JlDatabase
             throw new IOException("integrity_check van " + Path.GetFileName(Pad) + " is niet 'ok'; migratie gestopt.");
         }
 
-        Voer(verbinding, "PRAGMA wal_checkpoint(TRUNCATE);");
         var stempel = DateTime.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
         var kopie = Pad + ".v" + versie.ToString(CultureInfo.InvariantCulture) + "." + stempel + ".bak";
-        _bestanden.KopieerNieuw(Pad, kopie);
+        // De online back-up neemt ook vastgelegde WAL-pagina’s mee. Controleer de kopie vóór de eerste schemawijziging.
+        // Een herhaling in dezelfde seconde krijgt een eigen naam.
+        if (File.Exists(kopie))
+        {
+            kopie = Pad + ".v" + versie.ToString(CultureInfo.InvariantCulture) + "." + Guid.NewGuid().ToString("N") + "." + stempel + ".bak";
+        }
+
+        _bestanden.SchrijfEenmalig(kopie, []);
+        EisEigenPlek(_paden, kopie);
+        using (var doel = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = kopie, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString()))
+        {
+            doel.Open();
+            SluitKoppelenUit(doel);
+            verbinding.BackupDatabase(doel);
+            if (!string.Equals(Scalar(doel, "PRAGMA integrity_check;") as string, "ok", StringComparison.Ordinal) ||
+                Getal(doel, "PRAGMA user_version;") != versie)
+            {
+                throw new IOException("De migratiekopie is niet integer.");
+            }
+        }
 
         // Opruimen op de stempel in de naam (niet op de bestandstijd: een kopie erft de tijd van het origineel).
         // De kopie van zojuist blijft altijd staan.

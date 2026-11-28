@@ -1305,7 +1305,7 @@ public class VerbodenApiAnalyzerTests
     }
 
     [Fact]
-    public async Task WitteLijstVanDePlugin_IsGeldigEnInGolf1Leeg()
+    public async Task WitteLijstVanDePlugin_BevatUitsluitendGerichteSegmentpublicatie()
     {
         var tekst = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, Regels.UitzonderingenBestand), TestContext.Current.CancellationToken);
         var regels = tekst.Split('\n').Select(r => r.Trim()).Where(r => r.Length > 0 && r[0] != '#').ToList();
@@ -1313,8 +1313,9 @@ public class VerbodenApiAnalyzerTests
         var gevonden = await AnalyzerHarnas.AnalyseerAsync(AnalyzerHarnas.Klasse(Modules + ".Quality", "X", "public void M() { }"), tekst, TestContext.Current.CancellationToken);
 
         Assert.Empty(gevonden);
-        // Golf 1 (Devices en Quality) heeft geen enkele uitzondering; de eerste komt met F3 en hoort bij een eigen ADR.
-        Assert.Empty(regels);
+        const string manager = "JL0001 MediaBrowser.Controller.MediaSegments.IMediaSegmentManager.";
+        const string klasse = " Jellyfin.Plugin.JellyLeon.Modules.Segments.SegmentPublicatie";
+        Assert.Equal([manager + "CreateSegmentAsync" + klasse, manager + "DeleteSegmentAsync" + klasse], regels);
     }
 
     [Fact]

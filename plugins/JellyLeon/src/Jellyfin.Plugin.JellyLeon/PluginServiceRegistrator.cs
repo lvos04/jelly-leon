@@ -16,6 +16,8 @@ using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Core.Werker;
 using Jellyfin.Plugin.JellyLeon.Modules.Devices;
 using Jellyfin.Plugin.JellyLeon.Modules.Quality;
+using Jellyfin.Plugin.JellyLeon.Modules.Segments;
+using MediaBrowser.Controller.MediaSegments;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
@@ -58,6 +60,11 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<DevicesModule>());
         serviceCollection.AddSingleton<QualityModule>();
         serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<QualityModule>());
+        serviceCollection.AddSingleton<SegmentsModule>();
+        serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<SegmentsModule>());
+        serviceCollection.AddSingleton<IMediaSegmentProvider, SegmentProvider>();
+        serviceCollection.AddSingleton<SegmentBibliotheek>();
+        serviceCollection.AddSingleton<SegmentPublicatie>();
         serviceCollection.AddSingleton<ModuleRegistry>();
 
         serviceCollection.AddSingleton<PrivacyService>();

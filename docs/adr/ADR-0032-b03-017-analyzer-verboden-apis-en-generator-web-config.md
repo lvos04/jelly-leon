@@ -168,6 +168,23 @@ elke regel in deze tabel staat):
 | `PlayerStateInfo` | `PlayMethod` | `Modules.Devices.DevicesListener` | Direct Play, Direct Stream of Transcode. |
 | `User` | `Id` | `Modules.Devices.DevicesListener` | Het ID van de kijker, voor de eigen tabel. |
 
+| `BaseExtensions` | `GetMD5` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
+| `ILibraryManager` | `GetCollectionFolders` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
+| `BaseItem` | `Id` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
+| `MediaSegmentGenerationRequest` | `ItemId` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
+| `MediaSegmentDto` | `new` | `Modules.Segments.SegmentProvider` | F6-S1, ADR-0037. |
+| `IMediaSegmentManager` | `GetSupportedProviders`, `GetSegmentsAsync` | `Modules.Segments.SegmentPublicatie` | F6-S1, ADR-0037. |
+| `LibraryOptions` | `new` | `Modules.Segments.SegmentPublicatie` | F6-S1, ADR-0037. |
+| `MediaSegmentDto` | `Type`, `StartTicks`, `EndTicks`, `Id` | `Modules.Segments.SegmentPublicatie` | F6-S1, ADR-0037. |
+| `BaseItem` | `Id` | `Modules.Segments.SegmentPublicatie` | F6-S1, ADR-0037. |
+| `Episode` | `SeriesId` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
+| `ILibraryManager` | `GetItemById`, `GetCollectionFolders`, `GetVirtualFolders`, `GetItemList` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
+| `BaseItem` | `Id`, `RunTimeTicks`, `ParentIndexNumber`, `IndexNumber`, `DateModified`, `ProviderIds` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
+| `VirtualFolderInfo` | `ItemId`, `Locations` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
+| `InternalItemsQuery` | `new` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
+| `IChapterRepository` | `GetChapters` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
+| `ChapterInfo` | `StartPositionTicks`, `Name` | `Modules.Segments.SegmentBibliotheek` | F6-S1, ADR-0037. |
+
 Witte lijst van uitbreidingspunten (`Regels.UitbreidingWitteLijst`):
 
 | Servertype | Namespace (exact) | Motivatie |
@@ -178,11 +195,11 @@ Witte lijst van uitbreidingspunten (`Regels.UitbreidingWitteLijst`):
 | `BasePluginConfiguration` | `Jellyfin.Plugin.JellyLeon.Configuration` | `PluginConfiguration` (alleen schakelaars en instellingen, nooit een geheim). |
 | `IEventConsumer<UserDeletedEventArgs>` | `Jellyfin.Plugin.JellyLeon.Core.Privacy` | `UserDeletedConsumer` wist de eigen gegevens van een verwijderde gebruiker (c09698f09). Alleen dit typeargument; een consumer van een ander event is JL0001. Stond niet in het voorstel van herreview 6, maar de plugin gebruikt het al sinds golf 1. |
 
+| `IMediaSegmentProvider` | `Jellyfin.Plugin.JellyLeon.Modules.Segments` | De extractietaak leest de vrijgegeven set (ADR-0037). |
+
 Microsoft-typen zijn geen server-ABI en vallen niet onder deze regel: `IHostedService` (`DevicesListener`, `MediaGuardPoller`,
 `BatchPlanner`); zie "Grenzen". `IStartupFilter` (de spike van ADR-0033) en de andere uitbreidingspunten van de HTTP-laag vallen
-sinds herstelronde 8 onder een eigen regel met een eigen witte lijst (zie "HTTP-laag en netwerk"). Later, elk met een eigen ADR en een regel in
-`Regels.UitbreidingWitteLijst`: `IScheduledTask` (de ingang naar de batchplanner) en `IMediaSegmentProvider` (alleen in
-`Modules.Segments`, B03-07x). Nu geven beide JL0001.
+sinds herstelronde 8 onder een eigen regel met een eigen witte lijst (zie "HTTP-laag en netwerk"). Een toekomstig uitbreidingspunt voor de planner (`IScheduledTask`) vraagt een eigen ADR.
 
 In dezelfde ronde, als JL0002 buiten de opslaglaag (`Core.Storage`, `Core.Secrets`), zonder uitzondering per klasse:
 `WebClient` en `WebRequest` met elk afgeleid type (`FileWebRequest`) helemaal, ook lezen: met een file:-adres schrijven

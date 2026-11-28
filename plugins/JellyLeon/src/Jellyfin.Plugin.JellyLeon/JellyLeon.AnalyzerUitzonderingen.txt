@@ -9,4 +9,6 @@
 # bibliotheek (ILibraryManager, IItemRepository, BaseItem, afspeellijsten, collecties, gebruikers, apparaten).
 #
 # Elke regel hier hoort bij een taak uit het plan en een ADR; een regel die niet past is een bouwfout (JL0009).
-# Stand golf 1: geen enkele uitzondering.
+# ADR F6-S1. Alleen na selectie op de eigen provider-ID en met een nieuwe DTO.
+JL0001 MediaBrowser.Controller.MediaSegments.IMediaSegmentManager.CreateSegmentAsync Jellyfin.Plugin.JellyLeon.Modules.Segments.SegmentPublicatie
+JL0001 MediaBrowser.Controller.MediaSegments.IMediaSegmentManager.DeleteSegmentAsync Jellyfin.Plugin.JellyLeon.Modules.Segments.SegmentPublicatie

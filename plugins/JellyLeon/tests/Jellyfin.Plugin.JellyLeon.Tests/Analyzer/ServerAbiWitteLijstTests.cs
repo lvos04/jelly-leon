@@ -252,7 +252,7 @@ public class ServerAbiWitteLijstTests
     /// uitbreidingspunten staan, in precies zijn namespace. De huidige vijf (BasePlugin&lt;T&gt;, IHasWebPages en
     /// IPluginServiceRegistrator in de wortel, BasePluginConfiguration in Configuration, IEventConsumer&lt;UserDeletedEventArgs&gt;
     /// in Core.Privacy) mogen daar; elders, met een ander typeargument, via een eigen tussentype of opnieuw genoemd niet.
-    /// IScheduledTask en IMediaSegmentProvider staan er (nog) niet op.
+    /// IScheduledTask blijft verboden. De segmentprovider mag uitsluitend in Modules.Segments.
     /// </summary>
     [Fact]
     public async Task Uitbreidingspunten_AlleenDeWitteLijstPerNamespace()
@@ -376,7 +376,7 @@ public class ServerAbiWitteLijstTests
                 }
             }
 
-            namespace Jellyfin.Plugin.JellyLeon.Modules.Segments
+            namespace Jellyfin.Plugin.JellyLeon.Modules.Segments.Andere
             {
                 public class Segmenten : MediaBrowser.Controller.MediaSegments.IMediaSegmentProvider // JL0001
                 {
