@@ -1,0 +1,162 @@
+{
+  "stap": "S-G2-40",
+  "onderdelen": "JLT-56a tot en met f, g en i",
+  "provider_id": "89c1fd4ffb135be83ede19aa4ba67b06",
+  "stock_image_id": "sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "opzet": "Twee zelfstandige stockkopieën en dezelfde stockruntime met de lokale release-DLL. Alle invoer en gebruikers zijn synthetisch. Alleen de eigen provider-ID is uitgefilterd in de meetkopie.",
+  "metingen": [
+    {
+      "uitvoering": "eerste controle",
+      "exitcode": 1,
+      "positief": 22,
+      "negatief": 2,
+      "slotregel": "JLT-56: 22/24 controles positief",
+      "controles": [
+        {
+          "jlt": "JLT-56",
+          "test": "a1 gezaaide kijkgegevens en simulatievoortgang aanwezig",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "a1 eigendom en bestaande vreemde rij bij publicatie",
+          "geslaagd": true,
+          "detail": "eigen 0, vreemd 1"
+        },
+        {
+          "jlt": "JLT-56i",
+          "test": "a1 depublicatie behoudt de vreemde referentierij",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56f",
+          "test": "a1 corpus-SHA’s, omvang en mtimes gelijk op schrijfbare mount",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56i",
+          "test": "a1 geen eigen rijen na uitzetten",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "a1 voortgang van de afzonderlijke MediaGuard-simulator blijft leesbaar",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "a2 gezaaide kijkgegevens en simulatievoortgang aanwezig",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "a2 eigendom en bestaande vreemde rij bij publicatie",
+          "geslaagd": true,
+          "detail": "eigen 0, vreemd 1"
+        },
+        {
+          "jlt": "JLT-56i",
+          "test": "a2 depublicatie behoudt de vreemde referentierij",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56f",
+          "test": "a2 corpus-SHA’s, omvang en mtimes gelijk op schrijfbare mount",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56i",
+          "test": "a2 geen eigen rijen na uitzetten",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "a2 voortgang van de afzonderlijke MediaGuard-simulator blijft leesbaar",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "b gezaaide kijkgegevens en simulatievoortgang aanwezig",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "Schaduw bevat de menselijke correctie en publiceert niets",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "Alle tabellen bij publicatie",
+          "geslaagd": true,
+          "detail": "afwijkend [], onvergelijkbaar []"
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "b eigendom en bestaande vreemde rij bij publicatie",
+          "geslaagd": true,
+          "detail": "eigen 1, vreemd 1"
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "Alle tabellen bij depublicatie",
+          "geslaagd": true,
+          "detail": "afwijkend [], onvergelijkbaar []"
+        },
+        {
+          "jlt": "JLT-56i",
+          "test": "b depublicatie behoudt de vreemde referentierij",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56e",
+          "test": "Export bevat geen account-ID’s of meldingen",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56d",
+          "test": "migratie-goed",
+          "geslaagd": true,
+          "detail": "HTTP 200, versie 2 naar 3, back-up met correcties True"
+        },
+        {
+          "jlt": "JLT-56d",
+          "test": "migratie-fout",
+          "geslaagd": true,
+          "detail": "HTTP 503, versie 2 naar 2, back-up met correcties True"
+        },
+        {
+          "jlt": "JLT-56e",
+          "test": "Officiële back-up hersteld en export in lege module geïmporteerd",
+          "geslaagd": true,
+          "detail": ""
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "Alle tabellen bij vervanging",
+          "geslaagd": false,
+          "detail": "afwijkend [], onvergelijkbaar ['BaseItems']"
+        },
+        {
+          "jlt": "JLT-56",
+          "test": "Uitvoering onderbroken",
+          "geslaagd": false,
+          "detail": "Stockvergelijking onderbroken bij vervanging"
+        }
+      ]
+    }
+  ]
+}

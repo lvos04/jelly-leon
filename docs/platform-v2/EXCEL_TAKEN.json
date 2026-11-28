@@ -1039,7 +1039,7 @@
   "status": "Bezig",
   "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
   "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
-  "bewijs": "SegmentProviderTests en SegmentBeheerTests toetsen de module, SQLite en routefilters. In de containerproef bleven bij publicatie en depublicatie alle vergelijkbare stocktabellen gelijk. Eén vreemde segmentrij bleef staan. Migratie van versie 2 naar 3 slaagde. Een opzettelijk mislukte migratie gaf HTTP 503, behield versie 2 en leverde een integere back-up met de oorspronkelijke correcties. Een officiële Jellyfin-back-up en een plugin-export herstelden de favoriet en de correcties op een afzonderlijke kopie.",
+  "bewijs": "SegmentProviderTests en SegmentBeheerTests toetsen de module, SQLite en routefilters. In de containerproef bleven bij publicatie en depublicatie alle vergelijkbare stocktabellen gelijk. Eén vreemde segmentrij bleef staan. Migratie van versie 2 naar 3 slaagde. Een opzettelijk mislukte migratie gaf HTTP 503, behield versie 2 en leverde een integere back-up met de oorspronkelijke correcties. Een officiële Jellyfin-back-up en een plugin-export herstelden de favoriet en de correcties op een afzonderlijke kopie. De gemeten uitkomsten staan in test-evidence/b03-071-jlt56.json.",
   "opmerking": "De globale routegrens voor import is 1 MiB. Na een bronwijziging blijven menselijke grenzen beschikbaar voor controle. De volledige differentiële proef en de productie-image zijn nog niet afgevinkt."
  },
  {
@@ -1940,7 +1940,7 @@
   "status": "Bezig",
   "validatie": "Sim-getest; NIET GEVALIDEERD (echte NAS)",
   "blokkade": "NIET GEVALIDEERD (echte NAS): eigen bibliotheek (JLT-59).",
-  "bewijs": "Twee stockkopieën en één pluginserver, met gevuld hervatpunt en externe gesimuleerde voortgang. Publicatie en depublicatie gaven in de tabelvergelijking geen verschil buiten eigen providerrijen. d: succesvolle en opzettelijk mislukte migratie, oude versie en correcties intact. e: officiële back-up teruggezet, favoriet hersteld, export zonder account-ID’s en dezelfde itemset na import. a/b/c, f, g en i worden ook in de moduleproeven bewaakt. De vergelijkertest verwerpt een gewijzigde vreemde rij en een gewijzigd hervatpunt.",
+  "bewijs": "Twee stockkopieën en één pluginserver, met gevuld hervatpunt en externe gesimuleerde voortgang. Publicatie en depublicatie gaven in de tabelvergelijking geen verschil buiten eigen providerrijen. d: succesvolle en opzettelijk mislukte migratie, oude versie en correcties intact. e: officiële back-up teruggezet, favoriet hersteld, export zonder account-ID’s en dezelfde itemset na import. a/b/c, f, g en i worden ook in de moduleproeven bewaakt. De vergelijkertest verwerpt een gewijzigde vreemde rij en een gewijzigd hervatpunt. De gemeten uitkomsten staan in test-evidence/b03-071-jlt56.json.",
   "opmerking": "De eerste integratierun gaf 22/24 positieve controles. Bij de vervanging van de film kon BaseItems door onderling verschil van de stockkopieën niet worden beoordeeld. Er was geen aangetoonde afwijkende tabel. Onderdelen na dat meetpunt en tellen van geweigerde schrijfpogingen zijn nog open. Onderdeel h volgt in golf 4."
  },
  {
