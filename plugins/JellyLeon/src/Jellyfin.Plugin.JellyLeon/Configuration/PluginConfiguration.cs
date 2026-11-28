@@ -10,6 +10,13 @@ public class ModuleSwitch
     public bool Enabled { get; set; }
 }
 
+/// <summary>De module staat standaard uit. Na inschakelen doet de lokale Similar-provider mee.</summary>
+public sealed class RecommendationsOptions : ModuleSwitch
+{
+    /// <summary>Gets or sets de afzonderlijke schakelaar voor Meer zoals dit.</summary>
+    public ModuleSwitch Similar { get; set; } = new() { Enabled = true };
+}
+
 /// <summary>Instellingen voor Watch Together. Een ingestelde gast vereist de conservatieve zelftest.</summary>
 public class WatchTogetherOptions : ModuleSwitch
 {
@@ -52,6 +59,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets de schakelaar van module Quality.</summary>
     public ModuleSwitch Quality { get; set; } = new();
 
+    /// <summary>Gets or sets de instellingen van de module Recommendations.</summary>
+    public RecommendationsOptions Recommendations { get; set; } = new();
+
     /// <summary>Gets or sets de schakelaar voor segmenten.</summary>
     public ModuleSwitch Segments { get; set; } = new();
 
@@ -72,6 +82,7 @@ public class PluginConfiguration : BasePluginConfiguration
     {
         yield return ("devices", Devices ??= new ModuleSwitch());
         yield return ("quality", Quality ??= new ModuleSwitch());
+        yield return ("recommendations", Recommendations ??= new RecommendationsOptions());
         yield return ("segments", Segments ??= new ModuleSwitch());
         yield return ("watch", WatchTogether ??= new WatchTogetherOptions());
     }

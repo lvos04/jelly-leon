@@ -236,7 +236,7 @@ public sealed class BeheerTests : IDisposable
         var lijst = await _h.Roep("modules.list");
         Assert.Equal(200, lijst.Status);
         Assert.Empty(SchemaControle.Afwijkingen(_openapi, "Modules", lijst.Json));
-        Assert.Equal(["devices", "quality", "segments", "watch"], lijst.Json!["items"]!.AsArray().Select(m => m!["slug"]!.GetValue<string>()));
+        Assert.Equal(["devices", "quality", "recommendations", "segments", "watch"], lijst.Json!["items"]!.AsArray().Select(m => m!["slug"]!.GetValue<string>()));
         Assert.All(lijst.Json["items"]!.AsArray(), m => Assert.False(m!["enabled"]!.GetValue<bool>()));
         var etag = lijst.Kop["ETag"];
         var pad = new Dictionary<string, string> { ["slug"] = "quality" };

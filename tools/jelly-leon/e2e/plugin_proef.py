@@ -420,7 +420,8 @@ class Plugin:
         namen = [p.name for p in dlls]
         dll_hash = hashlib.sha256(dlls[0].read_bytes()).hexdigest() if namen == [PLUGIN_DLL] else ""
         modules = sorted(m["slug"] for m in self.beheer.http.doe("GET", "/media/v1/modules")["items"])
-        self.v.test("JLT-68", "Devices en Quality uit één plugin-DLL", namen == [PLUGIN_DLL] and modules == ["devices", "quality"],
+        self.v.test("JLT-68", "Alle geregistreerde modules uit één plugin-DLL",
+                    namen == [PLUGIN_DLL] and modules == ["devices", "quality", "recommendations", "segments", "watch"],
                     f"DLL's {namen}, SHA-256 {dll_hash}, modules {modules}")
 
     def routetabel(self, stock_openapi: dict[str, Any]) -> None:

@@ -19,11 +19,13 @@ using Jellyfin.Plugin.JellyLeon.Core.Storage;
 using Jellyfin.Plugin.JellyLeon.Core.Werker;
 using Jellyfin.Plugin.JellyLeon.Modules.Devices;
 using Jellyfin.Plugin.JellyLeon.Modules.Quality;
+using Jellyfin.Plugin.JellyLeon.Modules.Recommendations;
 using Jellyfin.Plugin.JellyLeon.Modules.Segments;
 using MediaBrowser.Controller.MediaSegments;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.AspNetCore.Hosting;
@@ -56,13 +58,20 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<JtiStore>();
         serviceCollection.AddSingleton<IdempotencyStore>();
         serviceCollection.AddSingleton<Outbox>();
-        serviceCollection.AddSingleton<IModuleSwitches, PluginModuleSwitches>();
+        serviceCollection.AddSingleton<PluginModuleSwitches>();
+        serviceCollection.AddSingleton<IModuleSwitches>(sp => sp.GetRequiredService<PluginModuleSwitches>());
 
         // Modules: elk met een eigen schakelaar, eigen SQLite-bestand en eigen routes.
         serviceCollection.AddSingleton<DevicesModule>();
         serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<DevicesModule>());
         serviceCollection.AddSingleton<QualityModule>();
         serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<QualityModule>());
+        serviceCollection.AddSingleton<IJellyLeonModule, RecommendationsModule>();
+        serviceCollection.TryAddSingleton<LeesSimilarMetadata>(sp =>
+        {
+            var bibliotheek = sp.GetRequiredService<ILibraryManager>();
+            return query => bibliotheek.GetItemList(query, false);
+        });
         serviceCollection.AddSingleton<SegmentsModule>();
         serviceCollection.AddSingleton<IJellyLeonModule>(sp => sp.GetRequiredService<SegmentsModule>());
         serviceCollection.AddSingleton<IMediaSegmentProvider, SegmentProvider>();
