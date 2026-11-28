@@ -241,10 +241,13 @@ jobs:
           cd "$RUNNER_TEMP/testbron"
           bash tools/jelly-leon/test_plugins.sh
 
-      - name: Controleer de handberekende aanbevelingsmetrieken met de evaluatie-CLI
+      - name: Test de handberekende metrieken en het JSON-contract met de evaluatie-CLI
         run: |
           cd "$RUNNER_TEMP/testbron"
-          dotnet run --project tools/jl-rec-eval -c Release -- handvoorbeelden < tools/b03-harnas/tests/voorbeelden/f2-metrieken.json
+          dotnet build tools/jl-rec-eval -c Release -o "$RUNNER_TEMP/jl-rec-eval"
+          cli="$RUNNER_TEMP/jl-rec-eval/jl-rec-eval"
+          "$cli" handvoorbeelden < tools/b03-harnas/tests/voorbeelden/f2-metrieken.json
+          PYTHONPATH=tools/b03-harnas python3 tools/b03-harnas/tests/cli_rookproef.py "$cli"
 
       # B03-017 / ADR-0032: de proefassembly bevat elke verboden aanroep en MOET de build laten falen, met precies de
       # gemarkeerde bouwfouten (JL0001–JL0004) en om geen andere reden. De gewone build hierboven bewijst het omgekeerde:

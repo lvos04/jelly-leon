@@ -225,8 +225,12 @@ jobs:
       - name: Test plugins
         run: dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
 
-      - name: Controleer de handberekende aanbevelingsmetrieken met de evaluatie-CLI
-        run: dotnet run --project tools/jl-rec-eval -c Release -- handvoorbeelden < tools/b03-harnas/tests/voorbeelden/f2-metrieken.json
+      - name: Test de handberekende metrieken en het JSON-contract met de evaluatie-CLI
+        run: |
+          dotnet build tools/jl-rec-eval -c Release -o "$RUNNER_TEMP/jl-rec-eval"
+          cli="$RUNNER_TEMP/jl-rec-eval/jl-rec-eval"
+          "$cli" handvoorbeelden < tools/b03-harnas/tests/voorbeelden/f2-metrieken.json
+          PYTHONPATH=tools/b03-harnas python3 tools/b03-harnas/tests/cli_rookproef.py "$cli"
 
       - name: Alleen de eigen tijdelijke eigenaarfixture opruimen
         if: always() && env.JL_VREEMDE_OPSLAG != ''

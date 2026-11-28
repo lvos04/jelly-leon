@@ -30,7 +30,7 @@ def catalogus(d: Dataset, dsyn: dict | None) -> list[dict]:
 
 
 def opname(d: Dataset, dsyn: dict | None, *, valideren: bool = False, titels: list[dict] | None = None) -> dict:
-    """Geen titels van andere gebruikers, verborgen voorkeur, testantwoorden of gegevens na de klok naar de engine."""
+    """Alleen metadata, rechten en training vóór de klok. De beoordelaar houdt de testantwoorden en verborgen voorkeur."""
     gezinnen = {} if dsyn is None else dsyn["gebruikers"]
     trainingen = d.deler_training or {u: p.training for u, p in d.profielen.items()}
     profielen = []
