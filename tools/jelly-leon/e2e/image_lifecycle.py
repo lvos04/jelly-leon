@@ -517,6 +517,8 @@ class Lifecycle:
         # Custom User 568 met een dataset die (nog) niet van 568 is: melden en stoppen, nooit stil doorstarten (§2.2).
         foreign_config = self.work / "config-niet-van-568"
         foreign_config.mkdir(mode=0o755)
+        # De proefdraaier is in CI zelf 568; dan zou deze map wel van 568 zijn. Root is altijd een andere eigenaar.
+        self.helper_sh("chown 0:0 /werk/config-niet-van-568")
         voor = foreign_config.stat()
         self.expect_refusal(
             "Custom User 568 met een /config die niet van 568 is",

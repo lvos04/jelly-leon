@@ -80,6 +80,7 @@ def test_rollback_order_and_restore_marker(tmp_path, monkeypatch):
     assert sim.run() is True
     starts = [e for e in fake.events if e.startswith(("start", "helper", "smoke"))]
     assert starts == [
+        "helper /bin/chown 0:0 /werk/config /werk/cache",  # opslag van root, ook als de proefdraaier 568 is
         f"start {UPSTREAM}",
         "smoke upstream-eerste-start nieuw plugin=False versie=10.11.11",
         "helper /bin/cp -a /werk/config /werk/backup-config",

@@ -4,7 +4,7 @@
 Acceptatie B03-013: "Fork-migratie is terug te zetten met DB-back-up + binary en streaming blijft werken". Deze proef
 doorloopt dat pad met echte images op de bouwmachine:
   1. de upstream-image (de 'bestaande Jellyfin', zonder --user zoals een gewone `docker run`, dus als root) op lege
-     opslag → healthy → stock-client-smoketest modus `nieuw` (zonder plugin);
+     opslag van root → healthy → stock-client-smoketest modus `nieuw` (zonder plugin);
   2. container verwijderen en een koude kopie van /config maken als back-up (`cp -a` in een wegwerpcontainer; staat
      model voor de ZFS-snapshot van de config-dataset, CUSTOM_APP.md "Updaten en terugdraaien");
   3. migratie: de Jelly Leon-image op dezelfde opslag → healthy → smoketest modus `herstart` (zelfde gebruiker en
@@ -77,6 +77,9 @@ class RollbackSim(Lifecycle):
     def run(self) -> bool:
         for directory in (self.config, self.cache, self.media):
             directory.mkdir(parents=True)
+        # Een dataset voor een Jellyfin die als root draait, is van root (zoals een nieuwe dataset). De proefdraaier is
+        # in CI zelf 568; zonder dit zou /config al van 568 zijn met mappen van root eronder, en die weigert de start terecht.
+        self.helper("/bin/chown", "0:0", "/werk/config", "/werk/cache")
         subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "make_test_media.py"), str(self.media)],
                        check=True, capture_output=True)
         media_before = self.media_fingerprint()
