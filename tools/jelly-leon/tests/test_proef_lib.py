@@ -194,11 +194,16 @@ def test_lekcontrole_herkent_de_waarde_in_log_xml_configuratie_en_export(tmp_pat
     xml.write_text(marker)
     server = Mock(config=tmp_path)
     server.logtekst.return_value = ("meetregel\n" * 21) + base64.b64encode(zouten["watchzout"]).decode()
-    exports = {"bundel-devices": zouten["kernzout"], "bundel-quality": b"{}", "archief-devices": b"{}", "archief-quality": b"{}"}
+    namen = {"bundel-" + slug for slug in pp.VERWACHTE_MODULES} | {"archief-devices", "archief-quality", "segmentgegevens"}
+    exports = dict.fromkeys(namen, b"{}")
+    controle = pp.Verslag()
+    pp.geheimen_scan(controle, server, Mock(tokens=[]), zouten, "", exports, {})
+    assert next(r["geslaagd"] for r in controle.regels if r["test"].startswith("alle modulebundels"))
+    exports["segmentgegevens"] = zouten["kernzout"]
     pp.geheimen_scan(verslag, server, Mock(tokens=[]), zouten, marker, exports, {})
     mislukt = [r["test"] for r in verslag.regels if not r["geslaagd"]]
     assert any(naam.startswith("logs:") for naam in mislukt)
     assert any(naam.startswith("pluginconfiguratie") for naam in mislukt)
-    assert any(naam.startswith("modulebundels") for naam in mislukt)
+    assert any(naam.startswith("alle modulebundels") for naam in mislukt)
     assert marker not in capsys.readouterr().out
     assert zouten["watchzout"].hex() not in str(verslag.regels)

@@ -916,8 +916,9 @@ def geheimen_scan(v: Verslag, b: Server, plugin: Plugin, zouten: dict[str, bytes
            xml.exists() and not in_xml and not in_api,
            f"XML {xml.stat().st_size if xml.exists() else 0} bytes; in XML: {in_xml}; via de API: {in_api}")
     treffers = {naam for naam, inhoud in exports.items() if any(waarde in inhoud for waarde in byte_naalden.values())}
-    v.test("JLT-65", "modulebundels en beheerarchieven zonder een van de testgeheimen",
-           len(exports) == 4 and set(zouten) == {"kernzout", "watchzout"} and not treffers,
+    verwacht = {"bundel-" + slug for slug in VERWACHTE_MODULES} | {"archief-devices", "archief-quality", "segmentgegevens"}
+    v.test("JLT-65", "alle modulebundels, beheerarchieven en segmentgegevens zonder een van de testgeheimen",
+           set(exports) == verwacht and set(zouten) == {"kernzout", "watchzout"} and not treffers,
            f"{len(exports)} exports, {len(byte_naalden)} waardevormen, {len(treffers)} exports met een treffer")
     buiten = pl.ruwe_treffers(b.config / "data" / "jelly-leon", byte_naalden, overslaan=("secrets/",))
     v.test("JLT-65", "plugindata buiten de geheimenmap zonder geheimen", not buiten, f"treffers: {dict(list(buiten.items())[:4])}")
@@ -1213,9 +1214,15 @@ def main(argv: list[str] | None = None) -> int:
         v.test("JLT-65", "GET /Plugins/{id}/Configuration bevat alleen schakelaars", status == 200 and "Enabled" in config_tekst,
                f"HTTP {status}, {len(ruw)} bytes")
         exports = {}
-        for slug in ("devices", "quality"):
+        for slug in VERWACHTE_MODULES:
+            tijdelijk_aan = slug in ("recommendations", "segments")
+            if tijdelijk_aan:
+                plugin.schakel(slug, True)
             basis = f"/media/v1/modules/{slug}"
-            for soort, pad in (("bundel", basis + "/export"), ("archief", f"/media/v1/{slug}/export")):
+            routes = [("bundel", basis + "/export")]
+            if slug in ("devices", "quality"):
+                routes.append(("archief", f"/media/v1/{slug}/export"))
+            for soort, pad in routes:
                 status, inhoud, _ = beheer.http.ruw("GET", pad)
                 geldig = status == 200 and isinstance(_json(inhoud), dict) and _json(inhoud).get("module") == slug
                 v.test("JLT-65", f"{soort} van {slug} na UserDeleted", geldig and
@@ -1226,12 +1233,23 @@ def main(argv: list[str] | None = None) -> int:
             if isinstance(bundel, dict):
                 status, voorbeeld, _ = plugin.sessie_vraag(beheer, "POST", basis + "/import/preview", bundel)
                 hash_ = bundel.get("preview_hash")
+                tellingen = {"instellingen": 1} if "instellingen" in bundel else {}
                 v.test("JLT-68", f"importvoorbeeld van {slug}", status == 200 and isinstance(hash_, str) and
-                       len(hash_) == 64 and voorbeeld.get("preview_hash") == hash_ and voorbeeld.get("counts") == {"instellingen": 1})
+                       len(hash_) == 64 and voorbeeld.get("preview_hash") == hash_ and voorbeeld.get("counts") == tellingen)
                 for verwacht, bevestigd in ((409, "0" * 64), (200, hash_)):
                     status, _, _ = plugin.sessie_vraag(beheer, "POST", basis + "/import/apply", {"preview_hash": bevestigd},
                                                         {"Idempotency-Key": str(uuid.uuid4())})
                     v.test("JLT-68", f"bevestiging {slug} verwacht HTTP {verwacht}", status == verwacht, f"HTTP {status}")
+            if slug == "segments":
+                status, inhoud, _ = beheer.http.ruw("GET", "/media/v1/segments/export")
+                gegevens = _json(inhoud)
+                geldig = status == 200 and isinstance(gegevens, dict) and isinstance(gegevens.get("items"), list)
+                v.test("JLT-65", "segmentgegevens na UserDeleted", geldig and
+                       not any(waarde in inhoud for waarde in gemeten["naalden"].values()), f"HTTP {status}, {len(inhoud)} bytes")
+                if geldig:
+                    exports["segmentgegevens"] = inhoud
+            if tijdelijk_aan:
+                plugin.schakel(slug, False)
         # Modules weer uit: de routes en het gedrag van die modules zijn weg, de rest is ongewijzigd.
         for slug in ("devices", "quality", "watch"):
             plugin.schakel(slug, False)
