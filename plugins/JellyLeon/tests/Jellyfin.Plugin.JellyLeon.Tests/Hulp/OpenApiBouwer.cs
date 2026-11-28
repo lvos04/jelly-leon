@@ -108,7 +108,7 @@ internal static partial class OpenApiBouwer
         "type": "object", "additionalProperties": false,
         "required": ["items", "next_cursor"],
         "properties": {
-          "items": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["group_id", "name", "state", "visibility", "is_owner", "is_member", "invited", "participants_count", "followers_count", "sync_quality"], "properties": {"group_id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "state": {"type": "string"}, "visibility": {"type": "string", "enum": ["open"]}, "is_owner": {"type": "boolean"}, "is_member": {"type": "boolean"}, "invited": {"type": "boolean"}, "participants_count": {"type": "integer", "minimum": 0}, "followers_count": {"type": "integer", "minimum": 0}, "sync_quality": {"type": "object", "nullable": true}}}},
+          "items": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["group_id", "name", "state", "visibility", "is_owner", "etag", "is_member", "invited", "participants_count", "followers_count", "sync_quality"], "properties": {"group_id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "state": {"type": "string"}, "visibility": {"type": "string", "enum": ["open"]}, "is_owner": {"type": "boolean"}, "etag": {"type": "string"}, "is_member": {"type": "boolean"}, "invited": {"type": "boolean"}, "participants_count": {"type": "integer", "minimum": 0}, "followers_count": {"type": "integer", "minimum": 0}, "sync_quality": {"type": "object", "nullable": true}}}},
           "next_cursor": {"type": "string", "format": "uuid", "nullable": true}
         }
       },

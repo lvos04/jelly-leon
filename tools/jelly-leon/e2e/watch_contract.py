@@ -8,6 +8,8 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from b03h.jfapi import Http
 
 SLUG = "watch"
@@ -49,13 +51,15 @@ def contract(document: dict[str, Any]) -> dict[str, Any]:
     return {"paths": paden, "schemas": schemas}
 
 
-def groepsopname(http: Http) -> dict[str, str]:
+def groepsopname(http: Http, tijdens: Callable[[str], None] | None = None) -> dict[str, str]:
     """Maak een echte, niet-lege testgroep. Vergelijk ook veldvolgorde, namen en witruimte."""
     nieuw = http.doe("POST", "/SyncPlay/New", body={"GroupName": "WT-contract"})
     groep = nieuw["GroupId"]
     uuid.UUID(groep)
     hashes = {}
     try:
+        if tijdens is not None:
+            tijdens(groep)
         for naam, pad in (("lijst", "/SyncPlay/List"), ("groep", "/SyncPlay/" + groep)):
             status, ruw, _ = http.ruw("GET", pad)
             if status != 200:

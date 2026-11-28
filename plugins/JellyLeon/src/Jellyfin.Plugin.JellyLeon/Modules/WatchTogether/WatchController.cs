@@ -75,10 +75,11 @@ public sealed class WatchController(IServiceProvider services) : ControllerBase
         var items = new JsonArray();
         foreach (var groep in pagina.Take(limiet))
         {
+            var meta = Module.LeesMeta(groep.GroupId, account);
             items.Add(new JsonObject
             {
                 ["group_id"] = groep.GroupId.ToString(), ["name"] = groep.GroupName, ["state"] = groep.State.ToString(),
-                ["visibility"] = "open", ["is_owner"] = Module.IsEigenaar(groep.GroupId, account),
+                ["visibility"] = meta.Zichtbaarheid, ["is_owner"] = meta.Eigenaar, ["etag"] = meta.Etag,
                 ["is_member"] = IsLid(groep, sessie, account), ["invited"] = false, ["participants_count"] = groep.Participants.Count,
                 ["followers_count"] = 0, ["sync_quality"] = null,
             });

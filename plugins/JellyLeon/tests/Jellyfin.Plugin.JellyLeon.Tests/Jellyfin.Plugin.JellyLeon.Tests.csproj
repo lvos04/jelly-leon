@@ -9,6 +9,14 @@
     <NoWarn>$(NoWarn);CA1707;CA1861;CA2007;CA1305;CA1307;CA1310;CA1859</NoWarn>
   </PropertyGroup>
 
+  <!-- Deze integratieproef gebruikt de gebouwde upstream-assembly met gesimuleerde serverdiensten. -->
+  <ItemGroup Condition="'$(JellyLeonSyncPlayAssembly)' == ''">
+    <Compile Remove="Modules/WatchSamenstellingProef.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(JellyLeonSyncPlayAssembly)' != ''">
+    <None Include="$(JellyLeonSyncPlayAssembly)" Link="Emby.Server.Implementations.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

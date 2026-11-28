@@ -1112,10 +1112,21 @@ def main(argv: list[str] | None = None) -> int:
         plugin.modules_uit("begin")
         stock_contract = watch_contract.contract(openapi_stock)
 
-        def meet_watch(moment: str, sessie: Sessie) -> None:
+        def meet_diagnose(groep: str) -> None:
+            pad = f"/media/v1/watch/groups/{groep}/diagnostics"
+            lid, _, _ = beheer.http.ruw("GET", pad)
+            bekend, ruwe_groep, _ = kijker.http.ruw("GET", pad)
+            onbekend, ruwe_onbekend, _ = kijker.http.ruw("GET", f"/media/v1/watch/groups/{uuid.uuid4()}/diagnostics")
+            a, b = _json(ruwe_groep), _json(ruwe_onbekend)
+            gelijk = isinstance(a, dict) and isinstance(b, dict) and a.get("code") == "not_found" and all(
+                a.get(veld) == b.get(veld) for veld in ("code", "message", "details"))
+            v.test("JLT-64", "WT-1 diagnose afgeschermd voor niet-lid", lid == 200 and bekend == onbekend == 404 and gelijk,
+                   f"lid {lid}, niet-lid {bekend}, onbekende groep {onbekend}")
+
+        def meet_watch(moment: str, sessie: Sessie, *, diagnose: bool = False) -> None:
             server_contract = watch_contract.contract(sessie.http.doe("GET", "/api-docs/openapi.json"))
             v.test("JLT-64", f"WT-1a {moment}", server_contract == stock_contract, "22 SyncPlay-operaties plus GET /GetUtcTime en hun schema's")
-            gemeten = watch_contract.groepsopname(sessie.http)
+            gemeten = watch_contract.groepsopname(sessie.http, meet_diagnose if diagnose else None)
             v.test("JLT-64", f"WT-1c {moment}", watch_stock[0] == watch_stock[1] == gemeten,
                    "beide niet-lege antwoorden na ID- en tijdnormalisatie")
 
@@ -1138,9 +1149,10 @@ def main(argv: list[str] | None = None) -> int:
         plugin.schakel("watch", True)
         actief = beheer.http.doe("GET", "/media/v1/watch/capabilities").get("decorator_active")
         v.test("JLT-64", "Watch Together omhult de actieve serverdienst", actief is True)
-        meet_watch("module aan, open groep", beheer)
+        meet_watch("module aan, open groep", beheer, diagnose=True)
         plugin.foutcatalogus()
-        overige_modules = sorted(plugin.module_slugs() - {"devices", "quality"})
+        # Watch Together blijft aan tot na de controle op UserDeleted.
+        overige_modules = sorted(plugin.module_slugs() - {"devices", "quality", "watch"})
         for slug in overige_modules:
             plugin.schakel(slug, True)
         plugin.lichaamsgrens()

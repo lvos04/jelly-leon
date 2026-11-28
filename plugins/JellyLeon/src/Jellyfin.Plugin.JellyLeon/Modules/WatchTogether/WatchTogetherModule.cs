@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Nodes;
 using Jellyfin.Plugin.JellyLeon.Core.Modules;
 using Jellyfin.Plugin.JellyLeon.Core.Outbox;
@@ -92,9 +93,18 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
     public IReadOnlyList<Guid> Actief() => !_db.Bestaat ? [] : _db.Met(v =>
         JlDatabase.Rijen(v, "SELECT group_id FROM wt_group_meta WHERE ended_at IS NULL").Select(r => Guid.Parse((string)r[0]!)).ToList());
 
-    public bool IsEigenaar(Guid groep, Guid gebruiker) => _db.Bestaat && _db.Met(v =>
-        _geheimen.Lees(Zout) is not null && JlDatabase.Getal(v, "SELECT COUNT(*) FROM wt_group_meta WHERE group_id=$id AND owner=$e AND ended_at IS NULL",
-            ("$id", groep.ToString("N")), ("$e", Pseudoniem(gebruiker))) != 0);
+    public (string Zichtbaarheid, bool Eigenaar, string Etag) LeesMeta(Guid groep, Guid gebruiker)
+    {
+        var rij = !_db.Bestaat ? null : _db.Met(v => JlDatabase.Rijen(v,
+            "SELECT visibility, laggard_policy, owner FROM wt_group_meta WHERE group_id=$id AND ended_at IS NULL",
+            ("$id", groep.ToString("N"))).SingleOrDefault());
+        var zichtbaarheid = (string?)rij?[0] ?? "open";
+        var beleid = (string?)rij?[1] ?? "wachten";
+        var eigenaar = (string?)rij?[2];
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{groep:N}\n{zichtbaarheid}\n{beleid}\n{eigenaar}"));
+        var isEigenaar = eigenaar is not null && _geheimen.Lees(Zout) is { } zout && eigenaar == Pseudoniem(gebruiker, zout);
+        return (zichtbaarheid, isEigenaar, "\"w/" + Convert.ToHexStringLower(hash) + "\"");
+    }
 
     public void Beeindig(Guid groep, string reden, DateTimeOffset nu) => _db.Met(v =>
         JlDatabase.Voer(v, "UPDATE wt_group_meta SET ended_at=$t, detected_by=$r, event_id=$event WHERE group_id=$id AND ended_at IS NULL",
@@ -141,5 +151,7 @@ internal sealed class WatchTogetherModule : IJellyLeonModule
         return new JsonObject { ["deleted"] = new JsonObject { ["wt_group_meta"] = aantal }, ["secret_removed"] = true };
     });
 
-    private string Pseudoniem(Guid id) => Convert.ToHexStringLower(HMACSHA256.HashData(_geheimen.LeesOfMaak(Zout, 32), id.ToByteArray()));
+    private string Pseudoniem(Guid id) => Pseudoniem(id, _geheimen.LeesOfMaak(Zout, 32));
+
+    private static string Pseudoniem(Guid id, byte[] zout) => Convert.ToHexStringLower(HMACSHA256.HashData(zout, id.ToByteArray()));
 }

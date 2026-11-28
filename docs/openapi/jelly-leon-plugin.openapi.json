@@ -4318,6 +4318,7 @@
                 "state",
                 "visibility",
                 "is_owner",
+                "etag",
                 "is_member",
                 "invited",
                 "participants_count",
@@ -4343,6 +4344,9 @@
                 },
                 "is_owner": {
                   "type": "boolean"
+                },
+                "etag": {
+                  "type": "string"
                 },
                 "is_member": {
                   "type": "boolean"

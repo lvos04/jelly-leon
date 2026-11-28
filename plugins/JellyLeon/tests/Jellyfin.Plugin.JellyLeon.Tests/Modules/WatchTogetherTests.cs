@@ -97,6 +97,22 @@ public sealed class WatchTogetherTests : IDisposable
     }
 
     [Fact]
+    public async Task DeEtagHoortBijDeGroepsmetadataEnVerandertNaOntkoppeling()
+    {
+        var groep = Nieuw();
+        MeldAan(_lid);
+        var pagina = await _h.Roep("watch.groups");
+        var item = Assert.Single(pagina.Json!["items"]!.AsArray())!;
+        Assert.True((bool)item["is_owner"]!);
+        Assert.Equal("open", (string?)item["visibility"]);
+        var etag = (string?)item["etag"];
+        Assert.False(string.IsNullOrEmpty(etag));
+        Assert.Equal(etag, Module.LeesMeta(groep.GroupId, _kijker.UserId).Etag);
+        Module.VerwijderGebruiker(_lid.UserId);
+        Assert.NotEqual(etag, Module.LeesMeta(groep.GroupId, _lid.UserId).Etag);
+    }
+
+    [Fact]
     public void TweedeNewGroupSessieEindeEnHerstartRuimenElkeGroepOp()
     {
         var eerste = Nieuw();
@@ -118,15 +134,26 @@ public sealed class WatchTogetherTests : IDisposable
     [Fact]
     public async Task VijftigGesimuleerdeGroepswisselsSessiesEnHerstartsHebbenGeenWeesmetadata()
     {
-        var aangesloten = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var peiling = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _sessies.SetupGet(s => s.Sessions).Returns(() => { peiling.TrySetResult(); return [_lid, _kijker]; });
         EventHandler<SessionEventArgs>? einde = null;
         _sessies.SetupAdd(s => s.SessionEnded += It.IsAny<EventHandler<SessionEventArgs>>())
-            .Callback<EventHandler<SessionEventArgs>>(handler => { einde = handler; aangesloten.SetResult(); });
-        var bewaking = _h.Dienst<WatchBewaking>();
+            .Callback<EventHandler<SessionEventArgs>>(handler => einde = handler);
+        // De drie detectiepaden krijgen elk hun eigen meetmoment. De laatste proef geeft de echte 30s-timer een tik.
+        var klok = new Mock<TimeProvider> { CallBase = true };
+        klok.Setup(k => k.GetUtcNow()).Returns(() => _h.Klok.Nu);
+        Action? tik = null;
+        klok.Setup(k => k.CreateTimer(It.IsAny<TimerCallback>(), It.IsAny<object?>(), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30)))
+            .Returns((TimerCallback callback, object? staat, TimeSpan _, TimeSpan _) =>
+            {
+                tik = () => callback(staat);
+                return Mock.Of<ITimer>();
+            });
+        using var bewaking = ActivatorUtilities.CreateInstance<WatchBewaking>(_h.Diensten, klok.Object);
         await bewaking.StartAsync(TestContext.Current.CancellationToken);
         try
         {
-            await aangesloten.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            await peiling.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
             for (var i = 0; i < 50; i++)
             {
                 Nieuw();
@@ -143,6 +170,18 @@ public sealed class WatchTogetherTests : IDisposable
             }
 
             Assert.Equal(Enumerable.Range(0, 50).SelectMany(_ => new[] { "reconcile", "session_ended", "startup" }), Redenen);
+
+            var zonderEindmelding = Nieuw();
+            _groepen.Remove(_lid.Id);
+            peiling = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Assert.NotNull(tik);
+            tik();
+            await peiling.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+            Assert.False(((WatchDecorator)Manager).IsLid(zonderEindmelding.GroupId, _lid.UserId));
+            Assert.Empty(Module.Actief());
+            einde!(_sessies.Object, new SessionEventArgs { SessionInfo = _lid });
+            Assert.Equal(151, Redenen.Count());
+            Assert.Equal("reconcile", Redenen.Last());
         }
         finally
         {
@@ -163,6 +202,50 @@ public sealed class WatchTogetherTests : IDisposable
         ((WatchDecorator)Manager).ControleerSessies(null);
         Assert.Empty(Module.Actief());
         Assert.Equal(["reconcile"], Redenen);
+    }
+
+    [Fact]
+    public async Task BevestigdeJoinGeeftLidmaatschapTotDeEigenSessieVertrekt()
+    {
+        var groep = Nieuw();
+        var join = new JoinGroupRequest(groep.GroupId);
+        _stock.Setup(m => m.JoinGroup(_kijker, join, CancellationToken.None)).Callback(() =>
+        {
+            _groepen[_lid.Id] = new GroupInfoDto(groep.GroupId, groep.GroupName, groep.State, [_lid.UserName, _kijker.UserName], groep.LastUpdatedAt);
+        });
+        Manager.JoinGroup(_kijker, join, CancellationToken.None);
+        MeldAan(_kijker);
+        Assert.Equal(200, (await Diagnose(groep.GroupId)).Status);
+        Manager.LeaveGroup(_kijker, new LeaveGroupRequest(), CancellationToken.None);
+        Assert.Equal(404, (await Diagnose(groep.GroupId)).Status);
+        Assert.Equal([groep.GroupId], Module.Actief());
+    }
+
+    [Fact]
+    public async Task GelijktijdigeNewGroupVoorEenSessieBehoudtEenActieveGroep()
+    {
+        var groepen = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => Task.Run(Nieuw, TestContext.Current.CancellationToken)));
+        var actief = Assert.Single(Module.Actief());
+        Assert.Contains(groepen, g => g.GroupId == actief);
+        Assert.Equal(3, Redenen.Count(r => r == "reconcile"));
+        Assert.Equal(actief, Assert.Single(Manager.ListGroups(_lid, new ListGroupsRequest())).GroupId);
+    }
+
+    [Fact]
+    public void VerlopenGroepenWordenNaDeIngesteldeBewaartermijnOpgeruimd()
+    {
+        _h.Schakelaars.GroepBewaarUren = 2;
+        var eerste = Nieuw();
+        var tweede = Nieuw();
+        var pad = _h.Dienst<JlPaths>().ModuleDb(Module.Slug);
+        var eigen = new JlDatabase(_h.Dienst<JlPaths>(), pad, []);
+        long Aantal(Guid id) => eigen.Met(v => JlDatabase.Getal(v, "SELECT count(*) FROM wt_group_meta WHERE group_id=$id", ("$id", id.ToString("N"))));
+        Module.VerzendEnRuimOp(_h.Klok.Nu.AddHours(2).AddSeconds(-1));
+        Assert.Equal(1, Aantal(eerste.GroupId));
+        Module.VerzendEnRuimOp(_h.Klok.Nu.AddHours(2));
+        Assert.Equal(0, Aantal(eerste.GroupId));
+        Assert.Equal(1, Aantal(tweede.GroupId));
+        Assert.Single(Redenen);
     }
 
     [Fact]
@@ -218,6 +301,16 @@ public sealed class WatchTogetherTests : IDisposable
     }
 
     [Fact]
+    public void OokZonderGastenVereistEenKinderprofielEenActieveDecorator()
+    {
+        using var h = new Harnas(extraDiensten: diensten => diensten.AddSingleton(_stock.Object));
+        var kind = new User("proefkind", "proef", "proef") { MaxParentalRatingScore = 10 };
+        h.Gebruikers.Setup(g => g.GetUsers()).Returns([kind]);
+        h.Gebruikers.Setup(g => g.GetUserById(kind.Id)).Returns(kind);
+        Assert.Equal((false, "down"), h.Dienst<WatchBewaking>().Meet());
+    }
+
+    [Fact]
     public async Task UserDeletedEnPurgeBewarenKijkgegevensEnMediaGuardVoortgang()
     {
         var bewakers = new[] { ("jellyfin.db", "CREATE TABLE UserData(Played INTEGER, Position INTEGER); INSERT INTO UserData VALUES(1,1900)"),
@@ -238,7 +331,7 @@ public sealed class WatchTogetherTests : IDisposable
         await _h.Dienst<IEventConsumer<UserDeletedEventArgs>>().OnEvent(new UserDeletedEventArgs(new User("Lid", "proef", "proef") { Id = _lid.UserId }));
         Assert.Equal(0, Module.TelGebruiker(_lid.UserId));
         Assert.Empty(_h.Schakelaars.Gasten);
-        Assert.False(Module.IsEigenaar(groep.GroupId, _lid.UserId));
+        Assert.False(Module.LeesMeta(groep.GroupId, _lid.UserId).Eigenaar);
         var bytes = await File.ReadAllBytesAsync(_h.Dienst<JlPaths>().ModuleDb(Module.Slug), TestContext.Current.CancellationToken);
         Assert.False(bytes.AsSpan().IndexOf(_lid.UserId.ToByteArray()) >= 0);
         foreach (var vorm in new[] { "N", "D" })
