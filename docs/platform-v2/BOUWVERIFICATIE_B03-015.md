@@ -172,6 +172,26 @@ Het aanmaken en herstarten van het clientpakket moet nog worden aangetoond.
 
 ## P6-herhaling met de eindimage (2026-11-28)
 
-De synthetische deelproef draaide op `jelly-leon:p6` (image-ID `sha256:87a5e00d59597f60ab37a1822bf9f84d8394048845e85a7152d0c8a7f5594417`, servercommit `5d8784c635ea`). Het harnas op `86597b137c` gebruikte vier bewaarde exports van de lokale Emby-testcontainer 4.10.2.0. Van de vijf testrollen waren na de eerste import op een koude kopie 31 kijkitems exact overgezet en vijf items met reden verantwoord. De herhaling schreef nul keer en gaf dezelfde rapporthash. De delta schreef drie keer. Na afbreken en hervatten waren alle 40 items verantwoord. De herimport op een leeg doel gaf 35 exacte overeenkomsten en vijf items op de afhandellijst. Chromium hervatte zeven ticks van het verwachte punt. [Meetwaarden en afhandelredenen per testrol](test-evidence/s-p6-32-archiefproeven.json)
+De archiefroute draaide op `jelly-leon:p6`, image-ID `sha256:87a5e00d59597f60ab37a1822bf9f84d8394048845e85a7152d0c8a7f5594417`, servercommit `5d8784c635ea012065b3b2d312117e73fc88d7ae` en webcommit `5ced8a24601e30038cafae5dab2f0520b3325427`. Het harnas op `86597b137c8d73377228c13ab0b247526d4351f9` gebruikte bronimage `docker.io/emby/embyserver:4.10.2.0@sha256:7082c63b10a2fcb3805a7eaebba407d5723bc57c085c9f0b29b7d0a702765cc1`. De wegwerpcontainer meldde Emby 4.10.2.0. De startwizard en de inrichting van de gebruikelijke proef sturen POST en DELETE naar Emby. Voor deze stap gold vanaf de inrichting uitsluitend GET. Een vooraf gevulde lokale Emby-configuratie met vijf gebruikers en geldige testtoegang ontbrak. Vier bewaarde synthetische bronarchieven uit S-P40-30 zijn op de koude kopie van de Jelly Leon-testdatamap beproefd. [Meetwaarden en afhandelredenen per testrol](test-evidence/s-p6-32-archiefproeven.json)
 
-De proxy telde 16 GET-verzoeken tijdens de broncontroles op de verse Emby-container. Inventaris en nieuwe export eindigden met exitcode 5. De MediaGuard-simulator kreeg vier antwoorden van Jelly Leon en vier weigeringen van Emby. Een gevulde alleen-lezen-bron met een geldige testsleutel ontbreekt. De corpusmeting, de beheerproef uit S-P40-82 en de herhaling met de door D07 te meten versie staan open.
+| Onderdeel | Synthetische proef op de koude doelkopie |
+|---|---|
+| Inventaris en nieuwe export | De verse Emby-container weigerde beide opdrachten met exit 5. |
+| Bronarchief en tweede export | Vier bestaande archieven gecontroleerd op bestands- en inhoudshash. De eerste twee waren volgens `vergelijk-export` identiek. |
+| Droge proef en akkoord | Nul schrijfacties. Een ontbrekend akkoord gaf exit 3 vóór de eerste schrijfactie. |
+| Eerste overzetting | 43 schrijfacties. 31 kijkitems exact en vijf op de afhandellijst, 36/36 verantwoord. |
+| Herhaling | Nul schrijfacties en dezelfde inhoudshash van het rapport. |
+| Delta uit de tussenexport | Drie schrijfacties. 31 items exact, vijf op de lijst en één nieuwer hervatpunt op het doel behouden. De verwijderde favoriet stond met reden in het rapport. |
+| Onderbreking en hervatten | Exit 137 na twee schrijfacties. Vijf acties elk eenmaal uitgevoerd. Van 40 items waren er 34 exact, vijf op de lijst en één nieuwer op het doel. |
+| Eindakkoord en herimport | Volledig akkoord aanvaard, onvolledig akkoord gaf exit 6. Met Emby uit ging het laatste archief naar een nieuw leeg doel, met 35 exacte items en vijf verklaarde verschillen. |
+| Behoud uitgangsgegevens | De koude oorspronkelijke doelmap en de vier bronbestanden behielden hun SHA-256. |
+| Chromium | Drie controles op aanmelden, afspelen en hervatten. De eerste speelpositie week zeven ticks af. |
+| Emby-verkeer en MediaGuard | De bronproxy telde 16 GET-verzoeken en nul andere methoden. De simulator kreeg vier sessieantwoorden van Jelly Leon en vier weigeringen (HTTP 401) van Emby. |
+
+De eerste overzetting verantwoordde per testrol 13/13 items voor de beheerder, 6/6 en 10/10 voor de twee volwassenen, 5/5 voor het kind en 2/2 voor de gast. Na hervatten waren dat 14/14, 8/8, 10/10, 6/6 en 2/2. De ongekoppelde items hadden de redenen `geen_id`, `dubbel` en `ontbreekt`. De meetbijlage maakt rechten en spoorkeuzes afzonderlijk zichtbaar.
+
+De synthetische archiefproef doorliep 14/14 deelcontroles. De onafhankelijke leescontrole bevestigde de SHA-256 van 24 corpusbestanden (5038361219 bytes). **Corpusoverzetting: NIET GEDRAAID (geen testslot).** De volledige reeks van 57 corpuscontroles staat open.
+
+De overnametool doorliep de lintcontrole en 112 tests. `test_doel_dat_emby_is_wordt_geweigerd_voor_elke_schrijfactie` meet exit 9 bij een verkeerd doel. `test_akkoord_verplicht_en_plan_moet_gelijk_zijn` controleert het planakkoord. `test_bronproxy_weigert_schrijfpoging_en_keurt_proef_af` controleert HTTP 405 en afkeuring van de proef, `test_testhaak_schrijfpoging_geweigerd_voor_het_netwerk` de bescherming in de client. `test_emby_image_zonder_geldige_digest_stopt_voor_docker` controleert exit 2 vóór enige Docker-actie. Twee regressiegevallen bewaken de telling bij een vroeg gesloten spelerverbinding. De eindscan omvat de herimportrapporten.
+
+De nieuwe live-exports, live-delta, een positieve kijkpauze op twee aangemelde servers en behoud van de MediaGuard-database zijn niet gemeten. De overname-assistent uit S-P40-82 ontbreekt op de geteste image. D07 is niet aangeleverd. De versieherhaling en beheerproef staan open bij N-P6-11. JLT-62 geldt alleen als D07 een bestaande Jellyfin-installatie vaststelt. JLT-74 blijft geblokkeerd voor N-P6-11 t/m N-P6-13. [Ontwerp van de beheerpagina](../adr/ADR-0036-b03-015-overname-assistent-in-het-beheer.md)

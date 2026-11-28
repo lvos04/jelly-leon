@@ -516,6 +516,11 @@
       }
     }
   },
+  "gedeeld_mediacorpus": {
+    "bestanden": 24,
+    "bytes": 5038361219,
+    "alle_hashes_kloppen": true
+  },
   "doelimage": "sha256:87a5e00d59597f60ab37a1822bf9f84d8394048845e85a7152d0c8a7f5594417",
   "servercommit": "5d8784c635ea012065b3b2d312117e73fc88d7ae",
   "emby_image": "docker.io/emby/embyserver:4.10.2.0@sha256:7082c63b10a2fcb3805a7eaebba407d5723bc57c085c9f0b29b7d0a702765cc1",
