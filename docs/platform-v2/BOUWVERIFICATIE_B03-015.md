@@ -169,3 +169,9 @@ Op 28 november 2026 doorliepen alle 98 tests van `tools/emby-overname/tests` hun
 `3920a53e50`. Daarvan toetsen er 21 de nieuwe overdracht. De CLI weigerde een uitvoermap in de Git-werkboom
 met exitcode 2. De containerproef met `--clientproef` had bij deze meting nog geen testslot gekregen.
 Het aanmaken en herstarten van het clientpakket moet nog worden aangetoond.
+
+## P6-herhaling met de eindimage (2026-11-28)
+
+De synthetische deelproef draaide op `jelly-leon:p6` (image-ID `sha256:87a5e00d59597f60ab37a1822bf9f84d8394048845e85a7152d0c8a7f5594417`, servercommit `5d8784c635ea`). Het harnas op `86597b137c` gebruikte vier bewaarde exports van de lokale Emby-testcontainer 4.10.2.0. Van de vijf testrollen waren na de eerste import op een koude kopie 31 kijkitems exact overgezet en vijf items met reden verantwoord. De herhaling schreef nul keer en gaf dezelfde rapporthash. De delta schreef drie keer. Na afbreken en hervatten waren alle 40 items verantwoord. De herimport op een leeg doel gaf 35 exacte overeenkomsten en vijf items op de afhandellijst. Chromium hervatte zeven ticks van het verwachte punt. [Meetwaarden en afhandelredenen per testrol](test-evidence/s-p6-32-archiefproeven.json)
+
+De proxy telde 16 GET-verzoeken tijdens de broncontroles op de verse Emby-container. Inventaris en nieuwe export eindigden met exitcode 5. De MediaGuard-simulator kreeg vier antwoorden van Jelly Leon en vier weigeringen van Emby. Een gevulde alleen-lezen-bron met een geldige testsleutel ontbreekt. De corpusmeting, de beheerproef uit S-P40-82 en de herhaling met de door D07 te meten versie staan open.
