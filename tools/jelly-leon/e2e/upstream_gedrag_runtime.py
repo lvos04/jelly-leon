@@ -34,6 +34,7 @@ sys.path.insert(0, str(REPO / "tools" / "b03-harnas"))
 
 from b03h.jfapi import Http, wacht_klaar  # noqa: E402
 from proef_lib import maskeer_url_geheimen  # noqa: E402
+from watch_contract import schakel  # noqa: E402
 
 CLIENT = 'MediaBrowser Client="jelly-leon-ug", Device="ug", DeviceId="jl-ug-runtime", Version="1.0"'
 USER = "jl-ug-beheer"
@@ -120,6 +121,17 @@ def syncplay_routes(c: Ctx) -> tuple[bool, str]:
     return len(ops) == 22, f"{len(ops)} operaties"
 
 
+def watch_decorator(c: Ctx) -> tuple[bool, str]:
+    """UG-F1-1. De geladen keten moet de decorator zelf op de geteste runtime terugvinden."""
+    schakel(c.a, True)
+    try:
+        antwoord = c.a.doe("GET", "/media/v1/watch/capabilities")
+        actief = antwoord.get("decorator_active") is True
+        return actief, f"decorator_active={str(actief).lower()}"
+    finally:
+        schakel(c.a, False)
+
+
 def hardwareversnelling_standaard_uit(c: Ctx) -> tuple[bool, str]:
     """UG-GEM-6: hardwareversnelling staat standaard uit (F5 hardwareversnelling-assistent, B03-062)."""
     enc = c.a.doe("GET", "/System/Configuration/encoding")
@@ -159,6 +171,7 @@ def transcode_sleutel_gemaskeerd(c: Ctx) -> tuple[bool, str]:
 
 CHECKS: dict[str, Callable[[Ctx], tuple[bool, str]]] = {
     "legacy_auth_uit": legacy_auth_uit,
+    "watch_decorator": watch_decorator,
     "stream_zonder_token": stream_zonder_token,
     "hls_verborgen_maar_actief": hls_verborgen_maar_actief,
     "mediasegmenten_alleen_lezen": mediasegmenten_alleen_lezen,
@@ -241,6 +254,7 @@ def maak_testfilm(image: str, films: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Runtime-contracttests van UPSTREAM_GEDRAG.md (B03-019).")
     parser.add_argument("--image", required=True, help="server-image op digest (JL_RUNTIME_IMAGE) of een lokale build")
+    parser.add_argument("--plugin-map", type=Path, help="gebouwde plugin voor de stock-runtime")
     parser.add_argument("--werkmap", default=None)
     parser.add_argument("--rapport", type=Path)
     parser.add_argument("--alleen", action="append", choices=sorted(CHECKS), help="alleen deze test(s)")
@@ -258,6 +272,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         for sub in ("config", "cache", "media", "films"):
             (work / sub).mkdir(mode=0o700)
+        if args.plugin_map is not None:
+            doel = work / "config" / "plugins" / "JellyLeon_0.1.0.0"
+            doel.mkdir(parents=True)
+            shutil.copy2(args.plugin_map / "Jellyfin.Plugin.JellyLeon.dll", doel)
         subprocess.run([sys.executable, str(E2E / "make_test_media.py"), str(work / "media")], check=True, capture_output=True)
         maak_testfilm(args.image, work / "films")
         docker("run", "-d", "--name", name, "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop", "ALL",

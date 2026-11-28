@@ -34,7 +34,8 @@ const ApiClient = {
     verzoeken.push(o.type + ' ' + o.url);
     koppen[o.type + ' ' + o.url] = o.headers;
     const json = o.url.endsWith('/media/v1/modules')
-      ? { items: [{ slug: 'devices', naam: 'Apparaten', enabled: false }] }
+      ? { items: invoer.modules || [{ slug: 'devices', naam: 'Apparaten', enabled: false }] }
+      : o.url.endsWith('/watch/capabilities') ? invoer.watch
       : (invoer.hubstatus || { status: 'linked', fingerprint: 'ab', items: [] });
     return Promise.resolve({ text: () => Promise.resolve(JSON.stringify(json)), headers: { get: () => '"e1"' } });
   },
@@ -63,6 +64,12 @@ const wacht = () => new Promise((r) => setImmediate(r));
     pagina.handlers.pageshow();
     await wacht(); await wacht();
     const hubstatus = pagina.querySelector('#jlHubStatus').textContent;
+    if (invoer.watch) {
+      const melding = pagina.querySelector('#jlWatchStatus');
+      const verborgen = pagina.querySelector('#jlWatch').hidden;
+      console.log(JSON.stringify({ tekst: melding.textContent, kleur: melding.style.color, verborgen }));
+      return;
+    }
     for (const knop of ['#jlBereken', '#jlKoppel', '#jlOntkoppel']) { pagina.querySelector(knop).handlers.click(); }
     for (const e of gemaakt) { if (e.handlers.change) { e.checked = true; e.handlers.change(); } }
     await wacht(); await wacht();
@@ -134,6 +141,14 @@ def test_hubbeheer_toont_onleesbare_pin_en_gebruikt_de_verplichte_koppen():
     for methode in ("PUT", "DELETE"):
         assert len(koppen[f"{methode} http://server/media/v1/hub-link"]["Idempotency-Key"]) == 36
     assert koppen["PUT http://server/media/v1/modules/devices"]["If-Match"] == '"e1"'
+
+
+def test_watch_toont_rode_melding_bij_uitval_met_gasten():
+    zichtbaar = draai({"modus": "pagina", "script": script(), "modules": [{"slug": "watch", "naam": "Watch Together", "enabled": True}],
+                       "watch": {"decorator_active": False, "health": "down"}})
+    assert zichtbaar["verborgen"] is False
+    assert zichtbaar["kleur"] == "#ff6868"
+    assert "gasten en kinderen" in zichtbaar["tekst"] and "SyncPlayAccess = Geen" in zichtbaar["tekst"]
 
 
 GOED = [

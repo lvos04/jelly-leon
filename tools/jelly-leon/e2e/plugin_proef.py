@@ -53,6 +53,7 @@ sys.path.insert(0, str(REPO / "tools" / "b03-harnas"))
 sys.path.insert(0, str(E2E))
 
 import proef_lib as pl  # noqa: E402
+import watch_contract  # noqa: E402
 from b03h.jfapi import Http, wacht_klaar  # noqa: E402
 from hub_sim import HubSim, Sleutel, vingerafdruk  # noqa: E402
 from upgrade_proef import FILM_REL, FILMS, GUEST_PREFS, maak_sporenfilm  # noqa: E402
@@ -348,6 +349,8 @@ def afspelen_en_verwijderen(server: Server, beheer: Sessie, audio: str, ww_weg: 
     weg.http.doe("POST", "/Sessions/Playing", body={**basis, "PositionTicks": 0})
     weg.http.doe("POST", "/Sessions/Playing/Progress", body={**basis, "PositionTicks": 10_000_000})
     weg.http.doe("POST", "/Sessions/Playing/Stopped", body={**basis, "PositionTicks": 20_000_000})
+    weg.http.doe("POST", "/SyncPlay/New", body={"GroupName": "WT-verwijderproef"})
+    weg.http.doe("POST", "/SyncPlay/Leave")
     if tussen is not None:
         tussen(weg)
     beheer.http.doe("DELETE", f"/Users/{weg_id}")
@@ -476,7 +479,10 @@ class Plugin:
     def modules_uit(self, moment: str) -> None:
         status, inhoud, _ = self.sessie_vraag(self.beheer, "GET", "/media/v1/modules")
         standen = {m["slug"]: m["enabled"] for m in inhoud.get("items", [])} if status == 200 else {}
-        self.v.test("JLT-64", f"modules staan uit ({moment})", standen == {"devices": False, "quality": False}, f"{standen}")
+        verwacht = dict.fromkeys(("devices", "quality", "recommendations", "segments", "watch"), False)
+        self.v.test("JLT-64", f"modules staan uit ({moment})", standen == verwacht, f"{standen}")
+        self._laatste = ("GET", "/media/v1/watch/capabilities")
+        self.fout("JLT-64", f"Watch Together uit ({moment})", self.sessie_vraag(self.beheer, *self._laatste), 404, "not_found")
         for slug in ("devices", "quality"):
             for pad in (f"/media/v1/{slug}/status", f"/media/v1/{slug}/settings"):
                 self._laatste = ("GET", pad)
@@ -1029,6 +1035,7 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 sessie.http.doe("POST", "/Sessions/Logout")
 
+        watch_stock: list[dict[str, str]] = []
         openapi_stock: dict[str, Any] = {}
         for naam, image in (("a1", stock), ("a2", stock)):
             s = Server(f"{werk.name}-{naam}", image, werk / naam, media)
@@ -1041,6 +1048,7 @@ def main(argv: list[str] | None = None) -> int:
             kijker = Sessie(s, KIJKER, ww[KIJKER], "Kijkertoestel-Zeldzaam-2207", "jl-proef-kijker")
             v.geheim(f"sessietoken:{naam}-kijker", kijker.token)
             meet_kijkgegevens(v, kijker, film, f"{naam} voor")
+            watch_stock.append(watch_contract.groepsopname(beheer.http))
             meet(s, f"{naam}-voor")
             for slug in ("devices", "quality"):
                 meet(s, f"{naam}-{slug}")
@@ -1076,6 +1084,16 @@ def main(argv: list[str] | None = None) -> int:
         plugin.elke_route_antwoordt()
         plugin.zonder_pin()
         plugin.modules_uit("begin")
+        stock_contract = watch_contract.contract(openapi_stock)
+
+        def meet_watch(moment: str, sessie: Sessie) -> None:
+            server_contract = watch_contract.contract(sessie.http.doe("GET", "/api-docs/openapi.json"))
+            v.test("JLT-64", f"WT-1a {moment}", server_contract == stock_contract, "22 SyncPlay-operaties plus GET /GetUtcTime en hun schema's")
+            gemeten = watch_contract.groepsopname(sessie.http)
+            v.test("JLT-64", f"WT-1c {moment}", watch_stock[0] == watch_stock[1] == gemeten,
+                   "beide niet-lege antwoorden na ID- en tijdnormalisatie")
+
+        meet_watch("module uit", beheer)
         meet_kijkgegevens(v, kijker, film, "plugin voor")
         meet(b, "b-voor")
         vergelijk_opnames(v, "plugin geladen, modules uit", opnames["a1-voor"], opnames["a2-voor"], opnames["b-voor"])
@@ -1091,6 +1109,10 @@ def main(argv: list[str] | None = None) -> int:
             vergelijk_opnames(v, f"alleen {slug} aan", opnames[f"a1-{slug}"], opnames[f"a2-{slug}"], opnames[f"b-{slug}"])
             plugin.schakel(slug, False)
         plugin.modules_aan()
+        plugin.schakel("watch", True)
+        actief = beheer.http.doe("GET", "/media/v1/watch/capabilities").get("decorator_active")
+        v.test("JLT-64", "Watch Together omhult de actieve serverdienst", actief is True)
+        meet_watch("module aan, open groep", beheer)
         plugin.foutcatalogus()
         plugin.lichaamsgrens()
 
@@ -1107,9 +1129,11 @@ def main(argv: list[str] | None = None) -> int:
             zout = zout_pad.read_bytes() if zout_pad.exists() else b""
             pseudoniem = "o_" + hmac.new(zout, b"user\n" + uuid.UUID(weg.id).hex.encode(), hashlib.sha256).digest()[:16].hex()
             gemeten.update({"id": weg.id, "zout": zout, "naalden": {**pl.guid_vormen(weg.id), "pseudoniem": pseudoniem.encode()}})
+            wt_zout = (data / "secrets" / "wt-hmac.key").read_bytes()
+            gemeten["naalden"]["watch-eigenaar"] = hmac.new(wt_zout, uuid.UUID(weg.id).bytes_le, hashlib.sha256).hexdigest().encode()
             voor = pl.ruwe_treffers(data, gemeten["naalden"])
             v.test("JLT-65", "controle vooraf: account-ID en pseudoniem staan in de plugindata",
-                   status == 200 and "N" in voor and "pseudoniem" in voor,
+                   status == 200 and "N" in voor and "pseudoniem" in voor and "watch-eigenaar" in voor,
                    f"PUT → HTTP {status}; gevonden vormen: { {n: p for n, p in voor.items()} }")
             verboden = {"titel": "Sinus 440 Hz", "film": "Proeffilm", "acteur": "Proefacteur", "album": "Smoketest",
                         "artiest": "Jelly Leon Test", "beheerder": BEHEER, "kijker": KIJKER,
@@ -1142,7 +1166,7 @@ def main(argv: list[str] | None = None) -> int:
         v.test("JLT-65", "GET /Plugins/{id}/Configuration bevat alleen schakelaars", status == 200 and "Enabled" in config_tekst,
                f"HTTP {status}, {len(ruw)} bytes")
         # Modules weer uit: de routes en het gedrag van die modules zijn weg, de rest is ongewijzigd.
-        for slug in ("devices", "quality"):
+        for slug in ("devices", "quality", "watch"):
             plugin.schakel(slug, False)
         plugin.modules_uit("na uitzetten")
         status, discover, _ = plugin.hub_vraag("GET", "/connector/v1/discover", plugin.hub.token())
@@ -1165,8 +1189,8 @@ def main(argv: list[str] | None = None) -> int:
         v.test("JLT-65", "mediacorpus ongewijzigd (sha256, grootte, wijzigingstijd)", corpus_na == corpus_voor and len(corpus_voor) > 0,
                f"{len(corpus_voor)} bestanden, {sum(g for _, g, _ in corpus_voor.values())} bytes")
 
-        # ---- run D: plugin weggehaald (kan alleen als de image hem niet zelf terugzet)
-        if args.plugin_map is not None:
+        # Run D opent een kopie op een stock-image die de verwijderde plugin niet terugplaatst.
+        if args.plugin_map is not None or args.stock_image is not None:
             d = Server(f"{werk.name}-d", stock, werk / "d", media)
             shutil.copytree(b.map, d.map, symlinks=True)
             for map_ in (d.config / "plugins").glob("JellyLeon_*"):
@@ -1177,6 +1201,9 @@ def main(argv: list[str] | None = None) -> int:
             beheer_d = Sessie(d, BEHEER, ww[BEHEER], TOESTEL_BEHEER, "jl-proef-beheer")
             kijker_d = Sessie(d, KIJKER, ww[KIJKER], "Kijkertoestel-Zeldzaam-2207", "jl-proef-kijker")
             meet_kijkgegevens(v, kijker_d, film, "plugin verwijderd")
+            meet_watch("terug naar stock, plugin verwijderd", beheer_d)
+            watch_status, _, _ = beheer_d.http.ruw("GET", "/media/v1/watch/capabilities")
+            v.test("JLT-64", "Watch Together-route weg op stock zonder de DLL", watch_status == 404, f"HTTP {watch_status}")
             status, _, _ = Http(d.url).ruw("GET", "/connector/v1/discover")
             v.test("JLT-64", "plugin verwijderd: de server start en de pluginroutes zijn weg", status == 404,
                    f"GET /connector/v1/discover → HTTP {status}")

@@ -449,7 +449,7 @@ jobs:
       # B03-019 (a): runtime-contracttests van UPSTREAM_GEDRAG.md op JL_RUNTIME_IMAGE (stock 12.x op digest).
       - name: Upstream-gedrag op JL_RUNTIME_IMAGE (UG-runtimetests)
         run: >
-          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP"
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$RUNNER_TEMP" --plugin-map "$RUNNER_TEMP/plugin"
           --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
 
       # B03-017 (gate golf 1): dezelfde pluginproef op stock 12.x met de los gebouwde plugin-DLL, plus de run waarin de

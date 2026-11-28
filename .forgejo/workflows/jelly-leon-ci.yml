@@ -541,7 +541,7 @@ jobs:
       - name: Upstream-gedrag op JL_RUNTIME_IMAGE (UG-runtimetests)
         shell: bash .forgejo/proeven/proefomgeving.sh voer {0}
         run: >
-          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$JL_PROEFMAP"
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$JL_RUNTIME_IMAGE" --werkmap "$JL_PROEFMAP" --plugin-map "$JL_PROEFMAP/plugin"
           --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
 
       # B03-017 (gate golf 1): dezelfde pluginproef op stock 12.x met de los gebouwde plugin-DLL, plus de run waarin de

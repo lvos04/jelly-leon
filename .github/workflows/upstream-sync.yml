@@ -173,8 +173,6 @@ jobs:
           runtime="docker.io/jellyfin/jellyfin:$tag@$digest"
           echo "NIEUWE_RUNTIME=$runtime" >> "$GITHUB_ENV"
           echo "- Nieuwe runtime voor UG-tests: \`$runtime\`" >> "$GITHUB_STEP_SUMMARY"
-          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$runtime" --werkmap "$RUNNER_TEMP" \
-            --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
 
       # Kanaal x.y.x uit de global.json van de NIEUWE basis (bv. 12.x: 10.0.0 → 10.0.x); de exacte ondergrens uit
       # global.json bestaat niet als download (zie tools/jelly-leon/dotnet_sdk_kanaal.py).
@@ -202,6 +200,12 @@ jobs:
           set -eu
           dotnet build plugins/JellyLeon.Plugins.sln -c Release
           dotnet test plugins/JellyLeon.Plugins.sln -c Release --no-build --verbosity minimal
+
+      - name: Runtimecontracten met de gebouwde plugin op de nieuwe digest
+        run: |
+          tfm=$(ls plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/)
+          python3 tools/jelly-leon/e2e/upstream_gedrag_runtime.py --image "$NIEUWE_RUNTIME" --werkmap "$RUNNER_TEMP" \
+            --plugin-map "plugins/JellyLeon/src/Jellyfin.Plugin.JellyLeon/bin/Release/$tfm" --rapport "$RUNNER_TEMP/upstream-gedrag-runtime.json"
 
       - name: OpenAPI-wijzigingen van upstream tonen (ter beoordeling, geen automatische acceptatie)
         run: |
